@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>シミュレータ - Warframe Portal</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%230c1114'/%3E%3Cg transform='translate(4 14) scale(.875)' fill='%2380d9e2'%3E%3Cpath fill-rule='evenodd' d='M32 2 60 20 32 38 4 20Z M32 9 49 20 32 31 15 20Z'/%3E%3Cpath d='M32 14 41 20 32 26 23 20Z'/%3E%3C/g%3E%3C/svg%3E">
+<script>
+/* ポータルのメニュー「シミュレータ」の中(iframe)で開いたときは、見出しなどを省いて埋め込み用の表示にする */
+if (window.self !== window.top || /[?&]embed=1/.test(location.search)) document.documentElement.classList.add("embed");
+</script>
+<style>
+/* 配色はポータル本体(wfportal_ui.html)の既定の配色と同じ。ポータルの中で開いたときは、ポータル側の配色で上書きされる */
+:root {
+  --bg: #ecf3f3; --panel: #f7fafa; --panel-2: #deeaeb; --line: #b2cdd0; --ink: #090d0f; --mute: #657476;
+  --primary: #38747a; --primary-bg: #3f8389; --on-primary: #090d0f; --secondary: #0c1114; --on-secondary: #ecf3f3;
+  --accent: #2b757c; --accent-bg: #e6f7f9; --danger: #b2382e; --warn: #9a7410; --up: #1a5fc4; --down: #c2302a;
+  --font: "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", "Meiryo", system-ui, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Consolas, "Yu Gothic UI", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1114; --panel: #111c20; --panel-2: #172a2e; --line: #1f3c40; --ink: #ecf3f3; --mute: #899294;
+    --primary: #5a949a; --primary-bg: #5a949a; --on-primary: #07090b; --accent: #80d9e2; --accent-bg: #233b3f;
+    --danger: #ee7d73; --warn: #e0b84a; --up: #74aaff; --down: #ff7b72; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1114; --panel: #111c20; --panel-2: #172a2e; --line: #1f3c40; --ink: #ecf3f3; --mute: #899294;
+  --primary: #5a949a; --primary-bg: #5a949a; --on-primary: #07090b; --accent: #80d9e2; --accent-bg: #233b3f;
+  --danger: #ee7d73; --warn: #e0b84a; --up: #74aaff; --down: #ff7b72; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.6 var(--font); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+a { color: var(--accent); }
+
+header.top {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 20px;
+  background: var(--secondary); color: var(--on-secondary); position: relative;
+}
+header.top::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+  background: linear-gradient(90deg, var(--primary-bg), var(--accent) 60%, transparent); }
+header.top h1 { margin: 0; font-size: 18px; letter-spacing: .14em; }
+header.top .tag { font-size: 11px; padding: 1px 8px; border: 1px solid var(--accent); color: var(--accent); letter-spacing: .08em; }
+header.top a { color: var(--on-secondary); opacity: .85; margin-left: auto; text-decoration: none; border: 1px solid #ffffff33; padding: 4px 12px; }
+header.top a:hover { opacity: 1; }
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 16px 20px 48px; }
+.datebar { display: flex; gap: 10px 16px; align-items: center; flex-wrap: wrap; color: var(--mute); font-size: 13px; margin-bottom: 12px; }
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--line); margin-bottom: 16px; flex-wrap: wrap; }
+.tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 10px 18px; cursor: pointer; color: var(--mute); }
+.tabs button[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--primary-bg); font-weight: 700; }
+section[hidden] { display: none; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 16px; align-items: start; }
+.panel { background: var(--panel); border: 1px solid var(--line); padding: 14px 16px 16px; min-width: 0; }
+.panel h3 { margin: 0 0 10px; font-size: 15px; }
+.panel h4 { margin: 14px 0 6px; font-size: 13px; color: var(--mute); font-weight: 600; letter-spacing: .04em; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+select, input[type=number], input[type=text], input[type=search] { background: var(--bg); border: 1px solid var(--line); padding: 6px 8px; min-width: 0; }
+select.wide { flex: 1 1 240px; }
+input.find { flex: 0 1 200px; }
+.find-note { font-size: 12px; color: var(--mute); }
+.find-note.none { color: var(--danger); }
+.find-note .btn { margin-left: 4px; }
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+.fields label { display: grid; gap: 2px; font-size: 12px; color: var(--mute); align-content: end; }
+.fields.wide { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.fields input { width: 100%; font-variant-numeric: tabular-nums; }
+label.chk { display: inline-flex; gap: 6px; align-items: center; color: var(--mute); cursor: pointer; }
+.btn { padding: 7px 14px; cursor: pointer; background: var(--primary-bg); color: var(--on-primary); border: 1px solid transparent; font-weight: 700; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); font-weight: 400; }
+.btn.ghost:hover { background: var(--panel-2); }
+.btn.small { padding: 3px 10px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: progress; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { padding: 3px 10px; background: var(--bg); border: 1px solid var(--line); cursor: pointer; font-size: 12px; }
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.chip small { color: var(--mute); margin-left: 4px; }
+
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 12px; color: var(--mute); background: var(--panel-2); font-weight: 600; }
+td.num, th.num { text-align: right; }
+tr:last-child td { border-bottom: 0; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); background: var(--bg); }
+
+.kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.kpi { border: 1px solid var(--line); background: var(--bg); padding: 8px 12px; }
+.kpi span { display: block; font-size: 12px; color: var(--mute); }
+.kpi b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.kpi.hi { border-color: var(--accent); }
+.kpi.hi b { color: var(--accent); }
+.bar { height: 6px; background: var(--panel-2); position: relative; min-width: 90px; }
+.bar i { position: absolute; inset: 0 auto 0 0; width: var(--w); background: linear-gradient(90deg, var(--accent), var(--primary-bg)); }
+.neg { color: var(--danger); }
+/* 基準(100% / 基礎値)より良い: 青、悪い: 赤 */
+.up, .kpi b.up { color: var(--up); }
+.down, .kpi b.down { color: var(--down); }
+.pos { color: var(--accent); }
+.note { color: var(--mute); font-size: 12px; margin: 10px 0 0; }
+.err { color: var(--danger); margin: 8px 0 0; }
+.empty { padding: 24px 8px; color: var(--mute); }
+pre.log { background: var(--bg); border: 1px solid var(--line); padding: 10px; max-height: 240px; overflow: auto; white-space: pre-wrap; font: 12px/1.5 var(--mono); }
+details { margin-top: 10px; }
+summary { cursor: pointer; color: var(--mute); font-size: 13px; }
+
+.abil { border: 1px solid var(--line); background: var(--bg); padding: 8px 12px; margin-top: 8px; }
+.abil b { font-size: 14px; }
+.abil .en { color: var(--mute); font-size: 12px; margin-left: 6px; }
+.abil p { margin: 4px 0 6px; font-size: 13px; }
+.abil .ref { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--mute); }
+.abil .ref input { width: 90px; }
+.abil .ref output { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; min-width: 70px; }
+.elems { display: grid; gap: 6px; }
+.elems .row select { min-width: 110px; }
+.elems .row input { width: 90px; }
+.order { font-size: 11px; color: var(--mute); width: 18px; text-align: right; }
+
+.unofficial { position: fixed; right: 10px; bottom: 8px; font-size: 11px; padding: 2px 8px; background: var(--secondary); color: var(--on-secondary); border: 1px solid var(--line); opacity: .9; pointer-events: none; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } .wrap { padding: 12px 14px 48px; } }
+
+/* ポータルの中に埋め込んだとき: 見出し・非公式表記(ポータル側に表示済み)を省き、背景はポータルに合わせる */
+.embed body { background: transparent; }
+.embed header.top, .embed .unofficial { display: none; }
+.embed .wrap { max-width: none; padding: 0 0 8px; }
+.embed .panel { background: var(--bg); }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>シミュレータ</h1><span class="tag">参考値</span>
+  <a href="/">← ポータルに戻る</a>
+</header>
+
+<div class="wrap">
+  <div class="datebar">
+    <span id="data-info">データを確認中...</span>
+    <button class="btn ghost small" id="update-btn" type="button">シミュレータ用データを取得</button>
+  </div>
+  <pre class="log" id="update-log" hidden></pre>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" data-tab="frame" aria-selected="true">フレーム</button>
+    <button role="tab" data-tab="weapon" aria-selected="false">武器</button>
+    <button role="tab" data-tab="riven" aria-selected="false">Riven 振れ幅</button>
+  </div>
+
+  <!-- フレーム -->
+  <section id="tab-frame">
+    <div class="grid">
+      <div class="panel">
+        <h3>フレームと MOD</h3>
+        <div class="row"><input type="search" class="find" id="f-q" placeholder="フレーム名で検索" autocomplete="off" aria-label="フレームを名前で検索">
+          <select class="wide" id="f-name" aria-label="フレーム"></select>
+          <label class="chk"><input type="checkbox" id="f-rank30" checked> ランク 30</label></div>
+        <div class="find-note" id="f-q-note" aria-live="polite"></div>
+        <h4>耐久(%)</h4>
+        <div class="fields">
+          <label>ヘルス %<input type="number" step="any" data-f="health_pct" value="0"></label>
+          <label>シールド %<input type="number" step="any" data-f="shield_pct" value="0"></label>
+          <label>アーマー %<input type="number" step="any" data-f="armor_pct" value="0"></label>
+          <label>エネルギー %<input type="number" step="any" data-f="energy_pct" value="0"></label>
+        </div>
+        <h4>耐久(固定値: アルケイン・シャードなど)</h4>
+        <div class="fields">
+          <label>ヘルス +<input type="number" step="any" data-f="health_flat" value="0"></label>
+          <label>シールド +<input type="number" step="any" data-f="shield_flat" value="0"></label>
+          <label>アーマー +<input type="number" step="any" data-f="armor_flat" value="0"></label>
+          <label>エネルギー +<input type="number" step="any" data-f="energy_flat" value="0"></label>
+        </div>
+        <h4>アビリティ(100% からの増減 %)</h4>
+        <div class="fields">
+          <label>威力<input type="number" step="any" data-f="strength" value="0"></label>
+          <label>持続時間<input type="number" step="any" data-f="duration" value="0"></label>
+          <label>範囲<input type="number" step="any" data-f="range" value="0"></label>
+          <label>効率<input type="number" step="any" data-f="efficiency" value="0"></label>
+        </div>
+        <h4>MOD(押すと ON / もう一度押すと OFF。最大ランクの参考値)</h4>
+        <div class="chips" id="f-presets"></div>
+        <div class="row" style="margin-top:8px"><button class="btn ghost small" type="button" id="f-reset">入力をすべて 0 に戻す</button></div>
+        <details><summary>ランク 30 で増える量</summary>
+          <div class="fields" style="margin-top:8px">
+            <label>ヘルス<input type="number" step="any" data-rb="health"></label>
+            <label>シールド<input type="number" step="any" data-rb="shield"></label>
+            <label>エネルギー<input type="number" step="any" data-rb="energy"></label>
+          </div>
+          <p class="note">Update 36 以降の多くのフレームは ヘルス・シールド +100、エネルギー +50 です。例外のフレーム(Inaros・Nidus など)はここで直してください。</p>
+        </details>
+      </div>
+      <div class="panel" aria-live="polite">
+        <h3 id="f-title">結果</h3>
+        <div id="f-out"><div class="empty">フレームを選んでください。</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 武器 -->
+  <section id="tab-weapon" hidden>
+    <div class="grid">
+      <div class="panel">
+        <h3>武器と MOD</h3>
+        <div class="chips" id="w-cats" role="group" aria-label="カテゴリー"></div>
+        <div class="row" style="margin-top:8px"><input type="search" class="find" id="w-q" placeholder="武器名で検索" autocomplete="off" aria-label="武器を名前で検索">
+          <select class="wide" id="w-name" aria-label="武器"></select></div>
+        <div class="find-note" id="w-q-note" aria-live="polite"></div>
+        <h4>MOD(合計 %)</h4>
+        <div class="fields" id="w-fields"></div>
+        <h4>属性 MOD(上から順に2つずつ複合)</h4>
+        <div class="elems" id="w-elems"></div>
+        <div class="row" style="margin-top:6px"><button class="btn ghost small" type="button" id="w-elem-add">属性を追加</button></div>
+        <h4>MOD(押すと ON / もう一度押すと OFF。最大ランクの参考値)</h4>
+        <div class="chips" id="w-presets"></div>
+        <div class="row" style="margin-top:8px"><button class="btn ghost small" type="button" id="w-reset">入力をすべて 0 に戻す</button></div>
+      </div>
+      <div class="panel" aria-live="polite">
+        <h3 id="w-title">結果</h3>
+        <div id="w-out"><div class="empty">武器を選んでください。</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Riven -->
+  <section id="tab-riven" hidden>
+    <div class="grid">
+      <div class="panel">
+        <h3>Riven の条件</h3>
+        <div class="row"><input type="search" class="find" id="r-q" placeholder="武器名で検索" autocomplete="off" aria-label="武器を名前で検索">
+          <select class="wide" id="r-weapon" aria-label="武器"></select></div>
+        <div class="find-note" id="r-q-note" aria-live="polite"></div>
+        <div class="fields" style="margin-top:8px">
+          <label>Riven の種類<select id="r-group"></select></label>
+          <label>性質値<input type="number" step="0.01" min="0.5" max="1.55" id="r-dispo" value="1.00"></label>
+          <label>ランク<select id="r-rank"></select></label>
+        </div>
+        <h4>プラス効果(2つか3つ)</h4>
+        <div class="fields wide" id="r-buffs"></div>
+        <h4>マイナス効果</h4>
+        <div class="fields wide"><label>マイナス効果<select id="r-curse"></select></label></div>
+      </div>
+      <div class="panel" aria-live="polite">
+        <h3 id="r-title">振れ幅</h3>
+        <div id="r-out"><div class="empty">効果を選んでください。</div></div>
+      </div>
+    </div>
+  </section>
+
+  <p class="note">参考値です。フレームと武器の基礎値は公式 Public Export(ExportWarframes / ExportWeapons)から、MOD の効果量・Riven の基準値・アビリティの数値は WARFRAME Wiki などの公開情報をもとにしています。ゲームのアップデートで変わることがあるので、入力欄で直しながら使ってください。DPS は敵のアーマー・シールド・弱点、状態異常のダメージ、コンボ倍率、チャージ/バースト武器の特殊な撃ち方を含みません。</p>
+</div>
+<div class="unofficial" role="note">非公式ファンツール / Unofficial fan tool</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const debounce = (fn, ms = 160) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const num = (x, d = 0) => Number.isFinite(x) ? x.toLocaleString("ja-JP", { minimumFractionDigits: d, maximumFractionDigits: d }) : "∞";
+const pct = (x, d = 1) => num(x * 100, d) + "%";
+const sign = (x, d = 1) => (x > 0 ? "+" : "") + num(x, d);
+/* ---------- 検索窓: プルダウンの候補を名前(日本語・英語・ひらがな)で絞り込む ---------- */
+const normQ = s => String(s ?? "").normalize("NFKC").toLowerCase()
+  .replace(/[\u3041-\u3096]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60)).replace(/[\s・\-_'’.,()()]/g, "");
+/** select の候補を絞り込む。「武器を選ばずに…」(value が空)は常に残す。今の選択が外れたら最初の候補を選ぶ */
+function filterSelect(input, sel) {
+  const q = normQ(input.value);
+  let shown = 0, first = null;
+  [...sel.options].forEach(o => {
+    const vis = o.value === "" || !q || normQ(o.textContent).includes(q);
+    o.hidden = !vis; o.disabled = !vis;
+    if (vis && o.value !== "") { shown++; first = first || o; }
+  });
+  sel.querySelectorAll("optgroup").forEach(g => { g.hidden = ![...g.children].some(o => !o.hidden); });
+  const cur = sel.selectedOptions[0];
+  let changed = false;
+  if (q && first && (!cur || cur.hidden || cur.value === "")) { sel.value = first.value; changed = true; }
+  return { q, shown, changed };
+}
+function findNote(id, r, total) {
+  const el = $(id); el.classList.toggle("none", !!r.q && !r.shown);
+  el.textContent = !r.q ? "" : r.shown ? `${r.shown} / ${total} 件` : "一致するものがありません";
+}
+/** a と b を比べて、大きいほど良いなら上がったとき "up" (青)・下がったとき "down" (赤)。lowerIsBetter で逆 */
+function trend(value, base, lowerIsBetter = false) {
+  if (!Number.isFinite(value) || !Number.isFinite(base)) return "";
+  const eps = Math.max(1e-9, Math.abs(base) * 1e-9);
+  if (Math.abs(value - base) <= eps) return "";
+  return (value > base) !== lowerIsBetter ? "up" : "down";
+}
+const nameOf = x => x.ja && x.ja !== x.en ? `${esc(x.ja)} <span class="mini" style="color:var(--mute)">${esc(x.en)}</span>` : esc(x.en);
+
+async function api(path, body) {
+  const init = body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+  const res = await fetch(path, init);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `エラー (${res.status})`);
+  return data;
+}
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("wf-builder-" + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("wf-builder-" + k, JSON.stringify(v)); } catch (e) {} },
+};
+
+let META = null;
+
+/* ---------- タブ ---------- */
+function showTab(t) {
+  $$(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t));
+  ["frame", "weapon", "riven"].forEach(k => { $("#tab-" + k).hidden = k !== t; });
+  store.set("tab", t);
+}
+$$(".tabs button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+
+/* ---------- データ ---------- */
+async function loadMeta() {
+  META = await api("/api/builder/data");
+  $("#data-info").innerHTML = META.has_data
+    ? `フレーム ${META.frames.length} 件 / 武器 ${META.weapons.length} 件 ・ ${esc((META.updated || "").replace("T", " ").replace("+00:00", " UTC"))} 取得(${esc(META.source || "")})`
+    : `<span class="err" style="margin:0">シミュレータ用のデータがありません。メニューの「データ更新」か、右のボタンで取得してください(インターネット接続が必要です)。</span>`;
+  setupFrame(); setupWeapon(); setupRiven();
+}
+$("#update-btn").addEventListener("click", async () => {
+  const btn = $("#update-btn"), log = $("#update-log");
+  btn.disabled = true; btn.textContent = "取得中..."; log.hidden = false; log.textContent = "取得しています。数十秒かかることがあります...";
+  try { const r = await api("/api/builder/update", {}); log.textContent = r.log || (r.ok ? "完了しました。" : "失敗しました。"); await loadMeta(); }
+  catch (e) { log.textContent = e.message; }
+  btn.disabled = false; btn.textContent = "シミュレータ用データを取得";
+});
+
+/* ---------- フレーム ---------- */
+const SCALE_JA = { none: "そのまま", strength: "威力で伸びる", duration: "持続時間で伸びる", range: "範囲で伸びる", cost: "エネルギー消費(効率)", inv_duration: "持続時間で短くなる" };
+let fRefs = store.get("f-refs", {});
+let fOn = store.get("f-on", []);  // ON になっているフレームの MOD ボタン(英語名)  // {フレーム名: {アビリティ番号: {base, scale}}}
+function setupFrame() {
+  if (!META.has_data) { $("#f-name").innerHTML = ""; $("#f-out").innerHTML = `<div class="empty">データがありません。</div>`; return; }
+  const sel = $("#f-name"), cur = store.get("frame", "Excalibur");
+  sel.innerHTML = META.frames.slice().sort((a, b) => a.ja.localeCompare(b.ja, "ja"))
+    .map(f => `<option value="${esc(f.en)}">${esc(f.ja)}${f.ja !== f.en ? ` (${esc(f.en)})` : ""}</option>`).join("");
+  sel.value = META.frames.some(f => f.en === cur) ? cur : META.frames[0].en;
+  $("#f-presets").innerHTML = META.frame_presets.map((p, i) =>
+    `<button class="chip" type="button" data-fp="${i}" aria-pressed="${fOn.includes(p.en)}" title="${esc(p.ja)}: ${esc(Object.entries(p.add).map(([k, v]) => `${k} ${sign(v)}`).join(" / "))}">${esc(p.en)}</button>`).join("");
+  $$("[data-rb]").forEach(i => { if (i.value === "") i.value = META.rank30_bonus[i.dataset.rb]; });
+  const saved = store.get("f-mods", {});
+  $$("[data-f]").forEach(i => { if (saved[i.dataset.f] !== undefined) i.value = saved[i.dataset.f]; });
+  calcFrame();
+}
+function frameMods() {
+  const m = {}; $$("[data-f]").forEach(i => { m[i.dataset.f] = +i.value || 0; }); return m;
+}
+const calcFrame = debounce(async () => {
+  const name = $("#f-name").value; if (!name || !META.has_data) return;
+  store.set("frame", name); store.set("f-mods", frameMods());
+  const rb = {}; $$("[data-rb]").forEach(i => { rb[i.dataset.rb] = +i.value || 0; });
+  const refs = Object.entries(fRefs[name] || {}).filter(([, r]) => r.base !== "" && r.base !== undefined)
+    .map(([id, r]) => ({ id, base: +r.base, scale: r.scale || "none" }));
+  try {
+    const r = await api("/api/builder/frame", { name, rank30: $("#f-rank30").checked, rank_bonus: rb, mods: frameMods(), refs });
+    renderFrame(r);
+  } catch (e) { $("#f-out").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+});
+function renderFrame(r) {
+  const f = r.frame, s = r.stats, a = r.ability, mine = fRefs[f.en] || {};
+  const refVal = Object.fromEntries(r.refs.map(x => [x.id, x.value]));
+  $("#f-title").innerHTML = nameOf(f);
+  const row = (label, k) => `<tr><td>${label}</td><td class="num">${num(s[k].base)}</td><td class="num">${num(s[k].ranked)}</td><td class="num"><b>${num(s[k].modded)}</b></td></tr>`;
+  $("#f-out").innerHTML = `
+    <div class="kpis">
+      <div class="kpi hi"><span>実効ヘルス(参考)</span><b>${num(r.ehp)}</b></div>
+      <div class="kpi"><span>被ダメージ軽減(アーマー)</span><b>${pct(r.damage_reduction)}</b></div>
+      <div class="kpi"><span>スプリント速度</span><b>${num(f.sprint, 2)}</b></div>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>ステータス</th><th class="num">基礎</th><th class="num">ランク${$("#f-rank30").checked ? " 30" : " 0"}</th><th class="num">MOD 適用後</th></tr></thead>
+      <tbody>${row("ヘルス", "health")}${row("シールド", "shield")}${row("アーマー", "armor")}${row("エネルギー", "energy")}</tbody></table></div>
+    <h4>アビリティ性能</h4>
+    <div class="kpis">
+      <div class="kpi"><span>威力</span><b class="${trend(a.strength, 100)}">${num(a.strength)}%</b></div>
+      <div class="kpi"><span>持続時間</span><b class="${trend(a.duration, 100)}">${num(a.duration)}%</b></div>
+      <div class="kpi"><span>範囲</span><b class="${trend(a.range, 100)}">${num(a.range)}%</b></div>
+      <div class="kpi"><span>効率${a.efficiency_capped ? `(上限 175%。入力は ${num(a.efficiency_raw)}%)` : ""}</span><b class="${trend(a.efficiency, 100)}">${num(a.efficiency)}%</b></div>
+      <div class="kpi"><span>エネルギー消費(少ないほど良い)</span><b class="${trend(a.cost, 100, true)}">${num(a.cost)}%</b></div>
+    </div>
+    ${f.passive ? `<h4>パッシブ</h4><p style="margin:0;font-size:13px">${esc(f.passive)}</p>` : ""}
+    <h4>アビリティ(基準値を入れると MOD 適用後の参考値を計算)</h4>
+    ${f.abilities.map((ab, i) => {
+      const ref = mine[i] || {};
+      return `<div class="abil"><b>${i + 1}. ${esc(ab.ja)}</b>${ab.ja !== ab.en ? `<span class="en">${esc(ab.en)}</span>` : ""}
+        ${ab.desc ? `<p>${esc(ab.desc)}</p>` : ""}
+        <div class="ref" data-ref="${i}">基準値 <input type="number" step="any" data-k="base" value="${esc(ref.base ?? "")}" aria-label="${esc(ab.ja)} の基準値">
+          <select data-k="scale" aria-label="伸び方">${Object.entries(SCALE_JA).map(([k, v]) => `<option value="${k}"${(ref.scale || "strength") === k ? " selected" : ""}>${v}</option>`).join("")}</select>
+          → <output>${refVal[i] !== undefined ? num(refVal[i], 2) : "—"}</output></div></div>`;
+    }).join("")}
+    <p class="note">実効ヘルス = ヘルス ÷ (1 − 被ダメージ軽減) + シールド。被ダメージ軽減 = アーマー ÷ (アーマー + 300)。アビリティの数値(ダメージ・範囲など)は公式データに無いため、WARFRAME Wiki などで調べた基準値を入れてください(入力はこの PC のブラウザに保存されます)。</p>`;
+}
+$("#f-out").addEventListener("input", e => {
+  const box = e.target.closest("[data-ref]"); if (!box) return;
+  const name = $("#f-name").value, k = e.target.dataset.k;
+  fRefs[name] = fRefs[name] || {}; fRefs[name][box.dataset.ref] = fRefs[name][box.dataset.ref] || { scale: "strength" };
+  fRefs[name][box.dataset.ref][k] = e.target.value; store.set("f-refs", fRefs); calcFrame();
+});
+$("#f-name").addEventListener("change", calcFrame);
+$("#f-q").addEventListener("input", () => {
+  if (!META || !META.has_data) return;
+  const r = filterSelect($("#f-q"), $("#f-name")); findNote("#f-q-note", r, META.frames.length);
+  if (r.changed) calcFrame();
+});
+$("#f-rank30").addEventListener("change", calcFrame);
+$("#tab-frame").addEventListener("input", e => { if (e.target.matches("[data-f], [data-rb]")) calcFrame(); });
+/* MOD ボタンは ON/OFF。ON で入力欄に足し、OFF で引く(手で直した値はそのまま残る) */
+const addTo = (input, v) => { input.value = Math.round(((+input.value || 0) + v) * 100) / 100; };
+$("#f-presets").addEventListener("click", e => {
+  const c = e.target.closest("[data-fp]"); if (!c) return;
+  const p = META.frame_presets[+c.dataset.fp], on = !fOn.includes(p.en);
+  Object.entries(p.add).forEach(([k, v]) => addTo($(`[data-f="${k}"]`), on ? v : -v));
+  fOn = on ? [...fOn, p.en] : fOn.filter(x => x !== p.en); store.set("f-on", fOn);
+  c.setAttribute("aria-pressed", on);
+  calcFrame();
+});
+$("#f-reset").addEventListener("click", () => {
+  $$("[data-f]").forEach(i => { i.value = 0; }); fOn = []; store.set("f-on", fOn);
+  $$("[data-fp]").forEach(c => c.setAttribute("aria-pressed", "false")); calcFrame();
+});
+
+/* ---------- 武器 ---------- */
+const W_FIELDS = [["damage", "ダメージ"], ["multishot", "マルチショット"], ["cc", "クリティカル率"], ["cd", "クリティカルダメージ"],
+  ["fire_rate", "連射/攻撃速度"], ["status", "状態異常率"], ["faction", "勢力ダメージ"], ["magazine", "マガジン"], ["reload", "リロード速度"],
+  ["impact", "衝撃"], ["puncture", "貫通"], ["slash", "切断"]];
+const MELEE_SKIP = new Set(["multishot", "magazine", "reload"]);
+let wCat = store.get("w-cat", "primary"), wElems = store.get("w-elems", []);
+let wOn = store.get("w-on", {});  // カテゴリーごとに ON になっている武器の MOD ボタン {カテゴリー: [英語名]}
+const wOnList = () => wOn[wCat] || [];
+function setupWeapon() {
+  if (!META.has_data) { $("#w-cats").innerHTML = ""; $("#w-name").innerHTML = ""; $("#w-out").innerHTML = `<div class="empty">データがありません。</div>`; return; }
+  const cnt = {}; META.weapons.forEach(w => { cnt[w.cat] = (cnt[w.cat] || 0) + 1; });
+  if (!cnt[wCat]) wCat = Object.keys(META.cats).find(k => cnt[k]);
+  $("#w-cats").innerHTML = Object.entries(META.cats).filter(([k]) => cnt[k])
+    .map(([k, v]) => `<button class="chip" type="button" data-wc="${k}" aria-pressed="${k === wCat}">${esc(v)}<small>${cnt[k]}</small></button>`).join("");
+  const saved = store.get("w-mods", {});
+  $("#w-fields").innerHTML = W_FIELDS.map(([k, v]) => `<label data-wf-wrap="${k}">${v} %<input type="number" step="any" data-wf="${k}" value="${saved[k] ?? 0}"></label>`).join("");
+  fillWeapons(store.get("weapon", ""));
+}
+function fillWeapons(want) {
+  const list = META.weapons.filter(w => w.cat === wCat).sort((a, b) => a.ja.localeCompare(b.ja, "ja"));
+  $("#w-name").innerHTML = list.map(w => `<option value="${esc(w.en)}">${esc(w.ja)}${w.ja !== w.en ? ` (${esc(w.en)})` : ""}</option>`).join("");
+  if (list.some(w => w.en === want)) $("#w-name").value = want;
+  applyWeaponFind(false);
+  const melee = wCat === "melee";
+  $$("[data-wf-wrap]").forEach(l => { l.hidden = melee && MELEE_SKIP.has(l.dataset.wfWrap); });
+  const presets = META.weapon_presets[wCat] || [];
+  $("#w-presets").innerHTML = presets.map((p, i) => `<button class="chip" type="button" data-wp="${i}" aria-pressed="${wOnList().includes(p.en)}">${esc(p.en)}</button>`).join("") || `<span class="note" style="margin:0">プリセットはありません</span>`;
+  renderElems(); calcWeapon();
+}
+function renderElems() {
+  $("#w-elems").innerHTML = wElems.map((e, i) => `<div class="row" data-ei="${i}"><span class="order">${i + 1}</span>
+    <select data-ek="type" aria-label="属性">${META.elements.map(t => `<option value="${t}"${e.type === t ? " selected" : ""}>${esc(META.damage_types[t])}</option>`).join("")}</select>
+    <input type="number" step="any" data-ek="pct" value="${esc(e.pct)}" aria-label="%"> %
+    <button class="btn ghost small" type="button" data-erm="${i}" aria-label="削除">×</button></div>`).join("")
+    || `<span class="note" style="margin:0">属性 MOD はありません</span>`;
+}
+function weaponMods() {
+  const m = { elements: wElems.filter(e => +e.pct).map(e => ({ type: e.type, pct: +e.pct })) };
+  $$("[data-wf]").forEach(i => { m[i.dataset.wf] = +i.value || 0; });
+  return m;
+}
+const calcWeapon = debounce(async () => {
+  const name = $("#w-name").value; if (!name || !META.has_data) return;
+  const mods = weaponMods(); store.set("weapon", name); store.set("w-cat", wCat); store.set("w-elems", wElems);
+  const save = {}; W_FIELDS.forEach(([k]) => { save[k] = mods[k]; }); store.set("w-mods", save);
+  try { renderWeapon(await api("/api/builder/weapon", { name, cat: wCat, mods })); }
+  catch (e) { $("#w-out").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+});
+/** 武器性能の1行: 基礎より MOD 適用後が良ければ青、悪ければ赤、同じなら色なし(リロードは短いほど良いので逆) */
+function cmpRow(label, base, modded, fmt, bold = false, lowerIsBetter = false) {
+  const cls = trend(modded, base, lowerIsBetter), v = bold ? `<b>${fmt(modded)}</b>` : fmt(modded);
+  return `<tr><td>${label}</td><td class="num">${fmt(base)}</td><td class="num ${cls}">${v}</td></tr>`;
+}
+function renderWeapon(r) {
+  const w = r.weapon, base = Object.entries(w.damage).sort((a, b) => b[1] - a[1]);
+  const baseDmg = Object.values(w.damage).reduce((a, b) => a + b, 0);
+  const max = Math.max(...r.damage.map(d => d.value), 1e-9);
+  $("#w-title").innerHTML = nameOf(w);
+  $("#w-out").innerHTML = `
+    <div class="kpis">
+      <div class="kpi hi"><span>瞬間 DPS(参考)</span><b>${num(r.burst_dps)}</b></div>
+      ${r.sustained_dps !== undefined ? `<div class="kpi hi"><span>リロード込み DPS</span><b>${num(r.sustained_dps)}</b></div>` : ""}
+      <div class="kpi"><span>1${r.melee ? "ヒット" : "発"}の平均(クリティカル込み)</span><b>${num(r.per_shot_avg, 1)}</b></div>
+      <div class="kpi"><span>状態異常 / 秒</span><b>${num(r.status_per_sec, 2)}</b></div>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>項目</th><th class="num">基礎</th><th class="num">MOD 適用後</th></tr></thead><tbody>
+      ${cmpRow(`ダメージ(1${r.melee ? "ヒット" : "発"})`, baseDmg, r.per_hit, x => num(x, 1), true)}
+      ${cmpRow("クリティカル率", w.cc, r.cc, x => pct(x))}
+      ${cmpRow("クリティカル倍率", w.cd, r.cd, x => "×" + num(x, 2))}
+      ${cmpRow("状態異常率", w.sc, r.status, x => pct(x))}
+      ${cmpRow(r.melee ? "攻撃速度" : "連射速度", w.fire_rate, r.fire_rate, x => num(x, 2))}
+      ${r.melee ? "" : cmpRow("マルチショット", w.multishot, r.multishot, x => num(x, 2))}
+      ${r.magazine !== undefined ? cmpRow("マガジン", w.magazine, r.magazine, x => num(x))
+        + cmpRow("リロード(秒・短いほど良い)", w.reload, r.reload, x => num(x, 2), false, true) : ""}
+      <tr><td>Riven 性質</td><td class="num" colspan="2">${num(w.dispo, 2)}(${esc(w.riven_type.replace(" Riven Mod", ""))})</td></tr>
+    </tbody></table></div>
+    <h4>ダメージの内訳(1${r.melee ? "ヒット" : "発"}・MOD 適用後)</h4>
+    <div class="tablewrap"><table><thead><tr><th>種類</th><th class="num">ダメージ</th><th class="num">割合</th><th></th></tr></thead><tbody>
+      ${r.damage.map(d => `<tr><td>${esc(d.ja)}</td><td class="num">${num(d.value, 1)}</td><td class="num">${pct(d.share)}</td>
+        <td style="width:40%"><div class="bar"><i style="--w:${(d.value / max * 100).toFixed(1)}%"></i></div></td></tr>`).join("")}
+    </tbody></table></div>
+    <p class="note">基礎ダメージ: ${base.map(([k, v]) => `${esc(META.damage_types[k] || k)} ${num(v, 2)}`).join(" / ")}。武器に元からある属性は、属性 MOD の後ろに加わって複合します。</p>`;
+}
+$("#w-cats").addEventListener("click", e => {
+  const c = e.target.closest("[data-wc]"); if (!c) return;
+  wCat = c.dataset.wc; $$("[data-wc]").forEach(x => x.setAttribute("aria-pressed", x === c)); fillWeapons("");
+});
+$("#w-name").addEventListener("change", calcWeapon);
+/** 武器の検索。今のカテゴリーに無ければ、見つかったカテゴリーへ移れるボタンを出す */
+function applyWeaponFind(recalc) {
+  const r = filterSelect($("#w-q"), $("#w-name")), inCat = META.weapons.filter(w => w.cat === wCat).length;
+  findNote("#w-q-note", r, inCat);
+  if (r.q && !r.shown) {
+    const other = {};
+    META.weapons.forEach(w => { if (w.cat !== wCat && normQ(`${w.ja} ${w.en}`).includes(r.q)) other[w.cat] = (other[w.cat] || 0) + 1; });
+    const btns = Object.entries(other).map(([c, n]) => `<button class="btn ghost small" type="button" data-wc-jump="${c}">${esc(META.cats[c])}(${n})</button>`).join("");
+    if (btns) { $("#w-q-note").classList.remove("none"); $("#w-q-note").innerHTML = `このカテゴリーにはありません。見つかったカテゴリー:${btns}`; }
+  }
+  if (recalc && r.changed) calcWeapon();
+}
+$("#w-q").addEventListener("input", () => { if (META && META.has_data) applyWeaponFind(true); });
+$("#w-q-note").addEventListener("click", e => {
+  const b = e.target.closest("[data-wc-jump]"); if (!b) return;
+  wCat = b.dataset.wcJump; $$("[data-wc]").forEach(x => x.setAttribute("aria-pressed", x.dataset.wc === wCat)); fillWeapons("");
+});
+$("#w-fields").addEventListener("input", calcWeapon);
+$("#w-elem-add").addEventListener("click", () => { wElems.push({ type: "heat", pct: 90 }); renderElems(); calcWeapon(); });
+$("#w-elems").addEventListener("input", e => {
+  const row = e.target.closest("[data-ei]"); if (!row) return;
+  wElems[+row.dataset.ei][e.target.dataset.ek] = e.target.value; calcWeapon();
+});
+$("#w-elems").addEventListener("change", e => { if (e.target.matches("select")) { const row = e.target.closest("[data-ei]"); wElems[+row.dataset.ei].type = e.target.value; calcWeapon(); } });
+$("#w-elems").addEventListener("click", e => {
+  const b = e.target.closest("[data-erm]"); if (!b) return;
+  const [gone] = wElems.splice(+b.dataset.erm, 1);
+  if (gone && gone.src) {  // MOD ボタンで足した属性を × で消したら、そのボタンも OFF にする
+    Object.keys(wOn).forEach(c => { wOn[c] = wOn[c].filter(x => x !== gone.src); }); store.set("w-on", wOn);
+    $$("[data-wp]").forEach(x => { if (x.textContent === gone.src) x.setAttribute("aria-pressed", "false"); });
+  }
+  renderElems(); calcWeapon();
+});
+$("#w-presets").addEventListener("click", e => {
+  const c = e.target.closest("[data-wp]"); if (!c) return;
+  const p = META.weapon_presets[wCat][+c.dataset.wp], on = !wOnList().includes(p.en);
+  Object.entries(p.add || {}).forEach(([k, v]) => { const i = $(`[data-wf="${k}"]`); if (i) addTo(i, on ? v : -v); });
+  if (p.element) {
+    // 属性 MOD は、ON で行を追加し、OFF でそのボタンが追加した行を取り除く
+    if (on) wElems.push({ type: p.element[0], pct: p.element[1], src: p.en });
+    else { const k = wElems.findIndex(e => e.src === p.en); if (k >= 0) wElems.splice(k, 1); }
+    renderElems();
+  }
+  wOn[wCat] = on ? [...wOnList(), p.en] : wOnList().filter(x => x !== p.en); store.set("w-on", wOn);
+  c.setAttribute("aria-pressed", on);
+  calcWeapon();
+});
+$("#w-reset").addEventListener("click", () => {
+  $$("[data-wf]").forEach(i => { i.value = 0; }); wElems = []; wOn = {}; store.set("w-on", wOn);
+  $$("[data-wp]").forEach(c => c.setAttribute("aria-pressed", "false")); renderElems(); calcWeapon();
+});
+
+/* ---------- Riven ---------- */
+function setupRiven() {
+  const R = META.riven;
+  $("#r-group").innerHTML = Object.entries(R.groups).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  $("#r-rank").innerHTML = Array.from({ length: 9 }, (_, i) => `<option value="${8 - i}">${8 - i}${8 - i === 8 ? "(最大)" : ""}</option>`).join("");
+  const ws = META.has_data ? META.weapons : [];
+  $("#r-weapon").innerHTML = `<option value="">武器を選ばずに入力する</option>` + Object.entries(META.cats).map(([c, label]) => {
+    const list = ws.filter(w => w.cat === c).sort((a, b) => a.ja.localeCompare(b.ja, "ja"));
+    return list.length ? `<optgroup label="${esc(label)}">${list.map(w => `<option value="${esc(c + "|" + w.en)}">${esc(w.ja)}${w.ja !== w.en ? ` (${esc(w.en)})` : ""} — ${num(w.dispo, 2)}</option>`).join("")}</optgroup>` : "";
+  }).join("");
+  const s = store.get("riven", {});
+  if (s.weapon && [...$("#r-weapon").options].some(o => o.value === s.weapon)) $("#r-weapon").value = s.weapon;
+  if (s.group) $("#r-group").value = s.group;
+  if (s.dispo) $("#r-dispo").value = s.dispo;
+  if (s.rank !== undefined) $("#r-rank").value = s.rank;
+  renderRivenSelects(s.buffs || ["cc", "cd", ""], s.curse || "");
+  calcRiven();
+}
+function rivenStatOptions(selected, allowNone) {
+  const g = $("#r-group").value;
+  return (allowNone ? `<option value="">${allowNone}</option>` : "") + META.riven.stats.filter(st => st.base[g] !== undefined)
+    .map(st => `<option value="${st.key}"${st.key === selected ? " selected" : ""}>${esc(st.ja)}</option>`).join("");
+}
+function renderRivenSelects(buffs, curse) {
+  $("#r-buffs").innerHTML = [0, 1, 2].map(i => `<label>効果 ${i + 1}<select data-rb-i="${i}">${rivenStatOptions(buffs[i] || "", i === 2 ? "(なし: 2つ)" : "選んでください")}</select></label>`).join("");
+  $("#r-curse").innerHTML = rivenStatOptions(curse, "(なし)");
+}
+function applyRivenWeapon() {
+  const v = $("#r-weapon").value; if (!v) return;
+  const [cat, en] = v.split("|"), w = META.weapons.find(x => x.cat === cat && x.en === en); if (!w) return;
+  $("#r-dispo").value = w.dispo.toFixed(2);
+  $("#r-group").value = META.riven_type_group[w.riven_type] || "rifle";
+}
+const calcRiven = debounce(async () => {
+  const buffs = $$("[data-rb-i]").map(s => s.value).filter(Boolean), curse = $("#r-curse").value;
+  store.set("riven", { weapon: $("#r-weapon").value, group: $("#r-group").value, dispo: $("#r-dispo").value, rank: $("#r-rank").value,
+    buffs: $$("[data-rb-i]").map(s => s.value), curse });
+  if (buffs.length < 2) { $("#r-out").innerHTML = `<div class="empty">プラス効果を 2 つ以上選んでください。</div>`; return; }
+  try {
+    const r = await api("/api/builder/riven", { group: $("#r-group").value, dispo: $("#r-dispo").value, rank: +$("#r-rank").value, buffs, curse: curse || null });
+    renderRiven(r, buffs.length, !!curse);
+  } catch (e) { $("#r-out").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+});
+function renderRiven(r, nb, curse) {
+  const m = META.riven.modifiers.find(x => x.buffs === nb && x.curse === curse);
+  const fmt = (x, unit) => `${x > 0 ? "+" : ""}${num(x, unit === "%" ? 1 : 2)}${unit}`;
+  $("#r-title").textContent = `振れ幅(${META.riven.groups[r.group]} / 性質 ${num(r.dispo, 2)} / ランク ${r.rank})`;
+  $("#r-out").innerHTML = `
+    <div class="tablewrap"><table><thead><tr><th>効果</th><th class="num">最小</th><th class="num">最大</th><th class="num">ランク 0 の範囲</th></tr></thead><tbody>
+      ${r.rows.map(x => `<tr><td class="${x.negative ? "neg" : "pos"}">${x.negative ? "−" : "+"} ${esc(x.ja)}</td>
+        <td class="num">${fmt(x.min, x.unit)}</td><td class="num">${fmt(x.max, x.unit)}</td>
+        <td class="num" style="color:var(--mute)">${fmt(x.min_r0, x.unit)} 〜 ${fmt(x.max_r0, x.unit)}</td></tr>`).join("")}
+    </tbody></table></div>
+    <p class="note">値 = 基準値 × 性質値 × 効果数の補正 × 乱数(0.9〜1.1)。ランク r では × (r + 1) ÷ 9。
+      この構成の補正: プラス効果 ×${m ? m.buff : "?"}${curse && m ? ` / マイナス効果 ×${m.curse_m}` : ""}。
+      基準値は WARFRAME Wiki 掲載の値(一部の効果は列の対応が推定、Kitgun はピストル・コンパニオン武器はライフルの値で代用)です。</p>`;
+}
+$("#r-q").addEventListener("input", () => {
+  if (!META) return;
+  const r = filterSelect($("#r-q"), $("#r-weapon")); findNote("#r-q-note", r, META.has_data ? META.weapons.length : 0);
+  if (r.changed) $("#r-weapon").dispatchEvent(new Event("change"));
+});
+$("#r-weapon").addEventListener("change", () => { applyRivenWeapon(); renderRivenSelects($$("[data-rb-i]").map(s => s.value), $("#r-curse").value); calcRiven(); });
+$("#r-group").addEventListener("change", () => { renderRivenSelects($$("[data-rb-i]").map(s => s.value), $("#r-curse").value); calcRiven(); });
+["#r-dispo", "#r-rank", "#r-buffs", "#r-curse"].forEach(id => { $(id).addEventListener("input", calcRiven); $(id).addEventListener("change", calcRiven); });
+
+/* ---------- 起動 ---------- */
+showTab(store.get("tab", "frame"));
+loadMeta().catch(e => { $("#data-info").innerHTML = `<span class="err" style="margin:0">${esc(e.message)}</span>`; });
+/* ポータル側から「データ更新」の後などに読み直せるようにする */
+window.wfReload = () => loadMeta().catch(e => { $("#data-info").innerHTML = `<span class="err" style="margin:0">${esc(e.message)}</span>`; });
+</script>
+</body>
+</html>

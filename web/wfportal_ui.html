@@ -1,0 +1,1757 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warframe Portal</title>
+<!-- ICON:HEAD:START -->
+<!-- 既定はオリジナルの図形。公式ロゴは同梱せず、取得済みならヘッダーに表示する(下の applyLogo) -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%230c1114'/%3E%3Cg transform='translate(4 14) scale(.875)' fill='%2380d9e2'%3E%3Cpath fill-rule='evenodd' d='M32 2 60 20 32 38 4 20Z M32 9 49 20 32 31 15 20Z'/%3E%3Cpath d='M32 14 41 20 32 26 23 20Z'/%3E%3C/g%3E%3C/svg%3E">
+<!-- ICON:HEAD:END -->
+<style>
+/* レイアウト: ヘッダー / 左メニュー / 右の表示画面。配色は下のテーマブロックで変更できます(開発用の tools/extract_theme.py で画像から作ることもできます) */
+/* THEME:START */
+/* 配色: プライマリ #3f8389 / セカンダリ #0c1114 / アクセント #80d9e2 */
+:root {
+  --bg: #ecf3f3;
+  --panel: #f7fafa;
+  --panel-2: #deeaeb;
+  --line: #b2cdd0;
+  --ink: #090d0f;
+  --mute: #657476;
+  --primary: #38747a;
+  --primary-bg: #3f8389;
+  --on-primary: #090d0f;
+  --secondary: #0c1114;
+  --on-secondary: #ecf3f3;
+  --accent: #2b757c;
+  --accent-bg: #e6f7f9;
+  --danger: #b2382e;
+  --rar-common: #8a6a42;
+  --rar-uncommon: #566d84;
+  --rar-rare: #9a7410;
+  --rar-legendary: #7a40b4;
+  --font: "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", "Meiryo", system-ui, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Consolas, "Yu Gothic UI", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1114;
+    --panel: #111c20;
+    --panel-2: #172a2e;
+    --line: #1f3c40;
+    --ink: #ecf3f3;
+    --mute: #899294;
+    --primary: #5a949a;
+    --primary-bg: #5a949a;
+    --on-primary: #07090b;
+    --secondary: #0c1114;
+    --on-secondary: #ecf3f3;
+    --accent: #80d9e2;
+    --accent-bg: #233b3f;
+    --danger: #ee7d73;
+    --rar-common: #b99468;
+    --rar-uncommon: #9db1c6;
+    --rar-rare: #e0b84a;
+    --rar-legendary: #b88af0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1114;
+  --panel: #111c20;
+  --panel-2: #172a2e;
+  --line: #1f3c40;
+  --ink: #ecf3f3;
+  --mute: #899294;
+  --primary: #5a949a;
+  --primary-bg: #5a949a;
+  --on-primary: #07090b;
+  --secondary: #0c1114;
+  --on-secondary: #ecf3f3;
+  --accent: #80d9e2;
+  --accent-bg: #233b3f;
+  --danger: #ee7d73;
+  --rar-common: #b99468;
+  --rar-uncommon: #9db1c6;
+  --rar-rare: #e0b84a;
+  --rar-legendary: #b88af0;
+  color-scheme: dark;
+}
+/* THEME:END */
+/* ICON:CSS:START */
+:root { --logo-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 40'%3E%3Cpath fill='%23000' fill-rule='evenodd' d='M32 2 60 20 32 38 4 20Z M32 9 49 20 32 31 15 20Z'/%3E%3Cpath fill='%23000' d='M32 14 41 20 32 26 23 20Z'/%3E%3C/svg%3E"); --logo-ratio: 1.6; }
+/* ICON:CSS:END */
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.6 var(--font);
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { display: grid; grid-template-rows: auto 1fr; min-height: 100%; }
+
+/* ---- ヘッダー ---- */
+header {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 12px 20px; background: var(--secondary); color: var(--on-secondary);
+  border-bottom: 1px solid var(--line); position: relative;
+}
+header::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+  background: linear-gradient(90deg, var(--primary-bg), var(--accent) 60%, transparent);
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo {
+  --h: 30px; height: var(--h); width: calc(var(--h) * var(--logo-ratio, 1.6)); flex: none;
+  background: linear-gradient(135deg, var(--on-secondary), var(--primary-bg) 85%);
+  -webkit-mask: var(--logo-url) center / contain no-repeat; mask: var(--logo-url) center / contain no-repeat;
+}
+.brand h1 { margin: 0; font-size: 18px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; }
+.brand small { color: var(--mute); letter-spacing: .08em; }
+.brand .ver { font-size: 12px; opacity: .8; font-variant-numeric: tabular-nums; }
+.spacer { flex: 1; }
+.pill {
+  font-size: 12px; padding: 3px 10px; border: 1px solid var(--line); background: transparent;
+  color: var(--on-secondary); opacity: .85; font-variant-numeric: tabular-nums;
+}
+.pill.warn { color: var(--danger); border-color: var(--danger); opacity: 1; }
+
+/* ---- 非公式表記(右下に常時表示) ---- */
+.unofficial {
+  position: fixed; right: 10px; bottom: 8px; z-index: 1000; pointer-events: none;
+  font-size: 11px; line-height: 1.4; padding: 2px 8px; border-radius: 4px;
+  background: var(--secondary); color: var(--on-secondary); border: 1px solid var(--line); opacity: .9; letter-spacing: .02em;
+}
+.app { padding-bottom: 28px; }
+@media print { .unofficial { position: static; display: block; text-align: right; } }
+
+/* ---- 本体: 左メニュー + 表示画面 ---- */
+.body { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 16px; padding: 16px 20px 24px; }
+nav { display: flex; flex-direction: column; gap: 6px; align-content: start; }
+nav .label { font-size: 11px; letter-spacing: .14em; color: var(--mute); margin: 2px 4px 4px; text-transform: uppercase; }
+nav button {
+  text-align: left; padding: 10px 14px; background: var(--panel); border: 1px solid var(--line);
+  border-left: 3px solid transparent; cursor: pointer;
+}
+nav button:hover { background: var(--panel-2); }
+nav button[aria-current="page"] {
+  background: var(--panel-2); border-left-color: var(--primary-bg); color: var(--primary); font-weight: 700;
+}
+nav button .sub { display: block; font-size: 11px; font-weight: 400; color: var(--mute); }
+
+main { background: var(--panel); border: 1px solid var(--line); padding: 20px 22px 28px; min-height: 60vh; min-width: 0; }
+main h2 { margin: 0 0 4px; font-size: 18px; }
+main .lead { margin: 0 0 16px; color: var(--mute); }
+section[hidden] { display: none; }
+
+/* ---- 部品 ---- */
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+input[type=text], input[type=number], select, textarea {
+  background: var(--bg); border: 1px solid var(--line); padding: 8px 10px; min-width: 0;
+}
+input[type=text].search { flex: 1 1 260px; font-size: 15px; }
+textarea { width: 100%; resize: vertical; }
+label.chk { display: inline-flex; gap: 6px; align-items: center; color: var(--mute); cursor: pointer; }
+.btn {
+  padding: 8px 16px; cursor: pointer; background: var(--primary-bg); color: var(--on-primary);
+  border: 1px solid transparent; font-weight: 700;
+}
+.btn:hover { filter: brightness(1.06); }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); font-weight: 400; }
+.btn.ghost:hover { background: var(--panel-2); }
+.btn.danger { background: transparent; color: var(--danger); border-color: var(--danger); font-weight: 400; }
+.btn.danger.armed { background: var(--danger); color: var(--bg); font-weight: 700; }
+.btn:disabled { opacity: .5; cursor: progress; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; }
+.chip {
+  padding: 4px 12px; background: var(--bg); border: 1px solid var(--line); cursor: pointer; text-align: left;
+}
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.chip small { color: var(--mute); margin-left: 6px; }
+
+.result-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 18px 0 8px; }
+.result-head h3 { margin: 0; font-size: 17px; }
+.result-head .en { color: var(--mute); }
+.count { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; color: var(--mute); background: var(--panel-2); letter-spacing: .06em; font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; }
+.chance { display: flex; align-items: center; gap: 10px; min-width: 160px; }
+.chance .bar { flex: 1; height: 6px; background: var(--panel-2); position: relative; }
+.chance .bar i { position: absolute; inset: 0 auto 0 0; width: var(--w); background: linear-gradient(90deg, var(--accent), var(--primary-bg)); }
+.chance b { width: 62px; text-align: right; font-weight: 600; }
+.rar { font-size: 12px; padding: 1px 8px; border: 1px solid currentColor; }
+.rar.Common { color: var(--rar-common); } .rar.Uncommon { color: var(--rar-uncommon); }
+.rar.Rare { color: var(--rar-rare); } .rar.Legendary { color: var(--rar-legendary); }
+.tag-event { color: var(--accent); font-size: 12px; margin-left: 6px; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 14px; margin-top: 14px; }
+.card { border: 1px solid var(--line); background: var(--bg); min-width: 0; }
+.card > header { color: var(--ink); padding: 9px 14px; background: var(--panel-2); border: 0; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.card > header::after { display: none; }
+.card > header b { font-size: 15px; }
+.card > header span { color: var(--mute); }
+.card .tablewrap { border: 0; }
+.card td:first-child { color: var(--accent); width: 1%; }
+
+.note { color: var(--mute); font-size: 12px; margin-top: 12px; }
+.empty { padding: 28px 8px; color: var(--mute); }
+.err { color: var(--danger); margin: 10px 0 0; }
+
+/* サイクル */
+.clock { font-family: var(--mono); font-size: 28px; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.cyc-phase { font-size: 20px; font-weight: 700; }
+.cyc-phase.day, .cyc-phase.warm { color: var(--primary); }
+.cyc-phase.night, .cyc-phase.cold { color: var(--accent); }
+.card .pad { padding: 14px; display: grid; gap: 4px; }
+details { margin-top: 18px; border: 1px solid var(--line); padding: 10px 14px; background: var(--bg); }
+summary { cursor: pointer; font-weight: 700; }
+details form { margin-top: 12px; }
+
+/* ビルド */
+.field { display: grid; gap: 4px; min-width: 0; }
+.field > span { font-size: 12px; color: var(--mute); }
+.formgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.build h4 { margin: 0; }
+.build ol { margin: 6px 0 0; padding-left: 22px; }
+.build .meta { color: var(--mute); }
+.build .acts { display: flex; gap: 8px; margin-top: 10px; }
+.build .tags span { color: var(--accent); margin-right: 8px; }
+.build .arcs { margin: 6px 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.mini.err { color: var(--danger); }
+.arc { font-size: 12px; padding: 1px 8px; border: 1px solid var(--rar-legendary); color: var(--rar-legendary); }
+
+pre.log { background: var(--bg); border: 1px solid var(--line); padding: 12px; overflow: auto; max-height: 340px; white-space: pre-wrap; font-family: var(--mono); font-size: 12.5px; }
+dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 18px; margin: 0 0 16px; }
+dl.kv dt { color: var(--mute); } dl.kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+/* 入手先の種類 */
+.cat { font-size: 12px; padding: 1px 8px; background: var(--panel-2); border: 1px solid var(--line); white-space: nowrap; }
+.cat.enemy { border-color: var(--danger); color: var(--danger); }
+.cat.bounty, .cat.special, .cat.key, .cat.sortie { border-color: var(--rar-rare); color: var(--rar-rare); }
+.cat.relic { border-color: var(--rar-legendary); color: var(--rar-legendary); }
+.cat.mission { border-color: var(--accent); color: var(--accent); }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.sub-en { color: var(--mute); font-size: 12px; margin-left: 6px; }
+td.wrap { white-space: normal; min-width: 180px; }
+
+/* 表: 並べ替えできる見出し */
+th.sort { cursor: pointer; user-select: none; }
+th.sort:hover { color: var(--ink); }
+th.sort[aria-sort="ascending"]::after { content: " ▲"; }
+th.sort[aria-sort="descending"]::after { content: " ▼"; }
+.tablewrap.tall { max-height: 68vh; overflow: auto; }
+.tablewrap.tall thead th { position: sticky; top: 0; z-index: 1; }
+
+/* MOD 一覧 */
+.summary { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 12px 0 8px; color: var(--mute); }
+.progress { width: 220px; max-width: 100%; height: 8px; background: var(--panel-2); position: relative; }
+.progress i { position: absolute; inset: 0 auto 0 0; width: var(--w); background: linear-gradient(90deg, var(--accent), var(--primary-bg)); }
+tr.owned td { background: color-mix(in srgb, var(--accent-bg) 55%, transparent); }
+tr.mod-row { cursor: pointer; }
+tr.mod-row:hover td { background: var(--panel-2); }
+tr.detail > td { background: var(--bg); padding: 10px 14px 14px; white-space: normal; }
+tr.detail table { font-size: 13px; }
+.badges { display: flex; gap: 4px; flex-wrap: wrap; }
+.none { color: var(--mute); }
+input.own { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent); }
+.mini { font-size: 12px; color: var(--mute); }
+
+/* ゲーム画面の読み取り */
+.btn.live[aria-pressed="true"] { background: var(--danger); color: var(--bg); border-color: var(--danger); font-weight: 700; }
+.btn.live[aria-pressed="true"]::before { content: "● "; }
+.scan { margin: 10px 0; border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--bg); padding: 10px 14px; display: grid; gap: 8px; }
+.scan-head { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.scan video { width: 220px; max-width: 100%; aspect-ratio: 16 / 9; background: var(--panel-2); border: 1px solid var(--line); object-fit: contain; }
+.scan .chips { margin: 4px 0 0; }
+.scan .chip .x { margin-left: 6px; color: var(--danger); }
+
+/* Riven */
+td.med { font-weight: 700; }
+.veiled { color: var(--mute); }
+/* Riven 性質 */
+.dots { letter-spacing: .12em; font-size: 13px; white-space: nowrap; }
+/* ◯ は日本語フォントで●より大きく見えるため、縮めて大きさをそろえる(文字はそのまま。コピーすると ●●●◯◯) */
+.dots .off { color: var(--mute); opacity: .55; font-size: .66em; letter-spacing: .32em; vertical-align: .12em; margin-left: .1em; }
+.dots.d5, .dots.d4 { color: var(--accent); }
+.dots.d3 { color: color-mix(in srgb, var(--ink) 70%, transparent); }
+.dots.d2, .dots.d1 { color: var(--mute); }
+.legend { display: flex; gap: 4px 14px; flex-wrap: wrap; font-size: 12px; color: var(--mute); }
+.legend .dots { font-size: 12px; }
+
+/* シミュレータ (iframe の高さは中身に合わせて自動で変える) */
+.sim-frame { display: block; width: 100%; min-height: 420px; border: 0; background: transparent; }
+
+/* Tips: 目次 + 表示エリア */
+.tips { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 14px; margin-top: 14px; align-items: start; }
+.tips-toc { border: 1px solid var(--line); background: var(--bg); padding: 6px 0; position: sticky; top: 12px; max-height: calc(100vh - 40px); overflow: auto; }
+.tips-toc .grp { font-size: 11px; letter-spacing: .1em; color: var(--mute); padding: 10px 14px 2px; }
+.tips-toc a { display: block; padding: 6px 14px; color: var(--ink); text-decoration: none; border-left: 3px solid transparent; overflow-wrap: anywhere; }
+.tips-toc a:hover { background: var(--panel-2); }
+.tips-toc a[aria-current="true"] { border-left-color: var(--primary-bg); background: var(--panel-2); color: var(--primary); font-weight: 700; }
+.tips-toc a.in-grp { padding-left: 22px; }
+.tips-toc .heads a { padding: 3px 14px 3px 30px; font-size: 12px; color: var(--mute); }
+.tips-toc .heads.in-grp a { padding-left: 38px; }
+.tips-toc .heads a.h3 { padding-left: 42px; }
+.tips-toc .heads.in-grp a.h3 { padding-left: 50px; }
+.tips-body { border: 1px solid var(--line); background: var(--bg); padding: 16px 20px 22px; min-width: 0; min-height: 240px; overflow-wrap: anywhere; }
+.tips-body .tip-meta { font-size: 12px; color: var(--mute); margin: 0 0 10px; }
+.tips-body h1 { font-size: 20px; margin: 0 0 12px; }
+.tips-body h2 { font-size: 17px; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+.tips-body h3 { font-size: 15px; margin: 18px 0 6px; }
+.tips-body h4, .tips-body h5, .tips-body h6 { font-size: 14px; margin: 14px 0 4px; }
+.tips-body p { margin: 0 0 10px; }
+.tips-body ul, .tips-body ol { margin: 0 0 10px; padding-left: 24px; }
+.tips-body li > ul, .tips-body li > ol { margin: 0; }
+.tips-body li.task { list-style: none; margin-left: -20px; }
+.tips-body li.task input { margin: 0 6px 0 0; vertical-align: -2px; accent-color: var(--accent); }
+.tips-body .tablewrap { margin: 0 0 12px; }
+.tips-body td, .tips-body th { white-space: normal; min-width: 64px; vertical-align: top; }
+.tips-body th { color: var(--ink); }
+.tips-body code { font-family: var(--mono); font-size: 12.5px; background: var(--panel-2); padding: 1px 5px; }
+.tips-body pre { font-family: var(--mono); font-size: 12.5px; background: var(--panel-2); border: 1px solid var(--line); padding: 10px 12px; overflow: auto; white-space: pre-wrap; margin: 0 0 12px; }
+.tips-body pre code { background: none; padding: 0; }
+.tips-body blockquote { margin: 0 0 12px; padding: 4px 14px; border-left: 3px solid var(--accent); color: var(--mute); }
+.tips-body hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+.tips-body img { max-width: 100%; height: auto; border: 1px solid var(--line); }
+.tips-body a { color: var(--accent); }
+.tips-body mark { background: var(--accent-bg); color: var(--accent); padding: 0 3px; }
+
+/* ビルド画像 */
+.dropzone {
+  border: 1px dashed var(--line); background: var(--bg); padding: 14px; text-align: center; color: var(--mute);
+  cursor: pointer;
+}
+.dropzone:hover, .dropzone.over { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.thumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.thumb { position: relative; width: 104px; height: 66px; border: 1px solid var(--line); background: var(--panel-2); padding: 0; cursor: zoom-in; overflow: hidden; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb .x {
+  position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; line-height: 20px; padding: 0;
+  background: var(--secondary); color: var(--on-secondary); border: 1px solid var(--line); cursor: pointer; font-size: 14px;
+}
+.thumb .new { position: absolute; left: 2px; bottom: 2px; font-size: 10px; padding: 0 4px; background: var(--accent); color: var(--bg); }
+.build .thumbs .thumb { width: 120px; height: 76px; }
+/* 画像の自動解析 */
+.ocr { margin-top: 10px; border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--bg); padding: 10px 14px; }
+.ocr h5 { margin: 0 0 6px; font-size: 14px; }
+.ocr dl.kv { margin: 0 0 8px; }
+.ocr ol { margin: 4px 0 8px; padding-left: 22px; columns: 2 260px; column-gap: 24px; }
+.ocr li { break-inside: avoid; padding: 1px 0; }
+.pol { font-size: 12px; color: var(--mute); margin-left: 6px; }
+.slot { font-size: 11px; padding: 0 6px; margin-left: 6px; border: 1px solid var(--line); color: var(--mute); }
+.slot.match { border-color: var(--accent); color: var(--accent); }
+.slot.mismatch { border-color: var(--danger); color: var(--danger); }
+.check { font-size: 11px; margin-left: 6px; color: var(--danger); }
+.ocr .busy { color: var(--mute); }
+dialog#lightbox { padding: 0; border: 1px solid var(--line); background: var(--secondary); color: var(--on-secondary); max-width: 96vw; max-height: 96vh; }
+dialog#lightbox::backdrop { background: rgba(0, 0, 0, .78); }
+dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 46px); object-fit: contain; margin: 0 auto; }
+.lb-bar { display: flex; align-items: center; gap: 10px; padding: 6px 10px; }
+.lb-bar .btn { padding: 4px 12px; color: var(--on-secondary); text-decoration: none; }
+.lb-bar .btn:hover { background: rgba(255, 255, 255, .1); }
+.lb-bar span { flex: 1; text-align: center; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 760px) {
+  .body { grid-template-columns: minmax(0, 1fr); padding: 12px 16px 20px; }
+  nav { flex-direction: row; flex-wrap: wrap; }
+  nav .label { display: none; }
+  nav button { flex: 1 1 130px; }
+  nav button .sub { display: none; }
+  main { padding: 16px; }
+  .tips { grid-template-columns: minmax(0, 1fr); }
+  .tips-toc { position: static; max-height: 40vh; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <span class="logo" role="img" aria-label="Warframe Portal"></span>
+      <div><h1>Warframe Portal</h1></div>
+      <small class="ver" id="app-ver"></small>
+    </div>
+    <div class="spacer"></div>
+    <span class="pill" id="status-pill">データ確認中...</span>
+  </header>
+
+  <div class="body">
+    <nav aria-label="メニュー">
+      <div class="label">Menu</div>
+      <button data-view="item">素材から探す<span class="sub">素材名 → 入手場所と確率</span></button>
+      <button data-view="area">エリアから探す<span class="sub">惑星・ノード → 出る素材</span></button>
+      <button data-view="mods">MOD入手一覧<span class="sub">入手先と所持チェック</span></button>
+      <button data-view="riven">Riven相場<span class="sub">公式の週次統計</span></button>
+      <button data-view="dispo">Riven性質<span class="sub">武器ごとの性質(●1〜5)</span></button>
+      <button data-view="mastery">マスター一覧<span class="sub">Warframe・武器のマスター状況</span></button>
+      <button data-view="cycle">サイクル<span class="sub">昼夜・リセット</span></button>
+      <button data-view="build">ビルド<span class="sub">登録と管理</span></button>
+      <button data-view="sim">シミュレータ<span class="sub">フレーム・武器・Riven の計算</span></button>
+      <button data-view="tips">Tips<span class="sub">すぐ見たいメモ</span></button>
+      <button data-view="update">データ更新<span class="sub">公式データの取得</span></button>
+    </nav>
+
+    <main>
+      <!-- 素材から探す -->
+      <section id="view-item" hidden>
+        <h2>素材から探す</h2>
+        <p class="lead">素材名(日本語・英語・ひらがな)を入力すると、ミッション・敵・バウンティ・レリックなどの入手先と確率を一覧にします。</p>
+        <div class="row">
+          <input type="text" class="search" id="item-q" placeholder="例: ニューロード / neurodes" autocomplete="off">
+          <label class="chk"><input type="checkbox" id="item-mat" checked> 素材のみ</label>
+          <label class="chk"><input type="checkbox" id="item-ev"> イベント限定を含む</label>
+        </div>
+        <div class="chips" id="item-chips"></div>
+        <div id="item-out"></div>
+      </section>
+
+      <!-- エリアから探す -->
+      <section id="view-area" hidden>
+        <h2>エリアから探す</h2>
+        <p class="lead">惑星またはノード名を選ぶと、出現ステージごとに素材と確率を表示します。</p>
+        <div class="row">
+          <input type="text" class="search" id="area-q" placeholder="例: 地球 / Cervantes" autocomplete="off">
+          <label class="chk"><input type="checkbox" id="area-all"> 素材以外(MOD・設計図)も表示</label>
+          <label class="chk"><input type="checkbox" id="area-ev"> イベント限定を含む</label>
+        </div>
+        <div class="chips" id="area-chips"></div>
+        <div id="area-out"></div>
+      </section>
+
+      <!-- MOD 入手一覧 -->
+      <section id="view-mods" hidden>
+        <h2>MOD入手一覧</h2>
+        <p class="lead">すべての MOD の入手先(ミッション・敵・バウンティ等)をまとめた表です。行をクリックすると入手先の詳細、左端のチェックで所持状況を記録できます。</p>
+        <div class="row">
+          <input type="text" class="search" id="mods-q" placeholder="MOD名・対象(例: Vitality / Khora)" autocomplete="off">
+          <select id="mods-type" aria-label="種別"></select>
+          <select id="mods-rar" aria-label="レア度">
+            <option value="">すべてのレア度</option><option value="Common">コモン</option><option value="Uncommon">アンコモン</option>
+            <option value="Rare">レア</option><option value="Legendary">レジェンダリー</option></select>
+          <select id="mods-src" aria-label="入手先"></select>
+          <select id="mods-own" aria-label="所持">
+            <option value="">所持・未所持</option><option value="no">未所持のみ</option><option value="yes">所持済みのみ</option></select>
+          <button class="btn ghost" id="mods-csv" type="button">CSVで保存</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn ghost live" id="scan-toggle" type="button" aria-pressed="false">ゲーム画面の読み取り: OFF</button>
+          <button class="btn ghost" id="scan-file-btn" type="button">スクリーンショットから読み取る</button>
+          <input type="file" id="scan-files" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
+          <label class="chk"><input type="checkbox" id="scan-confirm"> 自動でチェックせず、確認してから付ける</label>
+        </div>
+        <div class="scan" id="scan-panel" hidden aria-live="polite">
+          <div class="scan-head"><video id="scan-video" muted playsinline></video>
+            <div><b id="scan-state"></b><div class="mini" id="scan-stats"></div></div></div>
+          <div id="scan-new"></div>
+          <div id="scan-maybe"></div>
+          <p class="note">ゲームの MOD 画面を開いてスクロールしていくと、映った MOD 名を読み取って所持にチェックします(数秒ごと・画面が変わったときだけ)。一致度が低いものは「要確認」に出るので、正しければクリックしてください。読み取りは Windows の文字認識を使います。排他的フルスクリーンでは映らないことがあるので、その場合はボーダーレス(ウィンドウ)表示にするか、スクリーンショットから読み取ってください。</p>
+        </div>
+        <div class="summary" id="mods-summary"></div>
+        <div id="mods-out"></div>
+        <p class="note">確率: ミッション/バウンティは報酬1回の抽選、敵は1体倒したとき、レリックは開けたときに出る割合です。「記載なし」は公式ドロップ表に無いもの(シンジケート・バロ・ナイトウェーブ・クエスト報酬など)です。</p>
+      </section>
+
+      <!-- Riven 相場 -->
+      <section id="view-riven" hidden>
+        <h2>Riven相場</h2>
+        <p class="lead">公式が毎週公開している PC 版の Riven MOD 取引統計です。単位はプラチナ。</p>
+        <div class="row">
+          <input type="text" class="search" id="riv-q" placeholder="武器名(例: Rubico / ルビコ)" autocomplete="off">
+          <select id="riv-type" aria-label="武器種"></select>
+          <label class="chk"><input type="checkbox" id="riv-veiled" checked> 未開封(ヴェール)を含む</label>
+          <button class="btn ghost" type="button" id="riv-update">Riven相場だけ更新</button>
+        </div>
+        <pre class="log" id="riv-log" hidden></pre>
+        <div class="summary" id="riv-summary"></div>
+        <div id="riv-out"></div>
+        <p class="note">極端な出品価格が混ざるため、平均より中央値が目安になります。件数が少ない武器は振れ幅が大きくなります。</p>
+      </section>
+
+      <!-- Riven 性質 -->
+      <section id="view-dispo" hidden>
+        <h2>Riven性質</h2>
+        <p class="lead">公式データ(ExportWeapons.json)の性質値を、カテゴリーごとに性質の高い順(●●●●● → ●◯◯◯◯)で並べています。性質が高い武器ほど Riven の効果が大きくなります。</p>
+        <div class="seg" id="dp-cats" role="group" aria-label="カテゴリー"></div>
+        <div class="row">
+          <input type="text" class="search" id="dp-q" placeholder="武器名で絞り込み(例: Rubico / Kuva)" autocomplete="off">
+          <select id="dp-dots" aria-label="性質(●の数)"><option value="">性質: すべて</option>
+            <option value="5">性質: 5</option><option value="4">性質: 4</option><option value="3">性質: 3</option>
+            <option value="2">性質: 2</option><option value="1">性質: 1</option></select>
+        </div>
+        <div class="summary" id="dp-summary"></div>
+        <div id="dp-out"></div>
+        <p class="note">●の数は性質値で決まります: 0.5〜0.7 ●◯◯◯◯ / 0.71〜0.9 ●●◯◯◯ / 0.91〜1.10 ●●●◯◯ / 1.11〜1.30 ●●●●◯ / 1.31〜1.55 ●●●●●。「性質」の絞り込みは●の数です(●●●◯◯なら 3)。Kitgun はチェンバーごとにプライマリ版とセカンダリ版で値が違います。Zaw はストライクの値です。プライマリのライフル/ショットガンの区分は、Riven 相場のデータがあればその武器種に合わせています。性質値はゲームのアップデートで変わるため、「データ更新」で取り直してください。</p>
+      </section>
+
+      <!-- マスター一覧 -->
+      <section id="view-mastery" hidden>
+        <h2>マスター一覧</h2>
+        <p class="lead">Warframe・武器・コンパニオンなどのマスター状況です。左端のチェックでマスター済みとして記録します(この PC に保存)。</p>
+        <div class="seg" id="ms-cats" role="group" aria-label="カテゴリー"></div>
+        <div class="row">
+          <input type="text" class="search" id="ms-q" placeholder="名前で絞り込み(例: Rhino / Soma)" autocomplete="off">
+          <select id="ms-state" aria-label="状態"><option value="">マスター済み・未マスター</option><option value="todo">未マスターのみ</option><option value="done">マスター済みのみ</option></select>
+          <button class="btn ghost" type="button" id="ms-bulk-on">表示中をすべてマスター済みに</button>
+          <button class="btn ghost" type="button" id="ms-bulk-off">表示中のチェックを外す</button>
+          <button class="btn ghost" type="button" id="ms-csv">CSVで保存</button>
+        </div>
+        <div class="summary" id="ms-summary"></div>
+        <div id="ms-out"></div>
+        <p class="note">Kitgun はチェンバー(プライマリ版とセカンダリ版は別々)、Zaw はストライク、アンプはプリズムと Sirocco の単位で数えます。MOA・ハウンド(組み立て式のロボティック)、アークウイング本体、ネクラメカ、K-ドライブは含みません。マスタリー経験値はランク最大までの値です(Warframe・コンパニオン・センチネルは 1 ランク 200、武器は 100。Kuva・Tenet・Coda などはランク 40)。</p>
+      </section>
+
+      <!-- サイクル -->
+      <section id="view-cycle" hidden>
+        <h2>サイクル</h2>
+        <p class="lead">昼夜の切り替えとデイリー・ウィークリーのリセットまでの時間です。</p>
+        <div class="cards" id="cycle-cards"></div>
+        <details id="cycle-setup">
+          <summary>時刻合わせ(最初の一度だけ)</summary>
+          <form id="cycle-form" class="formgrid" style="margin-top:12px">
+            <label class="field"><span>対象</span>
+              <select id="cf-key"><option value="cetus">平原 (Cetus)</option><option value="vallis">オーブ峡谷 (Orb Vallis)</option></select></label>
+            <label class="field"><span>いまのフェーズ</span><select id="cf-phase"></select></label>
+            <label class="field"><span>そのフェーズの残り時間(例 45:30 / 分だけでも可)</span>
+              <input type="text" id="cf-rem" placeholder="45:30" autocomplete="off"></label>
+            <div class="field"><span>&nbsp;</span><button class="btn" type="submit">保存</button></div>
+          </form>
+          <div class="err" id="cf-err" role="alert"></div>
+          <p class="note">ゲーム内で見た残り時間を入れると、以降は周期から計算して表示します。</p>
+        </details>
+      </section>
+
+      <!-- ビルド -->
+      <section id="view-build" hidden>
+        <h2>ビルド</h2>
+        <p class="lead">フレーム・武器のビルドを登録して管理します(この PC に保存)。</p>
+        <details id="build-form-wrap" open>
+          <summary id="build-form-title">ビルドを追加</summary>
+          <form id="build-form">
+            <div class="formgrid">
+              <label class="field"><span>ビルド名</span><input type="text" id="b-name" required autocomplete="off"></label>
+              <label class="field"><span>種別</span><select id="b-type"></select></label>
+              <label class="field"><span>対象(フレーム名・武器名)</span><input type="text" id="b-target" autocomplete="off"></label>
+              <label class="field"><span>フォーマ数</span><input type="number" id="b-forma" min="0" value="0"></label>
+            </div>
+            <div class="formgrid">
+              <label class="field"><span>MOD(1行に1つ)</span><textarea id="b-mods" rows="5"></textarea></label>
+              <div class="field"><span>アルケイン(1行に1つ)</span>
+                <textarea id="b-arcanes" rows="2" aria-label="アルケイン"></textarea>
+                <div class="row"><input type="text" id="b-arc-pick" list="arcane-list" placeholder="候補から追加(例: Arcane Energize)" autocomplete="off" style="flex:1">
+                  <button type="button" class="btn ghost" id="b-arc-add">追加</button></div>
+                <datalist id="arcane-list"></datalist>
+                <span class="mini" id="b-arc-note"></span></div>
+              <div class="field"><label class="field"><span>タグ(カンマ区切り)</span><input type="text" id="b-tags" autocomplete="off"></label>
+                <label class="field"><span>メモ</span><textarea id="b-note" rows="2"></textarea></label></div>
+            </div>
+            <div class="field" style="margin-bottom:12px"><span>画像(MOD構成のスクリーンショットなど。PNG / JPEG / GIF / WebP)</span>
+              <div class="dropzone" id="b-drop" tabindex="0" role="button" aria-describedby="b-drop-help">
+                クリックして選ぶ / ここにドラッグ&ドロップ / <b>Ctrl+V</b> で貼り付け</div>
+              <span class="mini" id="b-drop-help">大きい画像(4MB超)は保存前に縮小します。保存ボタンを押すと登録されます。</span>
+              <input type="file" id="b-file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
+              <div class="thumbs" id="b-thumbs"></div>
+              <div class="row" style="margin-top:8px"><button type="button" class="btn ghost" id="b-analyze" hidden>画像から読み取る(フレーム・MOD・フォーマ)</button>
+                <span class="mini" id="b-ocr-note"></span></div>
+              <div class="ocr" id="b-ocr" hidden aria-live="polite"></div>
+            </div>
+            <div class="row"><button class="btn" type="submit" id="b-save">保存</button>
+              <button class="btn ghost" type="button" id="b-cancel" hidden>編集をやめる</button></div>
+            <div class="err" id="b-err" role="alert"></div>
+          </form>
+        </details>
+        <div class="row" style="margin-top:18px">
+          <input type="text" class="search" id="b-filter" placeholder="ビルドを絞り込み(名前・対象・タグ・アルケイン)" autocomplete="off">
+          <select id="b-filter-type"></select>
+        </div>
+        <div class="cards" id="build-list"></div>
+        <dialog id="lightbox" aria-label="画像の拡大表示">
+          <img id="lb-img" alt="">
+          <div class="lb-bar"><button class="btn ghost" id="lb-prev" type="button" aria-label="前の画像">◀</button>
+            <span id="lb-count"></span>
+            <button class="btn ghost" id="lb-next" type="button" aria-label="次の画像">▶</button>
+            <a class="btn ghost" id="lb-open" target="_blank" rel="noopener">原寸で開く</a>
+            <button class="btn ghost" id="lb-close" type="button">閉じる</button></div>
+        </dialog>
+      </section>
+
+      <!-- シミュレータ (web/wfportal_builder.html を中に表示する) -->
+      <section id="view-sim" hidden>
+        <h2>シミュレータ</h2>
+        <p class="lead">フレームの耐久・アビリティ性能、武器のダメージと DPS、Riven の効果の振れ幅を計算します。値はすべて参考値です。</p>
+        <iframe id="sim-frame" class="sim-frame" title="シミュレータ"></iframe>
+      </section>
+
+      <!-- Tips -->
+      <section id="view-tips" hidden>
+        <h2>Tips</h2>
+        <p class="lead">すぐ見たいメモをまとめるページです。目次と内容は、ツールのフォルダにある <b>tips</b> フォルダのファイルを編集すると変わります(メモ帳・Excel などで編集できます)。</p>
+        <div class="row">
+          <button class="btn ghost" type="button" id="tips-reload">再読み込み</button>
+          <button class="btn ghost" type="button" id="tips-open">tips フォルダを開く</button>
+          <span class="mini" id="tips-dir"></span>
+        </div>
+        <div class="err" id="tips-err" role="alert"></div>
+        <div class="tips">
+          <div class="tips-toc" id="tips-toc" role="navigation" aria-label="Tips の目次"></div>
+          <article class="tips-body" id="tips-body" aria-live="polite"></article>
+        </div>
+        <p class="note">使えるファイル: .md(見出し・表・箇条書き・チェックボックスなどが使える書き方)/ .txt(そのまま表示)/ .csv(表として表示。Excel で編集可)。ファイル名の先頭の数字(例: 10_)は並び順に使われ、目次には表示されません。tips の中にフォルダを作ると、目次の見出しになります(1段まで)。.md の最初の「# 見出し」が目次の名前になります。</p>
+      </section>
+
+      <!-- データ更新 -->
+      <section id="view-update" hidden>
+        <h2>データ更新</h2>
+        <p class="lead">ドロップ表・敵やバウンティの入手先・Riven 相場・日本語名の辞書(Riven性質・シミュレータ用のデータを含む)を取得します。ゲームのアップデート後にも実行してください。</p>
+        <dl class="kv" id="update-info"></dl>
+        <div class="row"><button class="btn" id="update-btn">公式データを取得</button>
+          <button class="btn ghost" id="update-riv-btn" type="button">Riven相場だけ取得</button></div>
+        <pre class="log" id="update-log" hidden></pre>
+        <p class="note">取得元: ドロップ表・入手先は WFCD/warframe-drop-data(drops.warframestat.us)、日本語名は calamity-inc/warframe-public-export(取得できなければ公式 Public Export)、Riven 相場は公式の weeklyRivensPC.json(取得できなければ WFCD の api.warframestat.us)です。ロゴ素材が未取得のときは、公式ファンキット(Warframe Fan Kit)の配布元からロゴ素材も取得します。インターネット接続が必要です。</p>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+async function api(path, opts = {}) {
+  const init = { method: opts.method || "GET", headers: {} };
+  if (opts.body !== undefined) { init.headers["Content-Type"] = "application/json"; init.body = JSON.stringify(opts.body); }
+  const res = await fetch(path, init);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { const e = new Error(data.error || `エラー (${res.status})`); e.status = res.status; throw e; }
+  return data;
+}
+const debounce = (fn, ms = 180) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const pct = x => x.toFixed(2) + "%";
+const dur = sec => {
+  sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+  const p = n => String(n).padStart(2, "0");
+  return h ? `${h}:${p(m)}:${p(s)}` : `${p(m)}:${p(s)}`;
+};
+const rarity = (ja, key) => `<span class="rar ${esc(key)}">${esc(ja)}</span>`;
+const noData = msg => `<div class="empty">${esc(msg)}</div>`;
+const catTag = (key, ja) => `<span class="cat ${esc(key)}">${esc(ja)}</span>`;
+const fmtPct = x => x >= 1 ? x.toFixed(2) + "%" : x >= 0.01 ? x.toFixed(3) + "%" : x.toPrecision(2) + "%";
+/** 見出しクリックで並べ替える表 (state = {key, dir}) */
+function sortRows(rows, state, getters) {
+  const g = getters[state.key]; if (!g) return rows;
+  const dir = state.dir === "asc" ? 1 : -1;
+  return rows.slice().sort((a, b) => {
+    const x = g(a), y = g(b);
+    if (x === y) return 0;
+    if (x === null || x === undefined) return 1;
+    if (y === null || y === undefined) return -1;
+    return (typeof x === "string" ? x.localeCompare(y, "ja") : x - y) * dir;
+  });
+}
+const th = (label, key, state, cls = "") =>
+  `<th class="sort ${cls}" data-sort="${key}" aria-sort="${state.key === key ? (state.dir === "asc" ? "ascending" : "descending") : "none"}" tabindex="0">${label}</th>`;
+function onSortClick(container, state, render, numericKeys = []) {
+  const handler = e => {
+    const h = e.target.closest("th[data-sort]"); if (!h) return;
+    if (e.type === "keydown" && e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    const k = h.dataset.sort;
+    if (state.key === k) state.dir = state.dir === "asc" ? "desc" : "asc";
+    else { state.key = k; state.dir = numericKeys.includes(k) ? "desc" : "asc"; }
+    render();
+  };
+  container.addEventListener("click", handler); container.addEventListener("keydown", handler);
+}
+
+/* ---------- ビュー切り替え ---------- */
+const views = ["item", "area", "mods", "riven", "dispo", "mastery", "cycle", "build", "sim", "tips", "update"];
+const loaders = {};
+function show(view) {
+  views.forEach(v => { $("#view-" + v).hidden = v !== view; });
+  document.querySelectorAll("nav button").forEach(b => {
+    if (b.dataset.view === view) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+  });
+  try { localStorage.setItem("wf-view", view); } catch (e) {}
+  loaders[view] && loaders[view]();
+}
+document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => show(b.dataset.view)));
+
+/* ---------- ロゴ ---------- */
+/* 公式ファンキットのロゴは同梱していない。各自の PC に取得済み(初回起動時に自動取得)ならヘッダーに使う */
+let logoApplied = false;
+function applyLogo() {
+  if (logoApplied) return;
+  logoApplied = true;
+  const img = new Image();
+  img.onload = () => {
+    const root = document.documentElement.style;
+    root.setProperty("--logo-url", "url(/logo.png)");
+    if (img.naturalHeight) root.setProperty("--logo-ratio", (img.naturalWidth / img.naturalHeight).toFixed(4));
+  };
+  img.onerror = () => { logoApplied = false; };
+  img.src = "/logo.png";
+}
+
+/* ---------- ステータス ---------- */
+let hasData = false;
+async function refreshStatus() {
+  const pill = $("#status-pill");
+  try {
+    const s = await api("/api/status");
+    hasData = s.has_drops;
+    if (s.version) $("#app-ver").textContent = `v${s.version}`;
+    if (s.has_logo) applyLogo();
+    pill.classList.toggle("warn", !s.has_drops);
+    pill.textContent = s.has_drops ? `データ ${s.drops_updated} 取得 / 項目 ${s.counts.items}` : "データ未取得 — 「データ更新」から取得してください";
+    const info = $("#update-info");
+    info.innerHTML = s.has_drops
+      ? `<dt>ドロップ表</dt><dd>${esc(s.drops_updated)} に取得(${s.counts.nodes} ノード / 全 ${s.counts.items} 項目)</dd>
+         <dt>敵・バウンティ等</dt><dd>${s.extra_files ? `${esc(s.extra_updated)} に取得(${s.extra_files} / ${s.extra_total} ファイル、${s.counts.sources.toLocaleString()} 件)` : "未取得"}</dd>
+         <dt>Riven相場</dt><dd>${s.rivens_updated ? `${esc(s.rivens_updated)} に取得(${s.rivens_count} 件)` : "未取得"}</dd>
+         <dt>日本語名辞書</dt><dd>${s.has_names ? esc((s.names_updated || "").replace("T", " ").replace("+00:00", " UTC")) + " に取得" + (s.names_source ? `(${esc(s.names_source)} / MOD ${s.counts.mods} 件)` : "") : "未取得(英語名で表示されます)"}</dd>`
+      : `<dt>状態</dt><dd>まだデータがありません</dd>`;
+    return s;
+  } catch (e) { pill.textContent = "サーバーに接続できません"; pill.classList.add("warn"); }
+}
+
+/* ---------- 素材から探す ---------- */
+let itemKey = null, itemCat = "", itemData = null;
+async function loadItemChips() {
+  const q = $("#item-q").value, mat = $("#item-mat").checked;
+  try {
+    const list = await api(`/api/suggest/item?q=${encodeURIComponent(q)}&materials=${mat ? 1 : 0}`);
+    const box = $("#item-chips");
+    if (!list.length) { box.innerHTML = `<span class="note">一致する項目がありません${mat ? "(「素材のみ」を外すとMODや設計図も探せます)" : ""}</span>`; return list; }
+    box.innerHTML = list.map(i => `<button class="chip" data-key="${esc(i.key)}" aria-pressed="${i.key === itemKey}">${esc(i.ja)}${i.ja !== i.en ? `<small>${esc(i.en)}</small>` : ""}</button>`).join("");
+    return list;
+  } catch (e) { $("#item-chips").innerHTML = ""; $("#item-out").innerHTML = noData(e.message); return []; }
+}
+/** 入手先の表 (素材から探す / MOD 一覧の詳細で共用) */
+function sourceTable(rows) {
+  const max = Math.max(...rows.map(x => x.chance), 0.0001);
+  return `<div class="tablewrap"><table>
+    <thead><tr><th>種類</th><th>入手先</th><th>詳細</th><th>ステージ</th><th>確率</th><th>レア度</th></tr></thead>
+    <tbody>${rows.map(x => `<tr><td>${catTag(x.cat, x.cat_ja)}</td><td>${esc(x.place)}${x.event ? '<span class="tag-event">イベント</span>' : ""}</td>
+      <td>${esc(x.detail)}</td><td>${esc(x.stage)}</td>
+      <td><div class="chance"><div class="bar"><i style="--w:${(x.chance / max * 100).toFixed(1)}%"></i></div><b>${x.qty ? esc(x.qty) + "個 " : ""}${fmtPct(x.chance)}</b></div></td>
+      <td>${rarity(x.rarity, x.rarity_key)}</td></tr>`).join("")}</tbody></table></div>`;
+}
+function renderItemResult() {
+  const r = itemData; if (!r) return;
+  if (itemCat && !r.cats.some(c => c.key === itemCat)) itemCat = "";
+  const rows = itemCat ? r.rows.filter(x => x.cat === itemCat) : r.rows;
+  $("#item-out").innerHTML = `
+    <div class="result-head"><h3>${esc(r.ja)}</h3><span class="en">${esc(r.en)}</span><span class="count">${r.total} か所</span></div>
+    ${r.cats.length > 1 ? `<div class="seg" role="group" aria-label="入手先の種類">
+      <button class="chip" data-cat="" aria-pressed="${!itemCat}">すべて<small>${r.total}</small></button>
+      ${r.cats.map(c => `<button class="chip" data-cat="${esc(c.key)}" aria-pressed="${itemCat === c.key}">${esc(c.ja)}<small>${c.n}</small></button>`).join("")}</div>` : ""}
+    ${sourceTable(rows)}
+    <p class="note">確率: ミッション/バウンティは報酬1回の抽選で選ばれる割合(A→B→C はローテーション)、敵は1体倒したときに落とす割合(「MODドロップ 3%」などは、その敵が MOD を落とす確率を掛けた後の値)、レリックは開けたときに出る割合です。</p>`;
+}
+async function loadItemResult() {
+  if (!itemKey) { $("#item-out").innerHTML = ""; return; }
+  try {
+    itemData = await api(`/api/item?key=${encodeURIComponent(itemKey)}&events=${$("#item-ev").checked ? 1 : 0}`);
+    renderItemResult();
+  } catch (e) { itemData = null; $("#item-out").innerHTML = noData(e.message); }
+}
+$("#item-out").addEventListener("click", e => {
+  const c = e.target.closest("[data-cat]"); if (!c) return;
+  itemCat = c.dataset.cat; renderItemResult();
+});
+async function itemSearch(autoPick) {
+  const list = await loadItemChips();
+  if (!list || !list.length) { itemKey = null; $("#item-out").innerHTML = ""; return; }
+  const q = $("#item-q").value.trim();
+  if (autoPick || !list.some(i => i.key === itemKey)) {
+    const exact = q && list.find(i => [i.ja, i.en].some(n => n.toLowerCase() === q.toLowerCase()));
+    itemKey = exact ? exact.key : (q && list.length === 1 ? list[0].key : (q ? null : itemKey));
+    if (itemKey) { $("#item-chips").querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c.dataset.key === itemKey)); }
+  }
+  if (!itemKey) $("#item-out").innerHTML = q ? `<div class="empty">候補から選んでください。</div>` : `<div class="empty">素材を選ぶか、名前を入力してください。</div>`;
+  else await loadItemResult();
+}
+$("#item-q").addEventListener("input", debounce(() => itemSearch(true)));
+$("#item-mat").addEventListener("change", () => itemSearch(false));
+$("#item-ev").addEventListener("change", loadItemResult);
+$("#item-chips").addEventListener("click", e => {
+  const c = e.target.closest(".chip"); if (!c) return;
+  itemKey = c.dataset.key; itemCat = "";
+  $("#item-chips").querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x === c));
+  loadItemResult();
+});
+loaders.item = async () => {
+  const s = await refreshStatus();
+  if (!s || !s.has_drops) { $("#item-chips").innerHTML = ""; $("#item-out").innerHTML = noData("データがありません。「データ更新」から取得してください。"); return; }
+  if (!$("#item-chips").children.length || !itemKey) await itemSearch(true);
+};
+
+/* ---------- エリアから探す ---------- */
+let areaSel = null;
+async function loadAreaChips() {
+  try {
+    const list = await api(`/api/suggest/area?q=${encodeURIComponent($("#area-q").value)}`);
+    $("#area-chips").innerHTML = list.length ? list.map(i =>
+      `<button class="chip" data-type="${i.type}" data-key="${esc(i.key)}" aria-pressed="${areaSel && areaSel.key === i.key && areaSel.type === i.type}">${esc(i.ja)}${i.sub ? `<small>${esc(i.sub)}</small>` : ""}</button>`).join("")
+      : `<span class="note">一致するエリアがありません</span>`;
+    return list;
+  } catch (e) { $("#area-out").innerHTML = noData(e.message); return []; }
+}
+async function loadAreaResult() {
+  if (!areaSel) { $("#area-out").innerHTML = `<div class="empty">惑星またはノードを選んでください。</div>`; return; }
+  try {
+    const r = await api(`/api/area?type=${areaSel.type}&key=${encodeURIComponent(areaSel.key)}&all=${$("#area-all").checked ? 1 : 0}&events=${$("#area-ev").checked ? 1 : 0}`);
+    if (!r.nodes.length) { $("#area-out").innerHTML = `<div class="result-head"><h3>${esc(r.title)}</h3></div>` + noData("表示できるドロップがありません(「素材以外も表示」で増える場合があります)。"); return; }
+    $("#area-out").innerHTML = `<div class="result-head"><h3>${esc(r.title)}</h3><span class="count">${r.nodes.length} ノード</span></div>
+      <div class="cards">${r.nodes.map(n => {
+        const max = Math.max(1, ...n.stages.flatMap(s => s.items.map(i => i.chance)));
+        const rows = n.stages.flatMap(s => s.items.map((i, k) => `<tr><td>${k === 0 ? esc(s.stage) : ""}</td><td>${esc(i.ja)}</td>
+          <td><div class="chance" style="min-width:150px"><div class="bar"><i style="--w:${(i.chance / max * 100).toFixed(1)}%"></i></div><b>${pct(i.chance)}</b></div></td>
+          <td>${rarity(i.rarity, i.rarity_key)}</td></tr>`)).join("");
+        return `<div class="card"><header><b>${esc(n.node)}</b><span>${esc(n.planet)} / ${esc(n.mode)}${n.event ? '<span class="tag-event">イベント</span>' : ""}</span></header>
+          ${rows ? `<div class="tablewrap"><table><thead><tr><th>ステージ</th><th>アイテム</th><th>確率</th><th>レア度</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty">素材のドロップはありません</div>`}</div>`;
+      }).join("")}</div>`;
+  } catch (e) { $("#area-out").innerHTML = noData(e.message); }
+}
+$("#area-q").addEventListener("input", debounce(async () => {
+  const list = await loadAreaChips(); const q = $("#area-q").value.trim();
+  if (q && list && list.length === 1) { areaSel = { type: list[0].type, key: list[0].key }; await loadAreaChips(); loadAreaResult(); }
+}));
+$("#area-all").addEventListener("change", loadAreaResult);
+$("#area-ev").addEventListener("change", loadAreaResult);
+$("#area-chips").addEventListener("click", e => {
+  const c = e.target.closest(".chip"); if (!c) return;
+  areaSel = { type: c.dataset.type, key: c.dataset.key };
+  $("#area-chips").querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x === c));
+  loadAreaResult();
+});
+loaders.area = async () => {
+  const s = await refreshStatus();
+  if (!s || !s.has_drops) { $("#area-chips").innerHTML = ""; $("#area-out").innerHTML = noData("データがありません。「データ更新」から取得してください。"); return; }
+  await loadAreaChips(); await loadAreaResult();
+};
+
+/* ---------- MOD 入手一覧 ---------- */
+let mods = null, modMeta = null, modOpen = null;
+const modSort = { key: "ja", dir: "asc" };
+const RAR_ORDER = { Common: 1, Uncommon: 2, Rare: 3, Legendary: 4 };
+const modGetters = {
+  ja: m => m.ja.toLowerCase(), type: m => m.type_ja, pol: m => m.polarity_name, rar: m => RAR_ORDER[m.rarity] || 0,
+  total: m => m.total, best: m => m.best ? m.best.chance : null, own: m => (m.owned ? 1 : 0),
+};
+function modFilter() {
+  const q = $("#mods-q").value.trim().toLowerCase(), t = $("#mods-type").value, r = $("#mods-rar").value,
+    src = $("#mods-src").value, own = $("#mods-own").value;
+  return mods.filter(m => (!t || m.type === t) && (!r || m.rarity === r) &&
+    (!own || (own === "yes") === m.owned) &&
+    (!src || (src === "any" ? m.total > 0 : src === "none" ? m.total === 0 : (m.counts[src] || 0) > 0)) &&
+    (!q || [m.ja, m.en, m.compat, m.compat_ja].some(x => (x || "").toLowerCase().includes(q))));
+}
+function renderMods() {
+  if (!mods) return;
+  const list = sortRows(modFilter(), modSort, modGetters);
+  const owned = mods.filter(m => m.owned).length, shownOwned = list.filter(m => m.owned).length;
+  $("#mods-summary").innerHTML = `<span>表示 <b class="count">${list.length}</b> / ${mods.length} 件(うち所持 ${shownOwned})</span>
+    <span>全体の所持 ${owned} / ${mods.length}(${(owned / mods.length * 100).toFixed(1)}%)</span>
+    <span class="progress" aria-hidden="true"><i style="--w:${(owned / mods.length * 100).toFixed(1)}%"></i></span>`;
+  if (!list.length) { $("#mods-out").innerHTML = noData("条件に合う MOD がありません。"); return; }
+  const shown = list.slice(0, 600);
+  $("#mods-out").innerHTML = `<div class="tablewrap tall"><table>
+    <thead><tr>${th("所持", "own", modSort, "num")}${th("MOD", "ja", modSort)}${th("種別", "type", modSort)}${th("極性", "pol", modSort)}${th("レア度", "rar", modSort)}
+      ${th("入手先(件数)", "total", modSort)}${th("最も確率が高い入手先", "best", modSort)}</tr></thead>
+    <tbody>${shown.map(m => `<tr class="mod-row${m.owned ? " owned" : ""}" data-en="${esc(m.en)}" aria-expanded="${modOpen === m.en}">
+      <td class="num"><input type="checkbox" class="own" ${m.owned ? "checked" : ""} aria-label="${esc(m.ja)} を所持"></td>
+      <td>${esc(m.ja)}${m.ja !== m.en ? `<span class="sub-en">${esc(m.en)}</span>` : ""}${m.compat ? `<div class="mini">${esc(m.compat_ja)}</div>` : ""}</td>
+      <td>${esc(m.type_ja)}</td><td>${esc(m.polarity_name)}</td><td>${m.rarity ? rarity(m.rarity_ja, m.rarity) : ""}</td>
+      <td>${m.total ? `<div class="badges">${Object.entries(m.counts).map(([c, n]) => catTag(c, `${modMeta.cats[c]} ${n}`)).join("")}</div>` : `<span class="none">記載なし</span>`}</td>
+      <td class="wrap">${m.best ? `${catTag(m.best.cat, m.best.cat_ja)} ${esc(m.best.place)} <b>${fmtPct(m.best.chance)}</b>` : ""}</td></tr>
+      ${modOpen === m.en ? `<tr class="detail"><td colspan="7" id="mod-detail">読み込み中...</td></tr>` : ""}`).join("")}</tbody></table></div>
+    ${list.length > shown.length ? `<p class="note">先頭 ${shown.length} 件を表示しています。絞り込むと残りも表示されます。</p>` : ""}`;
+  if (modOpen && list.some(m => m.en === modOpen)) loadModDetail(modOpen);
+}
+async function loadModDetail(en) {
+  const box = () => $("#mod-detail");
+  try {
+    const r = await api(`/api/item?key=${encodeURIComponent(en)}&events=1`);
+    if (modOpen !== en || !box()) return;
+    box().innerHTML = sourceTable(r.rows.slice(0, 40)) + (r.rows.length > 40 ? `<p class="note">確率の高い順に 40 件を表示(全 ${r.rows.length} 件)。すべて見るには「素材から探す」で「素材のみ」を外して検索してください。</p>` : "");
+  } catch (e) { if (box()) box().innerHTML = noData(e.status === 404 ? "公式ドロップ表に記載がありません(シンジケート・バロ・ナイトウェーブ・クエスト報酬など)。" : e.message); }
+}
+$("#mods-out").addEventListener("change", async e => {
+  const cb = e.target.closest("input.own"); if (!cb) return;
+  const en = cb.closest("tr").dataset.en, m = mods.find(x => x.en === en);
+  m.owned = cb.checked; cb.closest("tr").classList.toggle("owned", m.owned);
+  try { await api("/api/mods/owned", { method: "POST", body: { en, owned: m.owned } }); renderMods(); }
+  catch (err) { m.owned = !m.owned; cb.checked = m.owned; alertBox(err.message); }
+});
+$("#mods-out").addEventListener("click", e => {
+  if (e.target.closest("input, th, a, button")) return;
+  const tr = e.target.closest("tr.mod-row"); if (!tr) return;
+  modOpen = modOpen === tr.dataset.en ? null : tr.dataset.en; renderMods();
+});
+onSortClick($("#mods-out"), modSort, renderMods, ["total", "best", "rar", "own"]);
+["#mods-type", "#mods-rar", "#mods-src", "#mods-own"].forEach(id => $(id).addEventListener("change", renderMods));
+$("#mods-q").addEventListener("input", debounce(renderMods, 150));
+function alertBox(msg) { $("#mods-summary").insertAdjacentHTML("beforeend", `<span class="err">${esc(msg)}</span>`); }
+$("#mods-csv").addEventListener("click", () => {
+  if (!mods) return;
+  const cats = Object.keys(modMeta.cats);
+  const head = ["所持", "MOD", "MOD(英語)", "対象", "種別", "極性", "レア度", ...cats.map(c => modMeta.cats[c] + "(件)"), "最も確率が高い入手先", "確率(%)"];
+  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [head.map(q).join(",")].concat(sortRows(modFilter(), modSort, modGetters).map(m => [
+    m.owned ? "○" : "", m.ja, m.en, m.compat_ja, m.type_ja, m.polarity_name, m.rarity_ja, ...cats.map(c => m.counts[c] || 0),
+    m.best ? `${m.best.cat_ja}: ${m.best.place} ${m.best.detail} ${m.best.stage}` : "記載なし", m.best ? m.best.chance.toFixed(4) : ""].map(q).join(",")));
+  const blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = `mod一覧_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+loaders.mods = async () => {
+  if (mods) { renderMods(); return; }
+  $("#mods-out").innerHTML = `<div class="empty">読み込み中...</div>`;
+  try {
+    const r = await api("/api/mods"); mods = r.mods; modMeta = r;
+    $("#mods-type").innerHTML = `<option value="">すべての種別</option>` + Object.entries(r.types)
+      .filter(([k]) => mods.some(m => m.type === k)).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+    $("#mods-src").innerHTML = `<option value="">入手先: すべて</option><option value="any">ドロップ表に記載あり</option><option value="none">記載なし</option>` +
+      Object.entries(r.cats).map(([k, v]) => `<option value="${k}">${esc(v)}で入手</option>`).join("");
+    renderMods();
+  } catch (e) { $("#mods-summary").innerHTML = ""; $("#mods-out").innerHTML = noData(e.message); }
+};
+
+/* ---------- ゲーム画面から MOD を読み取って所持チェック ---------- */
+const AUTO_SCORE = 0.9;  // これ以上の一致度なら自動でチェック。未満は「要確認」
+let scan = { on: false, stream: null, timer: null, busy: false, last: null, frames: 0, reads: 0, added: [], maybe: new Map(), seen: new Set() };
+function scanRender(state) {
+  $("#scan-panel").hidden = false;
+  if (state !== undefined) $("#scan-state").textContent = state;
+  $("#scan-stats").textContent = `読み取り ${scan.reads} 回 / 見つけた MOD ${scan.seen.size} 件 / 新しく所持にした ${scan.added.length} 件`;
+  $("#scan-new").innerHTML = scan.added.length ? `<span class="mini">新しく所持にした(× で取り消し)</span><div class="chips">${scan.added.slice(-60).reverse()
+    .map(en => `<button class="chip" data-undo="${esc(en)}">${esc(en)}<span class="x" aria-hidden="true">×</span></button>`).join("")}</div>` : "";
+  const maybe = [...scan.maybe.values()];
+  $("#scan-maybe").innerHTML = maybe.length ? `<span class="mini">要確認(クリックで所持にする)</span><div class="chips">${maybe
+    .map(m => `<button class="chip" data-own="${esc(m.en)}" title="読み取り: ${esc(m.read)}">${esc(m.en)}<small>${Math.round(m.score * 100)}%</small></button>`).join("")}</div>` : "";
+}
+async function markOwned(list, owned) {
+  if (!list.length) return;
+  await api("/api/mods/owned", { method: "POST", body: { en: list, owned } });
+  if (mods) { const set = new Set(list.map(x => x.toLowerCase())); mods.forEach(m => { if (set.has(m.en.toLowerCase())) m.owned = owned; }); renderMods(); }
+}
+async function scanImage(blob) {
+  const res = await fetch("/api/mods/scan", { method: "POST", headers: { "Content-Type": blob.type || "image/png" }, body: blob });
+  const r = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(r.error || `エラー (${res.status})`);
+  scan.reads++;
+  const confirm = $("#scan-confirm").checked, add = [];
+  r.found.forEach(m => {
+    scan.seen.add(m.en.toLowerCase());
+    if (m.owned || scan.added.includes(m.en)) return;
+    if (m.score >= AUTO_SCORE && !confirm) add.push(m.en);
+    else scan.maybe.set(m.en.toLowerCase(), m);
+  });
+  if (add.length) { await markOwned(add, true); scan.added.push(...add); add.forEach(en => scan.maybe.delete(en.toLowerCase())); }
+  return r.found.length;
+}
+/** 画面が前回の読み取りから変わったか(小さく縮めた白黒画像の差で判断) */
+function frameChanged(video) {
+  const c = document.createElement("canvas"); c.width = 64; c.height = 36;
+  const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(video, 0, 0, 64, 36);
+  const px = g.getImageData(0, 0, 64, 36).data, cur = new Uint8Array(64 * 36);
+  for (let i = 0; i < cur.length; i++) cur[i] = (px[i * 4] + px[i * 4 + 1] + px[i * 4 + 2]) / 3;
+  const prev = scan.last; scan.last = cur;
+  if (!prev) return true;
+  let d = 0; for (let i = 0; i < cur.length; i++) d += Math.abs(cur[i] - prev[i]);
+  return d / cur.length > 1.5;
+}
+async function scanTick() {
+  const v = $("#scan-video");
+  if (!scan.on || scan.busy || !v.videoWidth) return;
+  scan.frames++;
+  if (!frameChanged(v)) { scanRender("読み取り中(画面の変化を待っています)"); return; }
+  scan.busy = true;
+  try {
+    const c = document.createElement("canvas"); c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext("2d").drawImage(v, 0, 0);
+    const blob = await new Promise(r => c.toBlob(r, "image/png"));
+    scanRender("読み取り中...");
+    const n = await scanImage(blob);
+    scanRender(`読み取り中(直前の画面で ${n} 件の MOD 名を確認)`);
+  } catch (e) { scanRender(`読み取りに失敗しました: ${e.message}`); scan.last = null; }
+  scan.busy = false;
+}
+async function scanStart() {
+  const info = await loadOcrInfo();
+  if (!info.available) { scanRender(`使えません: ${info.reason || "文字認識が使えません"}`); return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { scanRender("このブラウザは画面の取り込みに対応していません。Chrome か Edge で開いてください。"); return; }
+  try {
+    scan.stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 2 }, audio: false });
+  } catch (e) { scanRender("画面の共有がキャンセルされました。"); return; }
+  const v = $("#scan-video"); v.srcObject = scan.stream; await v.play().catch(() => {});
+  scan.stream.getVideoTracks()[0].addEventListener("ended", scanStop);  // ブラウザ側で「共有を停止」したとき
+  scan.on = true; scan.last = null;
+  $("#scan-toggle").setAttribute("aria-pressed", "true"); $("#scan-toggle").textContent = "ゲーム画面の読み取り: ON";
+  scanRender("読み取り中...");
+  scan.timer = setInterval(scanTick, 2500); scanTick();
+}
+function scanStop() {
+  scan.on = false; clearInterval(scan.timer); scan.timer = null;
+  if (scan.stream) scan.stream.getTracks().forEach(t => t.stop());
+  scan.stream = null; $("#scan-video").srcObject = null;
+  $("#scan-toggle").setAttribute("aria-pressed", "false"); $("#scan-toggle").textContent = "ゲーム画面の読み取り: OFF";
+  if (!$("#scan-panel").hidden) scanRender("停止しました");
+}
+$("#scan-toggle").addEventListener("click", () => scan.on ? scanStop() : scanStart());
+$("#scan-file-btn").addEventListener("click", () => $("#scan-files").click());
+$("#scan-files").addEventListener("change", async e => {
+  const files = [...e.target.files]; e.target.value = "";
+  const info = await loadOcrInfo();
+  if (!info.available) { scanRender(`使えません: ${info.reason || "文字認識が使えません"}`); return; }
+  for (let i = 0; i < files.length; i++) {
+    scanRender(`スクリーンショットを読み取り中... ${i + 1} / ${files.length}`);
+    try { await scanImage(files[i]); } catch (err) { scanRender(`${files[i].name} を読み取れませんでした: ${err.message}`); return; }
+  }
+  scanRender(`スクリーンショット ${files.length} 枚を読み取りました`);
+});
+$("#scan-panel").addEventListener("click", async e => {
+  const undo = e.target.closest("[data-undo]"), own = e.target.closest("[data-own]");
+  try {
+    if (undo) { const en = undo.dataset.undo; await markOwned([en], false); scan.added = scan.added.filter(x => x !== en); scanRender(); }
+    if (own) { const en = own.dataset.own; await markOwned([en], true); scan.maybe.delete(en.toLowerCase()); scan.added.push(en); scanRender(); }
+  } catch (err) { scanRender(err.message); }
+});
+
+/* ---------- Riven 相場 ---------- */
+let rivens = null;
+const rivSort = { key: "um", dir: "desc" };
+const rivGetters = {
+  w: r => r.veiled ? "" : r.weapon_ja.toLowerCase(), t: r => r.type_ja,
+  um: r => r.unrolled ? r.unrolled.median : null, ua: r => r.unrolled ? r.unrolled.avg : null, up: r => r.unrolled ? r.unrolled.pop : null,
+  rm: r => r.rerolled ? r.rerolled.median : null, ra: r => r.rerolled ? r.rerolled.avg : null, rp: r => r.rerolled ? r.rerolled.pop : null,
+};
+const plat = v => Math.round(v).toLocaleString();
+function rivCells(st) {
+  if (!st) return `<td class="num none">—</td><td class="num none">—</td><td class="num none">—</td><td class="num none">—</td>`;
+  return `<td class="num med">${plat(st.median)}</td><td class="num">${plat(st.avg)}</td><td class="num mini">${plat(st.min)}〜${plat(st.max)}</td><td class="num">${Math.round(st.pop)}</td>`;
+}
+function renderRivens() {
+  if (!rivens) return;
+  const q = $("#riv-q").value.trim().toLowerCase(), t = $("#riv-type").value, veiled = $("#riv-veiled").checked;
+  const list = sortRows(rivens.rows.filter(r => (!t || r.type === t) && (veiled || !r.veiled) &&
+    (!q || [r.weapon_ja, r.weapon_en, r.type_ja].some(x => (x || "").toLowerCase().includes(q)))), rivSort, rivGetters);
+  $("#riv-summary").innerHTML = `<span>表示 <b class="count">${list.length}</b> / ${rivens.rows.length} 件</span><span>${esc(rivens.updated)} 取得</span>`;
+  $("#riv-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
+    <thead><tr><th rowspan="2" class="sort" data-sort="w" aria-sort="${rivSort.key === "w" ? (rivSort.dir === "asc" ? "ascending" : "descending") : "none"}" tabindex="0">武器</th>
+      <th rowspan="2" class="sort" data-sort="t" aria-sort="${rivSort.key === "t" ? (rivSort.dir === "asc" ? "ascending" : "descending") : "none"}" tabindex="0">武器種</th>
+      <th colspan="4" class="num">未リロール</th><th colspan="4" class="num">リロール済み</th></tr>
+      <tr>${th("中央値", "um", rivSort, "num")}${th("平均", "ua", rivSort, "num")}<th class="num">範囲</th>${th("件数", "up", rivSort, "num")}
+      ${th("中央値", "rm", rivSort, "num")}${th("平均", "ra", rivSort, "num")}<th class="num">範囲</th>${th("件数", "rp", rivSort, "num")}</tr></thead>
+    <tbody>${list.map(r => `<tr><td class="${r.veiled ? "veiled" : ""}">${esc(r.weapon_ja)}${!r.veiled && r.weapon_ja !== r.weapon_en ? `<span class="sub-en">${esc(r.weapon_en)}</span>` : ""}</td>
+      <td>${esc(r.type_ja)}</td>${rivCells(r.unrolled)}${rivCells(r.rerolled)}</tr>`).join("")}</tbody></table></div>`
+    : noData("条件に合う Riven がありません。");
+}
+onSortClick($("#riv-out"), rivSort, renderRivens, ["um", "ua", "up", "rm", "ra", "rp"]);
+$("#riv-q").addEventListener("input", debounce(renderRivens, 150));
+$("#riv-type").addEventListener("change", renderRivens);
+$("#riv-veiled").addEventListener("change", renderRivens);
+loaders.riven = async () => {
+  if (rivens) { renderRivens(); return; }
+  try {
+    rivens = await api("/api/rivens");
+    const types = [...new Map(rivens.rows.map(r => [r.type, r.type_ja])).entries()];
+    $("#riv-type").innerHTML = `<option value="">すべての武器種</option>` + types.map(([k, v]) => `<option value="${esc(k)}">${esc(v)}</option>`).join("");
+    renderRivens();
+  } catch (e) { $("#riv-summary").innerHTML = ""; $("#riv-out").innerHTML = noData(e.message); }
+};
+
+/* ---------- Riven 相場だけ更新 ---------- */
+async function updateRivensOnly(btn, log) {
+  btn.disabled = true; const label = btn.textContent; btn.textContent = "取得中...";
+  log.hidden = false; log.textContent = "Riven 相場を取得しています...";
+  try {
+    const r = await api("/api/update-rivens", { method: "POST", body: {} });
+    log.textContent = r.log || (r.ok ? "完了しました。" : "失敗しました。");
+    if (r.ok) { rivens = null; dispo = null; if (!$("#view-riven").hidden) await loaders.riven(); }
+  } catch (e) { log.textContent = e.message; }
+  btn.disabled = false; btn.textContent = label; refreshStatus();
+}
+$("#riv-update").addEventListener("click", () => updateRivensOnly($("#riv-update"), $("#riv-log")));
+$("#update-riv-btn").addEventListener("click", () => updateRivensOnly($("#update-riv-btn"), $("#update-log")));
+
+/* ---------- Riven 性質 ---------- */
+let dispo = null, dpCat = "primary";
+const dpSort = { key: "value", dir: "desc" };
+const dpGetters = { type: r => r.type_ja, name: r => (r.ja || r.en).toLowerCase(), dots: r => r.dots, value: r => r.value };
+const dotsHtml = n => `<span class="dots d${n}" aria-label="性質 ${n}" title="性質 ${n}">${"●".repeat(n)}<span class="off">${"◯".repeat(5 - n)}</span></span>`;
+const DP_RANGES = { 5: "1.31〜1.55", 4: "1.11〜1.30", 3: "0.91〜1.10", 2: "0.71〜0.90", 1: "0.50〜0.70" };
+function renderDispo() {
+  if (!dispo) return;
+  const cnt = {};
+  dispo.rows.forEach(r => { cnt[r.cat] = (cnt[r.cat] || 0) + 1; });
+  const cats = Object.entries(dispo.cats).filter(([k]) => cnt[k]);
+  if (!cnt[dpCat] && cats.length) dpCat = cats[0][0];
+  $("#dp-cats").innerHTML = cats.map(([k, v]) =>
+    `<button class="chip" data-dcat="${esc(k)}" aria-pressed="${dpCat === k}">${esc(v)}<small>${cnt[k]}</small></button>`).join("");
+  const q = $("#dp-q").value.trim().toLowerCase(), d = $("#dp-dots").value;
+  const inCat = dispo.rows.filter(r => r.cat === dpCat);
+  // 並べ替えが同じ値のときは、元の順(性質値の高い順 -> 名前)のまま
+  const list = sortRows(inCat.filter(r => (!d || r.dots === +d) &&
+    (!q || [r.en, r.ja, r.type_ja].some(x => (x || "").toLowerCase().includes(q)))), dpSort, dpGetters);
+  const per = [5, 4, 3, 2, 1].map(n => `<span>性質${n}: ${inCat.filter(r => r.dots === n).length}</span>`).join("");
+  $("#dp-summary").innerHTML = `<span><b class="count">${esc(dispo.cats[dpCat] || "")}</b> 表示 ${list.length} / ${inCat.length} 件</span>
+    <span class="legend">${per}</span>${dispo.updated ? `<span>${esc(dispo.updated)} 取得</span>` : ""}`;
+  $("#dp-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
+    <thead><tr>${th("武器区分", "type", dpSort)}${th("武器名", "name", dpSort)}${th("性質", "dots", dpSort)}${th("性質値", "value", dpSort, "num")}</tr></thead>
+    <tbody>${list.map(r => `<tr><td>${esc(r.type_ja)}</td>
+      <td>${esc(r.ja || r.en)}${r.ja && r.ja !== r.en ? `<span class="sub-en">${esc(r.en)}</span>` : ""}</td>
+      <td title="${DP_RANGES[r.dots]}">${dotsHtml(r.dots)}</td><td class="num">${r.value.toFixed(2)}</td></tr>`).join("")}</tbody></table></div>`
+    : noData("条件に合う武器がありません。");
+}
+$("#dp-cats").addEventListener("click", e => { const c = e.target.closest("[data-dcat]"); if (!c) return; dpCat = c.dataset.dcat; try { localStorage.setItem("wf-dispo-cat", dpCat); } catch (err) {} renderDispo(); });
+onSortClick($("#dp-out"), dpSort, renderDispo, ["dots", "value"]);
+$("#dp-q").addEventListener("input", debounce(renderDispo, 150));
+$("#dp-dots").addEventListener("change", renderDispo);
+loaders.dispo = async () => {
+  if (dispo) { renderDispo(); return; }
+  try { dpCat = localStorage.getItem("wf-dispo-cat") || dpCat; } catch (e) {}
+  $("#dp-out").innerHTML = `<div class="empty">読み込み中...</div>`;
+  try { dispo = await api("/api/dispo"); renderDispo(); }
+  catch (e) { $("#dp-cats").innerHTML = ""; $("#dp-summary").innerHTML = ""; $("#dp-out").innerHTML = noData(e.message); }
+};
+
+/* ---------- Tips ---------- */
+/* tips フォルダのメモ(.md / .txt / .csv)を表示する。.md は簡単な書き方(見出し・表・箇条書きなど)に対応 */
+let tipsList = null, tipCur = null, tipSeq = 0;
+try { tipCur = localStorage.getItem("wf-tip"); } catch (e) {}
+const TIP_KINDS = /\.(md|markdown|txt|csv)$/i, TIP_IMAGES = /\.(png|jpe?g|gif|webp)$/i;
+function tipResolve(base, src) {  // メモのファイルから見た相対パス -> tips フォルダの中のパス
+  let s = src; try { s = decodeURIComponent(src); } catch (e) {}
+  const parts = base ? base.split("/") : [];
+  for (const seg of s.replace(/\\/g, "/").split("/")) {
+    if (seg === "..") parts.pop(); else if (seg && seg !== ".") parts.push(seg);
+  }
+  return parts.join("/");
+}
+const tipUrl = path => "/tips/" + path.split("/").map(encodeURIComponent).join("/");
+function mdInline(s, base) {
+  const keep = [], put = html => `\u0000${keep.push(html) - 1}\u0000`;
+  s = s.replace(/\u0000/g, "");
+  s = s.replace(/`([^`]+)`/g, (_, c) => put(`<code>${esc(c)}</code>`));
+  s = s.replace(/!\[([^\]]*)\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g, (_, alt, src) => {
+    if (/^https?:\/\//i.test(src)) return put(`<img src="${esc(src)}" alt="${esc(alt)}" loading="lazy">`);
+    if (/^[a-z][a-z0-9+.-]*:/i.test(src) || !TIP_IMAGES.test(src)) return put(esc(alt));
+    return put(`<img src="${esc(tipUrl(tipResolve(base, src)))}" alt="${esc(alt)}" loading="lazy">`);
+  });
+  s = s.replace(/\[([^\]]+)\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g, (_, text, href) => {
+    if (/^https?:\/\//i.test(href)) return put(`<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(text)}</a>`);
+    if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return put(esc(text));
+    const path = tipResolve(base, href.split("#")[0]);
+    if (TIP_KINDS.test(path)) return put(`<a href="#" data-tip="${esc(path)}">${esc(text)}</a>`);
+    if (TIP_IMAGES.test(path)) return put(`<a href="${esc(tipUrl(path))}" target="_blank" rel="noopener">${esc(text)}</a>`);
+    return put(esc(text));
+  });
+  s = s.replace(/https?:\/\/[^\s<>"'　-ヿ＀-￯]+[^\s<>"'.,;:!?)\]　-ヿ＀-￯]/g,
+    url => put(`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(url)}</a>`));
+  s = esc(s)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*(?!\s)([^*]*[^*\s])\*(?!\*)/g, "$1<em>$2</em>")
+    .replace(/~~(.+?)~~/g, "<del>$1</del>")
+    .replace(/==(.+?)==/g, "<mark>$1</mark>");
+  return s.replace(/\u0000(\d+)\u0000/g, (_, i) => keep[+i]);
+}
+function mdToHtml(text, base, ctx = { h: 0 }) {
+  const lines = text.replace(/\r\n?/g, "\n").replace(/\t/g, "    ").split("\n");
+  const out = []; let para = [], i = 0;
+  const flush = () => { if (para.length) { out.push(`<p>${para.map(l => mdInline(l, base)).join("<br>")}</p>`); para = []; } };
+  const LIST = /^(\s*)([-*+]|\d{1,9}[.)])\s+(.*)$/;
+  const isSep = l => /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(l);
+  const cells = l => {
+    let s = l.trim(); if (s.startsWith("|")) s = s.slice(1); if (s.endsWith("|") && !s.endsWith("\\|")) s = s.slice(0, -1);
+    return s.split(/(?<!\\)\|/).map(c => c.trim().replace(/\\\|/g, "|"));
+  };
+  while (i < lines.length) {
+    const l = lines[i];
+    let m;
+    if ((m = l.match(/^\s*(`{3,}|~{3,})/))) {             // コード
+      flush(); const fence = m[1], code = []; i++;
+      while (i < lines.length && !lines[i].trim().startsWith(fence)) code.push(lines[i++]);
+      i++; out.push(`<pre><code>${esc(code.join("\n"))}</code></pre>`); continue;
+    }
+    if (!l.trim()) { flush(); i++; continue; }
+    if ((m = l.match(/^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/))) { // 見出し
+      flush(); const n = m[1].length; out.push(`<h${n} id="tip-h-${ctx.h++}">${mdInline(m[2], base)}</h${n}>`); i++; continue;
+    }
+    if (/^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(l)) { flush(); out.push("<hr>"); i++; continue; }
+    if (l.includes("|") && i + 1 < lines.length && lines[i + 1].includes("-") && isSep(lines[i + 1])) { // 表
+      flush();
+      const head = cells(l), align = cells(lines[i + 1]).map(c => c.endsWith(":") ? (c.startsWith(":") ? "center" : "right") : "");
+      const rows = []; i += 2;
+      while (i < lines.length && lines[i].trim() && lines[i].includes("|")) rows.push(cells(lines[i++]));
+      const td = (tag, c, k) => `<${tag}${align[k] ? ` style="text-align:${align[k]}"` : ""}>${mdInline(c, base).replace(/&lt;br\s*\/?&gt;/gi, "<br>")}</${tag}>`;
+      out.push(`<div class="tablewrap"><table><thead><tr>${head.map((c, k) => td("th", c, k)).join("")}</tr></thead>
+        <tbody>${rows.map(r => `<tr>${head.map((_, k) => td("td", r[k] || "", k)).join("")}</tr>`).join("")}</tbody></table></div>`);
+      continue;
+    }
+    if (/^\s{0,3}>/.test(l)) {                               // 引用
+      flush(); const q = [];
+      while (i < lines.length && /^\s{0,3}>/.test(lines[i])) q.push(lines[i++].replace(/^\s{0,3}>\s?/, ""));
+      out.push(`<blockquote>${mdToHtml(q.join("\n"), base, ctx)}</blockquote>`); continue;
+    }
+    if (LIST.test(l)) {                                      // 箇条書き(字下げで入れ子)
+      flush(); const items = [];
+      while (i < lines.length) {
+        const x = lines[i], lm = x.match(LIST);
+        if (lm) { items.push({ indent: lm[1].length, ordered: /\d/.test(lm[2]), start: parseInt(lm[2], 10) || 1, lines: [lm[3]] }); i++; continue; }
+        if (x.trim() && /^\s{2,}/.test(x) && items.length) { items[items.length - 1].lines.push(x.trim()); i++; continue; }
+        if (!x.trim() && i + 1 < lines.length && LIST.test(lines[i + 1])) { i++; continue; }
+        break;
+      }
+      let html = ""; const stack = [];
+      for (const it of items) {
+        const tag = it.ordered ? "ol" : "ul";
+        while (stack.length && it.indent < stack[stack.length - 1].indent) html += `</li></${stack.pop().tag}>`;
+        const top = stack[stack.length - 1];
+        if (!top || it.indent > top.indent) {
+          html += `<${tag}${it.ordered && it.start !== 1 ? ` start="${it.start}"` : ""}>`; stack.push({ indent: it.indent, tag });
+        } else {
+          html += "</li>";
+          if (top.tag !== tag) { html += `</${top.tag}><${tag}>`; top.tag = tag; }
+        }
+        let first = it.lines[0], cls = "";
+        const task = first.match(/^\[([ xX])\]\s+(.*)$/);
+        if (task) { cls = ' class="task"'; first = task[2]; }
+        const body = [first, ...it.lines.slice(1)].map(x => mdInline(x, base)).join("<br>");
+        html += `<li${cls}>${task ? `<input type="checkbox" disabled${task[1] !== " " ? " checked" : ""}>` : ""}${body}`;
+      }
+      while (stack.length) html += `</li></${stack.pop().tag}>`;
+      out.push(html); continue;
+    }
+    para.push(l.trim()); i++;
+  }
+  flush();
+  return out.join("\n");
+}
+function renderTipsToc(heads = "") {
+  if (!tipsList) return;
+  let html = "", grp = "";
+  tipsList.items.forEach(t => {
+    if (t.group && t.group !== grp) html += `<div class="grp">${esc(t.group)}</div>`;
+    grp = t.group;
+    const cur = t.path === tipCur;
+    html += `<a href="#" data-tip="${esc(t.path)}" class="${t.group ? "in-grp" : ""}" aria-current="${cur}">${esc(t.title)}</a>`;
+    if (cur && heads) html += `<div class="heads${t.group ? " in-grp" : ""}">${heads}</div>`;
+  });
+  $("#tips-toc").innerHTML = html || `<div class="empty">メモがありません</div>`;
+}
+async function openTip(path) {
+  const seq = ++tipSeq; tipCur = path; $("#tips-err").textContent = "";
+  try { localStorage.setItem("wf-tip", path); } catch (e) {}
+  renderTipsToc();
+  let f;
+  try { f = await api(`/api/tips/file?path=${encodeURIComponent(path)}`); }
+  catch (e) { if (seq === tipSeq) $("#tips-body").innerHTML = noData(e.message); return; }
+  if (seq !== tipSeq) return;
+  const base = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+  let body;
+  if (f.kind === "csv") {
+    const [head = [], ...rows] = f.rows, n = Math.max(head.length, ...rows.map(r => r.length));
+    const cell = (tag, c) => `<${tag}>${mdInline(c || "", base).replace(/\n/g, "<br>")}</${tag}>`;
+    body = `<h1>${esc(f.title)}</h1>` + (head.length ? `<div class="tablewrap"><table><thead><tr>${Array.from({ length: n }, (_, k) => cell("th", head[k])).join("")}</tr></thead>
+      <tbody>${rows.map(r => `<tr>${Array.from({ length: n }, (_, k) => cell("td", r[k])).join("")}</tr>`).join("")}</tbody></table></div>` : noData("中身が空です。"));
+  } else if (f.kind === "txt") {
+    body = `<h1>${esc(f.title)}</h1><pre>${esc(f.text)}</pre>`;
+  } else {
+    body = mdToHtml(f.text, base);
+    if (!/^<h1[ >]/.test(body)) body = `<h1>${esc(f.title)}</h1>` + body;
+  }
+  $("#tips-body").innerHTML = `<p class="tip-meta">${esc(f.path)}${f.updated ? ` ・ ${esc(f.updated)} 更新` : ""}</p>` + body;
+  const heads = [...$("#tips-body").querySelectorAll("h2[id], h3[id]")]
+    .map(h => `<a href="#" data-h="${h.id}" class="${h.tagName.toLowerCase()}">${esc(h.textContent)}</a>`).join("");
+  renderTipsToc(heads);
+}
+async function loadTips() {
+  $("#tips-err").textContent = "";
+  try { tipsList = await api("/api/tips"); }
+  catch (e) { $("#tips-err").textContent = e.message; return; }
+  $("#tips-dir").textContent = tipsList.dir;
+  if (!tipsList.items.length) {
+    renderTipsToc();
+    $("#tips-body").innerHTML = `<div class="empty">${tipsList.exists ? "tips フォルダにメモがありません。" : "tips フォルダがありません。"}
+      「tips フォルダを開く」でフォルダを開き、.md / .txt / .csv のファイルを置いてから「再読み込み」を押してください。</div>`;
+    return;
+  }
+  if (!tipsList.items.some(t => t.path === tipCur)) tipCur = tipsList.items[0].path;
+  await openTip(tipCur);
+}
+$("#tips-toc").addEventListener("click", e => {
+  const a = e.target.closest("a"); if (!a) return; e.preventDefault();
+  if (a.dataset.tip) openTip(a.dataset.tip);
+  else if (a.dataset.h) document.getElementById(a.dataset.h)?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+$("#tips-body").addEventListener("click", e => {
+  const a = e.target.closest("a[data-tip]"); if (!a) return; e.preventDefault();
+  if (tipsList && tipsList.items.some(t => t.path === a.dataset.tip)) openTip(a.dataset.tip);
+  else $("#tips-err").textContent = `リンク先のメモが見つかりません: ${a.dataset.tip}`;
+});
+$("#tips-reload").addEventListener("click", loadTips);
+$("#tips-open").addEventListener("click", async () => {
+  try { await api("/api/tips/open", { method: "POST", body: {} }); $("#tips-err").textContent = ""; }
+  catch (e) { $("#tips-err").textContent = e.message; }
+});
+loaders.tips = loadTips;  // 開くたびに読み直す(外で編集した内容をすぐ反映)
+
+/* ---------- シミュレータ ---------- */
+/* 計算画面は web/wfportal_builder.html (/builder)。初めて開いたときに読み込み、配色と高さをポータルに合わせる */
+const SIM_VARS = ["--bg", "--panel", "--panel-2", "--line", "--ink", "--mute", "--primary", "--primary-bg", "--on-primary",
+  "--secondary", "--on-secondary", "--accent", "--accent-bg", "--danger", "--font", "--mono"];
+let simObserver = null;
+function simDoc() { try { return $("#sim-frame").contentDocument; } catch (e) { return null; } }
+function simTheme() {
+  const doc = simDoc(); if (!doc || !doc.documentElement) return;
+  const cs = getComputedStyle(document.documentElement);
+  SIM_VARS.forEach(v => { const x = cs.getPropertyValue(v).trim(); if (x) doc.documentElement.style.setProperty(v, x); });
+  const scheme = cs.getPropertyValue("color-scheme").trim();
+  if (scheme) doc.documentElement.style.colorScheme = scheme;
+}
+function simFit() {
+  // 中身(.wrap)の高さに合わせる。文書全体の高さは iframe の高さ以下にならないので、縮むときのために中身で測る
+  const doc = simDoc(), wrap = doc && doc.querySelector(".wrap"); if (!wrap) return;
+  $("#sim-frame").style.height = Math.max(420, Math.ceil(wrap.getBoundingClientRect().height) + 8) + "px";
+}
+$("#sim-frame").addEventListener("load", () => {
+  simTheme(); simFit();
+  const doc = simDoc();
+  if (doc && window.ResizeObserver) { simObserver?.disconnect(); simObserver = new ResizeObserver(simFit); simObserver.observe(doc.querySelector(".wrap") || doc.body); }
+});
+try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => setTimeout(simTheme, 0)); } catch (e) {}
+loaders.sim = () => {
+  const f = $("#sim-frame");
+  if (!f.getAttribute("src")) f.setAttribute("src", "/builder");
+  else simFit();
+};
+function simReload() { try { const w = $("#sim-frame").contentWindow; if (w && w.wfReload) w.wfReload(); } catch (e) {} }
+
+/* ---------- マスター一覧 ---------- */
+let mastery = null, msCat = "", msArmed = null;
+const msSort = { key: "cat", dir: "asc" };
+const msGetters = {
+  done: r => (r.done ? 1 : 0), name: r => r.label.toLowerCase(), rank: r => r.rank, xp: r => r.xp,
+  cat: r => Object.keys(mastery.cats).indexOf(r.cat) * 10000 + 0, // 並べ替えの基準: カテゴリー順 -> 名前
+};
+function msFilter() {
+  const q = $("#ms-q").value.trim().toLowerCase(), st = $("#ms-state").value;
+  return mastery.rows.filter(r => (!msCat || r.cat === msCat) && (!st || (st === "done") === r.done) &&
+    (!q || [r.en, r.ja, r.label].some(x => (x || "").toLowerCase().includes(q))));
+}
+function msSummary() {
+  const sm = { all: { total: 0, done: 0, xp: 0, xp_done: 0 } };
+  Object.keys(mastery.cats).forEach(c => sm[c] = { total: 0, done: 0, xp: 0, xp_done: 0 });
+  mastery.rows.forEach(r => [sm[r.cat], sm.all].forEach(o => { o.total++; o.xp += r.xp; if (r.done) { o.done++; o.xp_done += r.xp; } }));
+  return sm;
+}
+function renderMastery() {
+  if (!mastery) return;
+  const sm = msSummary();
+  $("#ms-cats").innerHTML = [["", "すべて", sm.all], ...Object.entries(mastery.cats).map(([k, v]) => [k, v, sm[k]])]
+    .map(([k, v, o]) => `<button class="chip" data-mcat="${k}" aria-pressed="${msCat === k}">${esc(v)}<small>${o.done} / ${o.total}</small></button>`).join("");
+  let list = msFilter();
+  list = sortRows(list, msSort, msGetters);
+  if (msSort.key === "cat") list.sort((a, b) => (msGetters.cat(a) - msGetters.cat(b)) * (msSort.dir === "asc" ? 1 : -1) || a.label.localeCompare(b.label, "ja"));
+  const cur = msCat ? sm[msCat] : sm.all, pctDone = cur.total ? cur.done / cur.total * 100 : 0;
+  $("#ms-summary").innerHTML = `<span><b class="count">${esc(msCat ? mastery.cats[msCat] : "全体")}</b> マスター済み ${cur.done} / ${cur.total}(${pctDone.toFixed(1)}%)</span>
+    <span class="progress" aria-hidden="true"><i style="--w:${pctDone.toFixed(1)}%"></i></span>
+    <span>マスタリー経験値 ${cur.xp_done.toLocaleString()} / ${cur.xp.toLocaleString()}</span><span>表示 ${list.length} 件</span>`;
+  ["on", "off"].forEach(k => {
+    const b = $(`#ms-bulk-${k}`), label = k === "on" ? "表示中をすべてマスター済みに" : "表示中のチェックを外す";
+    b.textContent = msArmed === k ? `本当に ${list.length} 件を変更` : label; b.classList.toggle("danger", msArmed === k); b.classList.toggle("armed", msArmed === k);
+  });
+  $("#ms-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
+    <thead><tr>${th("済", "done", msSort, "num")}${th("名前", "name", msSort)}${th("カテゴリー", "cat", msSort)}${th("最大ランク", "rank", msSort, "num")}${th("マスタリー経験値", "xp", msSort, "num")}</tr></thead>
+    <tbody>${list.map(r => `<tr class="${r.done ? "owned" : ""}" data-id="${esc(r.id)}">
+      <td class="num"><input type="checkbox" class="own" ${r.done ? "checked" : ""} aria-label="${esc(r.label)} をマスター済み"></td>
+      <td>${esc(r.label)}${r.ja !== r.en ? `<span class="sub-en">${esc(r.en)}</span>` : ""}</td><td>${esc(r.cat_ja)}</td>
+      <td class="num">${r.rank}</td><td class="num">${r.xp.toLocaleString()}</td></tr>`).join("")}</tbody></table></div>`
+    : noData("条件に合うものがありません。");
+}
+async function setMastered(ids, done) {
+  const before = mastery.rows.filter(r => ids.includes(r.id)).map(r => [r, r.done]);
+  before.forEach(([r]) => r.done = done); renderMastery();
+  try { await api("/api/mastery", { method: "POST", body: { ids, done } }); }
+  catch (e) { before.forEach(([r, d]) => r.done = d); renderMastery(); $("#ms-summary").insertAdjacentHTML("beforeend", `<span class="err">${esc(e.message)}</span>`); }
+}
+$("#ms-cats").addEventListener("click", e => { const c = e.target.closest("[data-mcat]"); if (!c) return; msCat = c.dataset.mcat; msArmed = null; renderMastery(); });
+$("#ms-out").addEventListener("change", e => { const cb = e.target.closest("input.own"); if (cb) setMastered([cb.closest("tr").dataset.id], cb.checked); });
+onSortClick($("#ms-out"), msSort, renderMastery, ["done", "rank", "xp"]);
+$("#ms-q").addEventListener("input", debounce(() => { msArmed = null; renderMastery(); }, 150));
+$("#ms-state").addEventListener("change", () => { msArmed = null; renderMastery(); });
+["on", "off"].forEach(k => $(`#ms-bulk-${k}`).addEventListener("click", () => {
+  if (!mastery) return;
+  if (msArmed !== k) { msArmed = k; renderMastery(); setTimeout(() => { if (msArmed === k) { msArmed = null; renderMastery(); } }, 4000); return; }
+  msArmed = null;
+  const ids = msFilter().filter(r => r.done !== (k === "on")).map(r => r.id);
+  if (ids.length) setMastered(ids, k === "on"); else renderMastery();
+}));
+$("#ms-csv").addEventListener("click", () => {
+  if (!mastery) return;
+  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [["マスター済み", "名前", "名前(英語)", "カテゴリー", "最大ランク", "マスタリー経験値"].map(q).join(",")]
+    .concat(msFilter().map(r => [r.done ? "○" : "", r.label, r.en, r.cat_ja, r.rank, r.xp].map(q).join(",")));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv" }));
+  a.download = `マスター一覧_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+loaders.mastery = async () => {
+  if (mastery) { renderMastery(); return; }
+  $("#ms-out").innerHTML = `<div class="empty">読み込み中...</div>`;
+  try { mastery = await api("/api/mastery"); renderMastery(); }
+  catch (e) { $("#ms-cats").innerHTML = ""; $("#ms-summary").innerHTML = ""; $("#ms-out").innerHTML = noData(e.message); }
+};
+
+/* ---------- サイクル ---------- */
+let cyc = null, cycAt = 0, cycTimer = null;
+function renderCycles() {
+  if (!cyc) return;
+  const el = (Date.now() - cycAt) / 1000;
+  const cards = cyc.cycles.map(c => {
+    if (!c.set) return `<div class="card"><header><b>${esc(c.name)}</b></header><div class="pad"><span class="cyc-phase">未設定</span><span class="note">下の「時刻合わせ」で設定してください。</span></div></div>`;
+    const left = c.left - el;
+    return `<div class="card"><header><b>${esc(c.name)}</b></header><div class="pad">
+      <span class="cyc-phase ${esc(c.phase_key)}">${esc(c.phase)}</span><span class="clock">${dur(left)}</span>
+      <span class="note">残り時間${c.cambion ? ` / カンビオンの荒地: ${esc(c.cambion)}` : ""}</span></div></div>`;
+  });
+  cards.push(`<div class="card"><header><b>デイリーリセット</b><span>${esc(cyc.daily.at)} JST</span></header><div class="pad"><span class="clock">${dur(cyc.daily.left - el)}</span></div></div>`);
+  cards.push(`<div class="card"><header><b>ウィークリーリセット</b><span>${esc(cyc.weekly.at)} JST</span></header><div class="pad"><span class="clock">${dur(cyc.weekly.left - el)}</span></div></div>`);
+  $("#cycle-cards").innerHTML = cards.join("");
+  // どれかのフェーズが切り替わったら取得し直す
+  if (cyc.cycles.some(c => c.set && c.left - el < 0) || cyc.daily.left - el < 0) loadCycles();
+}
+async function loadCycles() {
+  try { cyc = await api("/api/cycles"); cycAt = Date.now(); renderCycles(); } catch (e) { $("#cycle-cards").innerHTML = noData(e.message); }
+}
+function fillPhaseOptions() {
+  const key = $("#cf-key").value, phases = key === "cetus" ? ["昼", "夜"] : ["温暖", "寒冷"];
+  $("#cf-phase").innerHTML = phases.map(p => `<option>${p}</option>`).join("");
+}
+$("#cf-key").addEventListener("change", fillPhaseOptions);
+$("#cycle-form").addEventListener("submit", async e => {
+  e.preventDefault(); $("#cf-err").textContent = "";
+  try {
+    cyc = await api("/api/cycles", { method: "POST", body: { key: $("#cf-key").value, phase: $("#cf-phase").value, remaining: $("#cf-rem").value } });
+    cycAt = Date.now(); renderCycles(); $("#cf-rem").value = "";
+  } catch (err) { $("#cf-err").textContent = err.message; }
+});
+loaders.cycle = async () => { fillPhaseOptions(); await loadCycles(); };
+setInterval(() => { if (!$("#view-cycle").hidden) renderCycles(); }, 1000);
+
+/* ---------- ビルド ---------- */
+let builds = [], btypes = {}, editing = null, armed = null;
+/* フォームで編集中の画像: {saved: ファイル名} か {blob, url} (まだ保存していない新しい画像) */
+let formImages = [];
+const imgUrl = name => `/api/build-image/${encodeURIComponent(name)}`;
+function clearFormImages() {
+  formImages.forEach(i => i.url && URL.revokeObjectURL(i.url)); formImages = []; renderFormImages();
+  ocrRun++; ocrResult = null; $("#b-ocr").hidden = true; $("#b-ocr").innerHTML = "";
+}
+function renderFormImages() {
+  updateAnalyzeBtn();
+  $("#b-thumbs").innerHTML = formImages.map((im, i) => `<div class="thumb" data-i="${i}" title="クリックで拡大">
+    <img src="${im.saved ? imgUrl(im.saved) : im.url}" alt="画像 ${i + 1}" loading="lazy">
+    ${im.saved ? "" : `<span class="new">未保存</span>`}
+    <button type="button" class="x" data-rm="${i}" aria-label="画像 ${i + 1} を外す">×</button></div>`).join("");
+}
+/* ---------- 画像の自動解析 (Windows の文字認識) ---------- */
+let ocrInfo = null, ocrResult = null, ocrRun = 0;
+const SLOT_JA = { match: "極性一致", neutral: "極性なし", mismatch: "極性不一致" };
+async function loadOcrInfo() {
+  if (ocrInfo) return ocrInfo;
+  try { ocrInfo = await api("/api/ocr-info"); } catch (e) { ocrInfo = { available: false, reason: e.message }; }
+  $("#b-ocr-note").textContent = ocrInfo.available
+    ? (ocrInfo.english ? "画像を追加すると自動で読み取ります。" : "英語の文字認識が入っていないため、MOD 名の精度が下がることがあります(Windows の設定 → 言語 で English を追加すると改善します)。")
+    : `画像の自動解析は使えません: ${ocrInfo.reason || ""}`;
+  updateAnalyzeBtn();
+  return ocrInfo;
+}
+function updateAnalyzeBtn() { $("#b-analyze").hidden = !(ocrInfo && ocrInfo.available && formImages.length); }
+function mergeOcr(list) {
+  const targets = list.map(r => r.target).filter(Boolean);
+  const target = targets.sort((a, b) => b.score - a.score)[0] || null;
+  const seen = new Set(), mods = [];
+  list.forEach(r => r.mods.forEach(m => { const k = m.en.toLowerCase(); if (!seen.has(k)) { seen.add(k); mods.push(m); } }));
+  const shown = list.filter(r => r.forma.source === "display").map(r => r.forma.value);
+  const polarized = mods.filter(m => m.slot === "match" && m.polarity).map(m => m.polarity);
+  const judged = mods.some(m => m.slot);
+  const disp = list.filter(r => r.forma.source === "display").sort((a, b) => b.forma.value - a.forma.value)[0];
+  const forma = shown.length ? { value: Math.max(...shown), source: "display", rank: disp.forma.rank, estimate: judged ? polarized.length : null, polarized }
+    : judged ? { value: polarized.length, source: "estimate", estimate: polarized.length, polarized } : { value: null, source: null, polarized: [] };
+  return { target, mods, forma, images: list.length, has_items: list.every(r => r.has_items) };
+}
+const polSummary = list => Object.entries(list.reduce((a, p) => (a[p] = (a[p] || 0) + 1, a), {}))
+  .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([p, n]) => `${p}×${n}`).join(", ");
+function renderOcr(r, msg = "") {
+  const box = $("#b-ocr"); box.hidden = false;
+  const f = r.forma, t = r.target;
+  box.innerHTML = `<h5>画像の読み取り結果<span class="mini">(${r.images} 枚)</span></h5>
+    <dl class="kv">
+      <dt>対象</dt><dd>${t ? `${esc(t.ja)}${t.ja !== t.en ? `<span class="sub-en">${esc(t.en)}</span>` : ""} / ${esc(btypes[t.type] || t.type)}${t.score < 0.95 ? `<span class="check" title="読み取り: ${esc(t.read)}">要確認</span>` : ""}`
+        : `<span class="none">読み取れませんでした${r.has_items ? "" : "(「データ更新」を実行するとフレーム・武器名も照合できます)"}</span>`}</dd>
+      <dt>フォーマ</dt><dd>${f.value === null ? `<span class="none">読み取れませんでした</span>`
+        : f.source === "display" ? `${f.value}(画面上部「${t ? esc(t.en.toUpperCase()) : "装備名"} [${f.rank ?? "ランク"}]」の後ろの数字)${f.estimate !== null && f.estimate !== undefined && f.estimate !== f.value ? `<span class="mini"> / 極性からの推定 ${f.estimate}</span>` : ""}`
+        : `${f.value}(推定: 極性が一致しているスロットの数)`}</dd>
+      ${f.polarized && f.polarized.length ? `<dt>極性</dt><dd>${esc(polSummary(f.polarized))}</dd>` : ""}
+      <dt>MOD</dt><dd>${r.mods.filter(m => m.kind !== "arcane").length} 件</dd>
+      ${r.mods.some(m => m.kind === "arcane") ? `<dt>アルケイン</dt><dd>${r.mods.filter(m => m.kind === "arcane").map(m => esc(m.en)).join(", ")}</dd>` : ""}
+    </dl>
+    ${r.mods.some(m => m.kind !== "arcane") ? `<ol>${r.mods.filter(m => m.kind !== "arcane").map(m => `<li>${esc(m.ja)}${m.polarity ? `<span class="pol">${esc(m.polarity)}</span>` : ""}
+      ${m.slot ? `<span class="slot ${m.slot}" title="ドレイン ${m.drain}">${SLOT_JA[m.slot]}</span>` : ""}
+      ${m.score < 0.95 ? `<span class="check" title="読み取り: ${esc(m.read)}">要確認</span>` : ""}</li>`).join("")}</ol>` : ""}
+    <div class="row"><button type="button" class="btn" id="ocr-apply">フォームにすべて反映(上書き)</button><span class="mini">${esc(msg)}</span></div>
+    <p class="note">読み取りは推定です。保存前に内容を確認してください。フォーマの推定は「MOD が最大ランク」「極性が一致すると消費が半分になる」ことを使っており、元から付いている極性も1つと数えます。</p>`;
+}
+function applyOcr(r, onlyEmpty) {
+  const filled = [];
+  const set = (id, v, label, empty) => { if (v === null || v === undefined || v === "") return; if (!onlyEmpty || empty) { $(id).value = v; filled.push(label); } };
+  const targetWasEmpty = !$("#b-target").value.trim();
+  if (r.target) {
+    set("#b-target", r.target.en, "対象", targetWasEmpty);
+    set("#b-type", r.target.type, "種別", targetWasEmpty);
+    set("#b-name", r.target.en, "ビルド名", !$("#b-name").value.trim());
+  }
+  const modList = r.mods.filter(m => m.kind !== "arcane"), arcList = r.mods.filter(m => m.kind === "arcane");
+  if (modList.length) set("#b-mods", modList.map(m => m.en).join("\n"), "MOD", !$("#b-mods").value.trim());
+  if (arcList.length) set("#b-arcanes", arcList.map(m => m.en).join("\n"), "アルケイン", !$("#b-arcanes").value.trim());
+  // ゲーム内の表示から読めたフォーマ数はそのまま登録する。推定値は空欄(0)のときだけ入れる
+  if (r.forma.value !== null) set("#b-forma", r.forma.value, "フォーマ", r.forma.source === "display" || !(+$("#b-forma").value));
+  if (r.forma.polarized && r.forma.polarized.length) {
+    const line = `極性(推定): ${polSummary(r.forma.polarized)}`;
+    const note = $("#b-note").value.split("\n").filter(l => !l.startsWith("極性(推定):"));
+    $("#b-note").value = [...note.filter(Boolean), line].join("\n"); filled.push("メモ(極性)");
+  }
+  return filled;
+}
+async function analyzeImages(list, auto) {
+  if (!list.length) return;
+  const info = await loadOcrInfo();
+  if (!info.available) { if (!auto) { $("#b-ocr").hidden = false; $("#b-ocr").innerHTML = noData(info.reason || "文字認識が使えません。"); } return; }
+  const run = ++ocrRun, btn = $("#b-analyze"), out = [];
+  btn.disabled = true; $("#b-ocr").hidden = false;
+  try {
+    for (let i = 0; i < list.length; i++) {
+      $("#b-ocr").innerHTML = `<span class="busy">画像を読み取り中... ${i + 1} / ${list.length}(1枚に数秒かかります)</span>`;
+      const im = list[i];
+      let r;
+      if (im.saved) r = await api(`/api/build-analyze?image=${encodeURIComponent(im.saved)}`, { method: "POST", body: {} });
+      else {
+        const blob = im.blob.size > 18 * 1024 * 1024 ? await prepareImage(im.blob) : im.blob;
+        const res = await fetch("/api/build-analyze", { method: "POST", headers: { "Content-Type": blob.type || "image/png" }, body: blob });
+        r = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(r.error || `エラー (${res.status})`);
+      }
+      out.push(r);
+    }
+    if (run !== ocrRun) return;
+    ocrResult = mergeOcr(out);
+    const filled = auto ? applyOcr(ocrResult, true) : [];
+    renderOcr(ocrResult, auto ? (filled.length ? `${filled.join("・")}を入力しました。入力済みの項目は、画面に表示されたフォーマ数を除いて変更していません。` : "入力済みの項目は変更していません。") : "");
+  } catch (e) { if (run === ocrRun) $("#b-ocr").innerHTML = `<span class="err">読み取れませんでした: ${esc(e.message)}</span>`; }
+  btn.disabled = false;
+}
+$("#b-analyze").addEventListener("click", () => analyzeImages(formImages, false));
+$("#b-ocr").addEventListener("click", e => {
+  if (!e.target.closest("#ocr-apply") || !ocrResult) return;
+  const filled = applyOcr(ocrResult, false);
+  renderOcr(ocrResult, `${filled.join("・")}を反映しました。保存ボタンで登録されます。`);
+});
+
+/** 大きい画像(4MB超)は縮小してから送る。GIF はアニメーションを壊さないようそのまま */
+async function prepareImage(file) {
+  if (file.size <= 4 * 1024 * 1024 || file.type === "image/gif" || !window.createImageBitmap) return file;
+  try {
+    const bmp = await createImageBitmap(file), scale = Math.min(1, 2560 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas"); c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, "image/webp", 0.92));
+    return blob && blob.type === "image/webp" ? blob : await new Promise(r => c.toBlob(r, "image/jpeg", 0.92));
+  } catch (e) { return file; }
+}
+function addImageFiles(files) {
+  const ok = [...files].filter(f => /^image\/(png|jpeg|gif|webp)$/.test(f.type));
+  if (!ok.length) { $("#b-err").textContent = "PNG / JPEG / GIF / WebP の画像を選んでください。"; return; }
+  $("#b-err").textContent = "";
+  const added = ok.map(f => ({ blob: f, url: URL.createObjectURL(f) }));
+  formImages.push(...added);
+  renderFormImages(); $("#build-form-wrap").open = true;
+  analyzeImages(added, true);  // 追加した画像を自動で読み取り、空欄に入力する
+}
+function resetBuildForm() {
+  editing = null; $("#build-form").reset(); $("#b-forma").value = 0; clearFormImages(); $("#b-arc-note").textContent = "";
+  $("#build-form-title").textContent = "ビルドを追加"; $("#b-cancel").hidden = true; $("#b-err").textContent = "";
+}
+function renderBuilds() {
+  const q = $("#b-filter").value.trim().toLowerCase(), t = $("#b-filter-type").value;
+  const list = builds.filter(b => (!t || b.type === t) &&
+    (!q || [b.name, b.target, ...(b.tags || []), ...(b.arcanes || [])].some(x => (x || "").toLowerCase().includes(q))));
+  $("#build-list").innerHTML = list.length ? list.map(b => `
+    <div class="card build"><header><b>${esc(b.name)}</b><span>${esc(btypes[b.type] || b.type)}${b.target ? " / " + esc(b.target) : ""}</span></header>
+    <div class="pad"><div class="meta">フォーマ ${b.forma || 0} / MOD ${(b.mods || []).length}${(b.arcanes || []).length ? ` / アルケイン ${b.arcanes.length}` : ""}${(b.images || []).length ? ` / 画像 ${b.images.length}` : ""}</div>
+      ${(b.mods || []).length ? `<ol>${b.mods.map(m => `<li>${esc(m)}</li>`).join("")}</ol>` : ""}
+      ${(b.arcanes || []).length ? `<div class="arcs"><span class="mini">アルケイン</span> ${b.arcanes.map(a => `<span class="arc">${esc(a)}</span>`).join("")}</div>` : ""}
+      ${b.note ? `<div>${esc(b.note)}</div>` : ""}
+      ${(b.tags || []).length ? `<div class="tags">${b.tags.map(x => `<span>#${esc(x)}</span>`).join("")}</div>` : ""}
+      ${(b.images || []).length ? `<div class="thumbs">${b.images.map((n, i) => `<button type="button" class="thumb" data-view-img="${esc(b.name)}" data-i="${i}" aria-label="${esc(b.name)} の画像 ${i + 1} を拡大"><img src="${imgUrl(n)}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
+      <div class="acts"><button class="btn ghost" data-edit="${esc(b.name)}">編集</button>
+        <button class="btn danger${armed === b.name ? " armed" : ""}" data-del="${esc(b.name)}">${armed === b.name ? "本当に削除" : "削除"}</button></div></div></div>`).join("")
+    : `<div class="empty">${builds.length ? "条件に合うビルドがありません。" : "まだビルドがありません。上のフォームから追加してください。"}</div>`;
+}
+let arcaneNames = [];
+const ARC_LIMIT = { frame: 2, primary: 1, secondary: 1, melee: 1 };  // ゲーム内で装備できる数
+function arcNote() {
+  const lines = $("#b-arcanes").value.split("\n").map(x => x.trim()).filter(Boolean);
+  const limit = ARC_LIMIT[$("#b-type").value], known = new Set(arcaneNames.map(a => a.toLowerCase()));
+  const unknown = lines.filter(a => known.size && !known.has(a.toLowerCase()));
+  const msgs = [];
+  if (limit && lines.length > limit) msgs.push(`${btypes[$("#b-type").value]}に装備できるアルケインは ${limit} つまでです(いま ${lines.length} つ)。`);
+  if (unknown.length) msgs.push(`一覧に無い名前: ${unknown.join(", ")}`);
+  $("#b-arc-note").textContent = msgs.join(" ");
+  $("#b-arc-note").classList.toggle("err", msgs.length > 0);
+}
+function addArcane() {
+  const v = $("#b-arc-pick").value.trim(); if (!v) return;
+  const hit = arcaneNames.find(a => a.toLowerCase() === v.toLowerCase()) || v;
+  const lines = $("#b-arcanes").value.split("\n").map(x => x.trim()).filter(Boolean);
+  if (!lines.some(x => x.toLowerCase() === hit.toLowerCase())) lines.push(hit);
+  $("#b-arcanes").value = lines.join("\n"); $("#b-arc-pick").value = ""; arcNote();
+}
+$("#b-arc-add").addEventListener("click", addArcane);
+$("#b-arc-pick").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addArcane(); } });
+$("#b-arcanes").addEventListener("input", arcNote);
+$("#b-type").addEventListener("change", arcNote);
+async function loadBuilds() {
+  const r = await api("/api/builds"); builds = r.builds; btypes = r.types;
+  arcaneNames = r.arcanes || [];
+  $("#arcane-list").innerHTML = arcaneNames.map(a => `<option value="${esc(a)}">`).join("");
+  $("#b-type").innerHTML = Object.entries(btypes).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  const cur = $("#b-filter-type").value;
+  $("#b-filter-type").innerHTML = `<option value="">すべての種別</option>` + Object.entries(btypes).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  $("#b-filter-type").value = cur; renderBuilds();
+}
+$("#build-form").addEventListener("submit", async e => {
+  e.preventDefault(); $("#b-err").textContent = "";
+  const btn = $("#b-save"), name = $("#b-name").value.trim();
+  btn.disabled = true;
+  try {
+    const r = await api("/api/builds", { method: "POST", body: {
+      original_name: editing, name, type: $("#b-type").value, target: $("#b-target").value,
+      forma: $("#b-forma").value, mods: $("#b-mods").value, arcanes: $("#b-arcanes").value, tags: $("#b-tags").value, note: $("#b-note").value,
+      images: formImages.filter(i => i.saved).map(i => i.saved) } });
+    builds = r.builds;
+    // ビルドを保存してから、新しい画像を1枚ずつ送る
+    editing = name;
+    const pending = formImages.filter(i => !i.saved);
+    for (let k = 0; k < pending.length; k++) {
+      $("#b-err").textContent = `画像を保存中... ${k + 1} / ${pending.length}`;
+      const blob = await prepareImage(pending[k].blob);
+      const res = await fetch(`/api/build-image?name=${encodeURIComponent(name)}`, { method: "POST", headers: { "Content-Type": blob.type || "image/png" }, body: blob });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(`画像 ${k + 1} を保存できませんでした: ${data.error || res.status}(ビルド本体は保存済みです)`);
+      builds = data.builds;
+      pending[k].saved = data.builds.find(x => x.name === name).images.slice(-1)[0];
+      URL.revokeObjectURL(pending[k].url); delete pending[k].url; delete pending[k].blob;
+    }
+    resetBuildForm(); renderBuilds();
+  } catch (err) { $("#b-err").textContent = err.message; renderFormImages(); renderBuilds(); }
+  btn.disabled = false;
+});
+/* 画像の追加: クリック / ドラッグ&ドロップ / 貼り付け */
+$("#b-drop").addEventListener("click", () => $("#b-file").click());
+$("#b-drop").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#b-file").click(); } });
+$("#b-file").addEventListener("change", e => { addImageFiles(e.target.files); e.target.value = ""; });
+["dragenter", "dragover"].forEach(t => $("#b-drop").addEventListener(t, e => { e.preventDefault(); $("#b-drop").classList.add("over"); }));
+["dragleave", "drop"].forEach(t => $("#b-drop").addEventListener(t, () => $("#b-drop").classList.remove("over")));
+$("#b-drop").addEventListener("drop", e => { e.preventDefault(); addImageFiles(e.dataTransfer.files); });
+document.addEventListener("paste", e => {
+  if ($("#view-build").hidden) return;
+  const files = [...(e.clipboardData ? e.clipboardData.files : [])].filter(f => f.type.startsWith("image/"));
+  if (!files.length) return;
+  e.preventDefault(); addImageFiles(files);
+});
+$("#b-thumbs").addEventListener("click", e => {
+  const rm = e.target.closest("[data-rm]");
+  if (rm) { const [im] = formImages.splice(+rm.dataset.rm, 1); if (im.url) URL.revokeObjectURL(im.url); renderFormImages(); return; }
+  const t = e.target.closest(".thumb"); if (!t) return;
+  openLightbox(formImages.map(im => im.saved ? imgUrl(im.saved) : im.url), +t.dataset.i);
+});
+/* 拡大表示 */
+let lb = { urls: [], i: 0 };
+function showLightbox() {
+  const n = lb.urls.length; $("#lb-img").src = lb.urls[lb.i]; $("#lb-open").href = lb.urls[lb.i];
+  $("#lb-count").textContent = `${lb.i + 1} / ${n}`; $("#lb-prev").disabled = $("#lb-next").disabled = n < 2;
+}
+function openLightbox(urls, i) { lb = { urls, i }; showLightbox(); $("#lightbox").showModal(); }
+const lbMove = d => { lb.i = (lb.i + d + lb.urls.length) % lb.urls.length; showLightbox(); };
+$("#lb-prev").addEventListener("click", () => lbMove(-1));
+$("#lb-next").addEventListener("click", () => lbMove(1));
+$("#lb-close").addEventListener("click", () => $("#lightbox").close());
+$("#lightbox").addEventListener("click", e => { if (e.target.id === "lightbox") $("#lightbox").close(); });
+$("#lightbox").addEventListener("keydown", e => { if (e.key === "ArrowLeft") lbMove(-1); if (e.key === "ArrowRight") lbMove(1); });
+$("#b-cancel").addEventListener("click", resetBuildForm);
+$("#b-filter").addEventListener("input", renderBuilds);
+$("#b-filter-type").addEventListener("change", renderBuilds);
+$("#build-list").addEventListener("click", async e => {
+  const ed = e.target.closest("[data-edit]"), del = e.target.closest("[data-del]"), view = e.target.closest("[data-view-img]");
+  if (view) {
+    const b = builds.find(x => x.name === view.dataset.viewImg);
+    if (b) openLightbox(b.images.map(imgUrl), +view.dataset.i);
+    return;
+  }
+  if (ed) {
+    const b = builds.find(x => x.name === ed.dataset.edit); if (!b) return;
+    editing = b.name; $("#b-name").value = b.name; $("#b-type").value = b.type; $("#b-target").value = b.target || "";
+    $("#b-forma").value = b.forma || 0; $("#b-mods").value = (b.mods || []).join("\n"); $("#b-arcanes").value = (b.arcanes || []).join("\n"); $("#b-tags").value = (b.tags || []).join(",");
+    $("#b-note").value = b.note || ""; $("#build-form-title").textContent = `「${b.name}」を編集`; $("#b-cancel").hidden = false;
+    clearFormImages(); formImages = (b.images || []).map(n => ({ saved: n })); renderFormImages();
+    $("#build-form-wrap").open = true; $("#b-name").focus(); window.scrollTo({ top: 0, behavior: "smooth" });
+  } else if (del) {
+    const name = del.dataset.del;
+    if (armed !== name) { armed = name; renderBuilds(); setTimeout(() => { if (armed === name) { armed = null; renderBuilds(); } }, 4000); return; }
+    armed = null;
+    try { builds = (await api(`/api/builds?name=${encodeURIComponent(name)}`, { method: "DELETE" })).builds; if (editing === name) resetBuildForm(); renderBuilds(); }
+    catch (err) { $("#b-err").textContent = err.message; }
+  }
+});
+loaders.build = () => { loadOcrInfo(); return loadBuilds().catch(e => { $("#build-list").innerHTML = noData(e.message); }); };
+
+/* ---------- データ更新 ---------- */
+$("#update-btn").addEventListener("click", async () => {
+  const btn = $("#update-btn"), log = $("#update-log");
+  btn.disabled = true; btn.textContent = "取得中..."; log.hidden = false; log.textContent = "取得しています。数十秒かかることがあります...";
+  try {
+    const r = await api("/api/update", { method: "POST", body: {} });
+    log.textContent = r.log || (r.ok ? "完了しました。" : "失敗しました。");
+    itemKey = null; itemData = null; $("#item-chips").innerHTML = ""; mods = null; rivens = null; modOpen = null; mastery = null; dispo = null;
+    simReload();  // シミュレータ用データも「データ更新」で作り直すので、開いていれば読み直す
+  } catch (e) { log.textContent = e.message; }
+  btn.disabled = false; btn.textContent = "公式データを取得"; refreshStatus();
+});
+loaders.update = refreshStatus;
+
+/* ---------- 起動 ---------- */
+(async () => {
+  const s = await refreshStatus();
+  let v = "item";
+  try { v = localStorage.getItem("wf-view") || "item"; } catch (e) {}
+  if (!views.includes(v)) v = "item";
+  show(s && !s.has_drops ? "update" : v);
+})();
+</script>
+<div class="unofficial" role="note" lang="ja">非公式ファンツール <span lang="en">/ Unofficial fan tool</span></div>
+</body>
+</html>

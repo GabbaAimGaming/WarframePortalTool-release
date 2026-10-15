@@ -1,0 +1,81 @@
+{
+  "version": "1.00",
+  "edition": "with_python",
+  "files": {
+    "LICENSE": {
+      "sha256": "dffc4f99d669f13a93bd038a5427dd16c7d4e994f1d58ba6ec308a23c6ac1bdc",
+      "size": 7361,
+      "src": "build/bundled/LICENSE"
+    },
+    "README.md": {
+      "sha256": "dea37a1137ad474ad1e6c390bb0b5f34080ebb32635cd2304025b449d7c755a2",
+      "size": 29078,
+      "src": "build/bundled/README.md"
+    },
+    "ocr/winocr.ps1": {
+      "sha256": "9842e4bb17216e9cbeeaaded6338bd78f1ad0ba03cfee4c626f74c068522f79d",
+      "size": 6082,
+      "src": "ocr/winocr.ps1"
+    },
+    "start_wfportal.bat": {
+      "sha256": "a1de4a649185d464f0b5b0fff5226fa86e7c770f17666c5628cca3d54342c7b9",
+      "size": 2664,
+      "src": "build/bundled/start_wfportal.bat"
+    },
+    "tips/00_Tipsの使い方.md": {
+      "sha256": "0d472d1766a8cba49d04e04c27fb5f299dd9fd603277884117e5261cc7f01183",
+      "size": 2141,
+      "src": "tips/00_Tipsの使い方.md"
+    },
+    "tips/10_日課チェック.md": {
+      "sha256": "de3b7733def1910bd43c30844a224075659e9330a4706297a448a8191c8d9d88",
+      "size": 552,
+      "src": "tips/10_日課チェック.md"
+    },
+    "tips/20_複合属性の組み合わせ.csv": {
+      "sha256": "be738d0d965fa278cb7625e973689105a925f2a0e374f035d0d5f0798cfa1c10",
+      "size": 333,
+      "src": "tips/20_複合属性の組み合わせ.csv"
+    },
+    "tips/30_Rivenスプライサーの合成表.md": {
+      "sha256": "1b635aedfd0f949763dd323ac445f4e41a14d6687dabcb7825cc374cbfb0e69e",
+      "size": 4906,
+      "src": "tips/30_Rivenスプライサーの合成表.md"
+    },
+    "web/wfportal_builder.html": {
+      "sha256": "5756a27fef1a1a4270afacc0c83ccef1739b529a540bc482820375a486720891",
+      "size": 44135,
+      "src": "web/wfportal_builder.html"
+    },
+    "web/wfportal_ui.html": {
+      "sha256": "3634523724a90560e4d8c32392d04963006c16ea206482c30003176d046b8b8d",
+      "size": 118026,
+      "src": "web/wfportal_ui.html"
+    },
+    "wfportal.py": {
+      "sha256": "9843a0ab5b071ffd5722de23e1f5587251957eae61b787e4ca0faa3b330579dd",
+      "size": 90399,
+      "src": "wfportal.py"
+    },
+    "wfportal_builder.py": {
+      "sha256": "8245a235eb6196e24c7dad896e7493104a366a04ee1a4b7eb40e310abd46c507",
+      "size": 33478,
+      "src": "wfportal_builder.py"
+    },
+    "wfportal_ocr.py": {
+      "sha256": "f267b9a910b4b25d009d4763189edb28da3f2adfa96c96738b6cd7fccfc575e8",
+      "size": 27830,
+      "src": "wfportal_ocr.py"
+    },
+    "wfportal_ui.py": {
+      "sha256": "92bba8cf485e58a578e2099ec4d9b66abab668778f37a8cd48d5e023243e42fe",
+      "size": 36358,
+      "src": "wfportal_ui.py"
+    },
+    "wfportal_update.py": {
+      "sha256": "04bc719bc1e2df716b2ffa3dbdcb6ba0204202feb43d03e8fb410e96f64c9212",
+      "size": 13264,
+      "src": "wfportal_update.py"
+    }
+  }
+}

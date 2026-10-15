@@ -1,0 +1,132 @@
+MIT License
+
+Copyright (c) 2026 WarframePortalTool author
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+==============================================================================
+免責事項 / Disclaimer
+==============================================================================
+
+【日本語】
+
+1. 非公式ツール
+   本ソフトウェアは有志が個人で作成した非公式のファンツールです。
+   Digital Extremes Ltd. とは一切関係がなく、同社の承認・支援・監修を受けたもの
+   ではありません。本ソフトウェアについて Digital Extremes Ltd. に問い合わせない
+   でください。
+
+2. 商標・著作権
+   Warframe および関連する名称・ロゴ・画像・ゲーム内データは Digital Extremes Ltd.
+   の商標または著作物です。上記の MIT ライセンスは本ソフトウェアのプログラムと
+   文書にのみ適用され、これらの第三者の権利には適用されません。
+
+3. 第三者の素材・データ
+   本ソフトウェアは、公式ファンキットのロゴ素材や、公式・有志が公開している
+   データ(ドロップ表、Public Export、Riven 相場など)を同梱しておらず、利用者の
+   操作により各提供元から取得します。取得した素材・データの権利は各提供元にあり、
+   その利用は各提供元の定める条件に従ってください。これらを本ソフトウェアと
+   一緒に再配布しないでください。
+
+4. 無保証
+   本ソフトウェアは無料で「現状のまま」提供され、明示・黙示を問わず、正確性、
+   完全性、有用性、特定目的への適合性、第三者の権利を侵害しないことなどについて
+   一切保証しません。表示される確率・入手先・相場などの情報には、誤りや古い情報が
+   含まれることがあります。
+
+5. 責任の制限
+   本ソフトウェアの利用または利用できなかったことにより生じたいかなる損害
+   (データの消失、ゲームアカウントへの利用停止などの措置、PC の不具合、
+   第三者との紛争などを含みますが、これらに限りません)についても、作者は
+   法令上許される最大の範囲で責任を負いません。
+
+6. ゲームの規約
+   外部ツールをゲームと併用することについて、Digital Extremes Ltd. は自己責任で
+   あるとしています。本ソフトウェアはゲームのファイルやメモリを書き換えたり
+   読み取ったりせず、ゲームを自動で操作することもありませんが、利用はご自身の
+   判断と責任で、ゲームの利用規約(EULA・Terms of Use)を確認したうえで行って
+   ください。
+
+7. 変更・中止
+   作者は予告なく本ソフトウェアの内容を変更し、または配布を中止することがあります。
+   データ提供元の仕様変更などにより、一部または全部の機能が使えなくなることがあります。
+
+
+[English]
+
+1. Unofficial tool
+   This software is an unofficial, fan-made tool. It is not affiliated with,
+   endorsed, sponsored, or approved by Digital Extremes Ltd. Please do not
+   contact Digital Extremes Ltd. about this software.
+
+2. Trademarks and copyrights
+   Warframe and all related names, logos, images, and in-game data are
+   trademarks or copyrighted works of Digital Extremes Ltd. The MIT License
+   above applies only to the program code and documentation of this software,
+   not to any such third-party rights.
+
+3. Third-party assets and data
+   This software does not bundle the official Fan Kit logos or any game data
+   (drop tables, Public Export, Riven statistics, etc.). They are downloaded by
+   the user from their respective providers. All rights to them remain with
+   those providers, and their use is subject to the providers' terms. Do not
+   redistribute them together with this software.
+
+4. No warranty
+   This software is provided free of charge and "AS IS", without warranty of
+   any kind as to accuracy, completeness, usefulness, fitness for a particular
+   purpose, or non-infringement. Drop rates, sources, prices, and other
+   information shown may be incorrect or outdated.
+
+5. Limitation of liability
+   To the maximum extent permitted by law, the author shall not be liable for
+   any damage arising from the use of, or inability to use, this software,
+   including but not limited to data loss, actions taken against your game
+   account, computer malfunctions, or disputes with third parties.
+
+6. Game terms
+   Digital Extremes Ltd. states that third-party software used with the game
+   is used at your own risk. This software does not modify or read game files
+   or memory and does not automate gameplay, but you use it at your own
+   discretion and risk, after reviewing the game's EULA and Terms of Use.
+
+7. Changes and discontinuation
+   The author may change this software or stop distributing it at any time
+   without notice. Some or all features may stop working due to changes made
+   by data providers.
+
+==============================================================================
+同梱ソフトウェア / Bundled software
+==============================================================================
+
+python/ フォルダには、Python Software Foundation が配布している
+「Windows embeddable package」(Python 3.12.10, 64-bit) を同梱しています。
+Python は PSF License Agreement などのライセンスのもとで配布されており、
+その全文は python/LICENSE.txt にあります。Python は本ソフトウェアの MIT ライセンス
+の対象ではありません。
+同梱にあたり、本ソフトウェアのフォルダを読み込めるように python/python312._pth に
+1 行(..)を追加した以外、Python のファイルは変更していません。
+
+The python/ folder contains the "Windows embeddable package" (Python 3.12.10,
+64-bit) distributed by the Python Software Foundation, under the PSF License
+Agreement and other licenses included in python/LICENSE.txt. Python is not
+covered by the MIT License of this software. Apart from adding one line ("..")
+to python/python312._pth so that the tool's folder can be imported, the Python
+files are unmodified.
