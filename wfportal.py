@@ -6,6 +6,7 @@
   python wfportal.py area 地球                エリア -> 出現ステージごとの素材一覧
   python wfportal.py cycle                    昼夜サイクルとリセットまでの時間
   python wfportal.py mods                     MOD 入手一覧 (入手先と所持チェック)
+  python wfportal.py arcane                   アルケイン所持一覧 (所持チェックとランク)
   python wfportal.py riven ルビコ              Riven 相場 (公式の週次統計)
   python wfportal.py mastery                  マスター一覧 (Warframe・武器などのマスター済みチェック)
   python wfportal.py build list               ビルド管理
@@ -187,6 +188,43 @@ DISPO_CATS = {"primary": "プライマリ", "secondary": "セカンダリ", "mel
               "zaw": "Zaw", "archgun": "アークガン", "robotic": "コンパニオン武器"}
 _DISPO_TYPE = {"secondary": "Pistol Riven Mod", "melee": "Melee Riven Mod", "kitgun": "Kitgun Riven Mod",
                "zaw": "Zaw Riven Mod", "archgun": "Archgun Riven Mod", "robotic": "Companion Weapon Riven Mod"}
+# アルケイン所持一覧のカテゴリー (並び順もこの順)
+ARCANE_CATS = {"warframe": "Warframe", "primary": "プライマリ", "secondary": "セカンダリ", "melee": "近接",
+               "kitgun": "Kitgun", "zaw": "Zaw", "operator": "オペレーター", "amp": "アンプ", "tektolyst": "テクトリスト",
+               "other": "その他"}
+# 公式データ(ExportRelicArcane)には装備先が無く、内部名のフォルダ(Offensive / Utility など)も装備先と一致しないため、
+# 名前の最初の語で判定する(2026-10 時点の 172 件すべてが WFCD warframe-items の装備先と一致することを確認済み)。
+# 一覧に無い語で始まる新しいアルケインは "other" (その他) に入る
+ARCANE_PREFIX_CAT = {
+    "arcane": "warframe", "molt": "warframe", "theorem": "warframe",
+    "primary": "primary", "fractalized": "primary", "longbow": "primary", "shotgun": "primary",
+    "secondary": "secondary", "cascadia": "secondary", "conjunction": "secondary", "akimbo": "secondary",
+    "melee": "melee", "pax": "kitgun", "residual": "kitgun", "exodia": "zaw",
+    "magus": "operator", "emergence": "operator", "virtuos": "amp", "eternal": "amp",
+    "zid-an": "tektolyst",  # テクトリストアーティファクト用 (Update 41.0)
+}
+# 公式データにはあるが、ゲームに実装されていないアルケイン (内部名)。所持一覧に載せない
+#   Arcane Defense / Detoxifier / Liquid / Protection / Shield / Survival / Temperance の 7 件。
+#   入手先が無く(WFCD のドロップ情報なし)、公式フォーラムでも未実装として扱われている
+ARCANE_UNRELEASED = frozenset("/Lotus/Upgrades/CosmeticEnhancers/" + p for p in (
+    "Defensive/PunctureProcResist", "Defensive/PoisonProcResist", "Defensive/GasProcResist",
+    "Defensive/CorrosiveProcResist", "Defensive/ImpactProcResist",
+    "Utility/SlowerBleedOutOnPredeath", "Utility/DamageReductionDuringRevive"))
+# 公式データ(ExportRelicArcane)にまだ無く、ドロップ表にだけ載っているアルケインを補うカテゴリー
+#   (2026-10 時点: テクトリスト用の Zid-An 5 件)。公式データに同じ名前が入れば、そちらを使う
+ARCANE_DROP_ONLY_CATS = ("tektolyst",)
+# ドロップ表には最大ランクが無いため、通常のアルケインと同じ 5 とする (Zid-An は 6 段階であることを WARFRAME Wiki で確認)
+# 表記の方針(2026-10-17 決定): テクトリスト(Zid-An)の名前は英語表記のままでよい。
+#   カタカナの対応表は作らない(公式データに日本語名が入った場合は、ほかのアルケインと同じく自動でそれを使う)
+ARCANE_DROP_ONLY_MAX_RANK = 5
+
+
+def arcane_cat(name: str) -> str:
+    """アルケインの装備先カテゴリー (ARCANE_CATS のキー)"""
+    first = name.strip().split(" ", 1)[0].lower()
+    return ARCANE_PREFIX_CAT.get(first, "other")
+
+
 # プライマリのうちショットガン用 Riven を使う武器。公式データに武器の種類が無いため、内部名に Shotgun を含むものと
 # 下の名前(Prime・Kuva などを外した元の名前)で判定する。Riven 相場のデータがあれば、そちらの武器種を優先する
 SHOTGUN_BASES = {"strun", "hek", "boar", "sobek", "felarx", "steflos", "corinth", "astilla", "cedo", "phantasma",
@@ -337,6 +375,7 @@ def names_from_exports(en_docs: list[dict], ja_docs: list[dict]) -> dict:
     # 画像解析で照合する装備名(フレーム・武器・コンパニオン)とアルケイン名
     items: dict[str, dict] = {}
     arcanes: dict[str, str] = {}
+    arcane_list: dict[str, dict] = {}  # アルケイン所持一覧
     for doc in en_docs:
         for key in ("ExportWarframes", "ExportWeapons", "ExportSentinels"):
             for it in doc.get(key, []):
@@ -350,6 +389,16 @@ def names_from_exports(en_docs: list[dict], ja_docs: list[dict]) -> dict:
             name = it.get("name", "") if isinstance(it, dict) else ""
             if name and not name.endswith(" Relic") and "/CosmeticEnhancers/" in it.get("uniqueName", ""):
                 arcanes.setdefault(name.lower(), name)
+                # 所持一覧は図鑑に載るものだけ (Arcane Steadfast の内部用の項目などを除く)。最大ランク = 段階の数 - 1
+                # レア度: ExportRelicArcane はコモンのアルケインの一部で rarity を省いているため、無ければコモン
+                #   (2026-10 時点で省かれている 21 件のうち、WFCD warframe-items に値がある 17 件はすべて Common。
+                #    なお ExportUpgrades (MOD) はコモンも省かずに書いてある)
+                levels = len(it.get("levelStats") or [])
+                if (not it.get("excludeFromCodex") and levels >= 2 and name.lower() not in arcane_list
+                        and it.get("uniqueName") not in ARCANE_UNRELEASED):
+                    arcane_list[name.lower()] = {
+                        "en": name, "ja": ja.get(it["uniqueName"], (name,))[0], "cat": arcane_cat(name),
+                        "rarity": (it.get("rarity") or "COMMON").capitalize(), "max_rank": levels - 1}
     # マスター一覧
     mastery: dict[str, dict] = {}
     for doc in en_docs:
@@ -390,6 +439,7 @@ def names_from_exports(en_docs: list[dict], ja_docs: list[dict]) -> dict:
             "mods": sorted(mods.values(), key=lambda m: m["en"].lower()),
             "items": sorted(items.values(), key=lambda m: m["en"].lower()),
             "arcanes": sorted(arcanes.values(), key=str.lower),
+            "arcane_list": sorted(arcane_list.values(), key=lambda m: (list(ARCANE_CATS).index(m["cat"]), m["en"].lower())),
             "mastery": sorted(mastery.values(), key=lambda m: (order[m["cat"]], m["en"].lower(), m["variant"])),
             "dispo": sorted(dispo.values(), key=lambda m: (list(DISPO_CATS).index(m["cat"]), -m["value"], m["en"].lower(), m["variant"]))}
 
@@ -397,7 +447,7 @@ def names_from_exports(en_docs: list[dict], ja_docs: list[dict]) -> dict:
 class Names:
     def __init__(self, en2ja: dict | None = None, resources: list | None = None, mods: list | None = None,
                  items: list | None = None, arcanes: list | None = None, mastery: list | None = None,
-                 dispo: list | None = None):
+                 dispo: list | None = None, arcane_list: list | None = None):
         self.en2ja = en2ja or {}
         self.resources = set(resources or [])
         self.mods = mods or []
@@ -405,6 +455,7 @@ class Names:
         self.arcanes = arcanes or []  # アルケイン名 (画像解析用)
         self.mastery = mastery or []  # マスター一覧 [{id, en, ja, cat, variant, rank, xp}]
         self.dispo = dispo or []      # Riven 性質 [{id, en, ja, cat, variant, value, type}]
+        self.arcane_list = arcane_list or []  # アルケイン所持一覧 [{en, ja, cat, rarity, max_rank}]
         # ドロップ表と公式データで大文字小文字が違うことがある(例: "Bane Of Grineer" / "Bane of Grineer")
         self._lower = {k.lower(): v for k, v in self.en2ja.items()}
         self._res_lower = {r.lower() for r in self.resources}
@@ -415,7 +466,7 @@ class Names:
         if f.exists():
             j = json.loads(f.read_text(encoding="utf-8"))
             return cls(j.get("en2ja"), j.get("resources"), j.get("mods"), j.get("items"), j.get("arcanes"), j.get("mastery"),
-                       j.get("dispo"))
+                       j.get("dispo"), j.get("arcane_list"))
         return cls()
 
     @staticmethod
@@ -1441,6 +1492,148 @@ def cmd_mastery(args):
 
 
 # --------------------------------------------------------------------------
+# アルケイン所持一覧
+# --------------------------------------------------------------------------
+# arcanes_owned.json: {"英語名(小文字)": ランク}。キーがあれば所持、値が今のランク(0〜最大ランク)
+
+def load_arcanes_owned(d: Path) -> dict[str, int]:
+    f = d / "arcanes_owned.json"
+    try:
+        raw = json.loads(f.read_text(encoding="utf-8-sig")) if f.exists() else {}
+    except ValueError:
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    return {str(k).lower(): v for k, v in raw.items() if isinstance(v, int) and not isinstance(v, bool) and v >= 0}
+
+
+def save_arcanes_owned(d: Path, owned: dict[str, int]) -> None:
+    (d / "arcanes_owned.json").write_text(json.dumps(dict(sorted(owned.items())), ensure_ascii=False, indent=0),
+                                          encoding="utf-8")
+
+
+def arcane_entries(names: Names, drop_items=()) -> list[dict]:
+    """所持一覧に載せるアルケイン = 公式データの一覧 + ドロップ表にだけあるもの(ARCANE_DROP_ONLY_CATS のカテゴリー)
+
+    drop_items: ドロップ表・入手先データの英語名 (all_item_names の結果)。ドロップ表だけのものは
+    日本語名・レア度が無いため、日本語名は名前辞書にあれば使い(無ければ英語名)、レア度は空にする
+    """
+    out = list(names.arcane_list)
+    known = {m["en"].lower() for m in out}
+    for name in sorted(set(drop_items), key=str.lower):
+        cat = arcane_cat(name)
+        if cat in ARCANE_DROP_ONLY_CATS and name.lower() not in known:
+            known.add(name.lower())
+            out.append({"en": name, "ja": names._get(name) or name, "cat": cat, "rarity": "",
+                        "max_rank": ARCANE_DROP_ONLY_MAX_RANK, "drop_only": True})
+    order = list(ARCANE_CATS)
+    return sorted(out, key=lambda m: (order.index(m["cat"]) if m["cat"] in order else len(order), m["en"].lower()))
+
+
+def arcane_table(names: Names, owned: dict[str, int], drop_items=()) -> list[dict]:
+    """所持状況つきの一覧。ランクは最大ランクを超えないように丸める(ゲーム側で最大ランクが下がった場合に備えて)"""
+    out = []
+    for m in arcane_entries(names, drop_items):
+        k = m["en"].lower()
+        out.append({**m, "cat_ja": ARCANE_CATS.get(m["cat"], m["cat"]),
+                    "rarity_ja": RARITY_JA.get(m["rarity"], m["rarity"]), "owned": k in owned,
+                    "rank": min(owned[k], m["max_rank"]) if k in owned else None})
+    return out
+
+
+def arcane_summary(rows: list[dict]) -> dict:
+    """カテゴリーごと(と全体 "all")の 件数 / 所持数 / ランク最大の数"""
+    out = {c: {"total": 0, "owned": 0, "maxed": 0} for c in ARCANE_CATS}
+    for r in rows:
+        o = out.setdefault(r["cat"], {"total": 0, "owned": 0, "maxed": 0})
+        o["total"] += 1
+        o["owned"] += r["owned"]
+        o["maxed"] += r["owned"] and r["rank"] == r["max_rank"]
+    out["all"] = {k: sum(v[k] for v in out.values()) for k in ("total", "owned", "maxed")}
+    return out
+
+
+class ArcaneNotFound(ValueError):
+    """一覧に無いアルケイン名"""
+
+
+def set_arcanes_owned(names: Names, owned: dict[str, int], targets: list[str], is_owned: bool,
+                      rank_: int | None = None, drop_items=()) -> list[dict]:
+    """所持状況を変更する(owned を書き換える。保存は呼び出し側)。変更したアルケインを返す
+
+    - is_owned=False: 未所持にする(ランクも消える)
+    - is_owned=True: 所持にする。rank_ を省くと、所持済みならランクはそのまま、未所持ならランク 0
+    - 一覧に無い名前は ArcaneNotFound、0〜最大ランクの範囲外のランクは ValueError (どちらも何も変更しない)
+    """
+    by = {m["en"].lower(): m for m in arcane_entries(names, drop_items)}
+    hits = []
+    for en in targets:
+        m = by.get(str(en).lower())
+        if m is None:
+            raise ArcaneNotFound(f"アルケインが見つかりません: {en}")
+        if rank_ is not None and not (0 <= rank_ <= m["max_rank"]):
+            raise ValueError(f"{m['en']} のランクは 0〜{m['max_rank']} です: {rank_}")
+        hits.append(m)
+    for m in hits:
+        k = m["en"].lower()
+        if not is_owned:
+            owned.pop(k, None)
+        else:
+            owned[k] = rank_ if rank_ is not None else min(owned.get(k, 0), m["max_rank"])
+    return hits
+
+
+def cmd_arcane(args):
+    d = data_dir(args.data_dir)
+    names = Names.load(d)
+    if not names.arcane_list:
+        sys.exit("アルケインのデータがありません。`python wfportal.py update` を実行してください"
+                 "(この機能を追加する前に取得したデータには含まれていません)。")
+    owned = load_arcanes_owned(d)
+    drop_items = all_item_names(Drops.load(d), Sources.load(d)) if (d / "missionRewards.json").exists() else []
+    rows = arcane_table(names, owned, drop_items)
+    action, query = "list", list(args.query)
+    if query and query[0] in ("list", "own", "unown"):
+        action, query = query[0], query[1:]
+    q = " ".join(query)
+    if args.cat:
+        rows = [r for r in rows if r["cat"] == args.cat]
+    if action in ("own", "unown"):
+        hits = [r for r in rows if norm(q) in (norm(r["en"]), norm(r["ja"]))] or \
+               [r for r in rows if rank(q, [r["en"], r["ja"]]) is not None]
+        if not hits:
+            sys.exit(f"「{q}」に一致するアルケインがありません。")
+        if len(hits) > 1:
+            sys.exit(f"「{q}」に一致するアルケインが {len(hits)} 件あります。名前を正確に入力してください。"
+                     + "".join(f"\n  {r['ja']} [{r['cat_ja']}]" for r in hits[:15]))
+        try:
+            m, = set_arcanes_owned(names, owned, [hits[0]["en"]], action == "own", args.rank if action == "own" else None,
+                                   drop_items)
+        except ValueError as e:
+            sys.exit(str(e))
+        save_arcanes_owned(d, owned)
+        print(f"{m['ja']} を" + (f"所持(ランク {owned[m['en'].lower()]})にしました。" if action == "own" else "未所持にしました。"))
+        return
+    if args.rank is not None:
+        sys.exit("--rank は own と一緒に使います(例: python wfportal.py arcane own \"Arcane Energize\" --rank 5)。")
+    if q:
+        rows = [r for r in rows if rank(q, [r["en"], r["ja"]]) is not None]
+    if args.unowned:
+        rows = [r for r in rows if not r["owned"]]
+    if not rows:
+        sys.exit("条件に合うアルケインがありません。")
+    print_table(["所持", "名前", "種類", "レア度", "ランク"],
+                [["✓" if r["owned"] else "", r["ja"], r["cat_ja"], r["rarity_ja"] or "-", f"{r['rank'] if r['owned'] else '-'} / {r['max_rank']}"] for r in rows[: args.limit]],
+                right_cols=(4,))
+    summ = arcane_summary(arcane_table(names, owned, drop_items))
+    print(f"\n{len(rows)} 件中 {min(len(rows), args.limit)} 件を表示")
+    for c, label in list(ARCANE_CATS.items()) + [("all", "全体")]:
+        v = summ[c]
+        if v["total"]:
+            print(f"  {pad(label, 18)} {v['owned']:>4} / {v['total']:<4} (ランク最大 {v['maxed']})")
+
+
+# --------------------------------------------------------------------------
 # Riven 相場
 # --------------------------------------------------------------------------
 
@@ -1781,6 +1974,15 @@ def make_parser() -> argparse.ArgumentParser:
     s.add_argument("--todo", action="store_true", help="未マスターのみ")
     s.add_argument("--limit", type=int, default=60)
     s.set_defaults(fn=cmd_mastery)
+
+    s = sub.add_parser("arcane", help="アルケイン所持一覧 (所持チェックとランク)")
+    s.add_argument("query", nargs="*", metavar="[own|unown] 名前",
+                   help="名前で絞り込み。先頭に own / unown を付けると所持にする / 外す")
+    s.add_argument("--cat", choices=list(ARCANE_CATS), help="種類で絞り込み")
+    s.add_argument("--unowned", action="store_true", help="未所持のみ")
+    s.add_argument("--rank", type=int, help="own で設定するランク (省略時: 所持済みならそのまま、未所持なら 0)")
+    s.add_argument("--limit", type=int, default=60)
+    s.set_defaults(fn=cmd_arcane)
     return p
 
 

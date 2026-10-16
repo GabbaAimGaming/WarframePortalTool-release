@@ -1,5 +1,5 @@
 {
-  "version": "1.00",
+  "version": "1.01",
   "edition": "lite",
   "files": {
     "INSTALL_PYTHON.md": {
@@ -13,8 +13,8 @@
       "src": "LICENSE"
     },
     "README.md": {
-      "sha256": "46a61ef470b4627e998b0febbaec276224136cc3da1dfbfdb1e6b08dfc1c64b3",
-      "size": 27304,
+      "sha256": "cfaee55e636e4e8238ea2c0d6fe009a0a334e1127ba444594f984aa8a2783bce",
+      "size": 29552,
       "src": "build/lite/README.md"
     },
     "ocr/winocr.ps1": {
@@ -53,13 +53,13 @@
       "src": "web/wfportal_builder.html"
     },
     "web/wfportal_ui.html": {
-      "sha256": "3634523724a90560e4d8c32392d04963006c16ea206482c30003176d046b8b8d",
-      "size": 118026,
+      "sha256": "1e5ee7e4c9acaf708bba3a756c5ef2e102f6c1b234b54ee3d2dd3210fe064497",
+      "size": 127359,
       "src": "web/wfportal_ui.html"
     },
     "wfportal.py": {
-      "sha256": "9843a0ab5b071ffd5722de23e1f5587251957eae61b787e4ca0faa3b330579dd",
-      "size": 90399,
+      "sha256": "43af9e60e5519e0b25f5fe7196bd2106eeadb5fbbeb66508c1a3544ed85a49f3",
+      "size": 102934,
       "src": "wfportal.py"
     },
     "wfportal_builder.py": {
@@ -73,13 +73,13 @@
       "src": "wfportal_ocr.py"
     },
     "wfportal_ui.py": {
-      "sha256": "92bba8cf485e58a578e2099ec4d9b66abab668778f37a8cd48d5e023243e42fe",
-      "size": 36358,
+      "sha256": "1f9b71fb474bffdc2e34df4d0dfeb8bb08b5f3dcb2ef68f53d3fc936f6d8ad66",
+      "size": 37927,
       "src": "wfportal_ui.py"
     },
     "wfportal_update.py": {
-      "sha256": "04bc719bc1e2df716b2ffa3dbdcb6ba0204202feb43d03e8fb410e96f64c9212",
-      "size": 13264,
+      "sha256": "f2ca4c9095ae435be6d73eb72cfb48eb2c7a0c8485f67aabf2a65671482fe5b5",
+      "size": 13589,
       "src": "wfportal_update.py"
     }
   }

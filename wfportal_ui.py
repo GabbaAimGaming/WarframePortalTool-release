@@ -313,6 +313,32 @@ def set_mastered(store: Store, body: dict) -> dict:
     return {"summary": wf.mastery_summary(rows)}
 
 
+def arcanes_list(store: Store) -> dict:
+    names = store.names()
+    if not names.arcane_list:
+        raise ApiError("アルケインのデータがありません。「データ更新」で取得し直してください"
+                       "(このページを追加する前に取得したデータには含まれていません)。", 409)
+    rows = wf.arcane_table(names, wf.load_arcanes_owned(store.d), store.all_items())
+    return {"rows": rows, "cats": wf.ARCANE_CATS, "summary": wf.arcane_summary(rows)}
+
+
+def set_arcanes(store: Store, body: dict) -> dict:
+    """body: {"en": 名前 or [名前], "owned": bool, "rank": int (省略可)}"""
+    targets = body.get("en")
+    targets = [targets] if isinstance(targets, str) else list(targets or [])
+    rank = body.get("rank")
+    if rank is not None and (isinstance(rank, bool) or not isinstance(rank, int)):
+        raise ApiError(f"ランクが正しくありません: {rank}")
+    names = store.names()
+    owned = wf.load_arcanes_owned(store.d)
+    try:
+        wf.set_arcanes_owned(names, owned, targets, bool(body.get("owned")), rank, store.all_items())
+    except ValueError as e:
+        raise ApiError(str(e), 404 if isinstance(e, wf.ArcaneNotFound) else 400)
+    wf.save_arcanes_owned(store.d, owned)
+    return {"summary": wf.arcane_summary(wf.arcane_table(names, owned, store.all_items()))}
+
+
 def dispo_list(store: Store) -> dict:
     names = store.names()
     if not names.dispo:
@@ -714,6 +740,7 @@ def make_handler(store: Store, tips_dir: Path | None = None):
                         "/api/ocr-info": ocr_info,
                         "/api/mastery": lambda: mastery_list(store),
                         "/api/dispo": lambda: dispo_list(store),
+                        "/api/arcanes": lambda: arcanes_list(store),
                         "/api/tips": lambda: tips_list(tips),
                         "/api/tips/file": lambda: tip_file(tips, q.get("path", "")),
                         "/api/builder/data": lambda: wb.api_data(store.d, sim_dispo_rows(store)),
@@ -735,6 +762,8 @@ def make_handler(store: Store, tips_dir: Path | None = None):
                         return self._json(analyze_build_image(store, image, None if image else self._raw_image()))
                     if u.path == "/api/mastery":
                         return self._json(set_mastered(store, self._body()))
+                    if u.path == "/api/arcanes/owned":
+                        return self._json(set_arcanes(store, self._body()))
                     if u.path == "/api/update-rivens":
                         self._body()
                         return self._json(run_update_rivens(store))

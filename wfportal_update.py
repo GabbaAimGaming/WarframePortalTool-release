@@ -256,8 +256,12 @@ def run(d: Path = APP_DIR, check_only: bool = False, log=print) -> int:
     except (OSError, UpdateError) as e:  # urllib のエラー(接続できない・404 など)は OSError
         log(f"  更新を確認できませんでした: {e}  ※いまの版のまま起動します")
         return EXIT_FAILED
-    if parse_version(manifest["version"]) <= current:
+    remote = parse_version(manifest["version"])
+    if remote == current:
         log("  最新の版です。")
+        return EXIT_OK
+    if remote < current:  # 古い版で上書きはしない(戻したいときは、番号を上げた版として公開する)
+        log(f"  公開されている版(v{manifest['version']})より、この版(v{cur['version']})の方が新しいため、更新しません。")
         return EXIT_OK
     plan = plan_update(d, manifest, read_json(d / STATE_FILE))
     log(f"  新しい版 v{manifest['version']} があります(取得 {len(plan['download'])} 件・削除 {len(plan['delete'])} 件)")
