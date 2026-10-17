@@ -1,5 +1,5 @@
 {
-  "version": "1.01",
+  "version": "1.10",
   "edition": "lite",
   "files": {
     "INSTALL_PYTHON.md": {
@@ -13,9 +13,14 @@
       "src": "LICENSE"
     },
     "README.md": {
-      "sha256": "cfaee55e636e4e8238ea2c0d6fe009a0a334e1127ba444594f984aa8a2783bce",
-      "size": 29552,
+      "sha256": "066e0ae9ae9d2597ffc6bd832726486ba26ffba975782910c06705097c409bc8",
+      "size": 34330,
       "src": "build/lite/README.md"
+    },
+    "data/baro_rules.json": {
+      "sha256": "18f34a082433d48792254824c5dfc7bc5efa95c602f21a4acda09ff1dafef7b1",
+      "size": 656,
+      "src": "data/baro_rules.json"
     },
     "ocr/winocr.ps1": {
       "sha256": "9842e4bb17216e9cbeeaaded6338bd78f1ad0ba03cfee4c626f74c068522f79d",
@@ -43,8 +48,8 @@
       "src": "tips/20_複合属性の組み合わせ.csv"
     },
     "tips/30_Rivenスプライサーの合成表.md": {
-      "sha256": "1b635aedfd0f949763dd323ac445f4e41a14d6687dabcb7825cc374cbfb0e69e",
-      "size": 4906,
+      "sha256": "02aef43860d8867c20ad000b304e730aaebe297255651f8ce374b017fdc7af73",
+      "size": 4990,
       "src": "tips/30_Rivenスプライサーの合成表.md"
     },
     "web/wfportal_builder.html": {
@@ -53,18 +58,23 @@
       "src": "web/wfportal_builder.html"
     },
     "web/wfportal_ui.html": {
-      "sha256": "1e5ee7e4c9acaf708bba3a756c5ef2e102f6c1b234b54ee3d2dd3210fe064497",
-      "size": 127359,
+      "sha256": "807e3b0385b2a628d8f3062c5ddc726a560623c324f4b2c3eb27793444913b43",
+      "size": 148911,
       "src": "web/wfportal_ui.html"
     },
     "wfportal.py": {
-      "sha256": "43af9e60e5519e0b25f5fe7196bd2106eeadb5fbbeb66508c1a3544ed85a49f3",
-      "size": 102934,
+      "sha256": "3ebbd469d40d932d9fcc638e8580c37bb82246239e9d1e5c6e90439a70c4f354",
+      "size": 115082,
       "src": "wfportal.py"
     },
+    "wfportal_baro.py": {
+      "sha256": "d0a1842a60b2daeebdf9ac4d734f24225fec42a79e8f55376ce3f68a168ef8af",
+      "size": 18210,
+      "src": "wfportal_baro.py"
+    },
     "wfportal_builder.py": {
-      "sha256": "8245a235eb6196e24c7dad896e7493104a366a04ee1a4b7eb40e310abd46c507",
-      "size": 33478,
+      "sha256": "09c7ea432c520834188073d867de2b11addf3395a079bc530830decad8e94258",
+      "size": 33502,
       "src": "wfportal_builder.py"
     },
     "wfportal_ocr.py": {
@@ -73,14 +83,19 @@
       "src": "wfportal_ocr.py"
     },
     "wfportal_ui.py": {
-      "sha256": "1f9b71fb474bffdc2e34df4d0dfeb8bb08b5f3dcb2ef68f53d3fc936f6d8ad66",
-      "size": 37927,
+      "sha256": "cf7e6cc11c3ad8d2adb9afa2b25d21388ad15a1bb9a8c923571cb815730142c9",
+      "size": 38718,
       "src": "wfportal_ui.py"
     },
     "wfportal_update.py": {
       "sha256": "f2ca4c9095ae435be6d73eb72cfb48eb2c7a0c8485f67aabf2a65671482fe5b5",
       "size": 13589,
       "src": "wfportal_update.py"
+    },
+    "wfportal_worldstate.py": {
+      "sha256": "ac3a72062d2005416dc0d079c6faab8bbb92151b830da1d214bbd842b2c77b3d",
+      "size": 7778,
+      "src": "wfportal_worldstate.py"
     }
   }
 }

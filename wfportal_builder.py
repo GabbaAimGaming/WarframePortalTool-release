@@ -61,7 +61,7 @@ COMBINED = {
 WEAPON_CATS = {"LongGuns": "primary", "Pistols": "secondary", "Melee": "melee",
                "SpaceGuns": "archgun", "SentinelWeapons": "robotic"}
 CAT_JA = {"primary": "プライマリ", "secondary": "セカンダリ", "melee": "近接",
-          "archgun": "アークガン", "robotic": "コンパニオン武器"}
+          "archgun": "アークウイングガン", "robotic": "コンパニオン武器"}
 # 組み立て式の部品(Kitgun・Zaw・アンプなど)は単体の性能にならないので除く
 _MODULAR_PARTS = re.compile(r"/(OperatorAmplifiers|ModularMelee[^/]*|SUModular[^/]*|InfKitGun|Hoverboard|ZanukaPetParts|MoaPetParts)/")
 
@@ -132,7 +132,7 @@ WEAPON_PRESETS["robotic"] = WEAPON_PRESETS["primary"]
 # --------------------------------------------------------------------------
 
 RIVEN_GROUPS = ("rifle", "shotgun", "pistol", "melee", "archgun")
-RIVEN_GROUP_JA = {"rifle": "ライフル", "shotgun": "ショットガン", "pistol": "ピストル", "melee": "近接", "archgun": "アークガン"}
+RIVEN_GROUP_JA = {"rifle": "ライフル", "shotgun": "ショットガン", "pistol": "ピストル", "melee": "近接", "archgun": "アークウイングガン"}
 # Riven の種類 (wfportal の RIVEN_TYPES_JA のキー) -> 基準値の列。Kitgun・コンパニオン武器は推定
 RIVEN_TYPE_GROUP = {"Rifle Riven Mod": "rifle", "Shotgun Riven Mod": "shotgun", "Pistol Riven Mod": "pistol",
                     "Melee Riven Mod": "melee", "Zaw Riven Mod": "melee", "Kitgun Riven Mod": "pistol",

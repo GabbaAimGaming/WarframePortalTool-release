@@ -41,16 +41,16 @@ Riven スプライサー(Riven Splicer)を使うと、Riven の特性を **2つ*
 |---|---|---|
 | ダメージ(近接ダメージ) Damage / Melee Damage | 状態異常率 Status Chance | **状態異常ダメージ Status Damage** |
 
-### 射撃武器(ライフル・ショットガン・ピストル・アークガン)
+### 射撃武器(ライフル・ショットガン・ピストル・アークウイングガン)
 
 | 特性 1 | 特性 2 | 合成特性 | 対象 |
 |---|---|---|---|
-| ダメージ Damage | ズーム Zoom | **弱点ダメージ Weakpoint Damage** | ライフル・ショットガン・ピストル・アークガン |
-| ダメージ Damage | マルチショット Multishot | **弱点ダメージ Weakpoint Damage** | ライフル・ショットガン・ピストル・アークガン |
-| クリティカル率 Critical Chance | ズーム Zoom | **弱点クリティカル率 Weakpoint Critical Chance** | ライフル・ショットガン・ピストル・アークガン |
-| クリティカル率 Critical Chance | マルチショット Multishot | **弱点クリティカル率 Weakpoint Critical Chance** | ライフル・ショットガン・ピストル・アークガン |
-| マガジン容量 Magazine Capacity | リロード速度 Reload Speed | **弾薬効率 Ammo Efficiency** | ライフル・ショットガン・ピストル・アークガン |
-| 反動 Weapon Recoil | 最大弾薬数 Ammo Maximum | **弾薬効率 Ammo Efficiency** | ライフル・ショットガン・ピストル・アークガン |
+| ダメージ Damage | ズーム Zoom | **弱点ダメージ Weakpoint Damage** | ライフル・ショットガン・ピストル・アークウイングガン |
+| ダメージ Damage | マルチショット Multishot | **弱点ダメージ Weakpoint Damage** | ライフル・ショットガン・ピストル・アークウイングガン |
+| クリティカル率 Critical Chance | ズーム Zoom | **弱点クリティカル率 Weakpoint Critical Chance** | ライフル・ショットガン・ピストル・アークウイングガン |
+| クリティカル率 Critical Chance | マルチショット Multishot | **弱点クリティカル率 Weakpoint Critical Chance** | ライフル・ショットガン・ピストル・アークウイングガン |
+| マガジン容量 Magazine Capacity | リロード速度 Reload Speed | **弾薬効率 Ammo Efficiency** | ライフル・ショットガン・ピストル・アークウイングガン |
+| 反動 Weapon Recoil | 最大弾薬数 Ammo Maximum | **弾薬効率 Ammo Efficiency** | ライフル・ショットガン・ピストル・アークウイングガン |
 | 最大弾薬数 Ammo Maximum | リロード速度 Reload Speed | **非装備中のリロード Reload While Holstered** | ライフル・ショットガン・ピストル |
 | 最大弾薬数 Ammo Maximum | マガジン容量 Magazine Capacity | **非装備中のリロード Reload While Holstered** | ライフル・ショットガン・ピストル |
 

@@ -4,7 +4,8 @@
   python wfportal.py update                  公式データを取得(初回と更新時)
   python wfportal.py item ニューロード        素材 -> どこで何%で出るか(逆引き)
   python wfportal.py area 地球                エリア -> 出現ステージごとの素材一覧
-  python wfportal.py cycle                    昼夜サイクルとリセットまでの時間
+  python wfportal.py cycle                    昼夜サイクルとリセットまでの時間 (cycle sync で公式データと時刻合わせ)
+  python wfportal.py baro                     バロ吉入手一覧 (Void 商人の商品と所持の照合)
   python wfportal.py mods                     MOD 入手一覧 (入手先と所持チェック)
   python wfportal.py arcane                   アルケイン所持一覧 (所持チェックとランク)
   python wfportal.py riven ルビコ              Riven 相場 (公式の週次統計)
@@ -56,7 +57,9 @@ WFCD_EXTRA = (
 EXPORT_GITHUB = "https://raw.githubusercontent.com/calamity-inc/warframe-public-export/senpai"
 EXPORT_BASE = "http://content.warframe.com/PublicExport"
 EXPORT_PREFIXES = ("ExportResources", "ExportUpgrades", "ExportGear", "ExportWarframes",
-                   "ExportWeapons", "ExportSentinels", "ExportRelicArcane")
+                   "ExportWeapons", "ExportSentinels", "ExportRelicArcane",
+                   # バロの在庫(内部パス)を名前にするため: 外装・グリフ・クエスト・ブースター類(ExportOther)・設計図
+                   "ExportCustoms", "ExportFlavour", "ExportKeys", "ExportSortieRewards", "ExportRecipes")
 # Riven 相場: 公式が毎週公開している PC 版の取引統計。取得できなければ WFCD が同じ統計を配信しているものを使う
 RIVENS_URL = "https://www-static.warframe.com/repos/weeklyRivensPC.json"
 RIVENS_URLS = [RIVENS_URL, "https://api.warframestat.us/pc/rivens"]
@@ -104,12 +107,14 @@ MODES_JA = {
     "The Perita Rebellion": "ペリタの反乱", "Follie's Hunt": "フォリーの狩り",
 }
 RARITY_JA = {"Common": "コモン", "Uncommon": "アンコモン", "Rare": "レア", "Legendary": "レジェンダリー"}
-ERA_JA = {"Lith": "リス", "Meso": "メソ", "Neo": "ネオ", "Axi": "アクシ", "Requiem": "レクイエム"}
+# レリックの時代名。公式の日本語データ(Public Export)と同じ書き方: 英語のまま、Vanguard だけ「バンガード」。後ろは「レリック」
+ERA_JA = {"Lith": "Lith", "Meso": "Meso", "Neo": "Neo", "Axi": "Axi", "Requiem": "Requiem", "Vanguard": "バンガード"}
 PART_JA = {"Blueprint": "設計図", "Neuroptics": "ニューロオプティクス", "Chassis": "シャーシ",
            "Systems": "システム", "Barrel": "バレル", "Receiver": "レシーバー", "Stock": "ストック",
            "Blade": "ブレード", "Handle": "ハンドル"}
-BUILD_TYPES = {"frame": "ウォーフレーム", "primary": "プライマリ", "secondary": "セカンダリ",
-               "melee": "近接", "companion": "コンパニオン", "archwing": "アークウィング", "other": "その他"}
+# ビルドの種別(表示名はマスター一覧・アルケイン所持一覧のカテゴリーと同じ書き方。保存はキーなので表示名は変えてよい)
+BUILD_TYPES = {"frame": "Warframe", "primary": "プライマリ", "secondary": "セカンダリ",
+               "melee": "近接", "companion": "コンパニオン", "archwing": "アークウイング", "other": "その他"}
 
 # 入手先の種類
 SOURCE_CATS = {"mission": "ミッション", "enemy": "敵", "bounty": "バウンティ", "relic": "レリック",
@@ -121,12 +126,12 @@ RELIC_STATE_JA = {"Intact": "無傷", "Exceptional": "上質", "Flawless": "完�
 RELIC_STATES = ("Intact", "Radiant")  # 一覧が長くなりすぎないよう、両端の2状態だけ載せる
 
 # MOD
-MOD_TYPES = {"WARFRAME": "ウォーフレーム", "AURA": "オーラ", "PRIMARY": "プライマリ", "SECONDARY": "セカンダリ",
+MOD_TYPES = {"WARFRAME": "Warframe", "AURA": "オーラ", "PRIMARY": "プライマリ", "SECONDARY": "セカンダリ",
              "MELEE": "近接", "STANCE": "スタンス", "SENTINEL": "センチネル", "KUBROW": "クブロウ", "KAVAT": "キャバット",
-             "HELMINTH CHARGER": "ヘルミンスチャージャー", "ARCHWING": "アークウィング", "ARCH-GUN": "アークガン",
-             "ARCH-MELEE": "アーク近接", "PARAZON": "パラゾン", "NECRAMECH": "ネクラメカ", "OTHER": "その他"}
+             "HELMINTH CHARGER": "ヘルミンスチャージャー", "ARCHWING": "アークウイング", "ARCH-GUN": "アークウイングガン",
+             "ARCH-MELEE": "アークウイング近接", "PARAZON": "パラゾン", "NECRAMECH": "ネクラメカ", "OTHER": "その他"}
 COMPAT_JA = {"Rifle": "ライフル", "Shotgun": "ショットガン", "Pistol": "ピストル", "Melee": "近接", "Sniper": "スナイパー",
-             "Bow": "弓", "Assault Rifle": "アサルトライフル", "Throwing": "投擲", "Kitgun": "キットガン", "Zaw": "ザウ"}
+             "Bow": "弓", "Assault Rifle": "アサルトライフル", "Throwing": "投擲", "Kitgun": "Kitgun", "Zaw": "Zaw"}
 # マスター一覧のカテゴリー
 MASTERY_CATS = {"warframe": "Warframe", "primary": "プライマリ", "secondary": "セカンダリ", "melee": "近接",
                 "kitgun": "Kitgun", "zaw": "Zaw", "robotic": "ロボティック", "companion": "コンパニオン",
@@ -181,11 +186,11 @@ ITEM_TYPES = {"Suits": "frame", "SpaceSuits": "archwing", "MechSuits": "other", 
 # Riven
 RIVEN_TYPES_JA = {"Rifle Riven Mod": "ライフル", "Shotgun Riven Mod": "ショットガン", "Pistol Riven Mod": "ピストル",
                   "Melee Riven Mod": "近接", "Zaw Riven Mod": "Zaw", "Kitgun Riven Mod": "Kitgun",  # Kitgun・Zaw は英語のまま
-                  "Archgun Riven Mod": "アークガン", "Companion Weapon Riven Mod": "コンパニオン武器"}
+                  "Archgun Riven Mod": "アークウイングガン", "Companion Weapon Riven Mod": "コンパニオン武器"}
 
 # Riven 性質 (ExportWeapons の omegaAttenuation。0.5〜1.55)
 DISPO_CATS = {"primary": "プライマリ", "secondary": "セカンダリ", "melee": "近接", "kitgun": "Kitgun",
-              "zaw": "Zaw", "archgun": "アークガン", "robotic": "コンパニオン武器"}
+              "zaw": "Zaw", "archgun": "アークウイングガン", "robotic": "コンパニオン武器"}
 _DISPO_TYPE = {"secondary": "Pistol Riven Mod", "melee": "Melee Riven Mod", "kitgun": "Kitgun Riven Mod",
                "zaw": "Zaw Riven Mod", "archgun": "Archgun Riven Mod", "robotic": "Companion Weapon Riven Mod"}
 # アルケイン所持一覧のカテゴリー (並び順もこの順)
@@ -415,7 +420,7 @@ def names_from_exports(en_docs: list[dict], ja_docs: list[dict]) -> dict:
                     mastery[mid] = {"id": mid, "en": name, "cat": cat, "variant": variant, "rank": rank,
                                     "ja": re.sub(r"^<[^>]+>\s*", "", ja.get(it["uniqueName"], (name,))[0]).strip(),
                                     "xp": mastery_xp(cat, key, rank)}
-    # Riven 性質 (マスター一覧と同じ数え方の武器から、Riven を付けられないアーク近接・アンプを除く)
+    # Riven 性質 (マスター一覧と同じ数え方の武器から、Riven を付けられないアークウイング近接・アンプを除く)
     dispo: dict[str, dict] = {}
     for doc in en_docs:
         for it in doc.get("ExportWeapons", []):
@@ -488,8 +493,8 @@ class Names:
             return f"{m.group(1)} クレジット"
         if m := re.match(r"^([\d,]+) Endo$", base):
             return f"{m.group(1)} エンド"
-        if m := re.match(r"^(Lith|Meso|Neo|Axi|Requiem) (\S+) Relic$", base):
-            return f"{ERA_JA[m.group(1)]} {m.group(2)} 遺物"
+        if m := re.match(r"^(Lith|Meso|Neo|Axi|Requiem|Vanguard) (\S+) Relic$", base):
+            return f"{ERA_JA[m.group(1)]} {m.group(2)} レリック"
         if base.endswith(" Blueprint"):
             b = base[:-10]
             if hit := self._get(b):
@@ -607,7 +612,7 @@ class Sources:
         for r in get("relics"):
             if r.get("state") not in RELIC_STATES:
                 continue
-            label = f"{ERA_JA.get(r.get('tier'), r.get('tier'))} {r.get('relicName')} 遺物"
+            label = f"{ERA_JA.get(r.get('tier'), r.get('tier'))} {r.get('relicName')} レリック"
             for it in r.get("rewards", []):
                 add(("relic", label, RELIC_STATE_JA.get(r["state"], r["state"]), "-", it.get("itemName", ""),
                      _num(it.get("chance")), it.get("rarity", "")))
@@ -1020,6 +1025,15 @@ def cmd_update(args):
     except Exception as e:  # noqa: BLE001
         print(f"  シミュレータ用データを作れませんでした: {e}  ※前回取得分があればそれを使います")
 
+    # バロの在庫(内部パス)を名前にする辞書も、同じ Export から作る
+    try:
+        import wfportal_baro as wbaro
+        paths = wbaro.item_paths_from_exports(docs["en"])
+        wbaro.save_item_paths(d, paths)
+        print(f"内部パスの辞書: {len(paths)} 件")
+    except Exception as e:  # noqa: BLE001
+        print(f"  内部パスの辞書を作れませんでした: {e}  ※前回取得分があればそれを使います")
+
     if not find_logos_dir(d):  # 初回(ロゴ素材が未取得)のときだけ取得する
         fetch_logos(d)
 
@@ -1231,17 +1245,38 @@ def cmd_area(args):
 # --------------------------------------------------------------------------
 # コマンド: cycle (昼夜サイクルとリセット)
 # --------------------------------------------------------------------------
-# 公式APIに接続できない環境でも動くよう、周期から計算します。
-# 初回だけ、ゲーム内で見た残り時間で時刻合わせ(set)をしてください。
-#   Cetus  : 150分周期 (昼100分 + 夜50分)   Cambion Drift は Cetus に連動 (昼=Fass / 夜=Vome)
-#   Vallis : 1600秒周期 (温暖400秒 + 寒冷1200秒)
-
+# 周期から計算します。通信は不要で、時刻合わせをしなくても下の基準時刻(ref)から計算できます。
+# 公式の World State で同期する(cycle sync)と、基準を取り直し、PC の時計のずれも補正します。
+# 平原だけはゲーム内で見た残り時間で手動でも合わせられます(set)。
+#   Cetus  : 8998.874 秒周期 (昼 = 残り + 夜 3000 秒)。公式 World State の CetusSyndicate の
+#            開始〜期限がちょうどこの長さで、期限が夜明け(夜の終わり)。Cambion Drift は Cetus に連動 (昼=Fass / 夜=Vome)
+#   Vallis : 1600 秒周期 (温暖 400 秒 + 寒冷 1200 秒)。World State に手がかりが無いため基準時刻から計算する
+#   Zariman: Cetus と同じ長さで、コーパスとグリニアが交互に入れ替わる(切り替わりは CetusSyndicate の期限と同時)
+#   Duviri : 2 時間ごとに Sorrow → Fear → Joy → Anger → Envy の順(UTC の 0 時から 10 時間で一巡)
+# 基準時刻(ref)は「最初の段階が始まった時刻」。2026-10-17 に公式 World State と WFCD (api.warframestat.us) で確認した値。
+#   Cetus/Zariman: CetusSyndicate の期限 2026-10-16T22:43:29.966Z(夜の終わり = 昼の始まり、グリニアの終わり = コーパスの始まり)
+#   Vallis: 寒冷の終わり 2026-10-16T22:26:48Z(WFCD の vallisCycle の期限)
+CETUS_PERIOD = 8998.874
 CYCLES = {
-    "cetus": {"name": "平原 (Cetus)", "total": 9000, "first": ("day", "昼", 6000), "second": ("night", "夜", 3000)},
-    "vallis": {"name": "オーブ峡谷 (Orb Vallis)", "total": 1600, "first": ("warm", "温暖", 400), "second": ("cold", "寒冷", 1200)},
+    "cetus": {"name": "平原 (Cetus)", "phases": [("day", "昼", CETUS_PERIOD - 3000), ("night", "夜", 3000)],
+              "ref": 1792190609.966, "manual": True, "sync": "cetus"},
+    "vallis": {"name": "オーブ峡谷 (Orb Vallis)", "phases": [("warm", "温暖", 400), ("cold", "寒冷", 1200)],
+               "ref": 1792189608.0, "manual": True},
+    "zariman": {"name": "ザリマン (Zariman)", "phases": [("corpus", "コーパス", CETUS_PERIOD), ("grineer", "グリニア", CETUS_PERIOD)],
+                "ref": 1792190609.966, "manual": False, "sync": "cetus"},
+    "duviri": {"name": "デュヴィリ (Duviri)",
+               "phases": [("sorrow", "Sorrow", 7200), ("fear", "Fear", 7200), ("joy", "Joy", 7200),
+                          ("anger", "Anger", 7200), ("envy", "Envy", 7200)],
+               "ref": 0.0, "manual": False},
 }
+CAMBION = {"day": "Fass(昼)", "night": "Vome(夜)"}  # カンビオンの荒地は Cetus に連動
 PHASE_ALIASES = {"day": "day", "昼": "day", "night": "night", "夜": "night",
                  "warm": "warm", "温暖": "warm", "cold": "cold", "寒冷": "cold"}
+CYCLE_SOURCES = {"default": "基準時刻から計算", "worldstate": "公式データで同期", "manual": "手動で時刻合わせ"}
+
+
+def cycle_total(key: str) -> float:
+    return sum(p[2] for p in CYCLES[key]["phases"])
 
 
 def parse_remaining(s: str) -> int:
@@ -1261,25 +1296,129 @@ def fmt_dur(sec: float) -> str:
 
 
 def cycle_state(key: str, anchor: float, now: float) -> tuple[str, str, float]:
-    c = CYCLES[key]
-    pos = (now - anchor) % c["total"]
-    (k1, j1, l1), (k2, j2, l2) = c["first"], c["second"]
-    if pos < l1:
-        return k1, j1, l1 - pos
-    return k2, j2, c["total"] - pos
+    """いまの段階 (英字キー, 表示名, 残り秒)。anchor は最初の段階が始まった時刻(その前後どの周回でもよい)"""
+    pos = (now - anchor) % cycle_total(key)
+    start = 0.0
+    for k, jp, length in CYCLES[key]["phases"]:
+        if pos < start + length:
+            return k, jp, start + length - pos
+        start += length
+    k, jp, _ = CYCLES[key]["phases"][-1]  # 浮動小数の端数でここに来たときは最後の段階の終わり際
+    return k, jp, 0.0
+
+
+def cycle_next(key: str, anchor: float, now: float) -> tuple[str, str]:
+    """次の段階 (英字キー, 表示名)"""
+    k = cycle_state(key, anchor, now)[0]
+    phases = CYCLES[key]["phases"]
+    i = [p[0] for p in phases].index(k)
+    return phases[(i + 1) % len(phases)][:2]
 
 
 def cycle_anchor(key: str, phase: str | None, remaining: float, now: float) -> float:
-    """「いま phase で残り remaining 秒」から、周期の先頭時刻を逆算する。"""
-    c = CYCLES[key]
-    valid = {c["first"][0]: c["first"], c["second"][0]: c["second"]}
-    if phase not in valid:
-        raise ValueError(f"フェーズは {' / '.join(v[1] for v in valid.values())} のいずれかを指定してください。")
-    length = valid[phase][2]
+    """「いま phase で残り remaining 秒」から、最初の段階が始まった時刻を逆算する。"""
+    phases = CYCLES[key]["phases"]
+    keys = [p[0] for p in phases]
+    if phase not in keys:
+        raise ValueError(f"フェーズは {' / '.join(p[1] for p in phases)} のいずれかを指定してください。")
+    i = keys.index(phase)
+    length = phases[i][2]
     if not 0 < remaining <= length:
         raise ValueError(f"残り時間が範囲外です(このフェーズは最長 {fmt_dur(length)})。")
     phase_start = now + remaining - length
-    return phase_start if phase == c["first"][0] else phase_start - c["first"][2]
+    return phase_start - sum(p[2] for p in phases[:i])
+
+
+def anchor_from_cetus_expiry(key: str, expiry: float) -> float:
+    """公式 World State の CetusSyndicate の期限(夜明け)から、key の周期の基準時刻を求める。
+
+    Cetus: 期限 = 昼の始まり。Zariman: 期限で勢力が切り替わる。どちらに切り替わるかは World State に無いため、
+    基準時刻(ref)から何周目かの偶奇で決める(周期は 8998.874 秒で一定。半周ずれるほどの誤差は出ない)
+    """
+    if key == "cetus":
+        return expiry
+    if key == "zariman":
+        n = round((expiry - CYCLES[key]["ref"]) / CETUS_PERIOD)
+        return expiry if n % 2 == 0 else expiry - CETUS_PERIOD
+    raise ValueError(f"{key} は World State から同期できません。")
+
+
+# cycles.json の形式:
+#   {"cetus": {"anchor": 基準時刻, "source": "worldstate" | "manual", "synced_at": 保存した時刻}, ...,
+#    "_clock": {"offset": 公式サーバーの時刻 - PC の時刻(秒), "synced_at": ...}}
+#   以前の形式 {"cetus": 基準時刻(数値)} も読める(手動の時刻合わせとして扱う)
+def load_cycles(d: Path) -> dict:
+    f = d / "cycles.json"
+    try:
+        raw = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+    except ValueError:
+        raw = {}
+    if not isinstance(raw, dict):
+        raw = {}
+    out = {}
+    for key, v in raw.items():
+        if key == "_clock":
+            if isinstance(v, dict) and isinstance(v.get("offset"), (int, float)):
+                out["_clock"] = v
+        elif key in CYCLES:
+            if isinstance(v, (int, float)):
+                out[key] = {"anchor": float(v), "source": "manual", "synced_at": None}
+            elif isinstance(v, dict) and isinstance(v.get("anchor"), (int, float)) and v.get("source") in CYCLE_SOURCES:
+                out[key] = v
+    return out
+
+
+def save_cycles(d: Path, store: dict) -> None:
+    (d / "cycles.json").write_text(json.dumps(store, ensure_ascii=False), encoding="utf-8")
+
+
+def clock_offset(store: dict) -> float:
+    """公式サーバーの時刻 - PC の時刻(秒)。同期したことが無ければ 0"""
+    return float((store.get("_clock") or {}).get("offset", 0.0))
+
+
+def set_manual_cycle(d: Path, key: str, phase: str | None, remaining: float, now: float | None = None) -> dict:
+    """ゲーム内で見た残り時間で時刻合わせして保存する。保存後の cycles.json の中身を返す"""
+    if key not in CYCLES or not CYCLES[key]["manual"]:
+        raise ValueError(f"手動で合わせられるのは {' / '.join(k for k, c in CYCLES.items() if c['manual'])} です。")
+    store = load_cycles(d)
+    now = (time.time() if now is None else now) + clock_offset(store)
+    store[key] = {"anchor": cycle_anchor(key, phase, remaining, now), "source": "manual", "synced_at": now}
+    save_cycles(d, store)
+    return store
+
+
+def apply_worldstate_cycles(d: Path, cetus_expiry: float, offset: float, now: float | None = None) -> dict:
+    """World State の値で基準時刻と時計のずれを保存する。手動の時刻合わせは公式データで上書きする"""
+    store = load_cycles(d)
+    now = time.time() if now is None else now
+    for key, c in CYCLES.items():
+        if c.get("sync") == "cetus":
+            store[key] = {"anchor": anchor_from_cetus_expiry(key, cetus_expiry), "source": "worldstate", "synced_at": now}
+    store["_clock"] = {"offset": offset, "synced_at": now}
+    save_cycles(d, store)
+    return store
+
+
+def cycle_rows(d: Path, now: float | None = None) -> dict:
+    """画面・コマンド共通のサイクル表示。now は PC の時刻(省略時は現在)。時計のずれは中で補正する"""
+    store = load_cycles(d)
+    offset = clock_offset(store)
+    t = (time.time() if now is None else now) + offset
+    rows = []
+    for key, c in CYCLES.items():
+        saved = store.get(key)
+        anchor, source = (saved["anchor"], saved["source"]) if saved else (c["ref"], "default")
+        k, jp, left = cycle_state(key, anchor, t)
+        nk, njp = cycle_next(key, anchor, t)
+        row = {"key": key, "name": c["name"], "phase_key": k, "phase": jp, "left": left, "next_key": nk, "next": njp,
+               "source": source, "source_ja": CYCLE_SOURCES[source], "synced_at": saved.get("synced_at") if saved else None,
+               "manual": c["manual"], "phases": [p[1] for p in c["phases"]], "phase_keys": [p[0] for p in c["phases"]],
+               "max": {p[1]: p[2] for p in c["phases"]}}
+        if key == "cetus":
+            row["cambion"] = CAMBION[k]
+        rows.append(row)
+    return {"now": t, "offset": offset, "clock_synced_at": (store.get("_clock") or {}).get("synced_at"), "cycles": rows}
 
 
 def next_daily_reset(now: datetime) -> datetime:
@@ -1294,33 +1433,31 @@ def next_weekly_reset(now: datetime) -> datetime:
 
 def cmd_cycle(args):
     d = data_dir(args.data_dir)
-    f = d / "cycles.json"
-    store = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
-    now = time.time()
     if args.action == "set":
-        key = args.target.lower()
-        if key not in CYCLES:
-            sys.exit("set の対象は cetus か vallis です。")
+        key = (args.target or "").lower()
         phase = PHASE_ALIASES.get(args.phase.lower() if args.phase else "", None)
         try:
-            store[key] = cycle_anchor(key, phase, parse_remaining(args.remaining), now)
+            set_manual_cycle(d, key, phase, parse_remaining(args.remaining or ""))
         except ValueError as e:
             sys.exit(str(e))
-        f.write_text(json.dumps(store), encoding="utf-8")
         print("時刻合わせを保存しました。")
+    elif args.action == "sync":
+        import wfportal_worldstate as ws
+        try:
+            snap = ws.sync(d, force=True, verbose=True)
+        except ws.WorldStateError as e:
+            sys.exit(f"公式データを取得できませんでした: {e}\n※基準時刻(または前回の同期)からの計算で表示します。")
+        print(f"公式データで同期しました(PC の時計のずれ {snap['offset']:+.0f} 秒)。")
     jst = timezone(timedelta(hours=9))
-    nowdt = datetime.now(jst)
-    print(f"現在 {nowdt:%Y-%m-%d %H:%M:%S} JST\n")
-    for key, c in CYCLES.items():
-        if key not in store:
-            ex = "45:30" if key == "cetus" else "3:20"
-            print(f"{c['name']}: 未設定  (例: cycle set {key} {c['first'][1]} {ex})")
-            continue
-        k, jp, left = cycle_state(key, store[key], now)
-        end = datetime.fromtimestamp(now + left, jst)
-        print(f"{c['name']}: {jp}  残り {fmt_dur(left)}  (切替 {end:%H:%M:%S})")
-        if key == "cetus":
-            print(f"カンビオンの荒地: {'Fass(昼)' if k == 'day' else 'Vome(夜)'}  (Cetus と連動)")
+    view = cycle_rows(d)
+    now = view["now"]
+    nowdt = datetime.fromtimestamp(now, jst)
+    print(f"現在 {nowdt:%Y-%m-%d %H:%M:%S} JST" + (f"  (PC の時計を {view['offset']:+.0f} 秒補正)" if view["offset"] else "") + "\n")
+    for r in view["cycles"]:
+        end = datetime.fromtimestamp(now + r["left"], jst)
+        print(f"{r['name']}: {r['phase']}  残り {fmt_dur(r['left'])}  (切替 {end:%H:%M:%S} → {r['next']})  [{r['source_ja']}]")
+        if "cambion" in r:
+            print(f"カンビオンの荒地: {r['cambion']}  (Cetus と連動)")
     dr, wr = next_daily_reset(nowdt), next_weekly_reset(nowdt)
     print(f"\nデイリーリセットまで  {fmt_dur((dr - nowdt).total_seconds())}  ({dr.astimezone(jst):%m/%d %H:%M} JST)")
     print(f"ウィークリーリセットまで {fmt_dur((wr - nowdt).total_seconds())}  ({wr.astimezone(jst):%m/%d %H:%M} JST)")
@@ -1687,6 +1824,57 @@ def dispo_table(names: Names, rivens: list[dict] | None = None) -> list[dict]:
     return out
 
 
+def cmd_baro(args):
+    import wfportal_baro as wbaro
+    d = data_dir(args.data_dir)
+    words = list(args.query)
+    action = words.pop(0) if words and words[0] in ("update", "own", "unown") else "show"
+    if action == "update":
+        r = wbaro.update_all(d, verbose=True)
+        if r["errors"]:
+            sys.exit(" / ".join(r["errors"]))
+        if r["recorded"]:
+            print(f"  {r['recorded']} の来訪を記録しました(履歴リストに追加・最後に来た日と回数を更新)")
+    elif action in ("own", "unown"):
+        name = " ".join(words)
+        try:
+            wbaro.set_manual_owned(d, name, action == "own")
+        except ValueError as e:
+            sys.exit(str(e))
+        print(f"{name} を{'所持にしました' if action == 'own' else '未所持に戻しました'}。")
+        return
+    names = Names.load(d)
+    view = wbaro.baro_view(d, names)
+    jst = timezone(timedelta(hours=9))
+    mark = {True: "○", False: "×", None: "-"}
+    cur = view["current"]
+    if cur:
+        when = lambda t: datetime.fromtimestamp(t, jst).strftime("%m/%d %H:%M")
+        state = {"here": "来ています", "coming": "次に来ます", "gone": "前回の来訪(終了)"}[cur["state"]]
+        print(f"バロ: {state}  {cur['relay']}  {when(cur['activation'])} 〜 {when(cur['expiry'])} JST")
+        for it in cur["items"]:
+            print(f"  {mark[it['owned']]} {it['ja']}  ({it['kind_ja']} / {it['ducats']} ドゥカット + {it['credits']:,} cr)")
+        print()
+    else:
+        print("今回の品物: 未取得(baro update で取得できます)\n")
+    if not view["rows"]:
+        print("履歴リスト: まだありません(update でデータを取得するか、バロが来ているときに baro update を実行してください)")
+        return
+    q = norm(" ".join(words)) if words else ""
+    rows = [r for r in view["rows"] if (not q or q in norm(r["name"]) or q in norm(r["ja"]))
+            and (not args.kind or r["kind"] == args.kind) and (not args.unowned or r["owned"] is False)]
+    rows.sort(key=lambda r: (r["last"] or ""), reverse=True)
+    sm = view["summary"]["all"]
+    v = view["visits"]
+    print(f"履歴リスト {len(view['rows'])} 件(照合できるもの: 所持 {sm['owned']} / {sm['total']})"
+          f"  記録した来訪 {v['count']} 回" + (f"(最新 {v['latest']})" if v["latest"] else ""))
+    for r in rows[:args.limit]:
+        seen = f"最後 {r['last']} / {r['count']} 回" if r["count"] else "未記録"
+        print(f"  {mark[r['owned']]} {r['ja']}  [{r['kind_ja']}]  {seen}")
+    if len(rows) > args.limit:
+        print(f"  ... ほか {len(rows) - args.limit} 件 (--limit で増やせます)")
+
+
 def cmd_dispo(args):
     d = data_dir(args.data_dir)
     names = Names.load(d)
@@ -1923,7 +2111,8 @@ def make_parser() -> argparse.ArgumentParser:
     s.set_defaults(fn=cmd_area)
 
     s = sub.add_parser("cycle", help="昼夜サイクルとリセット時刻")
-    s.add_argument("action", nargs="?", default="show", choices=["show", "set"])
+    s.add_argument("action", nargs="?", default="show", choices=["show", "set", "sync"],
+                   help="sync: 公式データ(World State)で時刻合わせ / set: ゲーム内の残り時間で手動の時刻合わせ")
     s.add_argument("target", nargs="?", help="set のとき cetus / vallis")
     s.add_argument("phase", nargs="?", help="現在のフェーズ (昼/夜/温暖/寒冷)")
     s.add_argument("remaining", nargs="?", help="そのフェーズの残り時間 (分 or mm:ss)")
@@ -1983,6 +2172,14 @@ def make_parser() -> argparse.ArgumentParser:
     s.add_argument("--rank", type=int, help="own で設定するランク (省略時: 所持済みならそのまま、未所持なら 0)")
     s.add_argument("--limit", type=int, default=60)
     s.set_defaults(fn=cmd_arcane)
+
+    s = sub.add_parser("baro", help="バロ吉入手一覧 (Void 商人の商品と所持の照合)")
+    s.add_argument("query", nargs="*", metavar="[update|own|unown] 名前",
+                   help="名前で絞り込み。update で今回の品物を取得(来ていれば来訪を記録)、own / unown で手動の所持チェックを付ける / 外す")
+    s.add_argument("--kind", choices=["mod", "weapon", "manual", "repeat"], help="種類で絞り込み")
+    s.add_argument("--unowned", action="store_true", help="未所持のみ")
+    s.add_argument("--limit", type=int, default=60)
+    s.set_defaults(fn=cmd_baro)
     return p
 
 

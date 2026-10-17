@@ -1,0 +1,7 @@
+{
+  "_説明": "バロ吉入手一覧の初期リストの調整。名前は英語名(ゲームの英語表記)で書く。大文字小文字は区別しない",
+  "_primed_exclude": "名前が Primed で始まるレジェンダリーの MOD のうち、バロ以外で手に入るもの(ログインボーナスなど)。初期リストから外す",
+  "primed_exclude": ["Primed Vigor", "Primed Shred", "Primed Fury", "Primed Sure Footed"],
+  "_include": "上の条件(Prisma で始まるマスター対象 / Primed で始まるレジェンダリーの MOD)に当てはまらないが、バロが持ってくるもの",
+  "include": ["Primed Chamber"]
+}

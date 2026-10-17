@@ -142,6 +142,19 @@ nav button[aria-current="page"] {
   background: var(--panel-2); border-left-color: var(--primary-bg); color: var(--primary); font-weight: 700;
 }
 nav button .sub { display: block; font-size: 11px; font-weight: 400; color: var(--mute); }
+/* カテゴリー(押すと中の項目が開く。同時に開くのは1つだけ) */
+nav .nav-group { display: flex; flex-direction: column; gap: 6px; }
+nav .nav-cat { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+nav .nav-cat::before {
+  content: ""; flex: none; width: 0; height: 0; border-style: solid; border-width: 4px 0 4px 6px;
+  border-color: transparent transparent transparent var(--mute); transition: transform .15s;
+}
+nav .nav-cat[aria-expanded="true"]::before { transform: rotate(90deg); }
+/* 表示中のページを含むカテゴリー(閉じていても分かるように) */
+nav .nav-cat.has-current { border-left-color: var(--primary-bg); color: var(--primary); }
+nav .nav-cat.has-current::before { border-left-color: var(--primary-bg); }
+nav .nav-items { display: flex; flex-direction: column; gap: 6px; padding-left: 12px; }
+nav .nav-items[hidden] { display: none; }
 
 main { background: var(--panel); border: 1px solid var(--line); padding: 20px 22px 28px; min-height: 60vh; min-width: 0; }
 main h2 { margin: 0 0 4px; font-size: 18px; }
@@ -211,8 +224,20 @@ td.num, th.num { text-align: right; }
 /* サイクル */
 .clock { font-family: var(--mono); font-size: 28px; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
 .cyc-phase { font-size: 20px; font-weight: 700; }
-.cyc-phase.day, .cyc-phase.warm { color: var(--primary); }
-.cyc-phase.night, .cyc-phase.cold { color: var(--accent); }
+.cyc-phase.day, .cyc-phase.warm, .cyc-phase.corpus { color: var(--primary); }
+.cyc-phase.night, .cyc-phase.cold, .cyc-phase.grineer { color: var(--accent); }
+.cyc-next { color: var(--mute); }
+.cyc-src { font-size: 11px; color: var(--mute); border: 1px solid var(--line); padding: 0 6px; margin-left: auto; }
+.cyc-src.worldstate { color: var(--accent); border-color: currentColor; }
+.cyc-sync { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* バロ吉入手一覧 */
+.baro-h { margin: 22px 0 6px; font-size: 15px; }
+#baro-now .card { margin-top: 14px; }
+.baro-state { font-weight: 700; color: var(--primary); }
+.baro-state.coming, .baro-state.gone { color: var(--mute); }
+.baro-mark { font-weight: 700; color: var(--accent); }
+.tag-mini { font-size: 11px; color: var(--mute); border: 1px solid var(--line); padding: 0 5px; margin-left: 6px; white-space: nowrap; }
 .card .pad { padding: 14px; display: grid; gap: 4px; }
 details { margin-top: 18px; border: 1px solid var(--line); padding: 10px 14px; background: var(--bg); }
 summary { cursor: pointer; font-weight: 700; }
@@ -378,6 +403,9 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
   nav .label { display: none; }
   nav button { flex: 1 1 130px; }
   nav button .sub { display: none; }
+  /* 狭い画面: カテゴリと単独ボタンを横に並べ、開いたカテゴリの項目はその下の行に出す */
+  nav .nav-group { display: contents; }
+  nav .nav-items { order: 1; flex: 1 1 100%; flex-direction: row; flex-wrap: wrap; padding-left: 0; }
   main { padding: 16px; }
   .tips { grid-template-columns: minmax(0, 1fr); }
   .tips-toc { position: static; max-height: 40vh; }
@@ -398,21 +426,8 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
   </header>
 
   <div class="body">
-    <nav aria-label="メニュー">
-      <div class="label">Menu</div>
-      <button data-view="item">素材から探す<span class="sub">素材名 → 入手場所と確率</span></button>
-      <button data-view="area">エリアから探す<span class="sub">惑星・ノード → 出る素材</span></button>
-      <button data-view="mastery">マスター一覧<span class="sub">Warframe・武器のマスター状況</span></button>
-      <button data-view="mods">MOD入手一覧<span class="sub">入手先と所持チェック</span></button>
-      <button data-view="arcane">アルケイン所持<span class="sub">所持チェックとランク</span></button>
-      <button data-view="riven">Riven相場<span class="sub">公式の週次統計</span></button>
-      <button data-view="dispo">Riven性質<span class="sub">武器ごとの性質(●1〜5)</span></button>
-      <button data-view="cycle">サイクル<span class="sub">昼夜・リセット</span></button>
-      <button data-view="build">ビルド<span class="sub">登録と管理</span></button>
-      <button data-view="sim">シミュレータ<span class="sub">フレーム・武器・Riven の計算</span></button>
-      <button data-view="tips">Tips<span class="sub">すぐ見たいメモ</span></button>
-      <button data-view="update">データ更新<span class="sub">公式データの取得</span></button>
-    </nav>
+    <!-- メニューの中身は下のスクリプトの MENU(並び)と I18N(表示する文字)から作る -->
+    <nav id="nav" aria-label="メニュー"></nav>
 
     <main>
       <!-- 素材から探す -->
@@ -491,6 +506,27 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
       </section>
 
       <!-- Riven 相場 -->
+      <!-- バロ吉入手一覧 -->
+      <section id="view-baro" hidden>
+        <h2>バロ吉入手一覧</h2>
+        <p class="lead">Void 商人(Baro Ki'Teer)が今回持ってきた品物と、これまでに持ってきた品物を、自分の所持と照合します。MOD は「MOD入手一覧」の所持、武器は「マスター一覧」のマスター済みで判定し、装飾・外装などはこのページでチェックします(この PC に保存)。</p>
+        <div class="cyc-sync">
+          <button class="btn" type="button" id="baro-update">バロ情報を更新</button>
+          <span class="note" id="baro-info" role="status"></span>
+        </div>
+        <div class="err" id="baro-err" role="alert"></div>
+        <div id="baro-now"></div>
+        <h3 class="baro-h">履歴リスト(これまでに持ってきた品物)</h3>
+        <div class="seg" id="baro-kinds" role="group" aria-label="種類"></div>
+        <div class="row">
+          <input type="text" class="search" id="baro-q" placeholder="名前で絞り込み(例: Primed / プライムド)" autocomplete="off">
+          <select id="baro-state" aria-label="状態"><option value="">所持・未所持</option><option value="unowned">未所持のみ</option><option value="owned">所持のみ</option></select>
+        </div>
+        <div class="summary" id="baro-summary"></div>
+        <div id="baro-out"></div>
+        <p class="note">履歴リストは、公式データ(「データ更新」で取得)から作る初期リスト(名前が Prisma で始まる武器など・名前が Primed で始まるレジェンダリーの MOD・Primed Chamber)に、この PC で記録したバロの来訪を足したものです。今回の品物は「バロ情報を更新」を押したときだけ公式の World State に問い合わせて取得し、バロが来ていれば来訪を記録します(リストに無い品物は追加し、ある品物は「最後に来た日」「回数」を更新)。過去の日付は分からないため、「最後に来た日」「回数」はこの PC で記録した来訪だけで数えます(TennoCon の来訪は記録しません)。名前が Skin で終わるものは装飾・外装として扱います。消耗品・ブースター・レリックなど何度でも買えるものは照合しません。初期リストから外す Primed MOD・追加する品物は、ツールのフォルダの <code>data/baro_rules.json</code> で変えられます。</p>
+      </section>
+
       <section id="view-riven" hidden>
         <h2>Riven相場</h2>
         <p class="lead">公式が毎週公開している PC 版の Riven MOD 取引統計です。単位はプラチナ。</p>
@@ -542,20 +578,25 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
       <!-- サイクル -->
       <section id="view-cycle" hidden>
         <h2>サイクル</h2>
-        <p class="lead">昼夜の切り替えとデイリー・ウィークリーのリセットまでの時間です。</p>
+        <p class="lead">昼夜などの切り替えと、デイリー・ウィークリーのリセットまでの時間です。周期から計算するので、通信しなくても表示できます。</p>
+        <div class="cyc-sync">
+          <button class="btn" type="button" id="cyc-sync">公式データで時刻合わせ</button>
+          <span class="note" id="cyc-sync-info" role="status"></span>
+        </div>
+        <div class="err" id="cyc-sync-err" role="alert"></div>
         <div class="cards" id="cycle-cards"></div>
+        <p class="note">「公式データで時刻合わせ」は、押したときだけ公式の World State に問い合わせて、平原・ザリマンの切り替わりと PC の時計のずれを合わせます(60 秒以内に押し直したときは前回の結果を使います)。オーブ峡谷・デュヴィリは公式データに手がかりが無いため、基準時刻から計算します。</p>
         <details id="cycle-setup">
-          <summary>時刻合わせ(最初の一度だけ)</summary>
+          <summary>手動で時刻合わせ(公式データが取れないとき)</summary>
           <form id="cycle-form" class="formgrid" style="margin-top:12px">
-            <label class="field"><span>対象</span>
-              <select id="cf-key"><option value="cetus">平原 (Cetus)</option><option value="vallis">オーブ峡谷 (Orb Vallis)</option></select></label>
+            <label class="field"><span>対象</span><select id="cf-key"></select></label>
             <label class="field"><span>いまのフェーズ</span><select id="cf-phase"></select></label>
             <label class="field"><span>そのフェーズの残り時間(例 45:30 / 分だけでも可)</span>
               <input type="text" id="cf-rem" placeholder="45:30" autocomplete="off"></label>
             <div class="field"><span>&nbsp;</span><button class="btn" type="submit">保存</button></div>
           </form>
           <div class="err" id="cf-err" role="alert"></div>
-          <p class="note">ゲーム内で見た残り時間を入れると、以降は周期から計算して表示します。</p>
+          <p class="note">ゲーム内で見た残り時間を入れると、以降はそこから計算して表示します。あとで「公式データで時刻合わせ」をすると、公式データの方で上書きします。</p>
         </details>
       </section>
 
@@ -701,18 +742,153 @@ function onSortClick(container, state, render, numericKeys = []) {
   container.addEventListener("click", handler); container.addEventListener("keydown", handler);
 }
 
+/* ---------- 表示する文字(言語ごと) ---------- */
+/* キー → 文字。今の言語に無いキーは日本語、それも無ければキーそのものを表示する。
+   いまはメニューだけが対象。中身は JSON と同じ形にしてあるので、増えたら別ファイルに切り出せる */
+const I18N = {
+  ja: {
+    "menu.aria": "メニュー", "menu.title": "Menu",
+    "group.search": "素材検索", "group.personal": "個人チェック表", "group.info": "情報", "group.simulation": "シミュレーション",
+    "page.item": "素材から探す", "page.item.sub": "素材名 → 入手場所と確率",
+    "page.area": "エリアから探す", "page.area.sub": "惑星・ノード → 出る素材",
+    "page.mastery": "マスター一覧", "page.mastery.sub": "Warframe・武器のマスター状況",
+    "page.mods": "MOD入手一覧", "page.mods.sub": "入手先と所持チェック",
+    "page.arcane": "アルケイン所持一覧", "page.arcane.sub": "所持チェックとランク",
+    "page.baro": "バロ吉入手一覧", "page.baro.sub": "Void商人の商品と所持の照合",
+    "page.riven": "Riven相場", "page.riven.sub": "公式の週次統計",
+    "page.dispo": "Riven性質", "page.dispo.sub": "武器ごとの性質(●1〜5)",
+    "page.cycle": "サイクル", "page.cycle.sub": "昼夜・リセット",
+    "page.build": "ビルド", "page.build.sub": "登録と管理",
+    "page.sim": "シミュレータ", "page.sim.sub": "フレーム・武器・Riven の計算",
+    "page.tips": "Tips", "page.tips.sub": "すぐ見たいメモ",
+    "page.update": "データ更新", "page.update.sub": "公式データの取得",
+  },
+  en: {
+    "menu.aria": "Menu", "menu.title": "Menu",
+    "group.search": "Material Search", "group.personal": "Personal Checklists", "group.info": "Info", "group.simulation": "Simulation",
+    "page.item": "Find by Material", "page.item.sub": "Material → where it drops",
+    "page.area": "Find by Area", "page.area.sub": "Planet / node → drops",
+    "page.mastery": "Mastery", "page.mastery.sub": "Mastery progress",
+    "page.mods": "Mods", "page.mods.sub": "Sources and owned mods",
+    "page.arcane": "Arcanes", "page.arcane.sub": "Owned arcanes and ranks",
+    "page.baro": "Baro Ki'Teer", "page.baro.sub": "Void Trader items vs. owned",
+    "page.riven": "Riven Prices", "page.riven.sub": "Official weekly stats",
+    "page.dispo": "Riven Disposition", "page.dispo.sub": "Disposition per weapon",
+    "page.cycle": "Cycles", "page.cycle.sub": "Day/night and resets",
+    "page.build": "Builds", "page.build.sub": "Save and manage",
+    "page.sim": "Simulator", "page.sim.sub": "Frame / weapon / Riven math",
+    "page.tips": "Tips", "page.tips.sub": "Quick notes",
+    "page.update": "Data Update", "page.update.sub": "Fetch official data",
+  },
+};
+let lang = "ja";
+function t(key) {
+  const own = I18N[lang] && I18N[lang][key];
+  return own != null ? own : (I18N.ja[key] != null ? I18N.ja[key] : key);
+}
+/* 言語の切り替え(いまは画面にボタンを出さない。確認用に URL の ?lang=en で切り替わる) */
+function setLang(code) {
+  if (!I18N[code]) return;
+  lang = code;
+  document.documentElement.lang = code;
+  renderMenu();
+}
+
+/* ---------- メニュー ---------- */
+/* 並びとカテゴリー分け。項目はページの id(<section id="view-○○">)。
+   文字は I18N の group.<カテゴリー> / page.<ページ> / page.<ページ>.sub から取る。
+   ページ(section)がまだ無い項目は表示しない(作ったら自動で出る) */
+const MENU = [
+  { group: "search", items: ["item", "area"] },
+  { group: "personal", items: ["mastery", "mods", "arcane", "baro"] },
+  { group: "info", items: ["riven", "dispo", "cycle"] },
+  { group: "simulation", items: ["build", "sim"] },
+  { page: "tips" },
+  { page: "update" },
+];
+const pageExists = id => !!document.getElementById("view-" + id);
+const menuGroups = () => MENU.filter(e => e.group).map(e => ({ ...e, items: e.items.filter(pageExists) })).filter(e => e.items.length);
+const groupOf = view => (menuGroups().find(e => e.items.includes(view)) || {}).group || null;
+let views = [];          // 表示できるページの一覧(メニューの並び順)
+let currentView = null;  // 表示中のページ
+let openGroup = null;    // 開いているカテゴリー(同時に1つだけ)
+
+function navButton(view) {
+  const b = document.createElement("button");
+  b.type = "button"; b.dataset.view = view; b.textContent = t("page." + view);
+  const sub = document.createElement("span");
+  sub.className = "sub"; sub.textContent = t("page." + view + ".sub");
+  b.append(sub);
+  return b;
+}
+function renderMenu() {
+  const nav = $("#nav");
+  nav.setAttribute("aria-label", t("menu.aria"));
+  const title = document.createElement("div");
+  title.className = "label"; title.textContent = t("menu.title");
+  const parts = [title];
+  views = [];
+  const groups = menuGroups();
+  MENU.forEach(e => {
+    if (e.page) {
+      if (!pageExists(e.page)) return;
+      views.push(e.page);
+      parts.push(navButton(e.page));
+      return;
+    }
+    const g = groups.find(x => x.group === e.group);
+    if (!g) return;
+    const wrap = document.createElement("div");
+    wrap.className = "nav-group";
+    const cat = document.createElement("button");
+    cat.type = "button"; cat.className = "nav-cat"; cat.dataset.group = g.group;
+    cat.id = "nav-cat-" + g.group; cat.setAttribute("aria-controls", "nav-items-" + g.group);
+    cat.textContent = t("group." + g.group);
+    const items = document.createElement("div");
+    items.className = "nav-items"; items.id = "nav-items-" + g.group;
+    items.setAttribute("role", "group"); items.setAttribute("aria-labelledby", cat.id);
+    g.items.forEach(v => { views.push(v); items.append(navButton(v)); });
+    wrap.append(cat, items);
+    parts.push(wrap);
+  });
+  nav.replaceChildren(...parts);
+  applyMenuState();
+}
+/* 開閉と「表示中」の印を反映する */
+function applyMenuState() {
+  const curGroup = groupOf(currentView);
+  document.querySelectorAll("#nav .nav-cat").forEach(cat => {
+    const g = cat.dataset.group, open = g === openGroup;
+    cat.setAttribute("aria-expanded", String(open));
+    cat.classList.toggle("has-current", g === curGroup);
+    $("#nav-items-" + g).hidden = !open;
+  });
+  document.querySelectorAll("#nav [data-view]").forEach(b => {
+    if (b.dataset.view === currentView) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+  });
+}
+$("#nav").addEventListener("click", e => {
+  const page = e.target.closest("[data-view]"), cat = e.target.closest("[data-group]");
+  if (page) show(page.dataset.view);
+  else if (cat) { openGroup = openGroup === cat.dataset.group ? null : cat.dataset.group; applyMenuState(); }
+});
+
 /* ---------- ビュー切り替え ---------- */
-const views = ["item", "area", "mastery", "mods", "arcane", "riven", "dispo", "cycle", "build", "sim", "tips", "update"];
 const loaders = {};
 function show(view) {
   views.forEach(v => { $("#view-" + v).hidden = v !== view; });
-  document.querySelectorAll("nav button").forEach(b => {
-    if (b.dataset.view === view) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
-  });
+  currentView = view;
+  const g = groupOf(view);
+  if (g) openGroup = g;  // 起動時や別の画面から移ったときも、そのページのカテゴリを開く
+  applyMenuState();
   try { localStorage.setItem("wf-view", view); } catch (e) {}
   loaders[view] && loaders[view]();
 }
-document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => show(b.dataset.view)));
+{
+  const q = new URLSearchParams(location.search).get("lang");
+  if (q && I18N[q]) { lang = q; document.documentElement.lang = q; }
+  renderMenu();
+}
 
 /* ---------- ロゴ ---------- */
 /* 公式ファンキットのロゴは同梱していない。各自の PC に取得済み(初回起動時に自動取得)ならヘッダーに使う */
@@ -1525,32 +1701,157 @@ loaders.arcane = async () => {
   catch (e) { $("#ac-cats").innerHTML = ""; $("#ac-summary").innerHTML = ""; $("#ac-out").innerHTML = noData(e.message); }
 };
 
+/* ---------- バロ吉入手一覧 ---------- */
+let baro = null, baroAt = 0, baroKind = "";
+const baroSort = { key: "last", dir: "desc" };
+const baroGetters = {
+  owned: r => (r.owned === true ? 2 : r.owned === false ? 1 : 0), name: r => (r.ja || r.name).toLowerCase(),
+  kind: r => r.kind_ja, last: r => r.last, count: r => r.count, ducats: r => r.ducats, credits: r => r.credits,
+};
+const jstTime = t => new Date(t * 1000).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+const num = v => (v === null || v === undefined ? `<span class="none">-</span>` : Number(v).toLocaleString());
+const baroName = r => `${esc(r.ja || r.name)}${r.ja && r.ja !== r.name ? `<span class="sub-en">${esc(r.name)}</span>` : ""}`;
+/* 所持の欄: 装飾・外装などはチェック、MOD・武器はほかの一覧の結果を表示、消耗品などは照合しない */
+function baroOwnedCell(r) {
+  if (r.kind === "manual") return `<input type="checkbox" class="own" ${r.owned ? "checked" : ""} aria-label="${esc(r.ja || r.name)} を所持">`;
+  if (r.owned === null) return `<span class="none" title="${esc(r.check_by)}">-</span>`;
+  return r.owned ? `<span class="baro-mark" title="${esc(r.check_by)}">✓</span>` : `<span class="none" title="${esc(r.check_by)}">×</span>`;
+}
+function baroFilter(rows) {
+  const q = $("#baro-q").value.trim().toLowerCase(), st = $("#baro-state").value;
+  return rows.filter(r => (!baroKind || r.kind === baroKind) && (!q || [r.name, r.ja].some(x => (x || "").toLowerCase().includes(q))) &&
+    (!st || (st === "owned" && r.owned === true) || (st === "unowned" && r.owned === false)));
+}
+function renderBaroNow() {
+  const cur = baro && baro.current, box = $("#baro-now");
+  if (!cur) { box.innerHTML = `<p class="note">今回の品物はまだ取得していません。「バロ情報を更新」で取得できます。</p>`; return; }
+  const el = (Date.now() - baroAt) / 1000, now = baro.now + el;
+  const label = { here: "来ています", coming: "次に来ます", gone: "前回の来訪(終了しました)" }[cur.state];
+  const count = cur.state === "here" ? `帰るまで ${dur(cur.expiry - now)}` : cur.state === "coming" ? `来るまで ${dur(cur.activation - now)}` : "";
+  const items = cur.items.length ? `<div class="tablewrap"><table>
+    <thead><tr><th class="chk">所持</th><th>品物</th><th>種類</th><th class="num">ドゥカット</th><th class="num">クレジット</th><th class="num" title="この PC で記録した来訪の回数(今回を含む)">来た回数</th></tr></thead>
+    <tbody>${cur.items.map(r => `<tr class="${r.owned ? "owned" : ""}" data-name="${esc(r.name)}">
+      <td class="chk">${baroOwnedCell(r)}</td><td>${baroName(r)}${r.limit ? `<span class="tag-mini">${esc(String(r.limit))} 個まで</span>` : ""}</td>
+      <td>${esc(r.kind_ja)}</td><td class="num">${num(r.ducats)}</td><td class="num">${num(r.credits)}</td>
+      <td class="num">${r.count ? num(r.count) : `<span class="none">初めて</span>`}</td></tr>`).join("")}</tbody></table></div>`
+    : `<div class="pad"><span class="note">${cur.state === "here" ? "品物の一覧がありません。" : "品物は来訪中だけ公開されます。"}</span></div>`;
+  const unnamed = cur.items.some(r => !r.named) && !baro.has_paths ? `<p class="note">品物の名前を表示するには、一度「データ更新」をしてください(いまは内部の名前で表示しています)。</p>` : "";
+  box.innerHTML = `<div class="card"><header><b>Baro Ki'Teer</b><span class="baro-state ${esc(cur.state)}">${esc(label)}</span>
+    <span>${esc(cur.relay)} / ${esc(jstTime(cur.activation))} 〜 ${esc(jstTime(cur.expiry))} JST</span><span id="baro-count">${esc(count)}</span></header>${items}</div>${unnamed}`;
+}
+function renderBaroInfo() {
+  const parts = [];
+  if (baro.current && baro.current.fetched_at) parts.push(`今回の品物 ${jstTime(baro.current.fetched_at)} に取得`);
+  parts.push(baro.visits.count ? `記録した来訪 ${baro.visits.count} 回(最新 ${baro.visits.latest})` : "記録した来訪はまだありません");
+  $("#baro-info").textContent = parts.join(" / ");
+}
+function renderBaro() {
+  if (!baro) return;
+  renderBaroInfo(); renderBaroNow();
+  if (!baro.rows.length) {
+    $("#baro-kinds").innerHTML = ""; $("#baro-summary").innerHTML = "";
+    $("#baro-out").innerHTML = noData(baro.has_names ? "履歴リストはまだ空です。バロが来ているときに「バロ情報を更新」を押すと追加されます。" : "初期リストを作るには、先に「データ更新」で公式データを取得してください。"); return;
+  }
+  const sm = baro.summary;
+  const chip = (k, label, o) => `<button class="chip" data-bkind="${esc(k)}" aria-pressed="${baroKind === k}">${esc(label)}<small>${k === "repeat" ? o.total : `${o.owned} / ${o.total}`}</small></button>`;
+  $("#baro-kinds").innerHTML = chip("", "すべて", sm.all) + Object.entries(baro.kinds).map(([k, v]) => chip(k, v, sm[k])).join("");
+  const list = sortRows(baroFilter(baro.rows), baroSort, baroGetters);
+  const cur = baroKind ? sm[baroKind] : sm.all, p = cur.total ? cur.owned / cur.total * 100 : 0;
+  $("#baro-summary").innerHTML = baroKind === "repeat" ? `<span>照合しない品物 ${cur.total} 件</span><span>表示 ${list.length} 件</span>`
+    : `<span><b class="count">${esc(baroKind ? baro.kinds[baroKind] : "照合できる品物")}</b> 所持 ${cur.owned} / ${cur.total}(${p.toFixed(1)}%)</span>
+       <span class="progress" aria-hidden="true"><i style="--w:${p.toFixed(1)}%"></i></span><span>表示 ${list.length} 件</span>`;
+  $("#baro-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
+    <thead><tr>${th("所持", "owned", baroSort, "chk")}${th("品物", "name", baroSort)}${th("種類", "kind", baroSort)}${th("最後に来た日", "last", baroSort)}${th("回数", "count", baroSort, "num")}${th("ドゥカット", "ducats", baroSort, "num")}${th("クレジット", "credits", baroSort, "num")}</tr></thead>
+    <tbody>${list.map(r => `<tr class="${r.owned ? "owned" : ""}" data-name="${esc(r.name)}">
+      <td class="chk">${baroOwnedCell(r)}</td><td>${baroName(r)}${r.seed ? "" : `<span class="tag-mini" title="この PC で記録した来訪で追加された品物です">来訪で追加</span>`}</td>
+      <td title="${esc(r.check_by)}">${esc(r.kind_ja)}</td><td>${r.last ? esc(r.last) : `<span class="none" title="この PC ではまだ記録していません">未記録</span>`}</td>
+      <td class="num">${r.count ? num(r.count) : `<span class="none">-</span>`}</td><td class="num">${num(r.ducats)}</td><td class="num">${num(r.credits)}</td></tr>`).join("")}</tbody></table></div>`
+    : noData("条件に合う品物がありません。");
+}
+async function loadBaro() {
+  try { baro = await api("/api/baro"); baroAt = Date.now(); $("#baro-err").textContent = ""; renderBaro(); }
+  catch (e) { $("#baro-out").innerHTML = noData(e.message); }
+}
+async function setBaroOwned(name, owned) {
+  const rows = [...baro.rows, ...((baro.current && baro.current.items) || [])].filter(r => r.name === name && r.kind === "manual");
+  rows.forEach(r => { r.owned = owned; });
+  try { await api("/api/baro/owned", { method: "POST", body: { name, owned } }); await loadBaro(); }
+  catch (e) { rows.forEach(r => { r.owned = !owned; }); renderBaro(); $("#baro-err").textContent = e.message; }
+}
+$("#baro-update").addEventListener("click", async () => {
+  const btn = $("#baro-update");
+  btn.disabled = true; $("#baro-err").textContent = ""; $("#baro-info").textContent = "取得しています...";
+  try {
+    baro = await api("/api/baro/update", { method: "POST", body: {} }); baroAt = Date.now(); renderBaro();
+    if (baro.update.errors.length) $("#baro-err").textContent = baro.update.errors.join(" / ");
+  } catch (e) { $("#baro-err").textContent = e.message; if (baro) renderBaroInfo(); }
+  btn.disabled = false;
+});
+["#baro-now", "#baro-out"].forEach(sel => $(sel).addEventListener("change", e => {
+  const tr = e.target.closest("tr[data-name]"); if (tr && e.target.matches("input.own")) setBaroOwned(tr.dataset.name, e.target.checked);
+}));
+$("#baro-kinds").addEventListener("click", e => { const c = e.target.closest("[data-bkind]"); if (!c) return; baroKind = c.dataset.bkind; renderBaro(); });
+onSortClick($("#baro-out"), baroSort, renderBaro, ["owned", "last", "count", "ducats", "credits"]);
+$("#baro-q").addEventListener("input", debounce(renderBaro, 150));
+$("#baro-state").addEventListener("change", renderBaro);
+// 来るまで・帰るまでの時間だけを毎秒更新する(表は作り直さない)
+setInterval(() => {
+  if ($("#view-baro").hidden || !baro || !baro.current || !$("#baro-count")) return;
+  const cur = baro.current, now = baro.now + (Date.now() - baroAt) / 1000;
+  if ((cur.state === "here" && now >= cur.expiry) || (cur.state === "coming" && now >= cur.activation)) { loadBaro(); return; }
+  $("#baro-count").textContent = cur.state === "here" ? `帰るまで ${dur(cur.expiry - now)}` : cur.state === "coming" ? `来るまで ${dur(cur.activation - now)}` : "";
+}, 1000);
+loaders.baro = loadBaro;  // MOD・マスターのチェックはほかのページで変わるので、開くたびに読み直す
+
 /* ---------- サイクル ---------- */
 let cyc = null, cycAt = 0, cycTimer = null;
 function renderCycles() {
   if (!cyc) return;
   const el = (Date.now() - cycAt) / 1000;
   const cards = cyc.cycles.map(c => {
-    if (!c.set) return `<div class="card"><header><b>${esc(c.name)}</b></header><div class="pad"><span class="cyc-phase">未設定</span><span class="note">下の「時刻合わせ」で設定してください。</span></div></div>`;
     const left = c.left - el;
-    return `<div class="card"><header><b>${esc(c.name)}</b></header><div class="pad">
+    return `<div class="card"><header><b>${esc(c.name)}</b><span class="cyc-src ${esc(c.source)}">${esc(c.source_ja)}</span></header><div class="pad">
       <span class="cyc-phase ${esc(c.phase_key)}">${esc(c.phase)}</span><span class="clock">${dur(left)}</span>
-      <span class="note">残り時間${c.cambion ? ` / カンビオンの荒地: ${esc(c.cambion)}` : ""}</span></div></div>`;
+      <span class="note">残り時間 <span class="cyc-next">→ 次は ${esc(c.next)}</span>${c.cambion ? ` / カンビオンの荒地: ${esc(c.cambion)}` : ""}</span></div></div>`;
   });
   cards.push(`<div class="card"><header><b>デイリーリセット</b><span>${esc(cyc.daily.at)} JST</span></header><div class="pad"><span class="clock">${dur(cyc.daily.left - el)}</span></div></div>`);
   cards.push(`<div class="card"><header><b>ウィークリーリセット</b><span>${esc(cyc.weekly.at)} JST</span></header><div class="pad"><span class="clock">${dur(cyc.weekly.left - el)}</span></div></div>`);
   $("#cycle-cards").innerHTML = cards.join("");
   // どれかのフェーズが切り替わったら取得し直す
-  if (cyc.cycles.some(c => c.set && c.left - el < 0) || cyc.daily.left - el < 0) loadCycles();
+  if (cyc.cycles.some(c => c.left - el < 0) || cyc.daily.left - el < 0) loadCycles();
+}
+function renderCycleSyncInfo() {
+  const at = cyc && cyc.clock_synced_at;
+  if (!at) { $("#cyc-sync-info").textContent = "まだ公式データと同期していません(基準時刻から計算しています)"; return; }
+  const d = new Date(at * 1000), off = cyc.offset;
+  $("#cyc-sync-info").textContent = `最終同期 ${d.toLocaleString("ja-JP", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}` +
+    ` / PC の時計のずれ ${off ? `${off > 0 ? "+" : ""}${off} 秒(補正して表示)` : "なし"}`;
 }
 async function loadCycles() {
-  try { cyc = await api("/api/cycles"); cycAt = Date.now(); renderCycles(); } catch (e) { $("#cycle-cards").innerHTML = noData(e.message); }
+  try { cyc = await api("/api/cycles"); cycAt = Date.now(); renderCycles(); renderCycleSyncInfo(); fillCycleKeys(); }
+  catch (e) { $("#cycle-cards").innerHTML = noData(e.message); }
+}
+/* 手動の時刻合わせ: 対象とフェーズの選択肢はサーバーの定義(manual のもの)から作る */
+function fillCycleKeys() {
+  const sel = $("#cf-key"), keep = sel.value, manual = cyc.cycles.filter(c => c.manual);
+  sel.innerHTML = manual.map(c => `<option value="${esc(c.key)}">${esc(c.name)}</option>`).join("");
+  if (manual.some(c => c.key === keep)) sel.value = keep;
+  fillPhaseOptions();
 }
 function fillPhaseOptions() {
-  const key = $("#cf-key").value, phases = key === "cetus" ? ["昼", "夜"] : ["温暖", "寒冷"];
-  $("#cf-phase").innerHTML = phases.map(p => `<option>${p}</option>`).join("");
+  const c = cyc && cyc.cycles.find(x => x.key === $("#cf-key").value);
+  $("#cf-phase").innerHTML = c ? c.phases.map(p => `<option>${esc(p)}</option>`).join("") : "";
 }
 $("#cf-key").addEventListener("change", fillPhaseOptions);
+$("#cyc-sync").addEventListener("click", async () => {
+  const btn = $("#cyc-sync");
+  btn.disabled = true; $("#cyc-sync-err").textContent = ""; $("#cyc-sync-info").textContent = "公式データを取得しています...";
+  try {
+    cyc = await api("/api/cycles/sync", { method: "POST", body: {} }); cycAt = Date.now(); renderCycles(); renderCycleSyncInfo();
+    if (cyc.synced && cyc.synced.cached) $("#cyc-sync-info").textContent += "(60 秒以内なので前回の取得結果を使いました)";
+  } catch (e) { $("#cyc-sync-err").textContent = e.message; renderCycleSyncInfo(); }
+  btn.disabled = false;
+});
 $("#cycle-form").addEventListener("submit", async e => {
   e.preventDefault(); $("#cf-err").textContent = "";
   try {
@@ -1558,7 +1859,7 @@ $("#cycle-form").addEventListener("submit", async e => {
     cycAt = Date.now(); renderCycles(); $("#cf-rem").value = "";
   } catch (err) { $("#cf-err").textContent = err.message; }
 });
-loaders.cycle = async () => { fillPhaseOptions(); await loadCycles(); };
+loaders.cycle = loadCycles;
 setInterval(() => { if (!$("#view-cycle").hidden) renderCycles(); }, 1000);
 
 /* ---------- ビルド ---------- */

@@ -29,6 +29,8 @@ from urllib.parse import parse_qs, unquote, urlparse
 import wfportal as wf
 import wfportal_builder as wb
 import wfportal_ocr as ocr
+import wfportal_worldstate as ws
+import wfportal_baro as wbaro
 
 HERE = Path(__file__).resolve().parent
 JST = timezone(timedelta(hours=9))
@@ -246,49 +248,59 @@ def lookup_area(store: Store, kind: str, key: str, all_items: bool, events: bool
 
 
 def cycles(store: Store) -> dict:
-    f = store.d / "cycles.json"
-    saved = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
-    now = time.time()
-    out = []
-    for key, c in wf.CYCLES.items():
-        item = {"key": key, "name": c["name"], "phases": [c["first"][1], c["second"][1]],
-                "max": {c["first"][1]: c["first"][2], c["second"][1]: c["second"][2]}, "set": key in saved}
-        if key in saved:
-            k, jp, left = wf.cycle_state(key, saved[key], now)
-            item.update(phase=jp, phase_key=k, left=left)
-            if key == "cetus":
-                item["cambion"] = "Fass(昼)" if k == "day" else "Vome(夜)"
-        out.append(item)
-    nowdt = datetime.now(JST)
+    view = wf.cycle_rows(store.d)
+    nowdt = datetime.fromtimestamp(view["now"], JST)  # PC の時計のずれは補正済み
     dr, wr = wf.next_daily_reset(nowdt), wf.next_weekly_reset(nowdt)
-    return {"server_time": now, "cycles": out,
+    return {**view,
             "daily": {"left": (dr - nowdt).total_seconds(), "at": dr.astimezone(JST).strftime("%m/%d %H:%M")},
             "weekly": {"left": (wr - nowdt).total_seconds(), "at": wr.astimezone(JST).strftime("%m/%d %H:%M")}}
 
 
 def set_cycle(store: Store, body: dict) -> dict:
     key = str(body.get("key", ""))
-    if key not in wf.CYCLES:
-        raise ApiError("対象は cetus か vallis です。")
-    c = wf.CYCLES[key]
+    if key not in wf.CYCLES or not wf.CYCLES[key]["manual"]:
+        raise ApiError("手動で合わせられるのは平原とオーブ峡谷です。")
     phase = wf.PHASE_ALIASES.get(str(body.get("phase", "")).lower())
-    valid = {c["first"][0]: c["first"], c["second"][0]: c["second"]}
-    if phase not in valid:
+    if phase not in [p[0] for p in wf.CYCLES[key]["phases"]]:
         raise ApiError("フェーズを選んでください。")
     try:
         remaining = wf.parse_remaining(str(body.get("remaining", "")))
     except ValueError:
         raise ApiError("残り時間は「45:30」または分の数字で入力してください。")
-    length = valid[phase][2]
-    if not 0 < remaining <= length:
-        raise ApiError(f"残り時間が範囲外です(このフェーズは最長 {wf.fmt_dur(length)})。")
-    phase_start = time.time() + remaining - length
-    anchor = phase_start if phase == c["first"][0] else phase_start - c["first"][2]
-    f = store.d / "cycles.json"
-    saved = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
-    saved[key] = anchor
-    f.write_text(json.dumps(saved), encoding="utf-8")
+    try:
+        wf.set_manual_cycle(store.d, key, phase, remaining)
+    except ValueError as e:
+        raise ApiError(str(e))
     return cycles(store)
+
+
+def baro_list(store: Store) -> dict:
+    return wbaro.baro_view(store.d, store.names())
+
+
+def run_update_baro(store: Store) -> dict:
+    """今回の品物を公式データから取得し、来ていれば来訪を記録する"""
+    r = wbaro.update_all(store.d)
+    if r["errors"]:
+        raise ApiError(" / ".join(r["errors"]), 502)
+    return {**baro_list(store), "update": r}
+
+
+def set_baro_owned(store: Store, body: dict) -> dict:
+    try:
+        wbaro.set_manual_owned(store.d, str(body.get("name", "")), bool(body.get("owned")), store.names())
+    except ValueError as e:
+        raise ApiError(str(e))
+    return {"ok": True}
+
+
+def sync_worldstate(store: Store) -> dict:
+    """公式データ(World State)で時刻合わせ。前回から 60 秒以内なら前回の結果を使う"""
+    try:
+        snap = ws.sync(store.d)
+    except ws.WorldStateError as e:
+        raise ApiError(f"公式データを取得できませんでした。基準時刻(または前回の同期)からの計算で表示しています。({e})", 502)
+    return {**cycles(store), "synced": {"cached": snap["cached"], "offset": snap["offset"], "fetched_at": snap["fetched_at"]}}
 
 
 def mastery_list(store: Store) -> dict:
@@ -741,6 +753,7 @@ def make_handler(store: Store, tips_dir: Path | None = None):
                         "/api/mastery": lambda: mastery_list(store),
                         "/api/dispo": lambda: dispo_list(store),
                         "/api/arcanes": lambda: arcanes_list(store),
+                        "/api/baro": lambda: baro_list(store),
                         "/api/tips": lambda: tips_list(tips),
                         "/api/tips/file": lambda: tip_file(tips, q.get("path", "")),
                         "/api/builder/data": lambda: wb.api_data(store.d, sim_dispo_rows(store)),
@@ -753,6 +766,14 @@ def make_handler(store: Store, tips_dir: Path | None = None):
                         return self._json(run_update(store))
                     if u.path == "/api/cycles":
                         return self._json(set_cycle(store, self._body()))
+                    if u.path == "/api/cycles/sync":
+                        self._body()
+                        return self._json(sync_worldstate(store))
+                    if u.path == "/api/baro/update":
+                        self._body()
+                        return self._json(run_update_baro(store))
+                    if u.path == "/api/baro/owned":
+                        return self._json(set_baro_owned(store, self._body()))
                     if u.path == "/api/builds":
                         return self._json({"builds": save_build(store, self._body())})
                     if u.path == "/api/build-image":
