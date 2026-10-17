@@ -1,5 +1,5 @@
 {
-  "version": "1.10",
+  "version": "1.11",
   "edition": "with_python",
   "files": {
     "LICENSE": {
@@ -38,8 +38,8 @@
       "src": "tips/10_日課チェック.md"
     },
     "tips/20_複合属性の組み合わせ.csv": {
-      "sha256": "be738d0d965fa278cb7625e973689105a925f2a0e374f035d0d5f0798cfa1c10",
-      "size": 333,
+      "sha256": "09620d25753f22d05df3211c4c7a976a72557cefe6e1ebb1320d6d00b485dbe0",
+      "size": 414,
       "src": "tips/20_複合属性の組み合わせ.csv"
     },
     "tips/30_Rivenスプライサーの合成表.md": {
