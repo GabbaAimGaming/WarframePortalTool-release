@@ -20,7 +20,10 @@ import urllib.request
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 
-import wfportal as wf
+from wfp.core.common import PLANETS_JA
+from wfp.core.cycle import apply_worldstate_cycles, clock_offset
+from wfp.fetch import decode, net
+from wfp.store import userdata
 
 # 新しい URL を先に試し、だめなら以前の URL。URL にクエリを付けると中身が空で返る(2026-10 時点)ので付けない
 WORLDSTATE_URLS = [
@@ -46,7 +49,7 @@ class WorldStateError(RuntimeError):
 
 def http_get_with_headers(url: str, timeout: int = 30) -> tuple[bytes, dict]:
     """本文と、小文字にしたヘッダーを返す"""
-    req = urllib.request.Request(url, headers={"User-Agent": wf.USER_AGENT, "Accept": "application/json, */*",
+    req = urllib.request.Request(url, headers={"User-Agent": net.USER_AGENT, "Accept": "application/json, */*",
                                                "Accept-Encoding": "gzip"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         data = r.read()
@@ -116,7 +119,7 @@ def fetch(fetcher=None) -> tuple[dict, float | None]:
         try:
             raw, headers = fetcher(url)
             local_mid = (t0 + time.time()) / 2
-            snap = extract(wf.parse_json_bytes(raw))
+            snap = extract(decode.parse_json_bytes(raw))
         except Exception as e:  # noqa: BLE001
             errors.append(f"{url} ({e})")
             continue
@@ -148,11 +151,11 @@ def sync(d: Path, force: bool = False, verbose: bool = False, fetcher=None, now:
         print("公式データ(World State)を取得中...")
     snap, offset = fetch(fetcher)
     if offset is None:  # ずれが分からないときは前回の値を使う
-        offset = wf.clock_offset(wf.load_cycles(d))
+        offset = clock_offset(userdata.load_cycles(d))
     snap.update(fetched_at=now, offset=offset)
     (d / SNAPSHOT_FILE).write_text(json.dumps(snap, ensure_ascii=False), encoding="utf-8")
     if snap["cetus"]:
-        wf.apply_worldstate_cycles(d, snap["cetus"]["expiry"], offset, now)
+        apply_worldstate_cycles(d, snap["cetus"]["expiry"], offset, now)
     elif verbose:
         print("  サイクルの情報が見つかりませんでした(基準時刻からの計算を続けます)")
     if verbose:
@@ -162,5 +165,5 @@ def sync(d: Path, force: bool = False, verbose: bool = False, fetcher=None, now:
 
 def relay_label(node: str) -> str:
     name, planet = RELAYS.get(node, (node, ""))
-    planet_ja = wf.PLANETS_JA.get(planet, planet)
+    planet_ja = PLANETS_JA.get(planet, planet)
     return f"{name}({planet_ja})" if planet_ja else name

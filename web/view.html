@@ -1,0 +1,689 @@
+<!-- 表示部: 画面の見た目(CSS)と各ページのマークアップ(<section id="view-○○">)。
+     web/ctrl.html の目印(INCLUDE)の位置に、サーバー(wfp/api/pages.py)が差し込んで1枚のページにする。
+     配色は THEME の目印の中(tools/extract_theme.py が書き換える)、ロゴは ICON:CSS の目印の中(tools/set_icon.py)。
+     ページを足すときは <section id="view-新id" hidden> をここに足し、web/menu.html の MENU と I18N にも足す。 -->
+<!-- PART:style -->
+<style>
+/* レイアウト: ヘッダー / 左メニュー / 右の表示画面。配色は下のテーマブロックで変更できます(開発用の tools/extract_theme.py で画像から作ることもできます) */
+/* THEME:START */
+/* 配色: プライマリ #3f8389 / セカンダリ #0c1114 / アクセント #80d9e2 */
+:root {
+  --bg: #ecf3f3;
+  --panel: #f7fafa;
+  --panel-2: #deeaeb;
+  --line: #b2cdd0;
+  --ink: #090d0f;
+  --mute: #657476;
+  --primary: #38747a;
+  --primary-bg: #3f8389;
+  --on-primary: #090d0f;
+  --secondary: #0c1114;
+  --on-secondary: #ecf3f3;
+  --accent: #2b757c;
+  --accent-bg: #e6f7f9;
+  --danger: #b2382e;
+  --rar-common: #8a6a42;
+  --rar-uncommon: #566d84;
+  --rar-rare: #9a7410;
+  --rar-legendary: #7a40b4;
+  --font: "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", "Meiryo", system-ui, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Consolas, "Yu Gothic UI", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1114;
+    --panel: #111c20;
+    --panel-2: #172a2e;
+    --line: #1f3c40;
+    --ink: #ecf3f3;
+    --mute: #899294;
+    --primary: #5a949a;
+    --primary-bg: #5a949a;
+    --on-primary: #07090b;
+    --secondary: #0c1114;
+    --on-secondary: #ecf3f3;
+    --accent: #80d9e2;
+    --accent-bg: #233b3f;
+    --danger: #ee7d73;
+    --rar-common: #b99468;
+    --rar-uncommon: #9db1c6;
+    --rar-rare: #e0b84a;
+    --rar-legendary: #b88af0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1114;
+  --panel: #111c20;
+  --panel-2: #172a2e;
+  --line: #1f3c40;
+  --ink: #ecf3f3;
+  --mute: #899294;
+  --primary: #5a949a;
+  --primary-bg: #5a949a;
+  --on-primary: #07090b;
+  --secondary: #0c1114;
+  --on-secondary: #ecf3f3;
+  --accent: #80d9e2;
+  --accent-bg: #233b3f;
+  --danger: #ee7d73;
+  --rar-common: #b99468;
+  --rar-uncommon: #9db1c6;
+  --rar-rare: #e0b84a;
+  --rar-legendary: #b88af0;
+  color-scheme: dark;
+}
+/* THEME:END */
+/* ICON:CSS:START */
+:root { --logo-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 40'%3E%3Cpath fill='%23000' fill-rule='evenodd' d='M32 2 60 20 32 38 4 20Z M32 9 49 20 32 31 15 20Z'/%3E%3Cpath fill='%23000' d='M32 14 41 20 32 26 23 20Z'/%3E%3C/svg%3E"); --logo-ratio: 1.6; }
+/* ICON:CSS:END */
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.6 var(--font);
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { display: grid; grid-template-rows: auto 1fr; min-height: 100%; }
+
+/* ---- ヘッダー ---- */
+header {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 12px 20px; background: var(--secondary); color: var(--on-secondary);
+  border-bottom: 1px solid var(--line); position: relative;
+}
+header::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+  background: linear-gradient(90deg, var(--primary-bg), var(--accent) 60%, transparent);
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo {
+  --h: 30px; height: var(--h); width: calc(var(--h) * var(--logo-ratio, 1.6)); flex: none;
+  background: linear-gradient(135deg, var(--on-secondary), var(--primary-bg) 85%);
+  -webkit-mask: var(--logo-url) center / contain no-repeat; mask: var(--logo-url) center / contain no-repeat;
+}
+.brand h1 { margin: 0; font-size: 18px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; }
+.brand small { color: var(--mute); letter-spacing: .08em; }
+.brand .ver { font-size: 12px; opacity: .8; font-variant-numeric: tabular-nums; }
+.spacer { flex: 1; }
+.pill {
+  font-size: 12px; padding: 3px 10px; border: 1px solid var(--line); background: transparent;
+  color: var(--on-secondary); opacity: .85; font-variant-numeric: tabular-nums;
+}
+.pill.warn { color: var(--danger); border-color: var(--danger); opacity: 1; }
+
+/* ---- 非公式表記(右下に常時表示) ---- */
+.unofficial {
+  position: fixed; right: 10px; bottom: 8px; z-index: 1000; pointer-events: none;
+  font-size: 11px; line-height: 1.4; padding: 2px 8px; border-radius: 4px;
+  background: var(--secondary); color: var(--on-secondary); border: 1px solid var(--line); opacity: .9; letter-spacing: .02em;
+}
+.app { padding-bottom: 28px; }
+@media print { .unofficial { position: static; display: block; text-align: right; } }
+
+/* ---- 本体: 左メニュー + 表示画面 ---- */
+.body { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 16px; padding: 16px 20px 24px; }
+nav { display: flex; flex-direction: column; gap: 6px; align-content: start; }
+nav .label { font-size: 11px; letter-spacing: .14em; color: var(--mute); margin: 2px 4px 4px; text-transform: uppercase; }
+nav button {
+  text-align: left; padding: 10px 14px; background: var(--panel); border: 1px solid var(--line);
+  border-left: 3px solid transparent; cursor: pointer;
+}
+nav button:hover { background: var(--panel-2); }
+nav button[aria-current="page"] {
+  background: var(--panel-2); border-left-color: var(--primary-bg); color: var(--primary); font-weight: 700;
+}
+nav button .sub { display: block; font-size: 11px; font-weight: 400; color: var(--mute); }
+/* カテゴリー(押すと中の項目が開く。同時に開くのは1つだけ) */
+nav .nav-group { display: flex; flex-direction: column; gap: 6px; }
+nav .nav-cat { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+nav .nav-cat::before {
+  content: ""; flex: none; width: 0; height: 0; border-style: solid; border-width: 4px 0 4px 6px;
+  border-color: transparent transparent transparent var(--mute); transition: transform .15s;
+}
+nav .nav-cat[aria-expanded="true"]::before { transform: rotate(90deg); }
+/* 表示中のページを含むカテゴリー(閉じていても分かるように) */
+nav .nav-cat.has-current { border-left-color: var(--primary-bg); color: var(--primary); }
+nav .nav-cat.has-current::before { border-left-color: var(--primary-bg); }
+nav .nav-items { display: flex; flex-direction: column; gap: 6px; padding-left: 12px; }
+nav .nav-items[hidden] { display: none; }
+
+main { background: var(--panel); border: 1px solid var(--line); padding: 20px 22px 28px; min-height: 60vh; min-width: 0; }
+main h2 { margin: 0 0 4px; font-size: 18px; }
+main .lead { margin: 0 0 16px; color: var(--mute); }
+section[hidden] { display: none; }
+
+/* ---- 部品 ---- */
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+input[type=text], input[type=number], select, textarea {
+  background: var(--bg); border: 1px solid var(--line); padding: 8px 10px; min-width: 0;
+}
+input[type=text].search { flex: 1 1 260px; font-size: 15px; }
+textarea { width: 100%; resize: vertical; }
+label.chk { display: inline-flex; gap: 6px; align-items: center; color: var(--mute); cursor: pointer; }
+.btn {
+  padding: 8px 16px; cursor: pointer; background: var(--primary-bg); color: var(--on-primary);
+  border: 1px solid transparent; font-weight: 700;
+}
+.btn:hover { filter: brightness(1.06); }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); font-weight: 400; }
+.btn.ghost:hover { background: var(--panel-2); }
+.btn.danger { background: transparent; color: var(--danger); border-color: var(--danger); font-weight: 400; }
+.btn.danger.armed { background: var(--danger); color: var(--bg); font-weight: 700; }
+.btn:disabled { opacity: .5; cursor: progress; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; }
+.chip {
+  padding: 4px 12px; background: var(--bg); border: 1px solid var(--line); cursor: pointer; text-align: left;
+}
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.chip small { color: var(--mute); margin-left: 6px; }
+
+.result-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 18px 0 8px; }
+.result-head h3 { margin: 0; font-size: 17px; }
+.result-head .en { color: var(--mute); }
+.count { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; color: var(--mute); background: var(--panel-2); letter-spacing: .06em; font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; }
+.chance { display: flex; align-items: center; gap: 10px; min-width: 160px; }
+.chance .bar { flex: 1; height: 6px; background: var(--panel-2); position: relative; }
+.chance .bar i { position: absolute; inset: 0 auto 0 0; width: var(--w); background: linear-gradient(90deg, var(--accent), var(--primary-bg)); }
+.chance b { width: 62px; text-align: right; font-weight: 600; }
+.rar { font-size: 12px; padding: 1px 8px; border: 1px solid currentColor; }
+.rar.Common { color: var(--rar-common); } .rar.Uncommon { color: var(--rar-uncommon); }
+.rar.Rare { color: var(--rar-rare); } .rar.Legendary { color: var(--rar-legendary); }
+.tag-event { color: var(--accent); font-size: 12px; margin-left: 6px; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 14px; margin-top: 14px; }
+.card { border: 1px solid var(--line); background: var(--bg); min-width: 0; }
+.card > header { color: var(--ink); padding: 9px 14px; background: var(--panel-2); border: 0; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.card > header::after { display: none; }
+.card > header b { font-size: 15px; }
+.card > header span { color: var(--mute); }
+.card .tablewrap { border: 0; }
+.card td:first-child { color: var(--accent); width: 1%; }
+
+.note { color: var(--mute); font-size: 12px; margin-top: 12px; }
+.empty { padding: 28px 8px; color: var(--mute); }
+.err { color: var(--danger); margin: 10px 0 0; }
+
+/* サイクル */
+.clock { font-family: var(--mono); font-size: 28px; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.cyc-phase { font-size: 20px; font-weight: 700; }
+.cyc-phase.day, .cyc-phase.warm, .cyc-phase.corpus { color: var(--primary); }
+.cyc-phase.night, .cyc-phase.cold, .cyc-phase.grineer { color: var(--accent); }
+.cyc-next { color: var(--mute); }
+.cyc-src { font-size: 11px; color: var(--mute); border: 1px solid var(--line); padding: 0 6px; margin-left: auto; }
+.cyc-src.worldstate { color: var(--accent); border-color: currentColor; }
+.cyc-sync { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* バロ吉入手一覧 */
+.baro-h { margin: 22px 0 6px; font-size: 15px; }
+#baro-now .card { margin-top: 14px; }
+.baro-state { font-weight: 700; color: var(--primary); }
+.baro-state.coming, .baro-state.gone { color: var(--mute); }
+.baro-mark { font-weight: 700; color: var(--accent); }
+.tag-mini { font-size: 11px; color: var(--mute); border: 1px solid var(--line); padding: 0 5px; margin-left: 6px; white-space: nowrap; }
+.card .pad { padding: 14px; display: grid; gap: 4px; }
+details { margin-top: 18px; border: 1px solid var(--line); padding: 10px 14px; background: var(--bg); }
+summary { cursor: pointer; font-weight: 700; }
+details form { margin-top: 12px; }
+
+/* ビルド */
+.field { display: grid; gap: 4px; min-width: 0; }
+.field > span { font-size: 12px; color: var(--mute); }
+.formgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.build h4 { margin: 0; }
+.build ol { margin: 6px 0 0; padding-left: 22px; }
+.build .meta { color: var(--mute); }
+.build .acts { display: flex; gap: 8px; margin-top: 10px; }
+.build .tags span { color: var(--accent); margin-right: 8px; }
+.build .arcs { margin: 6px 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.mini.err { color: var(--danger); }
+.arc { font-size: 12px; padding: 1px 8px; border: 1px solid var(--rar-legendary); color: var(--rar-legendary); }
+
+pre.log { background: var(--bg); border: 1px solid var(--line); padding: 12px; overflow: auto; max-height: 340px; white-space: pre-wrap; font-family: var(--mono); font-size: 12.5px; }
+dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 18px; margin: 0 0 16px; }
+dl.kv dt { color: var(--mute); } dl.kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+/* 入手先の種類 */
+.cat { font-size: 12px; padding: 1px 8px; background: var(--panel-2); border: 1px solid var(--line); white-space: nowrap; }
+.cat.enemy { border-color: var(--danger); color: var(--danger); }
+.cat.bounty, .cat.special, .cat.key, .cat.sortie { border-color: var(--rar-rare); color: var(--rar-rare); }
+.cat.relic { border-color: var(--rar-legendary); color: var(--rar-legendary); }
+.cat.mission { border-color: var(--accent); color: var(--accent); }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+/* デュヴィリサーキット: 今週・今後の見出し */
+.dv-h { font-size: 15px; margin: 18px 0 8px; }
+.dv-h .note { margin: 0 0 0 8px; font-weight: 400; }
+.sub-en { color: var(--mute); font-size: 12px; margin-left: 6px; }
+td.wrap { white-space: normal; min-width: 180px; }
+
+/* 表: 並べ替えできる見出し */
+th.sort { cursor: pointer; user-select: none; }
+th.sort:hover { color: var(--ink); }
+th.sort[aria-sort="ascending"]::after { content: " ▲"; }
+th.sort[aria-sort="descending"]::after { content: " ▼"; }
+.tablewrap.tall { max-height: 68vh; overflow: auto; }
+.tablewrap.tall thead th { position: sticky; top: 0; z-index: 1; }
+
+/* MOD 一覧 */
+.summary { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 12px 0 8px; color: var(--mute); }
+.progress { width: 220px; max-width: 100%; height: 8px; background: var(--panel-2); position: relative; }
+.progress i { position: absolute; inset: 0 auto 0 0; width: var(--w); background: linear-gradient(90deg, var(--accent), var(--primary-bg)); }
+tr.owned td { background: color-mix(in srgb, var(--accent-bg) 55%, transparent); }
+tr.mod-row { cursor: pointer; }
+tr.mod-row:hover td { background: var(--panel-2); }
+tr.detail > td { background: var(--bg); padding: 10px 14px 14px; white-space: normal; }
+tr.detail table { font-size: 13px; }
+.badges { display: flex; gap: 4px; flex-wrap: wrap; }
+.none { color: var(--mute); }
+input.own { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent); }
+/* 一覧の所持・マスター済みチェックの列 (MOD入手一覧・マスター一覧・アルケイン所持で共通)
+   - 列幅を中身ぴったりにして左寄せ: タブの切り替えや並べ替えで列幅が変わっても、チェックの位置が動かない
+   - 横スクロールしても左端に貼り付ける。下の行が透けないよう、行の色と同じ不透明な背景にする */
+th.chk, td.chk { width: 1%; text-align: left; position: sticky; left: 0; }
+td.chk { z-index: 0; background: var(--panel); }
+th.chk, .tablewrap.tall thead th.chk { z-index: 2; }  /* 見出しの行(z-index 1)より上: 縦・横どちらにスクロールしても隠れない */
+tr.owned td.chk { background: color-mix(in srgb, var(--accent-bg) 55%, var(--panel)); }  /* tr.owned td の半透明と同じ色 */
+tr.mod-row:hover td.chk { background: var(--panel-2); }
+select.arc-rank { padding: 2px 6px; }
+.arc-max { color: var(--mute); margin-left: 4px; }
+.mini { font-size: 12px; color: var(--mute); }
+
+/* ゲーム画面の読み取り */
+.btn.live[aria-pressed="true"] { background: var(--danger); color: var(--bg); border-color: var(--danger); font-weight: 700; }
+.btn.live[aria-pressed="true"]::before { content: "● "; }
+.scan { margin: 10px 0; border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--bg); padding: 10px 14px; display: grid; gap: 8px; }
+.scan-head { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.scan video { width: 220px; max-width: 100%; aspect-ratio: 16 / 9; background: var(--panel-2); border: 1px solid var(--line); object-fit: contain; }
+.scan .chips { margin: 4px 0 0; }
+.scan .chip .x { margin-left: 6px; color: var(--danger); }
+
+/* Riven */
+td.med { font-weight: 700; }
+.veiled { color: var(--mute); }
+/* Riven 性質 */
+.dots { letter-spacing: .12em; font-size: 13px; white-space: nowrap; }
+/* ◯ は日本語フォントで●より大きく見えるため、縮めて大きさをそろえる(文字はそのまま。コピーすると ●●●◯◯) */
+.dots .off { color: var(--mute); opacity: .55; font-size: .66em; letter-spacing: .32em; vertical-align: .12em; margin-left: .1em; }
+.dots.d5, .dots.d4 { color: var(--accent); }
+.dots.d3 { color: color-mix(in srgb, var(--ink) 70%, transparent); }
+.dots.d2, .dots.d1 { color: var(--mute); }
+.legend { display: flex; gap: 4px 14px; flex-wrap: wrap; font-size: 12px; color: var(--mute); }
+.legend .dots { font-size: 12px; }
+
+/* シミュレータ (iframe の高さは中身に合わせて自動で変える) */
+.sim-frame { display: block; width: 100%; min-height: 420px; border: 0; background: transparent; }
+
+/* Tips: 目次 + 表示エリア */
+.tips { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 14px; margin-top: 14px; align-items: start; }
+.tips-toc { border: 1px solid var(--line); background: var(--bg); padding: 6px 0; position: sticky; top: 12px; max-height: calc(100vh - 40px); overflow: auto; }
+.tips-toc .grp { font-size: 11px; letter-spacing: .1em; color: var(--mute); padding: 10px 14px 2px; }
+.tips-toc a { display: block; padding: 6px 14px; color: var(--ink); text-decoration: none; border-left: 3px solid transparent; overflow-wrap: anywhere; }
+.tips-toc a:hover { background: var(--panel-2); }
+.tips-toc a[aria-current="true"] { border-left-color: var(--primary-bg); background: var(--panel-2); color: var(--primary); font-weight: 700; }
+.tips-toc a.in-grp { padding-left: 22px; }
+.tips-toc .heads a { padding: 3px 14px 3px 30px; font-size: 12px; color: var(--mute); }
+.tips-toc .heads.in-grp a { padding-left: 38px; }
+.tips-toc .heads a.h3 { padding-left: 42px; }
+.tips-toc .heads.in-grp a.h3 { padding-left: 50px; }
+.tips-body { border: 1px solid var(--line); background: var(--bg); padding: 16px 20px 22px; min-width: 0; min-height: 240px; overflow-wrap: anywhere; }
+.tips-body .tip-meta { font-size: 12px; color: var(--mute); margin: 0 0 10px; }
+.tips-body h1 { font-size: 20px; margin: 0 0 12px; }
+.tips-body h2 { font-size: 17px; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+.tips-body h3 { font-size: 15px; margin: 18px 0 6px; }
+.tips-body h4, .tips-body h5, .tips-body h6 { font-size: 14px; margin: 14px 0 4px; }
+.tips-body p { margin: 0 0 10px; }
+.tips-body ul, .tips-body ol { margin: 0 0 10px; padding-left: 24px; }
+.tips-body li > ul, .tips-body li > ol { margin: 0; }
+.tips-body li.task { list-style: none; margin-left: -20px; }
+.tips-body li.task input { margin: 0 6px 0 0; vertical-align: -2px; accent-color: var(--accent); }
+.tips-body .tablewrap { margin: 0 0 12px; }
+.tips-body td, .tips-body th { white-space: normal; min-width: 64px; vertical-align: top; }
+.tips-body th { color: var(--ink); }
+.tips-body code { font-family: var(--mono); font-size: 12.5px; background: var(--panel-2); padding: 1px 5px; }
+.tips-body pre { font-family: var(--mono); font-size: 12.5px; background: var(--panel-2); border: 1px solid var(--line); padding: 10px 12px; overflow: auto; white-space: pre-wrap; margin: 0 0 12px; }
+.tips-body pre code { background: none; padding: 0; }
+.tips-body blockquote { margin: 0 0 12px; padding: 4px 14px; border-left: 3px solid var(--accent); color: var(--mute); }
+.tips-body hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+.tips-body img { max-width: 100%; height: auto; border: 1px solid var(--line); }
+.tips-body a { color: var(--accent); }
+.tips-body mark { background: var(--accent-bg); color: var(--accent); padding: 0 3px; }
+
+/* ビルド画像 */
+.dropzone {
+  border: 1px dashed var(--line); background: var(--bg); padding: 14px; text-align: center; color: var(--mute);
+  cursor: pointer;
+}
+.dropzone:hover, .dropzone.over { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.thumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.thumb { position: relative; width: 104px; height: 66px; border: 1px solid var(--line); background: var(--panel-2); padding: 0; cursor: zoom-in; overflow: hidden; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb .x {
+  position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; line-height: 20px; padding: 0;
+  background: var(--secondary); color: var(--on-secondary); border: 1px solid var(--line); cursor: pointer; font-size: 14px;
+}
+.thumb .new { position: absolute; left: 2px; bottom: 2px; font-size: 10px; padding: 0 4px; background: var(--accent); color: var(--bg); }
+.build .thumbs .thumb { width: 120px; height: 76px; }
+/* 画像の自動解析 */
+.ocr { margin-top: 10px; border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--bg); padding: 10px 14px; }
+.ocr h5 { margin: 0 0 6px; font-size: 14px; }
+.ocr dl.kv { margin: 0 0 8px; }
+.ocr ol { margin: 4px 0 8px; padding-left: 22px; columns: 2 260px; column-gap: 24px; }
+.ocr li { break-inside: avoid; padding: 1px 0; }
+.pol { font-size: 12px; color: var(--mute); margin-left: 6px; }
+.slot { font-size: 11px; padding: 0 6px; margin-left: 6px; border: 1px solid var(--line); color: var(--mute); }
+.slot.match { border-color: var(--accent); color: var(--accent); }
+.slot.mismatch { border-color: var(--danger); color: var(--danger); }
+.check { font-size: 11px; margin-left: 6px; color: var(--danger); }
+.ocr .busy { color: var(--mute); }
+dialog#lightbox { padding: 0; border: 1px solid var(--line); background: var(--secondary); color: var(--on-secondary); max-width: 96vw; max-height: 96vh; }
+dialog#lightbox::backdrop { background: rgba(0, 0, 0, .78); }
+dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 46px); object-fit: contain; margin: 0 auto; }
+.lb-bar { display: flex; align-items: center; gap: 10px; padding: 6px 10px; }
+.lb-bar .btn { padding: 4px 12px; color: var(--on-secondary); text-decoration: none; }
+.lb-bar .btn:hover { background: rgba(255, 255, 255, .1); }
+.lb-bar span { flex: 1; text-align: center; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 760px) {
+  .body { grid-template-columns: minmax(0, 1fr); padding: 12px 16px 20px; }
+  nav { flex-direction: row; flex-wrap: wrap; }
+  nav .label { display: none; }
+  nav button { flex: 1 1 130px; }
+  nav button .sub { display: none; }
+  /* 狭い画面: カテゴリと単独ボタンを横に並べ、開いたカテゴリの項目はその下の行に出す */
+  nav .nav-group { display: contents; }
+  nav .nav-items { order: 1; flex: 1 1 100%; flex-direction: row; flex-wrap: wrap; padding-left: 0; }
+  main { padding: 16px; }
+  .tips { grid-template-columns: minmax(0, 1fr); }
+  .tips-toc { position: static; max-height: 40vh; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<!-- PART:sections -->
+      <!-- 素材から探す -->
+      <section id="view-item" hidden>
+        <h2>素材から探す</h2>
+        <p class="lead">素材名(日本語・英語・ひらがな)を入力すると、ミッション・敵・バウンティ・レリックなどの入手先と確率を一覧にします。</p>
+        <div class="row">
+          <input type="text" class="search" id="item-q" placeholder="例: ニューロード / neurodes" autocomplete="off">
+          <label class="chk"><input type="checkbox" id="item-mat" checked> 素材のみ</label>
+          <label class="chk"><input type="checkbox" id="item-ev"> イベント限定を含む</label>
+        </div>
+        <div class="chips" id="item-chips"></div>
+        <div id="item-out"></div>
+      </section>
+
+      <!-- エリアから探す -->
+      <section id="view-area" hidden>
+        <h2>エリアから探す</h2>
+        <p class="lead">惑星またはノード名を選ぶと、出現ステージごとに素材と確率を表示します。</p>
+        <div class="row">
+          <input type="text" class="search" id="area-q" placeholder="例: 地球 / Cervantes" autocomplete="off">
+          <label class="chk"><input type="checkbox" id="area-all"> 素材以外(MOD・設計図)も表示</label>
+          <label class="chk"><input type="checkbox" id="area-ev"> イベント限定を含む</label>
+        </div>
+        <div class="chips" id="area-chips"></div>
+        <div id="area-out"></div>
+      </section>
+
+      <!-- MOD 入手一覧 -->
+      <section id="view-mods" hidden>
+        <h2>MOD入手一覧</h2>
+        <p class="lead">すべての MOD の入手先(ミッション・敵・バウンティ等)をまとめた表です。行をクリックすると入手先の詳細、左端のチェックで所持状況を記録できます。</p>
+        <div class="row">
+          <input type="text" class="search" id="mods-q" placeholder="MOD名・対象(例: Vitality / Khora)" autocomplete="off">
+          <select id="mods-type" aria-label="種別"></select>
+          <select id="mods-rar" aria-label="レア度">
+            <option value="">すべてのレア度</option><option value="Common">コモン</option><option value="Uncommon">アンコモン</option>
+            <option value="Rare">レア</option><option value="Legendary">レジェンダリー</option></select>
+          <select id="mods-src" aria-label="入手先"></select>
+          <select id="mods-own" aria-label="所持">
+            <option value="">所持・未所持</option><option value="no">未所持のみ</option><option value="yes">所持済みのみ</option></select>
+          <button class="btn ghost" id="mods-csv" type="button">CSVで保存</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn ghost live" id="scan-toggle" type="button" aria-pressed="false">ゲーム画面の読み取り: OFF</button>
+          <button class="btn ghost" id="scan-file-btn" type="button">スクリーンショットから読み取る</button>
+          <input type="file" id="scan-files" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
+          <label class="chk"><input type="checkbox" id="scan-confirm"> 自動でチェックせず、確認してから付ける</label>
+        </div>
+        <div class="scan" id="scan-panel" hidden aria-live="polite">
+          <div class="scan-head"><video id="scan-video" muted playsinline></video>
+            <div><b id="scan-state"></b><div class="mini" id="scan-stats"></div></div></div>
+          <div id="scan-new"></div>
+          <div id="scan-maybe"></div>
+          <p class="note">ゲームの MOD 画面を開いてスクロールしていくと、映った MOD 名を読み取って所持にチェックします(数秒ごと・画面が変わったときだけ)。一致度が低いものは「要確認」に出るので、正しければクリックしてください。読み取りは Windows の文字認識を使います。排他的フルスクリーンでは映らないことがあるので、その場合はボーダーレス(ウィンドウ)表示にするか、スクリーンショットから読み取ってください。</p>
+        </div>
+        <div class="summary" id="mods-summary"></div>
+        <div id="mods-out"></div>
+        <p class="note">確率: ミッション/バウンティは報酬1回の抽選、敵は1体倒したとき、レリックは開けたときに出る割合です。「記載なし」は公式ドロップ表に無いもの(シンジケート・バロ・ナイトウェーブ・クエスト報酬など)です。</p>
+      </section>
+
+      <!-- アルケイン所持 -->
+      <section id="view-arcane" hidden>
+        <h2>アルケイン所持</h2>
+        <p class="lead">公式データ(ExportRelicArcane.json)のアルケインを装備先ごとに一覧にします。左端のチェックで所持として記録し、ランクを選べます(この PC に保存)。名前とレア度はカタカナで表示します(英語名でも絞り込めます)。</p>
+        <div class="seg" id="ac-cats" role="group" aria-label="種類"></div>
+        <div class="row">
+          <input type="text" class="search" id="ac-q" placeholder="名前で絞り込み(例: Energize / エナージャイズ)" autocomplete="off">
+          <select id="ac-state" aria-label="状態"><option value="">所持・未所持</option><option value="owned">所持のみ</option>
+            <option value="unowned">未所持のみ</option><option value="maxed">ランク最大のみ</option><option value="notmax">所持していてランク最大でないもの</option></select>
+          <button class="btn ghost" type="button" id="ac-csv">CSVで保存</button>
+        </div>
+        <div class="summary" id="ac-summary"></div>
+        <div id="ac-out"></div>
+        <p class="note">種類(装備先)は名前から判定しています(Arcane・Molt・Theorem は Warframe、Magus・Emergence はオペレーター、Virtuos・Eternal はアンプ、Pax・Residual は Kitgun、Exodia は Zaw など)。判定できない新しいアルケインは「その他」に入ります。テクトリストアーティファクト用の Zid-An は、公式データにまだ無いためドロップ表から補います(英語名・レア度なし・最大ランク 5。公式データに入ればそちらを使います)。公式データにあってもゲームに実装されていない 7 件(Arcane Survival・Shield・Defense・Detoxifier・Liquid・Protection・Temperance)は載せません。チェックを外すとランクも消えます。新しいアルケインはゲームのアップデートで増えるので、「データ更新」で取り直してください。</p>
+      </section>
+
+      <!-- Riven 相場 -->
+      <!-- バロ吉入手一覧 -->
+      <section id="view-baro" hidden>
+        <h2>バロ吉入手一覧</h2>
+        <p class="lead">Void 商人(Baro Ki'Teer)が今回持ってきた品物と、これまでに持ってきた品物を、自分の所持と照合します。MOD は「MOD入手一覧」の所持、武器は「マスター一覧」のマスター済みで判定し、装飾・外装などはこのページでチェックします(この PC に保存)。</p>
+        <div class="cyc-sync">
+          <button class="btn" type="button" id="baro-update">バロ情報を更新</button>
+          <span class="note" id="baro-info" role="status"></span>
+        </div>
+        <div class="err" id="baro-err" role="alert"></div>
+        <div id="baro-now"></div>
+        <h3 class="baro-h">履歴リスト(これまでに持ってきた品物)</h3>
+        <div class="seg" id="baro-kinds" role="group" aria-label="種類"></div>
+        <div class="row">
+          <input type="text" class="search" id="baro-q" placeholder="名前で絞り込み(例: Primed / プライムド)" autocomplete="off">
+          <select id="baro-state" aria-label="状態"><option value="">所持・未所持</option><option value="unowned">未所持のみ</option><option value="owned">所持のみ</option></select>
+        </div>
+        <div class="summary" id="baro-summary"></div>
+        <div id="baro-out"></div>
+        <p class="note">履歴リストは、公式データ(「データ更新」で取得)から作る初期リスト(名前が Prisma で始まる武器など・名前が Primed で始まるレジェンダリーの MOD・Primed Chamber)に、この PC で記録したバロの来訪を足したものです。今回の品物は「バロ情報を更新」を押したときだけ公式の World State に問い合わせて取得し、バロが来ていれば来訪を記録します(リストに無い品物は追加し、ある品物は「最後に来た日」「回数」を更新)。過去の日付は分からないため、「最後に来た日」「回数」はこの PC で記録した来訪だけで数えます(TennoCon の来訪は記録しません)。名前が Skin で終わるものは装飾・外装として扱います。消耗品・ブースター・レリックなど何度でも買えるものは照合しません。初期リストから外す Primed MOD・追加する品物は、ツールのフォルダの <code>data/baro_rules.json</code> で変えられます。</p>
+      </section>
+
+      <section id="view-riven" hidden>
+        <h2>Riven相場</h2>
+        <p class="lead">公式が毎週公開している PC 版の Riven MOD 取引統計です。単位はプラチナ。</p>
+        <div class="row">
+          <input type="text" class="search" id="riv-q" placeholder="武器名(例: Rubico / ルビコ)" autocomplete="off">
+          <select id="riv-type" aria-label="武器種"></select>
+          <label class="chk"><input type="checkbox" id="riv-veiled" checked> 未開封(ヴェール)を含む</label>
+          <button class="btn ghost" type="button" id="riv-update">Riven相場だけ更新</button>
+        </div>
+        <pre class="log" id="riv-log" hidden></pre>
+        <div class="summary" id="riv-summary"></div>
+        <div id="riv-out"></div>
+        <p class="note">極端な出品価格が混ざるため、平均より中央値が目安になります。件数が少ない武器は振れ幅が大きくなります。</p>
+      </section>
+
+      <!-- Riven 性質 -->
+      <section id="view-dispo" hidden>
+        <h2>Riven性質</h2>
+        <p class="lead">公式データ(ExportWeapons.json)の性質値を、カテゴリーごとに性質の高い順(●●●●● → ●◯◯◯◯)で並べています。性質が高い武器ほど Riven の効果が大きくなります。</p>
+        <div class="seg" id="dp-cats" role="group" aria-label="カテゴリー"></div>
+        <div class="row">
+          <input type="text" class="search" id="dp-q" placeholder="武器名で絞り込み(例: Rubico / Kuva)" autocomplete="off">
+          <select id="dp-dots" aria-label="性質(●の数)"><option value="">性質: すべて</option>
+            <option value="5">性質: 5</option><option value="4">性質: 4</option><option value="3">性質: 3</option>
+            <option value="2">性質: 2</option><option value="1">性質: 1</option></select>
+        </div>
+        <div class="summary" id="dp-summary"></div>
+        <div id="dp-out"></div>
+        <p class="note">●の数は性質値で決まります: 0.5〜0.7 ●◯◯◯◯ / 0.71〜0.9 ●●◯◯◯ / 0.91〜1.10 ●●●◯◯ / 1.11〜1.30 ●●●●◯ / 1.31〜1.55 ●●●●●。「性質」の絞り込みは●の数です(●●●◯◯なら 3)。Kitgun はチェンバーごとにプライマリ版とセカンダリ版で値が違います。Zaw はストライクの値です。プライマリのライフル/ショットガンの区分は、Riven 相場のデータがあればその武器種に合わせています。性質値はゲームのアップデートで変わるため、「データ更新」で取り直してください。</p>
+      </section>
+
+      <!-- マスター一覧 -->
+      <section id="view-mastery" hidden>
+        <h2>マスター一覧</h2>
+        <p class="lead">Warframe・武器・コンパニオンなどのマスター状況です。左端のチェックでマスター済みとして記録します(この PC に保存)。</p>
+        <div class="seg" id="ms-cats" role="group" aria-label="カテゴリー"></div>
+        <div class="row">
+          <input type="text" class="search" id="ms-q" placeholder="名前で絞り込み(例: Rhino / Soma)" autocomplete="off">
+          <select id="ms-state" aria-label="状態"><option value="">マスター済み・未マスター</option><option value="todo">未マスターのみ</option><option value="done">マスター済みのみ</option></select>
+          <button class="btn ghost" type="button" id="ms-bulk-on">表示中をすべてマスター済みに</button>
+          <button class="btn ghost" type="button" id="ms-bulk-off">表示中のチェックを外す</button>
+          <button class="btn ghost" type="button" id="ms-csv">CSVで保存</button>
+        </div>
+        <div class="summary" id="ms-summary"></div>
+        <div id="ms-out"></div>
+        <p class="note">Kitgun はチェンバー(プライマリ版とセカンダリ版は別々)、Zaw はストライク、アンプはプリズムと Sirocco の単位で数えます。MOA・ハウンド(組み立て式のロボティック)、アークウイング本体、ネクラメカ、K-ドライブは含みません。マスタリー経験値はランク最大までの値です(Warframe・コンパニオン・センチネルは 1 ランク 200、武器は 100。Kuva・Tenet・Coda などはランク 40)。</p>
+      </section>
+
+      <!-- サイクル -->
+      <section id="view-cycle" hidden>
+        <h2>サイクル</h2>
+        <p class="lead">昼夜などの切り替えと、デイリー・ウィークリーのリセットまでの時間です。周期から計算するので、通信しなくても表示できます。</p>
+        <div class="cyc-sync">
+          <button class="btn" type="button" id="cyc-sync">公式データで時刻合わせ</button>
+          <span class="note" id="cyc-sync-info" role="status"></span>
+        </div>
+        <div class="err" id="cyc-sync-err" role="alert"></div>
+        <div class="cards" id="cycle-cards"></div>
+        <p class="note">「公式データで時刻合わせ」は、押したときだけ公式の World State に問い合わせて、平原・ザリマンの切り替わりと PC の時計のずれを合わせます(60 秒以内に押し直したときは前回の結果を使います)。オーブ峡谷・デュヴィリは公式データに手がかりが無いため、基準時刻から計算します。</p>
+        <details id="cycle-setup">
+          <summary>手動で時刻合わせ(公式データが取れないとき)</summary>
+          <form id="cycle-form" class="formgrid" style="margin-top:12px">
+            <label class="field"><span>対象</span><select id="cf-key"></select></label>
+            <label class="field"><span>いまのフェーズ</span><select id="cf-phase"></select></label>
+            <label class="field"><span>そのフェーズの残り時間(例 45:30 / 分だけでも可)</span>
+              <input type="text" id="cf-rem" placeholder="45:30" autocomplete="off"></label>
+            <div class="field"><span>&nbsp;</span><button class="btn" type="submit">保存</button></div>
+          </form>
+          <div class="err" id="cf-err" role="alert"></div>
+          <p class="note">ゲーム内で見た残り時間を入れると、以降はそこから計算して表示します。あとで「公式データで時刻合わせ」をすると、公式データの方で上書きします。</p>
+        </details>
+      </section>
+
+      <!-- デュヴィリサーキット(文字は I18N の data-i18n で差し替え。中の日本語は読み込み前の表示) -->
+      <section id="view-duviri" hidden>
+        <h2 data-i18n="page.duviri">デュヴィリサーキット</h2>
+        <p class="lead" data-i18n="duviri.lead">サーキットで選べる報酬の今週分と、来週以降の並びです。毎週月曜 9:00(JST)のウィークリーリセットで切り替わります。</p>
+        <div class="seg" id="dv-modes" role="group" aria-label="モード"></div>
+        <div id="dv-out"></div>
+        <details id="dv-adjust" hidden>
+          <summary data-i18n="duviri.adjust">ゲーム内とズレているとき(手動で調整)</summary>
+          <form id="dv-form" class="formgrid">
+            <label class="field"><span data-i18n="duviri.adjust.id">今週の ID(表示中のモード)</span><select id="dv-id"></select></label>
+            <div class="field"><span>&nbsp;</span><button class="btn" type="submit" data-i18n="duviri.adjust.save">保存</button></div>
+            <div class="field"><span>&nbsp;</span><button class="btn" type="button" id="dv-reset" data-i18n="duviri.adjust.reset">同梱の設定に戻す</button></div>
+          </form>
+          <div class="err" id="dv-err" role="alert"></div>
+          <p class="note" data-i18n="duviri.adjust.help">ゲーム内の今週の報酬に合う ID を選んで保存すると、以降はそこから毎週進めて表示します。調整はモードごとで、ツールの更新では消えません。「同梱の設定に戻す」で調整を消せます。</p>
+        </details>
+      </section>
+
+      <!-- ビルド -->
+      <section id="view-build" hidden>
+        <h2>ビルド</h2>
+        <p class="lead">フレーム・武器のビルドを登録して管理します(この PC に保存)。</p>
+        <details id="build-form-wrap" open>
+          <summary id="build-form-title">ビルドを追加</summary>
+          <form id="build-form">
+            <div class="formgrid">
+              <label class="field"><span>ビルド名</span><input type="text" id="b-name" required autocomplete="off"></label>
+              <label class="field"><span>種別</span><select id="b-type"></select></label>
+              <label class="field"><span>対象(フレーム名・武器名)</span><input type="text" id="b-target" autocomplete="off"></label>
+              <label class="field"><span>フォーマ数</span><input type="number" id="b-forma" min="0" value="0"></label>
+            </div>
+            <div class="formgrid">
+              <label class="field"><span>MOD(1行に1つ)</span><textarea id="b-mods" rows="5"></textarea></label>
+              <div class="field"><span>アルケイン(1行に1つ)</span>
+                <textarea id="b-arcanes" rows="2" aria-label="アルケイン"></textarea>
+                <div class="row"><input type="text" id="b-arc-pick" list="arcane-list" placeholder="候補から追加(例: Arcane Energize)" autocomplete="off" style="flex:1">
+                  <button type="button" class="btn ghost" id="b-arc-add">追加</button></div>
+                <datalist id="arcane-list"></datalist>
+                <span class="mini" id="b-arc-note"></span></div>
+              <div class="field"><label class="field"><span>タグ(カンマ区切り)</span><input type="text" id="b-tags" autocomplete="off"></label>
+                <label class="field"><span>メモ</span><textarea id="b-note" rows="2"></textarea></label></div>
+            </div>
+            <div class="field" style="margin-bottom:12px"><span>画像(MOD構成のスクリーンショットなど。PNG / JPEG / GIF / WebP)</span>
+              <div class="dropzone" id="b-drop" tabindex="0" role="button" aria-describedby="b-drop-help">
+                クリックして選ぶ / ここにドラッグ&ドロップ / <b>Ctrl+V</b> で貼り付け</div>
+              <span class="mini" id="b-drop-help">大きい画像(4MB超)は保存前に縮小します。保存ボタンを押すと登録されます。</span>
+              <input type="file" id="b-file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
+              <div class="thumbs" id="b-thumbs"></div>
+              <div class="row" style="margin-top:8px"><button type="button" class="btn ghost" id="b-analyze" hidden>画像から読み取る(フレーム・MOD・フォーマ)</button>
+                <span class="mini" id="b-ocr-note"></span></div>
+              <div class="ocr" id="b-ocr" hidden aria-live="polite"></div>
+            </div>
+            <div class="row"><button class="btn" type="submit" id="b-save">保存</button>
+              <button class="btn ghost" type="button" id="b-cancel" hidden>編集をやめる</button></div>
+            <div class="err" id="b-err" role="alert"></div>
+          </form>
+        </details>
+        <div class="row" style="margin-top:18px">
+          <input type="text" class="search" id="b-filter" placeholder="ビルドを絞り込み(名前・対象・タグ・アルケイン)" autocomplete="off">
+          <select id="b-filter-type"></select>
+        </div>
+        <div class="cards" id="build-list"></div>
+        <dialog id="lightbox" aria-label="画像の拡大表示">
+          <img id="lb-img" alt="">
+          <div class="lb-bar"><button class="btn ghost" id="lb-prev" type="button" aria-label="前の画像">◀</button>
+            <span id="lb-count"></span>
+            <button class="btn ghost" id="lb-next" type="button" aria-label="次の画像">▶</button>
+            <a class="btn ghost" id="lb-open" target="_blank" rel="noopener">原寸で開く</a>
+            <button class="btn ghost" id="lb-close" type="button">閉じる</button></div>
+        </dialog>
+      </section>
+
+      <!-- シミュレータ (web/wfportal_builder.html を中に表示する) -->
+      <section id="view-sim" hidden>
+        <h2>シミュレータ</h2>
+        <p class="lead">フレームの耐久・アビリティ性能、武器のダメージと DPS、Riven の効果の振れ幅を計算します。値はすべて参考値です。</p>
+        <iframe id="sim-frame" class="sim-frame" title="シミュレータ"></iframe>
+      </section>
+
+      <!-- Tips -->
+      <section id="view-tips" hidden>
+        <h2>Tips</h2>
+        <p class="lead">すぐ見たいメモをまとめるページです。目次と内容は、ツールのフォルダにある <b>tips</b> フォルダのファイルを編集すると変わります(メモ帳・Excel などで編集できます)。</p>
+        <div class="row">
+          <button class="btn ghost" type="button" id="tips-reload">再読み込み</button>
+          <button class="btn ghost" type="button" id="tips-open">tips フォルダを開く</button>
+          <span class="mini" id="tips-dir"></span>
+        </div>
+        <div class="err" id="tips-err" role="alert"></div>
+        <div class="tips">
+          <div class="tips-toc" id="tips-toc" role="navigation" aria-label="Tips の目次"></div>
+          <article class="tips-body" id="tips-body" aria-live="polite"></article>
+        </div>
+        <p class="note">使えるファイル: .md(見出し・表・箇条書き・チェックボックスなどが使える書き方)/ .txt(そのまま表示)/ .csv(表として表示。Excel で編集可)。ファイル名の先頭の数字(例: 10_)は並び順に使われ、目次には表示されません。tips の中にフォルダを作ると、目次の見出しになります(1段まで)。.md の最初の「# 見出し」が目次の名前になります。</p>
+      </section>
+
+      <!-- データ更新 -->
+      <section id="view-update" hidden>
+        <h2>データ更新</h2>
+        <p class="lead">ドロップ表・敵やバウンティの入手先・Riven 相場・日本語名の辞書(Riven性質・シミュレータ用のデータを含む)を取得します。ゲームのアップデート後にも実行してください。</p>
+        <dl class="kv" id="update-info"></dl>
+        <div class="row"><button class="btn" id="update-btn">公式データを取得</button>
+          <button class="btn ghost" id="update-riv-btn" type="button">Riven相場だけ取得</button></div>
+        <pre class="log" id="update-log" hidden></pre>
+        <p class="note">取得元: ドロップ表・入手先は WFCD/warframe-drop-data(drops.warframestat.us)、日本語名は calamity-inc/warframe-public-export(取得できなければ公式 Public Export)、Riven 相場は公式の weeklyRivensPC.json(取得できなければ WFCD の api.warframestat.us)です。ロゴ素材が未取得のときは、公式ファンキット(Warframe Fan Kit)の配布元からロゴ素材も取得します。インターネット接続が必要です。</p>
+      </section>

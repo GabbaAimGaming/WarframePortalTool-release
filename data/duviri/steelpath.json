@@ -1,0 +1,13 @@
+{
+  "rotation": [
+    {"id": 1, "items": ["Braton", "Lato", "Skana", "Paris", "Kunai"]},
+    {"id": 2, "items": ["Boar", "Gammacor", "Anku", "Gorgon", "Angstrum"]},
+    {"id": 3, "items": ["Bo", "Latron", "Furis", "Furax", "Strun"]},
+    {"id": 4, "items": ["Lex", "Magistar", "Boltor", "Bronco", "Ceramic Dagger"]},
+    {"id": 5, "items": ["Torid", "Dual Toxocyst", "Dual Ichor", "Miter", "Atomos"]},
+    {"id": 6, "items": ["Ack & Brunt", "Soma", "Vasto", "Nami Solo", "Burston"]},
+    {"id": 7, "items": ["Zylok", "Sibear", "Dread", "Despair", "Hate"]},
+    {"id": 8, "items": ["Dera", "Cestra", "Okina", "Sybaris", "Sicarus"]},
+    {"id": 9, "items": ["Vectis", "Stug", "Ballistica", "Destreza", "Obex"]}
+  ]
+}

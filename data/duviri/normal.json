@@ -1,0 +1,15 @@
+{
+  "rotation": [
+    {"id": 1, "items": ["Excalibur", "Trinity", "Ember"]},
+    {"id": 2, "items": ["Loki", "Mag", "Rhino"]},
+    {"id": 3, "items": ["Ash", "Frost", "Nyx"]},
+    {"id": 4, "items": ["Saryn", "Vauban", "Nova"]},
+    {"id": 5, "items": ["Nekros", "Valkyr", "Oberon"]},
+    {"id": 6, "items": ["Hydroid", "Mirage", "Limbo"]},
+    {"id": 7, "items": ["Mesa", "Chroma", "Atlas"]},
+    {"id": 8, "items": ["Ivara", "Inaros", "Titania"]},
+    {"id": 9, "items": ["Nidus", "Octavia", "Harrow"]},
+    {"id": 10, "items": ["Gara", "Khora", "Revenant"]},
+    {"id": 11, "items": ["Garuda", "Baruuk", "Hildryn"]}
+  ]
+}

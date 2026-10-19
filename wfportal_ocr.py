@@ -29,7 +29,10 @@ import unicodedata
 from difflib import SequenceMatcher
 from pathlib import Path
 
-import wfportal as wf
+from wfp.core.common import BUILD_TYPES, POLARITY_EN
+from wfp.core.loader import load_names
+from wfp.core.names import Names
+from wfp.store import build_images
 
 HERE = Path(__file__).resolve().parent
 PS_SCRIPT = HERE / "ocr" / "winocr.ps1"
@@ -103,7 +106,7 @@ def run_ocr_bytes(data: bytes, cache_dir: Path | None = None, **kw) -> dict:
             return json.loads(cached.read_text(encoding="utf-8"))
         except ValueError:
             pass
-    ext = wf.image_ext(data) or "png"
+    ext = build_images.image_ext(data) or "png"
     fd, tmp = tempfile.mkstemp(suffix=f".{ext}", prefix="wfimg_")
     try:
         with os.fdopen(fd, "wb") as f:
@@ -176,7 +179,7 @@ class NameMatcher:
         return best
 
 
-def build_matcher(names: wf.Names) -> NameMatcher:
+def build_matcher(names: Names) -> NameMatcher:
     entries = [("mod", m["en"], m) for m in names.mods]
     entries += [("arcane", a, None) for a in names.arcanes]
     entries += [("item", it["en"], it) for it in names.items]
@@ -362,7 +365,7 @@ FORMA_PATTERNS = [
 ]
 
 
-def analyze(ocr: dict, names: wf.Names, matcher: NameMatcher | None = None) -> dict:
+def analyze(ocr: dict, names: Names, matcher: NameMatcher | None = None) -> dict:
     """OCR の結果(winocr.ps1 の JSON)から、対象・MOD・フォーマ数を求める"""
     matcher = matcher or build_matcher(names)
     results = ocr.get("results") or []
@@ -470,7 +473,7 @@ def analyze(ocr: dict, names: wf.Names, matcher: NameMatcher | None = None) -> d
         pol = m.get("polarity", "")
         out_mods.append({
             "en": f["name"], "ja": names.ja(f["name"]), "kind": f["kind"], "score": round(f["score"], 3),
-            "read": f["text"], "type": m.get("type", ""), "polarity": wf.POLARITY_EN.get(pol, pol) if pol else "",
+            "read": f["text"], "type": m.get("type", ""), "polarity": POLARITY_EN.get(pol, pol) if pol else "",
             "drain": f.get("drain"), "slot": f.get("slot"),
         })
 
@@ -539,7 +542,7 @@ def polarity_summary(polarized: list[str]) -> str:
 
 def print_analysis(r: dict) -> None:
     t = r.get("target")
-    print(f"対象   : {t['ja']} ({t['en']}) [{wf.BUILD_TYPES.get(t['type'], t['type'])}] 一致度 {t['score']:.0%}" if t else "対象   : 読み取れませんでした")
+    print(f"対象   : {t['ja']} ({t['en']}) [{BUILD_TYPES.get(t['type'], t['type'])}] 一致度 {t['score']:.0%}" if t else "対象   : 読み取れませんでした")
     f = r["forma"]
     if f["value"] is None:
         print("フォーマ: 読み取れませんでした")
@@ -564,7 +567,7 @@ def print_analysis(r: dict) -> None:
 
 
 def main_analyze(paths: list[str], data_dir: Path, raw: bool = False, save_ocr: str | None = None, ocr_json: str | None = None) -> None:
-    names = wf.Names.load(data_dir)
+    names = load_names(data_dir)
     if not names.mods:
         sys.exit("MOD の情報がありません。先に `python wfportal.py update` を実行してください。")
     matcher = build_matcher(names)

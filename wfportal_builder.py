@@ -24,6 +24,9 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+from wfp.core.common import EXPORT_BASE, EXPORT_GITHUB
+from wfp.fetch import decode, net
+
 BUILDER_FILE = "builder.json"
 BUILDER_EXPORTS = ("ExportWarframes", "ExportWeapons")
 
@@ -263,23 +266,21 @@ def save_builder_data(d: Path, data: dict, source: str) -> dict:
 
 
 def _fetch_docs_github(lang: str) -> list[dict]:
-    import wfportal as wf
     docs = []
     for prefix in BUILDER_EXPORTS:
         print(f"  取得: {prefix}_{lang}.json")
-        raw = wf.http_get(f"{wf.EXPORT_GITHUB}/{prefix}_{lang}.json", timeout=120)
-        docs.append(wf.parse_export_json(raw.decode("utf-8", "replace")))
+        raw = net.http_get(f"{EXPORT_GITHUB}/{prefix}_{lang}.json", timeout=120)
+        docs.append(decode.parse_export_json(raw.decode("utf-8", "replace")))
     return docs
 
 
 def _fetch_docs_official(lang: str) -> list[dict]:
-    import wfportal as wf
-    text = wf.decompress_lzma(wf.http_get(f"{wf.EXPORT_BASE}/index_{lang}.txt.lzma")).decode("utf-8", "replace")
+    text = decode.decompress_lzma(net.http_get(f"{EXPORT_BASE}/index_{lang}.txt.lzma")).decode("utf-8", "replace")
     docs = []
     for line in text.splitlines():
         if line.startswith(BUILDER_EXPORTS):
             print(f"  取得: {line.split('!')[0]}")
-            docs.append(wf.parse_export_json(wf.http_get(f"{wf.EXPORT_BASE}/Manifest/{line}").decode("utf-8", "replace")))
+            docs.append(decode.parse_export_json(net.http_get(f"{EXPORT_BASE}/Manifest/{line}").decode("utf-8", "replace")))
     return docs
 
 
