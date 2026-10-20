@@ -5,12 +5,13 @@
 <script>
 /* ---------- 表示する文字(言語ごと) ---------- */
 /* キー → 文字。今の言語に無いキーは日本語、それも無ければキーそのものを表示する。
-   いまはメニューとデュヴィリサーキットのページが対象(ページの文字はマークアップの data-i18n か t("…") で引く)。
+   いまはメニュー・トップ・ページ説明・デュヴィリサーキットのページが対象(ページの文字はマークアップの data-i18n か t("…") で引く)。
    中身は JSON と同じ形にしてあるので、増えたら別ファイルに切り出せる */
 const I18N = {
   ja: {
     "menu.aria": "メニュー", "menu.title": "Menu",
-    "group.search": "素材検索", "group.personal": "個人チェック表", "group.info": "情報", "group.simulation": "シミュレーション",
+    "group.search": "素材検索", "group.personal": "個人チェック表", "group.info": "情報", "group.simulation": "シミュレーション", "group.other": "その他",
+    "page.home": "トップ", "page.home.sub": "各ページへのジャンプ",
     "page.item": "素材から探す", "page.item.sub": "素材名 → 入手場所と確率",
     "page.area": "エリアから探す", "page.area.sub": "惑星・ノード → 出る素材",
     "page.mastery": "マスター一覧", "page.mastery.sub": "Warframe・武器のマスター状況",
@@ -24,7 +25,24 @@ const I18N = {
     "page.build": "ビルド", "page.build.sub": "登録と管理",
     "page.sim": "シミュレータ", "page.sim.sub": "フレーム・武器・Riven の計算",
     "page.tips": "Tips", "page.tips.sub": "すぐ見たいメモ",
+    "page.guide": "ページ説明", "page.guide.sub": "各ページでできること",
     "page.update": "データ更新", "page.update.sub": "公式データの取得",
+    "home.lead": "見たいページへ、ここから移動できます。",
+    "guide.lead": "各ページでできることの説明です。「開く」でそのページに移動します。", "guide.open": "開く",
+    "guide.item": "素材名(日本語・英語・ひらがな)を入れると、入手できるミッション・敵・バウンティ・レリックと確率を一覧で表示します。",
+    "guide.area": "惑星やノードを選ぶと、そこで出る素材と確率をステージごとに表示します。",
+    "guide.mastery": "Warframe・武器などのマスター済みをチェックして、カテゴリごとの進み具合を確認できます。",
+    "guide.mods": "MOD の入手先と確率を調べ、持っている MOD にチェックを付けられます。MOD 一覧の画像からの読み取りにも対応しています。",
+    "guide.arcane": "持っているアルケインと、そのランクを記録します。",
+    "guide.baro": "バロ吉の履歴リストと今回の品物を確認し、持っているものとの照合ができます。",
+    "guide.riven": "公式の週次統計から、武器ごとの Riven の相場を確認できます。",
+    "guide.dispo": "武器ごとの Riven 性質(●1〜5)を、高い順に確認できます。",
+    "guide.cycle": "平原などの昼夜と、デイリー・ウィークリーのリセットまでの時間を表示します。今週のスティール・エッセンス交換の報酬も確認できます。",
+    "guide.duviri": "デュヴィリサーキットの今週の報酬と今後のローテーションを、ノーマルと鋼の道のりで確認できます。",
+    "guide.build": "ビルドに名前をつけて保存・管理します。画像から MOD などを読み取って登録することもできます(Windows の文字認識を使います)。",
+    "guide.sim": "フレームの性能、武器の DPS、Riven の振れ幅を計算します。",
+    "guide.tips": "自分用のメモ(.md / .csv / .txt)を表示します。tips フォルダのファイルを編集すると内容が変わります。",
+    "guide.update": "公式データ(ドロップ表・日本語名・Riven 相場など)を取得します。ゲームのアップデート後に実行してください。",
     "duviri.lead": "サーキットで選べる報酬の今週分と、来週以降の並びです。毎週月曜 9:00(JST)のウィークリーリセットで切り替わります。",
     "duviri.normal": "ノーマル", "duviri.steelpath": "鋼の道のり",
     "duviri.current": "今週の報酬", "duviri.upcoming": "今後のローテーション",
@@ -34,10 +52,16 @@ const I18N = {
     "duviri.adjust": "ゲーム内とズレているとき(手動で調整)", "duviri.adjust.id": "今週の ID(表示中のモード)",
     "duviri.adjust.save": "保存", "duviri.adjust.reset": "同梱の設定に戻す",
     "duviri.adjust.help": "ゲーム内の今週の報酬に合う ID を選んで保存すると、以降はそこから毎週進めて表示します。調整はモードごとで、ツールの更新では消えません。「同梱の設定に戻す」で調整を消せます。",
+    "spex.title": "スティール・エッセンス交換", "spex.current": "今週の報酬:",
+    "spex.date": "週(月曜)", "spex.item": "報酬", "spex.broken": "交換のデータが読めません。",
+    /* 交換の報酬名の置き換え(キーは JSON の綴りの小文字。末尾の数量 " x3" は除いた名前。表に無いものは英語のまま) */
+    "spex.item.umbra forma blueprint": "Umbraフォーマの設計図", "spex.item.forma": "フォーマ",
+    "spex.item.rifle riven mod": "ライフルRivenMOD", "spex.item.shotgun riven mod": "ショットガンRivenMOD",
   },
   en: {
     "menu.aria": "Menu", "menu.title": "Menu",
-    "group.search": "Material Search", "group.personal": "Personal Checklists", "group.info": "Info", "group.simulation": "Simulation",
+    "group.search": "Material Search", "group.personal": "Personal Checklists", "group.info": "Info", "group.simulation": "Simulation", "group.other": "Others",
+    "page.home": "Home", "page.home.sub": "Jump to any page",
     "page.item": "Find by Material", "page.item.sub": "Material → where it drops",
     "page.area": "Find by Area", "page.area.sub": "Planet / node → drops",
     "page.mastery": "Mastery", "page.mastery.sub": "Mastery progress",
@@ -51,7 +75,24 @@ const I18N = {
     "page.build": "Builds", "page.build.sub": "Save and manage",
     "page.sim": "Simulator", "page.sim.sub": "Frame / weapon / Riven math",
     "page.tips": "Tips", "page.tips.sub": "Quick notes",
+    "page.guide": "Page Guide", "page.guide.sub": "What each page does",
     "page.update": "Data Update", "page.update.sub": "Fetch official data",
+    "home.lead": "Jump to any page from here.",
+    "guide.lead": "What you can do on each page. Press Open to go to it.", "guide.open": "Open",
+    "guide.item": "Type a material name (Japanese, English or hiragana) to list the missions, enemies, bounties and relics that drop it, with chances.",
+    "guide.area": "Pick a planet or node to see the materials it drops and their chances, stage by stage.",
+    "guide.mastery": "Tick off mastered Warframes and weapons and check your progress per category.",
+    "guide.mods": "Look up where mods drop and tick the ones you own. Mod lists can also be read from a screenshot.",
+    "guide.arcane": "Record the arcanes you own and their ranks.",
+    "guide.baro": "See Baro Ki'Teer's history list and this visit's items, checked against what you own.",
+    "guide.riven": "See Riven prices per weapon from the official weekly stats.",
+    "guide.dispo": "See each weapon's Riven disposition (1-5 dots), highest first.",
+    "guide.cycle": "Day/night for the open worlds and the time until the daily and weekly resets. Also shows this week's Steel Essence exchange reward.",
+    "guide.duviri": "This week's Duviri Circuit rewards and the coming rotation, for Normal and Steel Path.",
+    "guide.build": "Save and manage your builds. Mods and more can be read from a screenshot (uses Windows text recognition).",
+    "guide.sim": "Calculate frame stats, weapon DPS and Riven ranges.",
+    "guide.tips": "Shows your own notes (.md / .csv / .txt). Edit the files in the tips folder to change it.",
+    "guide.update": "Fetch the official data (drop tables, Japanese names, Riven prices, etc.). Run it after game updates.",
     "duviri.lead": "This week's Circuit rewards and the rotation for the coming weeks. Changes at the weekly reset (Monday 0:00 UTC).",
     "duviri.normal": "Normal", "duviri.steelpath": "Steel Path",
     "duviri.current": "This week", "duviri.upcoming": "Upcoming rotation",
@@ -61,6 +102,8 @@ const I18N = {
     "duviri.adjust": "Out of sync with the game? (adjust manually)", "duviri.adjust.id": "This week's ID (current mode)",
     "duviri.adjust.save": "Save", "duviri.adjust.reset": "Back to bundled settings",
     "duviri.adjust.help": "Pick the ID that matches this week's rewards in game; the rotation advances from there every week. Adjustments are per mode and survive tool updates.",
+    "spex.title": "Steel Essence Exchange", "spex.current": "This week: ",
+    "spex.date": "Week of", "spex.item": "Reward", "spex.broken": "The exchange data could not be read.",
   },
 };
 let lang = "ja";
@@ -81,11 +124,13 @@ function setLang(code) {
    文字は I18N の group.<カテゴリー> / page.<ページ> / page.<ページ>.sub から取る。
    ページ(section)がまだ無い項目は表示しない(作ったら自動で出る) */
 const MENU = [
+  { page: "home" },
   { group: "search", items: ["item", "area"] },
   { group: "personal", items: ["mastery", "mods", "arcane", "baro"] },
   { group: "info", items: ["riven", "dispo", "cycle", "duviri"] },
   { group: "simulation", items: ["build", "sim"] },
   { page: "tips" },
+  { page: "guide" },
   { page: "update" },
 ];
 const pageExists = id => !!document.getElementById("view-" + id);

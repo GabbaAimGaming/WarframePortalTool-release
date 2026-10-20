@@ -1,5 +1,5 @@
 {
-  "version": "1.12",
+  "version": "1.13",
   "edition": "with_python",
   "files": {
     "LICENSE": {
@@ -8,8 +8,8 @@
       "src": "build/bundled/LICENSE"
     },
     "README.md": {
-      "sha256": "dc1c73f593f4ea7f642bda7266148c7e2f715c9f3bcfb45a54cccd35fd187fca",
-      "size": 37741,
+      "sha256": "f9e032dd1e2ab04a7fa2274aee8144537c7445bf7091675b319e521e948423e3",
+      "size": 38505,
       "src": "build/bundled/README.md"
     },
     "data/baro_rules.json": {
@@ -31,6 +31,16 @@
       "sha256": "5e2f22305be9157cd0b54b0f9cbf3327f046e2efa76a3daa98fab00649e31885",
       "size": 715,
       "src": "data/duviri/steelpath.json"
+    },
+    "data/spexchange/spex_rotate.json": {
+      "sha256": "da746a7d5fb562085f7746244dfb8e9fc53e93ebf8bb3241eb60e2c4ff5325b1",
+      "size": 53,
+      "src": "data/spexchange/spex_rotate.json"
+    },
+    "data/spexchange/steelpath_exchange.json": {
+      "sha256": "dd7b4926965e5fcf1fabd819671f05b5fb92ece4d995cc8442fd8740f0928797",
+      "size": 359,
+      "src": "data/spexchange/steelpath_exchange.json"
     },
     "ocr/winocr.ps1": {
       "sha256": "9842e4bb17216e9cbeeaaded6338bd78f1ad0ba03cfee4c626f74c068522f79d",
@@ -63,18 +73,18 @@
       "src": "tips/30_Rivenスプライサーの合成表.md"
     },
     "web/ctrl.html": {
-      "sha256": "fee6d4f05ad5b5bd86dc7e3323f8b6cf89c157b72a180e4658d5a38b1037bf7d",
-      "size": 99252,
+      "sha256": "dc226025dad042b69d436de61995ddadc8b6c5b66570a5cc2eed0ae7ac9fb1da",
+      "size": 102576,
       "src": "web/ctrl.html"
     },
     "web/menu.html": {
-      "sha256": "ae414b83112035570ef750f8f6c4fcd95f67cb044712e151015180dff49c0364",
-      "size": 10354,
+      "sha256": "223f7626d8242f66b6f4960dad66ce00e0e04ce5fa316f4b395a5c8c2ffef704",
+      "size": 15557,
       "src": "web/menu.html"
     },
     "web/view.html": {
-      "sha256": "e34f8db83c6a506cf9fe88678c0783877a11e2f7b852f4b81b3cd179feab7575",
-      "size": 48627,
+      "sha256": "46670fdfc314830c3ff93ff018598085fa054b61b4088050afff888d729500ec",
+      "size": 51638,
       "src": "web/view.html"
     },
     "web/wfportal_builder.html": {
@@ -98,8 +108,8 @@
       "src": "wfp/api/admin.py"
     },
     "wfp/api/info.py": {
-      "sha256": "a897d65de33389dcd0076c84ed4cda18635b72efccbf1aac7e44b0b56def156d",
-      "size": 5687,
+      "sha256": "353abb4811a506e25dc7c636ee9675d9dd963b1555c8d8a02c902d71eeb1e7f3",
+      "size": 5780,
       "src": "wfp/api/info.py"
     },
     "wfp/api/pages.py": {
@@ -193,8 +203,8 @@
       "src": "wfp/core/build.py"
     },
     "wfp/core/common.py": {
-      "sha256": "93d2ca2e00e2b2d68e25a70b331731d8ba15111cb6411681feb72034195f4397",
-      "size": 16694,
+      "sha256": "88955814baff351d3c2d63c0123368f4516cf15046c6c81af7a37981ab6b69bf",
+      "size": 17117,
       "src": "wfp/core/common.py"
     },
     "wfp/core/cycle.py": {
@@ -231,6 +241,11 @@
       "sha256": "dde7348b8884faf0df3e918867bc7a91419d71a63865005427454817439c4643",
       "size": 3124,
       "src": "wfp/core/riven.py"
+    },
+    "wfp/core/spexchange.py": {
+      "sha256": "451701929b56ac5cc16e01442bef8e151beef1bf98c7e15c094d04c9968c95bc",
+      "size": 2890,
+      "src": "wfp/core/spexchange.py"
     },
     "wfp/core/update.py": {
       "sha256": "de756a0d48365afaf5863b4a14653fd08f9d7399651fdf3a86c832195352a366",
@@ -288,8 +303,8 @@
       "src": "wfp/store/__init__.py"
     },
     "wfp/store/appdata.py": {
-      "sha256": "48781fceed7ede260c3e24130980268405905cba07d6d1d8bf441b1743fe64cd",
-      "size": 825,
+      "sha256": "d0bd70f3b5ebf315baca916a4b61674d0486aa54a0c278a2f5e54eac7ca02ac7",
+      "size": 1235,
       "src": "wfp/store/appdata.py"
     },
     "wfp/store/build_images.py": {

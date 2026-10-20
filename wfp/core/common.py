@@ -280,6 +280,12 @@ CYCLE_SOURCES = {"default": "基準時刻から計算", "worldstate": "公式デ
 DUVIRI_MODES = {"normal": "normal.json", "steelpath": "steelpath.json"}
 DUVIRI_BASE_FILE = "rotate.json"
 
+# 鋼の道のり交換(スティール・エッセンス交換)のローテーション(data/spexchange/ に同梱。サイクルページに表示)
+# 基準の週と ID は SPEX_BASE_FILE の SPEX_MODE に持つ(デュヴィリの rotate.json と同じ形。壊れても影響を分けるため別ファイル)
+SPEX_MODE = "sp_exchange"
+SPEX_ROTATION_FILE = "steelpath_exchange.json"
+SPEX_BASE_FILE = "spex_rotate.json"
+
 
 def parse_remaining(s: str) -> int:
     parts = [int(x) for x in s.split(":")]

@@ -10,6 +10,7 @@ from wfp.core.common import CYCLES, DISPO_CATS, PHASE_ALIASES, parse_remaining
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
 from wfp.core.duviri import clear_duviri_adjust, duviri_view, set_duviri_adjust
 from wfp.core.riven import dispo_table, riven_table
+from wfp.core.spexchange import spex_view
 
 
 def cycles(store: Store) -> dict:
@@ -17,6 +18,7 @@ def cycles(store: Store) -> dict:
     nowdt = datetime.fromtimestamp(view["now"], JST)  # PC の時計のずれは補正済み
     dr, wr = next_daily_reset(nowdt), next_weekly_reset(nowdt)
     return {**view,
+            "sp_exchange": spex_view(view["now"]),
             "daily": {"left": (dr - nowdt).total_seconds(), "at": dr.astimezone(JST).strftime("%m/%d %H:%M")},
             "weekly": {"left": (wr - nowdt).total_seconds(), "at": wr.astimezone(JST).strftime("%m/%d %H:%M")}}
 

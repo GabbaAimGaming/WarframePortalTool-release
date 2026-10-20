@@ -225,6 +225,22 @@ td.num, th.num { text-align: right; }
 .cyc-src { font-size: 11px; color: var(--mute); border: 1px solid var(--line); padding: 0 6px; margin-left: auto; }
 .cyc-src.worldstate { color: var(--accent); border-color: currentColor; }
 .cyc-sync { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+#cycle-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin-top: 14px; }
+#cycle-layout > .cards { margin-top: 0; }
+/* 鋼の道のり交換: 今週の報酬と、今後の週の一覧 */
+.spex { display: flex; flex-direction: column; }
+.spex .spex-now { font-size: 20px; font-weight: 700; }
+.spex .tablewrap { border-top: 1px solid var(--line); }
+.spex thead th { position: sticky; top: 0; }
+/* 広い画面: 左のカードは3列に固定(ザリマン・ウィークリーリセットが右端に来る)、右に交換のカードを2行ぶんの高さで置く。
+   交換のカードは左の高さに合わせ(押し広げない)、一覧はカード内でスクロールする */
+@media (min-width: 1700px) {
+  #cycle-layout { grid-template-columns: minmax(0, 1fr) 340px; }
+  #cycle-layout > .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #cycle-spex { position: relative; }
+  #cycle-spex > .spex { position: absolute; inset: 0; }
+  .spex .tablewrap { flex: 1; min-height: 0; overflow: auto; }
+}
 
 /* バロ吉入手一覧 */
 .baro-h { margin: 22px 0 6px; font-size: 15px; }
@@ -409,8 +425,28 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
   .tips-toc { position: static; max-height: 40vh; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* トップ・ページ説明(カードは .cards をそのまま使う。サイクルの #cycle-layout は使わない) */
+#home-cards { align-items: start; }  /* 同じ行の一番高いカードに高さを揃えない(中身のぶんだけで止める) */
+.go { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; padding: 9px 14px; cursor: pointer; font: inherit; color: var(--ink); background: transparent; border: 0; border-top: 1px solid var(--line); }
+.go:first-child { border-top: 0; }
+.go:hover, .go:focus-visible { background: var(--panel-2); }
+.go b { font-size: 14px; color: var(--accent); }
+.go span { font-size: 12px; color: var(--mute); }
+.guide-h { margin: 22px 0 0; font-size: 15px; }
+.guide-h:first-of-type { margin-top: 14px; }
+.guide-h + .cards { margin-top: 8px; }
+.card .guide-text { padding: 12px 14px; margin: 0; white-space: pre-line; }
+.card .guide-go { margin-left: auto; padding: 2px 12px; }
 </style>
 <!-- PART:sections -->
+      <!-- トップ(カードの中身は MENU から作る: ctrl.html の renderHome) -->
+      <section id="view-home" hidden>
+        <h2 data-i18n="page.home">トップ</h2>
+        <p class="lead" data-i18n="home.lead">見たいページへ、ここから移動できます。</p>
+        <div class="cards" id="home-cards"></div>
+      </section>
+
       <!-- 素材から探す -->
       <section id="view-item" hidden>
         <h2>素材から探す</h2>
@@ -565,7 +601,11 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
           <span class="note" id="cyc-sync-info" role="status"></span>
         </div>
         <div class="err" id="cyc-sync-err" role="alert"></div>
-        <div class="cards" id="cycle-cards"></div>
+        <!-- 左: 昼夜・リセットのカード / 右: 鋼の道のり交換のカード(広い画面だけ2カラム。狭い画面は下に並ぶ) -->
+        <div id="cycle-layout">
+          <div class="cards" id="cycle-cards"></div>
+          <div id="cycle-spex"></div>
+        </div>
         <p class="note">「公式データで時刻合わせ」は、押したときだけ公式の World State に問い合わせて、平原・ザリマンの切り替わりと PC の時計のずれを合わせます(60 秒以内に押し直したときは前回の結果を使います)。オーブ峡谷・デュヴィリは公式データに手がかりが無いため、基準時刻から計算します。</p>
         <details id="cycle-setup">
           <summary>手動で時刻合わせ(公式データが取れないとき)</summary>
@@ -675,6 +715,13 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
           <article class="tips-body" id="tips-body" aria-live="polite"></article>
         </div>
         <p class="note">使えるファイル: .md(見出し・表・箇条書き・チェックボックスなどが使える書き方)/ .txt(そのまま表示)/ .csv(表として表示。Excel で編集可)。ファイル名の先頭の数字(例: 10_)は並び順に使われ、目次には表示されません。tips の中にフォルダを作ると、目次の見出しになります(1段まで)。.md の最初の「# 見出し」が目次の名前になります。</p>
+      </section>
+
+      <!-- ページ説明(中身は MENU と I18N の guide.○○ から作る: ctrl.html の renderGuide) -->
+      <section id="view-guide" hidden>
+        <h2 data-i18n="page.guide">ページ説明</h2>
+        <p class="lead" data-i18n="guide.lead">各ページでできることの説明です。「開く」でそのページに移動します。</p>
+        <div id="guide-list"></div>
       </section>
 
       <!-- データ更新 -->

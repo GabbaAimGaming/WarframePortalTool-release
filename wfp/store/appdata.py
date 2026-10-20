@@ -15,9 +15,21 @@ def duviri_dir() -> Path:
     return common.APP_DIR / "data" / "duviri"
 
 
+def spexchange_dir() -> Path:
+    return common.APP_DIR / "data" / "spexchange"
+
+
 def read_duviri(name: str, src: Path | None = None) -> object | None:
     """data/duviri/<name> の JSON。無い・読めなければ None(形の検査は core.duviri で行う)"""
-    f = (duviri_dir() if src is None else src) / name
+    return _read_json((duviri_dir() if src is None else src) / name)
+
+
+def read_spexchange(name: str, src: Path | None = None) -> object | None:
+    """data/spexchange/<name> の JSON。無い・読めなければ None(形の検査は core.spexchange で行う)"""
+    return _read_json((spexchange_dir() if src is None else src) / name)
+
+
+def _read_json(f: Path) -> object | None:
     try:
         return json.loads(f.read_text(encoding="utf-8-sig"))
     except (OSError, ValueError):

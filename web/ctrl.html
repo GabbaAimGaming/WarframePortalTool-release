@@ -1075,6 +1075,24 @@ function renderCycles() {
   // どれかのフェーズが切り替わったら取得し直す
   if (cyc.cycles.some(c => c.left - el < 0) || cyc.daily.left - el < 0) loadCycles();
 }
+/* 鋼の道のり交換: 毎秒の再描画(renderCycles)とは分け、データを取り直したときだけ描く(一覧のスクロール位置を保つため) */
+const spexDate = iso => iso.replace(/-/g, "/");
+/* 報酬名は JSON の綴りのまま。表示中の言語の表(I18N の spex.item.<小文字の名前>)にあるものだけ置き換える。
+   t() は日本語にフォールバックするので使わない(英語の画面では英語のまま出す)。末尾の数量(" x3")は残す */
+function spexItem(name) {
+  const m = /^(.*?)( x\d+)?$/.exec(name);
+  const own = I18N[lang] && I18N[lang]["spex.item." + m[1].toLowerCase()];
+  return (own || m[1]) + (m[2] || "");
+}
+function renderSpex() {
+  const s = cyc && cyc.sp_exchange;
+  const head = `<header><b>${esc(t("spex.title"))}</b></header>`;
+  if (!s || !s.ok) { $("#cycle-spex").innerHTML = `<div class="card spex">${head}${noData(t("spex.broken"))}</div>`; return; }
+  $("#cycle-spex").innerHTML = `<div class="card spex">${head}
+    <div class="pad"><span class="spex-now">${esc(t("spex.current"))}${esc(spexItem(s.current.item))}</span></div>
+    <div class="tablewrap"><table><thead><tr><th>${esc(t("spex.date"))}</th><th>${esc(t("spex.item"))}</th></tr></thead>
+    <tbody>${s.upcoming.map(r => `<tr><td>${esc(spexDate(r.date))}</td><td>${esc(spexItem(r.item))}</td></tr>`).join("")}</tbody></table></div></div>`;
+}
 function renderCycleSyncInfo() {
   const at = cyc && cyc.clock_synced_at;
   if (!at) { $("#cyc-sync-info").textContent = "まだ公式データと同期していません(基準時刻から計算しています)"; return; }
@@ -1083,7 +1101,7 @@ function renderCycleSyncInfo() {
     ` / PC の時計のずれ ${off ? `${off > 0 ? "+" : ""}${off} 秒(補正して表示)` : "なし"}`;
 }
 async function loadCycles() {
-  try { cyc = await api("/api/cycles"); cycAt = Date.now(); renderCycles(); renderCycleSyncInfo(); fillCycleKeys(); }
+  try { cyc = await api("/api/cycles"); cycAt = Date.now(); renderCycles(); renderSpex(); renderCycleSyncInfo(); fillCycleKeys(); }
   catch (e) { $("#cycle-cards").innerHTML = noData(e.message); }
 }
 /* 手動の時刻合わせ: 対象とフェーズの選択肢はサーバーの定義(manual のもの)から作る */
@@ -1102,7 +1120,7 @@ $("#cyc-sync").addEventListener("click", async () => {
   const btn = $("#cyc-sync");
   btn.disabled = true; $("#cyc-sync-err").textContent = ""; $("#cyc-sync-info").textContent = "公式データを取得しています...";
   try {
-    cyc = await api("/api/cycles/sync", { method: "POST", body: {} }); cycAt = Date.now(); renderCycles(); renderCycleSyncInfo();
+    cyc = await api("/api/cycles/sync", { method: "POST", body: {} }); cycAt = Date.now(); renderCycles(); renderSpex(); renderCycleSyncInfo();
     if (cyc.synced && cyc.synced.cached) $("#cyc-sync-info").textContent += "(60 秒以内なので前回の取得結果を使いました)";
   } catch (e) { $("#cyc-sync-err").textContent = e.message; renderCycleSyncInfo(); }
   btn.disabled = false;
@@ -1111,7 +1129,7 @@ $("#cycle-form").addEventListener("submit", async e => {
   e.preventDefault(); $("#cf-err").textContent = "";
   try {
     cyc = await api("/api/cycles", { method: "POST", body: { key: $("#cf-key").value, phase: $("#cf-phase").value, remaining: $("#cf-rem").value } });
-    cycAt = Date.now(); renderCycles(); $("#cf-rem").value = "";
+    cycAt = Date.now(); renderCycles(); renderSpex(); $("#cf-rem").value = "";
   } catch (err) { $("#cf-err").textContent = err.message; }
 });
 loaders.cycle = loadCycles;
@@ -1408,12 +1426,45 @@ $("#update-btn").addEventListener("click", async () => {
 });
 loaders.update = refreshStatus;
 
+/* ---------- トップ・ページ説明 ---------- */
+/* どちらも MENU から組み立てる(ページを足すと自動で載る)。ノンカテゴリのページ(トップ自身を除く)は「その他」にまとめる */
+function menuSections() {
+  const out = [], other = [];
+  MENU.forEach(e => {
+    if (e.group) {
+      const items = e.items.filter(pageExists);
+      if (items.length) out.push({ label: t("group." + e.group), items });
+    } else if (e.page !== "home" && pageExists(e.page)) other.push(e.page);
+  });
+  if (other.length) out.push({ label: t("group.other"), items: other });
+  return out;
+}
+function applyViewText(id) {
+  document.querySelectorAll(`#view-${id} [data-i18n]`).forEach(el => { el.textContent = t(el.dataset.i18n); });
+}
+function renderHome() {
+  applyViewText("home");
+  $("#home-cards").innerHTML = menuSections().map(s => `<div class="card"><header><b>${esc(s.label)}</b></header>${
+    s.items.map(v => `<button type="button" class="go" data-go="${esc(v)}"><b>${esc(t("page." + v))}</b><span>${esc(t("page." + v + ".sub"))}</span></button>`).join("")}</div>`).join("");
+}
+function renderGuide() {
+  applyViewText("guide");
+  $("#guide-list").innerHTML = menuSections().map(s => `<h3 class="guide-h">${esc(s.label)}</h3><div class="cards">${
+    s.items.filter(v => v !== "guide").map(v => `<div class="card"><header><b>${esc(t("page." + v))}</b><button type="button" class="btn ghost guide-go" data-go="${esc(v)}">${esc(t("guide.open"))}</button></header><p class="guide-text">${esc(t("guide." + v))}</p></div>`).join("")}</div>`).join("");
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-go]");
+  if (b) { show(b.dataset.go); window.scrollTo(0, 0); }
+});
+loaders.home = renderHome;
+loaders.guide = renderGuide;
+
 /* ---------- 起動 ---------- */
 (async () => {
   const s = await refreshStatus();
-  let v = "item";
-  try { v = localStorage.getItem("wf-view") || "item"; } catch (e) {}
-  if (!views.includes(v)) v = "item";
+  let v = "home";  // 初めて開いたとき(前回のページの記録が無いとき)はトップ
+  try { v = localStorage.getItem("wf-view") || "home"; } catch (e) {}
+  if (!views.includes(v)) v = "home";
   show(s && !s.has_drops ? "update" : v);
 })();
 </script>
