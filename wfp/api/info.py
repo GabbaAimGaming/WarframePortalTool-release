@@ -1,4 +1,4 @@
-"""画面向け API: 情報(サイクル・バロ吉・Riven 相場・Riven 性質)"""
+"""画面向け API: 情報(サイクル・侵略サイクル・バロ吉・Riven 相場・Riven 性質・デュヴィリ)"""
 from __future__ import annotations
 
 from datetime import datetime
@@ -9,6 +9,7 @@ from wfp.api.store import ApiError, JST, Store, mtime_jst
 from wfp.core.common import CYCLES, DISPO_CATS, PHASE_ALIASES, parse_remaining
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
 from wfp.core.duviri import clear_duviri_adjust, duviri_view, set_duviri_adjust
+from wfp.core.invasion import invasion_view, set_invasion_part
 from wfp.core.riven import dispo_table, riven_table
 from wfp.core.spexchange import spex_view
 
@@ -114,6 +115,31 @@ def reset_duviri(store: Store, body: dict) -> dict:
     return duviri(store)
 
 
+def invasions(store: Store) -> dict:
+    """侵略サイクル: 保存済みの World State から侵略の一覧と収集表を作る(通信しない)"""
+    return invasion_view(store.d, ws.load_snapshot(store.d), wbaro.load_item_paths(store.d), store.names())
+
+
+def sync_invasions(store: Store) -> dict:
+    """公式データ(World State)を取り直して侵略の一覧を更新する。前回から 60 秒以内なら前回の結果を使う"""
+    try:
+        snap = ws.sync(store.d)
+    except ws.WorldStateError as e:
+        raise ApiError(f"公式データを取得できませんでした。前回取得した内容で表示しています。({e})", 502)
+    return {**invasions(store), "synced": {"cached": snap["cached"], "fetched_at": snap["fetched_at"]}}
+
+
+def set_invasion_parts(store: Store, body: dict) -> dict:
+    """パーツの取得済みを付け外しする(本文 {"path": "/Lotus/…", "owned": true})"""
+    if not isinstance(body, dict):
+        raise ApiError("JSON のオブジェクトで送ってください。")
+    try:
+        set_invasion_part(store.d, str(body.get("path", "")), bool(body.get("owned")))
+    except ValueError as e:
+        raise ApiError(str(e))
+    return invasions(store)
+
+
 ROUTES = {
     ("GET", "/api/cycles"): lambda c: cycles(c.store),
     ("POST", "/api/cycles"): lambda c: set_cycle(c.store, c.body()),
@@ -123,6 +149,9 @@ ROUTES = {
     ("POST", "/api/baro/owned"): lambda c: set_baro_owned(c.store, c.body()),
     ("GET", "/api/rivens"): lambda c: rivens_list(c.store),
     ("GET", "/api/dispo"): lambda c: dispo_list(c.store),
+    ("GET", "/api/invasions"): lambda c: invasions(c.store),
+    ("POST", "/api/invasions/update"): lambda c: c.empty_body() or sync_invasions(c.store),
+    ("POST", "/api/invasions/parts"): lambda c: set_invasion_parts(c.store, c.body()),
     ("GET", "/api/duviri"): lambda c: duviri(c.store),
     ("POST", "/api/duviri/adjust"): lambda c: set_duviri(c.store, c.body()),
     ("POST", "/api/duviri/reset"): lambda c: reset_duviri(c.store, c.body()),

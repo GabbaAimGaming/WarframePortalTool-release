@@ -286,6 +286,20 @@ SPEX_MODE = "sp_exchange"
 SPEX_ROTATION_FILE = "steelpath_exchange.json"
 SPEX_BASE_FILE = "spex_rotate.json"
 
+# 侵略サイクル: 獲得パーツの一覧(data/invasion/ に同梱。武器ごとのパーツと内部パス)
+INVASION_PARTS_FILE = "parts.json"
+# パーツの種類(画面の I18N の invasion.part.<キー> で名前にする)。並びは同梱ファイルの書き順を使う
+INVASION_PART_KINDS = ("blueprint", "barrel", "receiver", "stock", "link", "blade", "heatsink", "hilt")
+# 陣営(World State の値。画面の I18N の invasion.faction.<値> で名前にする)
+INVASION_INFESTED = "FC_INFESTATION"
+# 報酬のうち、このパスで始まるものを武器のパーツ・設計図とみなす(一覧に無いものを unknown_parts で知らせる)
+INVASION_WEAPON_PART_PREFIX = "/Lotus/Types/Recipes/Weapons/"
+
+# ノード名の辞書: 公式 Public Export の ExportRegions から作る(EXPORT_PREFIXES には入れない。
+# 名前辞書 names.json にノード名が混ざらないよう、別に取得して regions.json にする)
+REGIONS_EXPORT = "ExportRegions"
+REGIONS_FILE = "regions.json"
+
 
 def parse_remaining(s: str) -> int:
     parts = [int(x) for x in s.split(":")]

@@ -586,6 +586,95 @@ async function loadDuviri() {
 }
 loaders.duviri = loadDuviri;
 
+/* ---------- 侵略サイクル ---------- */
+/* 一覧・照合は API(Python)側で作る。ここは表示とチェックの送信だけ。文字はすべて I18N(t)から。
+   侵略の一覧を取り直すのは「公式データで更新」を押したときだけ(開いたときは保存済みの結果を出す) */
+let inv = null;
+const invFmt = (key, vals) => Object.entries(vals).reduce((s, [k, v]) => s.split("{" + k + "}").join(v), t(key));
+/* 陣営名: 表に無い値(新しい陣営)は World State の値のまま出す */
+const invFaction = f => { const k = "invasion.faction." + f; return I18N.ja[k] != null ? t(k) : f; };
+const invFac = f => `<span class="inv-fac ${esc(f)}">${esc(invFaction(f))}</span>`;
+const invPart = (weapon, kind) => `${weapon} ${t("invasion.part." + kind)}`;
+function invPlace(r) {
+  const ja = lang === "ja", node = ja ? r.node_ja : r.node_name, planet = ja ? r.planet_ja : r.planet;
+  return planet ? invFmt("invasion.node", { node, planet }) : node;
+}
+function invReward(r) {
+  const cnt = r.count > 1 ? invFmt("invasion.count", { n: r.count }) : "";
+  if (r.part) return `<span class="inv-rw part">${esc(invPart(r.part.weapon, r.part.kind))}${esc(cnt)}</span>${
+    r.part.owned ? `<span class="tag-mini">${esc(t("invasion.owned"))}</span>` : ""}`;
+  return `<span class="inv-rw">${esc((lang === "ja" && r.name_ja) || r.name)}${esc(cnt)}</span>`;
+}
+function invSide(faction, rewards) {
+  return `<div><span class="note">${invFmt("invasion.side", { f: invFac(faction) })}</span>${
+    rewards.length ? rewards.map(r => `<div>${invReward(r)}</div>`).join("") : `<div class="note">${esc(t("invasion.noreward"))}</div>`}</div>`;
+}
+function invBar(r) {
+  if (r.progress == null) return "";
+  const p = r.progress * 100;
+  if (r.infested) return `<div class="inv-bar ${esc(r.defender)}"><i style="width:${p.toFixed(1)}%"></i></div>
+    <div class="inv-pct"><span>${esc(invFmt("invasion.progress", { p: p.toFixed(1) }))}</span></div>`;
+  return `<div class="inv-bar"><i class="${esc(r.attacker)}" style="width:${p.toFixed(1)}%"></i><i class="${esc(r.defender)}" style="width:${(100 - p).toFixed(1)}%"></i></div>
+    <div class="inv-pct"><span>${esc(invFaction(r.attacker))} ${p.toFixed(1)}%</span><span>${esc(invFaction(r.defender))} ${(100 - p).toFixed(1)}%</span></div>`;
+}
+function invCard(r) {
+  /* 感染体が攻め側のときは攻め側の報酬が無い(空)ので、守り側だけを出す */
+  const sides = (r.infested && !r.attacker_reward.length ? "" : invSide(r.attacker, r.attacker_reward)) + invSide(r.defender, r.defender_reward);
+  return `<div class="card"><header><b>${esc(invPlace(r))}</b><span class="inv-vs">${
+    invFmt("invasion.vs", { a: invFac(r.attacker), d: invFac(r.defender) })}</span></header>
+    <div class="pad">${invBar(r)}<div class="inv-sides">${sides}</div></div></div>`;
+}
+function renderInvasionList() {
+  if (!inv.has_snapshot) return noData(t("invasion.nodata"));
+  if (inv.needs_sync) return noData(t("invasion.stale"));
+  if (!inv.invasions.length) return noData(t("invasion.none"));
+  return (inv.regions_ok ? "" : `<p class="note">${esc(t("invasion.noregions"))}</p>`) + inv.invasions.map(invCard).join("");
+}
+function renderInvasionParts() {
+  if (!inv.parts_ok) return noData(t("invasion.broken"));
+  return inv.weapons.map(w => `<div class="card"><header><b>${esc(w.name)}</b><span>${w.owned} / ${w.total}</span></header>
+    <div class="pad inv-pick">${w.parts.map(p => `<label class="${p.active ? "active" : ""}"><input type="checkbox" class="own" data-path="${esc(p.path)}"${
+      p.owned ? " checked" : ""} aria-label="${esc(invPart(w.name, p.kind))}">${esc(t("invasion.part." + p.kind))}${
+      p.active ? `<span class="tag-mini">${esc(t("invasion.active"))}</span>` : ""}</label>`).join("")}</div></div>`).join("");
+}
+function renderInvasion() {
+  document.querySelectorAll("#view-invasion [data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+  if (!inv) return;
+  $("#inv-list").innerHTML = renderInvasionList();
+  $("#inv-parts").innerHTML = renderInvasionParts();
+  const owned = inv.weapons.reduce((n, w) => n + w.owned, 0), total = inv.weapons.reduce((n, w) => n + w.total, 0);
+  $("#inv-sum").textContent = inv.parts_ok ? invFmt("invasion.sum", { owned, total }) : "";
+  $("#inv-unknown").innerHTML = inv.unknown_parts.length ? `<div class="card inv-warn"><header><b>${esc(t("invasion.unknown"))}</b></header>
+    <div class="pad">${inv.unknown_parts.map(u => `<div>${esc(u.name)} <span class="note">${esc(u.path)}</span></div>`).join("")}
+    <span class="note">${esc(t("invasion.unknown.help"))}</span></div></div>` : "";
+  $("#inv-info").textContent = inv.fetched_at ? invFmt("invasion.fetched", { at: new Date(inv.fetched_at * 1000).toLocaleString(
+    lang === "ja" ? "ja-JP" : "en-US", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) }) : "";
+}
+$("#inv-sync").addEventListener("click", async () => {
+  const btn = $("#inv-sync");
+  btn.disabled = true; $("#inv-err").textContent = ""; $("#inv-info").textContent = t("invasion.syncing");
+  try {
+    inv = await api("/api/invasions/update", { method: "POST", body: {} }); renderInvasion();
+    if (inv.synced && inv.synced.cached) $("#inv-info").textContent += t("invasion.cached");
+  } catch (e) { $("#inv-err").textContent = e.message; renderInvasion(); }
+  btn.disabled = false;
+});
+/* チェックの付け外し: 返ってきた全体で描き直す(左の「取得済み」の表示もそろう)。失敗したらチェックを戻す */
+$("#inv-parts").addEventListener("change", async e => {
+  const box = e.target.closest("input[data-path]");
+  if (!box) return;
+  $("#inv-err").textContent = "";
+  try { inv = await api("/api/invasions/parts", { method: "POST", body: { path: box.dataset.path, owned: box.checked } }); renderInvasion(); }
+  catch (err) { box.checked = !box.checked; $("#inv-err").textContent = err.message; }
+});
+async function loadInvasion() {
+  renderInvasion();
+  if (!inv) $("#inv-list").innerHTML = `<div class="empty">${esc(t("invasion.loading"))}</div>`;
+  try { inv = await api("/api/invasions"); renderInvasion(); }
+  catch (e) { $("#inv-list").innerHTML = noData(e.message); }
+}
+loaders.invasion = loadInvasion;  // 開くたびに読み直す(ほかのページの「時刻合わせ」で取り直した結果も反映)
+
 /* ---------- Tips ---------- */
 /* tips フォルダのメモ(.md / .txt / .csv)を表示する。.md は簡単な書き方(見出し・表・箇条書きなど)に対応 */
 let tipsList = null, tipCur = null, tipSeq = 0;

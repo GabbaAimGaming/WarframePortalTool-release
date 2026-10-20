@@ -96,3 +96,17 @@ def load_duviri_adjust(d: Path) -> dict:
 
 def save_duviri_adjust(d: Path, adjust: dict) -> None:
     (d / "duviri_adjust.json").write_text(json.dumps(adjust, ensure_ascii=False), encoding="utf-8")
+
+
+# invasion_parts.json: 侵略サイクルで取得済みにしたパーツの内部パスのリスト(同梱の data/invasion/parts.json の path)
+def load_invasion_parts(d: Path) -> set[str]:
+    f = d / "invasion_parts.json"
+    try:
+        raw = json.loads(f.read_text(encoding="utf-8-sig")) if f.exists() else []
+    except ValueError:
+        return set()
+    return {x for x in raw if isinstance(x, str)} if isinstance(raw, list) else set()
+
+
+def save_invasion_parts(d: Path, owned: set[str]) -> None:
+    (d / "invasion_parts.json").write_text(json.dumps(sorted(owned), ensure_ascii=False, indent=0), encoding="utf-8")

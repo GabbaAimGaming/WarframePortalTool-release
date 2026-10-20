@@ -1,0 +1,48 @@
+{
+  "_comment": "侵略サイクルの獲得パーツ一覧。武器名は英語のまま表示、パーツ名は画面の I18N(invasion.part.<kind>)で表示。path は報酬の内部パス(World State の ItemType)。aliases は同じパーツが別のパスで来たとき用。開発側が手で編集して配布する",
+  "weapons": [
+    {"name": "Karak Wraith", "parts": [
+      {"kind": "blueprint", "path": "/Lotus/Types/Recipes/Weapons/KarakWraithBlueprint"},
+      {"kind": "barrel", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/KarakWraithBarrel"},
+      {"kind": "receiver", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/KarakWraithReceiver"},
+      {"kind": "stock", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/KarakWraithStock"}
+    ]},
+    {"name": "Latron Wraith", "parts": [
+      {"kind": "blueprint", "path": "/Lotus/Types/Recipes/Weapons/LatronWraithBlueprint"},
+      {"kind": "barrel", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/LatronWraithBarrel"},
+      {"kind": "receiver", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/LatronWraithReceiver"},
+      {"kind": "stock", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/LatronWraithStock"}
+    ]},
+    {"name": "Strun Wraith", "parts": [
+      {"kind": "blueprint", "path": "/Lotus/Types/Recipes/Weapons/StrunWraithBlueprint"},
+      {"kind": "barrel", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/StrunWraithBarrel"},
+      {"kind": "receiver", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/StrunWraithReceiver"},
+      {"kind": "stock", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/StrunWraithStock"}
+    ]},
+    {"name": "Twin Vipers Wraith", "parts": [
+      {"kind": "blueprint", "path": "/Lotus/Types/Recipes/Weapons/TwinVipersWraithBlueprint"},
+      {"kind": "barrel", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/TwinVipersWraithBarrel"},
+      {"kind": "link", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/TwinVipersWraithLink"},
+      {"kind": "receiver", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/TwinVipersWraithReceiver"}
+    ]},
+    {"name": "Sheev", "parts": [
+      {"kind": "blueprint", "path": "/Lotus/Types/Recipes/Weapons/GrineerCombatKnifeSortieBlueprint",
+       "aliases": ["/Lotus/Types/Recipes/Weapons/GrineerCombatKnifeBlueprint"]},
+      {"kind": "blade", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/GrineerCombatKnifeBlade"},
+      {"kind": "heatsink", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/GrineerCombatKnifeHeatsink"},
+      {"kind": "hilt", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/GrineerCombatKnifeHilt"}
+    ]},
+    {"name": "Dera Vandal", "parts": [
+      {"kind": "blueprint", "path": "/Lotus/Types/Recipes/Weapons/DeraVandalBlueprint"},
+      {"kind": "barrel", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/DeraVandalBarrel"},
+      {"kind": "receiver", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/DeraVandalReceiver"},
+      {"kind": "stock", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/DeraVandalStock"}
+    ]},
+    {"name": "Snipetron Vandal", "parts": [
+      {"kind": "blueprint", "path": "/Lotus/Types/Recipes/Weapons/SnipetronVandalBlueprint"},
+      {"kind": "barrel", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/SnipetronVandalBarrel"},
+      {"kind": "receiver", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/SnipetronVandalReceiver"},
+      {"kind": "stock", "path": "/Lotus/Types/Recipes/Weapons/WeaponParts/SnipetronVandalStock"}
+    ]}
+  ]
+}

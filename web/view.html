@@ -242,6 +242,34 @@ td.num, th.num { text-align: right; }
   .spex .tablewrap { flex: 1; min-height: 0; overflow: auto; }
 }
 
+/* 侵略サイクル: 左 = 侵略ミッション / 右 = 獲得パーツ(広い画面だけ2カラム。狭い画面は下に並ぶ) */
+#inv-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px 24px; }
+/* 侵略ミッションは件数で縦に伸びるので、画面の高さを超えたら一覧の中でスクロールする(ページ全体は伸ばさない) */
+.inv-list { display: grid; gap: 12px; align-content: start; max-height: max(360px, calc(100vh - 260px)); overflow-y: auto; padding-right: 4px; }
+.inv-parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+/* 広い画面: 侵略ミッション 1/3・獲得パーツ 2/3 */
+@media (min-width: 1200px) {
+  #inv-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+}
+.inv-vs { margin-left: auto; font-size: 12px; }
+/* 陣営の色(文字とバーで共通)。テーマの配色から選ぶ: グリニア = rare / コーパス = accent / 感染体 = legendary */
+.inv-fac { --fac: var(--mute); color: var(--fac); font-weight: 700; }
+.FC_GRINEER { --fac: var(--rar-rare); }
+.FC_CORPUS { --fac: var(--accent); }
+.FC_INFESTATION { --fac: var(--rar-legendary); }
+.inv-bar { display: flex; height: 8px; background: var(--panel-2); border: 1px solid var(--line); }
+.inv-bar > i { display: block; background: var(--fac, var(--accent)); }
+.inv-pct { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--mute); font-variant-numeric: tabular-nums; }
+.inv-sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px 14px; margin-top: 6px; }
+.inv-sides > div { min-width: 0; display: grid; gap: 2px; align-content: start; }
+.inv-sides .note { margin: 0; }
+.inv-rw.part { color: var(--accent); font-weight: 700; }
+.card .pad.inv-pick { display: flex; flex-wrap: wrap; gap: 6px 16px; }  /* 2行目: パーツを横に並べる */
+.inv-pick label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
+.inv-pick label.active { color: var(--accent); font-weight: 700; }
+.inv-warn { border-color: var(--danger); }
+.inv-warn > header b { color: var(--danger); }
+
 /* バロ吉入手一覧 */
 .baro-h { margin: 22px 0 6px; font-size: 15px; }
 #baro-now .card { margin-top: 14px; }
@@ -590,6 +618,29 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
         <div class="summary" id="ms-summary"></div>
         <div id="ms-out"></div>
         <p class="note">Kitgun はチェンバー(プライマリ版とセカンダリ版は別々)、Zaw はストライク、アンプはプリズムと Sirocco の単位で数えます。MOA・ハウンド(組み立て式のロボティック)、アークウイング本体、ネクラメカ、K-ドライブは含みません。マスタリー経験値はランク最大までの値です(Warframe・コンパニオン・センチネルは 1 ランク 200、武器は 100。Kuva・Tenet・Coda などはランク 40)。</p>
+      </section>
+
+      <!-- 侵略サイクル(文字は I18N の data-i18n で差し替え。中の日本語は読み込み前の表示) -->
+      <section id="view-invasion" hidden>
+        <h2 data-i18n="page.invasion">侵略サイクル</h2>
+        <p class="lead" data-i18n="invasion.lead">いま進行中の侵略と、侵略で手に入る武器パーツの取得状況です。侵略の一覧は「公式データで更新」を押したときに取り直します。</p>
+        <div class="cyc-sync">
+          <button class="btn" type="button" id="inv-sync" data-i18n="invasion.sync">公式データで更新</button>
+          <span class="note" id="inv-info" role="status"></span>
+        </div>
+        <div class="err" id="inv-err" role="alert"></div>
+        <div id="inv-layout">
+          <div>
+            <h3 class="dv-h" data-i18n="invasion.list">侵略ミッション</h3>
+            <div class="inv-list" id="inv-list"></div>
+          </div>
+          <div>
+            <h3 class="dv-h"><span data-i18n="invasion.parts">獲得パーツ一覧</span><span class="note" id="inv-sum"></span></h3>
+            <div id="inv-unknown"></div>
+            <div class="inv-parts" id="inv-parts"></div>
+          </div>
+        </div>
+        <p class="note" data-i18n="invasion.note">報酬はその陣営の側でミッションを3回クリアすると手に入ります。完了した侵略は表示しません。取得済みのチェックはこの PC に保存され、ツールの更新では消えません。</p>
       </section>
 
       <!-- サイクル -->

@@ -5,7 +5,7 @@
 <script>
 /* ---------- 表示する文字(言語ごと) ---------- */
 /* キー → 文字。今の言語に無いキーは日本語、それも無ければキーそのものを表示する。
-   いまはメニュー・トップ・ページ説明・デュヴィリサーキットのページが対象(ページの文字はマークアップの data-i18n か t("…") で引く)。
+   いまはメニュー・トップ・ページ説明・デュヴィリサーキット・侵略サイクルのページが対象(ページの文字はマークアップの data-i18n か t("…") で引く)。
    中身は JSON と同じ形にしてあるので、増えたら別ファイルに切り出せる */
 const I18N = {
   ja: {
@@ -20,6 +20,7 @@ const I18N = {
     "page.baro": "バロ吉入手一覧", "page.baro.sub": "Void商人の商品と所持の照合",
     "page.riven": "Riven相場", "page.riven.sub": "公式の週次統計",
     "page.dispo": "Riven性質", "page.dispo.sub": "武器ごとの性質(●1〜5)",
+    "page.invasion": "侵略サイクル", "page.invasion.sub": "侵略ミッションと獲得パーツ",
     "page.cycle": "サイクル", "page.cycle.sub": "昼夜・リセット",
     "page.duviri": "デュヴィリサーキット", "page.duviri.sub": "週替わりの報酬",
     "page.build": "ビルド", "page.build.sub": "登録と管理",
@@ -37,6 +38,7 @@ const I18N = {
     "guide.baro": "バロ吉の履歴リストと今回の品物を確認し、持っているものとの照合ができます。",
     "guide.riven": "公式の週次統計から、武器ごとの Riven の相場を確認できます。",
     "guide.dispo": "武器ごとの Riven 性質(●1〜5)を、高い順に確認できます。",
+    "guide.invasion": "いま進行中の侵略(場所・報酬・進み具合)と、侵略で手に入る武器パーツの一覧を表示します。手に入れたパーツにチェックを付けて管理できます。",
     "guide.cycle": "平原などの昼夜と、デイリー・ウィークリーのリセットまでの時間を表示します。今週のスティール・エッセンス交換の報酬も確認できます。",
     "guide.duviri": "デュヴィリサーキットの今週の報酬と今後のローテーションを、ノーマルと鋼の道のりで確認できます。",
     "guide.build": "ビルドに名前をつけて保存・管理します。画像から MOD などを読み取って登録することもできます(Windows の文字認識を使います)。",
@@ -57,6 +59,27 @@ const I18N = {
     /* 交換の報酬名の置き換え(キーは JSON の綴りの小文字。末尾の数量 " x3" は除いた名前。表に無いものは英語のまま) */
     "spex.item.umbra forma blueprint": "Umbraフォーマの設計図", "spex.item.forma": "フォーマ",
     "spex.item.rifle riven mod": "ライフルRivenMOD", "spex.item.shotgun riven mod": "ショットガンRivenMOD",
+    "invasion.lead": "いま進行中の侵略と、侵略で手に入る武器パーツの取得状況です。侵略の一覧は「公式データで更新」を押したときに取り直します。",
+    "invasion.sync": "公式データで更新", "invasion.syncing": "公式データを取得しています...",
+    "invasion.fetched": "最終取得 {at}", "invasion.cached": "(60 秒以内なので前回の取得結果を使いました)",
+    "invasion.list": "侵略ミッション", "invasion.parts": "獲得パーツ一覧", "invasion.sum": "{owned} / {total} 取得",
+    "invasion.nodata": "まだ公式データを取得していません。「公式データで更新」を押してください。",
+    "invasion.stale": "保存済みの公式データに侵略の情報がありません(この機能を入れる前に取得したものです)。「公式データで更新」を押してください。",
+    "invasion.none": "進行中の侵略はありません。", "invasion.loading": "読み込み中...",
+    "invasion.noregions": "ノード名の辞書がまだ無いため、内部名で表示しています。「データ更新」を実行するとノード名で表示します。",
+    "invasion.broken": "獲得パーツの一覧(同梱データ)が読めません。",
+    "invasion.unknown": "一覧に無い武器パーツが侵略に来ています",
+    "invasion.unknown.help": "同梱の一覧(data/invasion/parts.json)に無いパーツです。開発側への連絡をお願いします。",
+    "invasion.node": "{node}({planet})", "invasion.vs": "{a} → {d}",
+    "invasion.side": "{f}側の報酬", "invasion.noreward": "報酬なし",
+    "invasion.progress": "進行度 {p}%", "invasion.count": " ×{n}",
+    "invasion.owned": "取得済み", "invasion.active": "侵略中",
+    "invasion.note": "報酬はその陣営の側でミッションを3回クリアすると手に入ります。完了した侵略は表示しません。取得済みのチェックはこの PC に保存され、ツールの更新では消えません。",
+    "invasion.faction.FC_GRINEER": "グリニア", "invasion.faction.FC_CORPUS": "コーパス", "invasion.faction.FC_INFESTATION": "感染体",
+    /* パーツの種類(同梱の parts.json の kind) */
+    "invasion.part.blueprint": "設計図", "invasion.part.barrel": "バレル", "invasion.part.receiver": "レシーバー",
+    "invasion.part.stock": "ストック", "invasion.part.link": "リンク", "invasion.part.blade": "ブレード",
+    "invasion.part.heatsink": "ヒートシンク", "invasion.part.hilt": "ヒルト",
   },
   en: {
     "menu.aria": "Menu", "menu.title": "Menu",
@@ -70,6 +93,7 @@ const I18N = {
     "page.baro": "Baro Ki'Teer", "page.baro.sub": "Void Trader items vs. owned",
     "page.riven": "Riven Prices", "page.riven.sub": "Official weekly stats",
     "page.dispo": "Riven Disposition", "page.dispo.sub": "Disposition per weapon",
+    "page.invasion": "Invasions", "page.invasion.sub": "Invasion missions and parts",
     "page.cycle": "Cycles", "page.cycle.sub": "Day/night and resets",
     "page.duviri": "Duviri Circuit", "page.duviri.sub": "Weekly rewards",
     "page.build": "Builds", "page.build.sub": "Save and manage",
@@ -87,6 +111,7 @@ const I18N = {
     "guide.baro": "See Baro Ki'Teer's history list and this visit's items, checked against what you own.",
     "guide.riven": "See Riven prices per weapon from the official weekly stats.",
     "guide.dispo": "See each weapon's Riven disposition (1-5 dots), highest first.",
+    "guide.invasion": "Shows the invasions in progress (location, rewards, progress) and every weapon part invasions give. Tick the parts you have collected.",
     "guide.cycle": "Day/night for the open worlds and the time until the daily and weekly resets. Also shows this week's Steel Essence exchange reward.",
     "guide.duviri": "This week's Duviri Circuit rewards and the coming rotation, for Normal and Steel Path.",
     "guide.build": "Save and manage your builds. Mods and more can be read from a screenshot (uses Windows text recognition).",
@@ -104,6 +129,26 @@ const I18N = {
     "duviri.adjust.help": "Pick the ID that matches this week's rewards in game; the rotation advances from there every week. Adjustments are per mode and survive tool updates.",
     "spex.title": "Steel Essence Exchange", "spex.current": "This week: ",
     "spex.date": "Week of", "spex.item": "Reward", "spex.broken": "The exchange data could not be read.",
+    "invasion.lead": "Invasions in progress and the weapon parts you have collected from them. The invasion list is refreshed when you press Update from official data.",
+    "invasion.sync": "Update from official data", "invasion.syncing": "Fetching official data...",
+    "invasion.fetched": "Last fetched {at}", "invasion.cached": " (within 60 seconds, so the previous result was used)",
+    "invasion.list": "Invasion missions", "invasion.parts": "Weapon parts", "invasion.sum": "{owned} / {total} collected",
+    "invasion.nodata": "No official data yet. Press Update from official data.",
+    "invasion.stale": "The saved official data has no invasions (it was fetched before this page existed). Press Update from official data.",
+    "invasion.none": "No invasions in progress.", "invasion.loading": "Loading...",
+    "invasion.noregions": "Node names are not available yet, so internal names are shown. Run Data Update to get them.",
+    "invasion.broken": "The parts list (bundled data) could not be read.",
+    "invasion.unknown": "Weapon parts not in the list are being offered",
+    "invasion.unknown.help": "These parts are missing from the bundled list (data/invasion/parts.json). Please report them.",
+    "invasion.node": "{node} ({planet})", "invasion.vs": "{a} → {d}",
+    "invasion.side": "{f} reward", "invasion.noreward": "No reward",
+    "invasion.progress": "Progress {p}%", "invasion.count": " x{n}",
+    "invasion.owned": "Collected", "invasion.active": "Available",
+    "invasion.note": "Rewards are earned by completing three missions for that side. Finished invasions are hidden. Collected checks are saved on this PC and survive tool updates.",
+    "invasion.faction.FC_GRINEER": "Grineer", "invasion.faction.FC_CORPUS": "Corpus", "invasion.faction.FC_INFESTATION": "Infested",
+    "invasion.part.blueprint": "Blueprint", "invasion.part.barrel": "Barrel", "invasion.part.receiver": "Receiver",
+    "invasion.part.stock": "Stock", "invasion.part.link": "Link", "invasion.part.blade": "Blade",
+    "invasion.part.heatsink": "Heatsink", "invasion.part.hilt": "Hilt",
   },
 };
 let lang = "ja";
@@ -127,7 +172,7 @@ const MENU = [
   { page: "home" },
   { group: "search", items: ["item", "area"] },
   { group: "personal", items: ["mastery", "mods", "arcane", "baro"] },
-  { group: "info", items: ["riven", "dispo", "cycle", "duviri"] },
+  { group: "info", items: ["riven", "dispo", "invasion", "cycle", "duviri"] },
   { group: "simulation", items: ["build", "sim"] },
   { page: "tips" },
   { page: "guide" },

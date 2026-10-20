@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """wfportal_worldstate - 公式の World State を取得して、必要な分だけ取り出す (標準ライブラリのみ)
 
-World State は、ゲームの「いまの状態」(サイクル・バロなど)を公式が JSON で公開しているもの。
+World State は、ゲームの「いまの状態」(サイクル・バロ・侵略など)を公式が JSON で公開しているもの。
 ドキュメントは公開されておらず、予告なく変わることがあるため、使う項目だけを取り出し、
 取れなかった項目は無いものとして扱う(ツール全体は止めない)。
 
-- 取得は利用者が操作したときだけ(サイクルの時刻合わせ・バロ情報の更新)。常に問い合わせることはしない。
+- 取得は利用者が操作したときだけ(サイクルの時刻合わせ・バロ情報の更新・侵略の更新)。常に問い合わせることはしない。
 - 公式の CDN は 60 秒ほどキャッシュするため、前回の取得から COOLDOWN 秒以内は前回の結果を使う。
 - 本文の Time はキャッシュされた時点の時刻なので、PC の時計のずれは HTTP の Date ヘッダーから求める。
 - 保存するのは取り出した結果だけ (worldstate.json)。取得した全文は保存しない。
@@ -107,7 +107,49 @@ def extract(ws: dict) -> dict:
                               "limit": m.get("Limit")})
         traders.append({"character": v.get("Character") or "", "node": v.get("Node") or "", "activation": act,
                         "expiry": exp, "items": items})
-    return {"server_time": ws.get("Time"), "build": ws.get("BuildLabel"), "cetus": cetus, "traders": traders}
+    return {"server_time": ws.get("Time"), "build": ws.get("BuildLabel"), "cetus": cetus, "traders": traders,
+            "invasions": extract_invasions(ws.get("Invasions"))}
+
+
+def _number(v) -> float | None:
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+
+def _oid(v) -> str:
+    """{"$oid": "…"} の中身(文字列ならそのまま)。読めなければ空文字"""
+    v = v.get("$oid") if isinstance(v, dict) else v
+    return v if isinstance(v, str) else ""
+
+
+def _rewards(v) -> list[dict]:
+    """侵略の報酬 {"countedItems": [{"ItemType", "ItemCount"}]} を [{path, count}] にする。
+
+    感染体が攻め側のときは辞書ではなく空の配列 [] で来る。読めない項目(クレジット等の別キー)は無視する。
+    """
+    items = v.get("countedItems") if isinstance(v, dict) else None
+    out = []
+    for it in items if isinstance(items, list) else []:
+        if isinstance(it, dict) and isinstance(it.get("ItemType"), str):
+            n = it.get("ItemCount")
+            out.append({"path": it["ItemType"], "count": n if isinstance(n, int) and not isinstance(n, bool) and n > 0 else 1})
+    return out
+
+
+def extract_invasions(raw) -> list[dict]:
+    """World State の Invasions から使う項目だけを取り出す(完了済みも残す。除くのは表示側)。ノードが無いものは飛ばす"""
+    out = []
+    for v in raw if isinstance(raw, list) else []:
+        if not isinstance(v, dict) or not isinstance(v.get("Node"), str):
+            continue
+        out.append({"id": _oid(v.get("_id")), "node": v["Node"],
+                    "attacker": v.get("Faction") if isinstance(v.get("Faction"), str) else "",
+                    "defender": v.get("DefenderFaction") if isinstance(v.get("DefenderFaction"), str) else "",
+                    "count": _number(v.get("Count")), "goal": _number(v.get("Goal")),
+                    "completed": v.get("Completed") is True, "activation": ms_date(v.get("Activation")),
+                    "loc_tag": v.get("LocTag") if isinstance(v.get("LocTag"), str) else "",
+                    "attacker_reward": _rewards(v.get("AttackerReward")),
+                    "defender_reward": _rewards(v.get("DefenderReward"))})
+    return out
 
 
 def fetch(fetcher=None) -> tuple[dict, float | None]:

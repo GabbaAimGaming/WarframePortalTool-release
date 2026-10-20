@@ -1,4 +1,4 @@
-"""データ更新: ドロップ表・入手先・Riven 相場・名前辞書と、同じ Export から作るシミュレータ用データ・バロ用の辞書
+"""データ更新: ドロップ表・入手先・Riven 相場・名前辞書と、同じ Export から作るシミュレータ用データ・バロ用の辞書、侵略用のノード名
 
 層のルールの例外: このモジュールだけは wfportal_builder / wfportal_baro を import してよい
 (2つを wfp へ移すまでの一時的な扱い。tests/test_layers.py に同じ例外を書いてある)。
@@ -11,9 +11,10 @@ from pathlib import Path
 
 import wfportal_baro as wbaro
 import wfportal_builder as wb
-from wfp.core import riven
+from wfp.core import invasion, riven
 from wfp.core.common import DROPS_URLS, WFCD_BASES, WFCD_EXTRA
 from wfp.fetch import exports, logos, net
+from wfp.store import gamedata
 
 
 class UpdateFailed(Exception):
@@ -78,6 +79,18 @@ def update_all(d: Path) -> None:
         print(f"内部パスの辞書: {len(paths)} 件")
     except Exception as e:  # noqa: BLE001
         print(f"  内部パスの辞書を作れませんでした: {e}  ※前回取得分があればそれを使います")
+
+    # 侵略サイクルのノード名(SolNode… → ノード名・惑星名)。名前辞書とは別に取る(names.json に混ぜないため)
+    print("ノード名(ExportRegions)を取得中...")
+    try:
+        en_doc, ja_doc, src = exports.fetch_regions()
+        regions = invasion.regions_from_exports(en_doc, ja_doc)
+        if not regions:
+            raise RuntimeError("ノードが見つかりません")
+        gamedata.save_regions(d, regions)
+        print(f"ノード名: {len(regions)} 件(取得元: {src})")
+    except Exception as e:  # noqa: BLE001
+        print(f"  ノード名を取得できませんでした: {e}  ※前回取得分があればそれを使います(無ければ内部名で表示)")
 
     if not logos.find_logos_dir(d):  # 初回(ロゴ素材が未取得)のときだけ取得する
         logos.fetch_logos(d)
