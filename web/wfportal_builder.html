@@ -233,7 +233,6 @@ summary { cursor: pointer; color: var(--mute); font-size: 13px; }
         <div class="find-note" id="r-q-note" aria-live="polite"></div>
         <div class="fields" style="margin-top:8px">
           <label>Riven の種類<select id="r-group"></select></label>
-          <label>性質値<input type="number" step="0.01" min="0.5" max="1.55" id="r-dispo" value="1.00"></label>
           <label>ランク<select id="r-rank"></select></label>
         </div>
         <h4>プラス効果(2つか3つ)</h4>
@@ -496,7 +495,6 @@ function renderWeapon(r) {
       ${r.melee ? "" : cmpRow("マルチショット", w.multishot, r.multishot, x => num(x, 2))}
       ${r.magazine !== undefined ? cmpRow("マガジン", w.magazine, r.magazine, x => num(x))
         + cmpRow("リロード(秒・短いほど良い)", w.reload, r.reload, x => num(x, 2), false, true) : ""}
-      <tr><td>Riven 性質</td><td class="num" colspan="2">${num(w.dispo, 2)}(${esc(w.riven_type.replace(" Riven Mod", ""))})</td></tr>
     </tbody></table></div>
     <h4>ダメージの内訳(1${r.melee ? "ヒット" : "発"}・MOD 適用後)</h4>
     <div class="tablewrap"><table><thead><tr><th>種類</th><th class="num">ダメージ</th><th class="num">割合</th><th></th></tr></thead><tbody>
@@ -570,12 +568,11 @@ function setupRiven() {
   const ws = META.has_data ? META.weapons : [];
   $("#r-weapon").innerHTML = `<option value="">武器を選ばずに入力する</option>` + Object.entries(META.cats).map(([c, label]) => {
     const list = ws.filter(w => w.cat === c).sort((a, b) => a.ja.localeCompare(b.ja, "ja"));
-    return list.length ? `<optgroup label="${esc(label)}">${list.map(w => `<option value="${esc(c + "|" + w.en)}">${esc(w.ja)}${w.ja !== w.en ? ` (${esc(w.en)})` : ""} — ${num(w.dispo, 2)}</option>`).join("")}</optgroup>` : "";
+    return list.length ? `<optgroup label="${esc(label)}">${list.map(w => `<option value="${esc(c + "|" + w.en)}">${esc(w.ja)}${w.ja !== w.en ? ` (${esc(w.en)})` : ""}</option>`).join("")}</optgroup>` : "";
   }).join("");
   const s = store.get("riven", {});
   if (s.weapon && [...$("#r-weapon").options].some(o => o.value === s.weapon)) $("#r-weapon").value = s.weapon;
   if (s.group) $("#r-group").value = s.group;
-  if (s.dispo) $("#r-dispo").value = s.dispo;
   if (s.rank !== undefined) $("#r-rank").value = s.rank;
   renderRivenSelects(s.buffs || ["cc", "cd", ""], s.curse || "");
   calcRiven();
@@ -592,16 +589,15 @@ function renderRivenSelects(buffs, curse) {
 function applyRivenWeapon() {
   const v = $("#r-weapon").value; if (!v) return;
   const [cat, en] = v.split("|"), w = META.weapons.find(x => x.cat === cat && x.en === en); if (!w) return;
-  $("#r-dispo").value = w.dispo.toFixed(2);
   $("#r-group").value = META.riven_type_group[w.riven_type] || "rifle";
 }
 const calcRiven = debounce(async () => {
   const buffs = $$("[data-rb-i]").map(s => s.value).filter(Boolean), curse = $("#r-curse").value;
-  store.set("riven", { weapon: $("#r-weapon").value, group: $("#r-group").value, dispo: $("#r-dispo").value, rank: $("#r-rank").value,
+  store.set("riven", { weapon: $("#r-weapon").value, group: $("#r-group").value, rank: $("#r-rank").value,
     buffs: $$("[data-rb-i]").map(s => s.value), curse });
   if (buffs.length < 2) { $("#r-out").innerHTML = `<div class="empty">プラス効果を 2 つ以上選んでください。</div>`; return; }
   try {
-    const r = await api("/api/builder/riven", { group: $("#r-group").value, dispo: $("#r-dispo").value, rank: +$("#r-rank").value, buffs, curse: curse || null });
+    const r = await api("/api/builder/riven", { group: $("#r-group").value, rank: +$("#r-rank").value, buffs, curse: curse || null });
     renderRiven(r, buffs.length, !!curse);
   } catch (e) { $("#r-out").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
 });
@@ -615,7 +611,7 @@ function renderRiven(r, nb, curse) {
         <td class="num">${fmt(x.min, x.unit)}</td><td class="num">${fmt(x.max, x.unit)}</td>
         <td class="num" style="color:var(--mute)">${fmt(x.min_r0, x.unit)} 〜 ${fmt(x.max_r0, x.unit)}</td></tr>`).join("")}
     </tbody></table></div>
-    <p class="note">値 = 基準値 × 性質値 × 効果数の補正 × 乱数(0.9〜1.1)。ランク r では × (r + 1) ÷ 9。
+    <p class="note">値 = 基準値 × 性質値(1.2 固定)× 効果数の補正 × 乱数(0.9〜1.1)。ランク r では × (r + 1) ÷ 9。
       この構成の補正: プラス効果 ×${m ? m.buff : "?"}${curse && m ? ` / マイナス効果 ×${m.curse_m}` : ""}。
       基準値は WARFRAME Wiki 掲載の値(一部の効果は列の対応が推定、Kitgun はピストル・コンパニオン武器はライフルの値で代用)です。</p>`;
 }
@@ -626,7 +622,7 @@ $("#r-q").addEventListener("input", () => {
 });
 $("#r-weapon").addEventListener("change", () => { applyRivenWeapon(); renderRivenSelects($$("[data-rb-i]").map(s => s.value), $("#r-curse").value); calcRiven(); });
 $("#r-group").addEventListener("change", () => { renderRivenSelects($$("[data-rb-i]").map(s => s.value), $("#r-curse").value); calcRiven(); });
-["#r-dispo", "#r-rank", "#r-buffs", "#r-curse"].forEach(id => { $(id).addEventListener("input", calcRiven); $(id).addEventListener("change", calcRiven); });
+["#r-rank", "#r-buffs", "#r-curse"].forEach(id => { $(id).addEventListener("input", calcRiven); $(id).addEventListener("change", calcRiven); });
 
 /* ---------- 起動 ---------- */
 showTab(store.get("tab", "frame"));

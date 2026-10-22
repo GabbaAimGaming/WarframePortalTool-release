@@ -319,6 +319,9 @@ th.sort[aria-sort="ascending"]::after { content: " ▲"; }
 th.sort[aria-sort="descending"]::after { content: " ▼"; }
 .tablewrap.tall { max-height: 68vh; overflow: auto; }
 .tablewrap.tall thead th { position: sticky; top: 0; z-index: 1; }
+/* 見出しが2段の表: セルごとではなく thead ごと固定する(セルごとだと2段目が1段目に重なる) */
+.tablewrap.tall thead.stack { position: sticky; top: 0; z-index: 1; }
+.tablewrap.tall thead.stack th { position: static; }
 
 /* MOD 一覧 */
 .summary { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 12px 0 8px; color: var(--mute); }
@@ -356,15 +359,6 @@ select.arc-rank { padding: 2px 6px; }
 /* Riven */
 td.med { font-weight: 700; }
 .veiled { color: var(--mute); }
-/* Riven 性質 */
-.dots { letter-spacing: .12em; font-size: 13px; white-space: nowrap; }
-/* ◯ は日本語フォントで●より大きく見えるため、縮めて大きさをそろえる(文字はそのまま。コピーすると ●●●◯◯) */
-.dots .off { color: var(--mute); opacity: .55; font-size: .66em; letter-spacing: .32em; vertical-align: .12em; margin-left: .1em; }
-.dots.d5, .dots.d4 { color: var(--accent); }
-.dots.d3 { color: color-mix(in srgb, var(--ink) 70%, transparent); }
-.dots.d2, .dots.d1 { color: var(--mute); }
-.legend { display: flex; gap: 4px 14px; flex-wrap: wrap; font-size: 12px; color: var(--mute); }
-.legend .dots { font-size: 12px; }
 
 /* シミュレータ (iframe の高さは中身に合わせて自動で変える) */
 .sim-frame { display: block; width: 100%; min-height: 420px; border: 0; background: transparent; }
@@ -585,22 +579,6 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
         <div class="summary" id="riv-summary"></div>
         <div id="riv-out"></div>
         <p class="note">極端な出品価格が混ざるため、平均より中央値が目安になります。件数が少ない武器は振れ幅が大きくなります。</p>
-      </section>
-
-      <!-- Riven 性質 -->
-      <section id="view-dispo" hidden>
-        <h2>Riven性質</h2>
-        <p class="lead">公式データ(ExportWeapons.json)の性質値を、カテゴリーごとに性質の高い順(●●●●● → ●◯◯◯◯)で並べています。性質が高い武器ほど Riven の効果が大きくなります。</p>
-        <div class="seg" id="dp-cats" role="group" aria-label="カテゴリー"></div>
-        <div class="row">
-          <input type="text" class="search" id="dp-q" placeholder="武器名で絞り込み(例: Rubico / Kuva)" autocomplete="off">
-          <select id="dp-dots" aria-label="性質(●の数)"><option value="">性質: すべて</option>
-            <option value="5">性質: 5</option><option value="4">性質: 4</option><option value="3">性質: 3</option>
-            <option value="2">性質: 2</option><option value="1">性質: 1</option></select>
-        </div>
-        <div class="summary" id="dp-summary"></div>
-        <div id="dp-out"></div>
-        <p class="note">●の数は性質値で決まります: 0.5〜0.7 ●◯◯◯◯ / 0.71〜0.9 ●●◯◯◯ / 0.91〜1.10 ●●●◯◯ / 1.11〜1.30 ●●●●◯ / 1.31〜1.55 ●●●●●。「性質」の絞り込みは●の数です(●●●◯◯なら 3)。Kitgun はチェンバーごとにプライマリ版とセカンダリ版で値が違います。Zaw はストライクの値です。プライマリのライフル/ショットガンの区分は、Riven 相場のデータがあればその武器種に合わせています。性質値はゲームのアップデートで変わるため、「データ更新」で取り直してください。</p>
       </section>
 
       <!-- マスター一覧 -->

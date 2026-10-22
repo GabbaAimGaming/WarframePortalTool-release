@@ -450,7 +450,7 @@ function renderRivens() {
     (!q || [r.weapon_ja, r.weapon_en, r.type_ja].some(x => (x || "").toLowerCase().includes(q)))), rivSort, rivGetters);
   $("#riv-summary").innerHTML = `<span>表示 <b class="count">${list.length}</b> / ${rivens.rows.length} 件</span><span>${esc(rivens.updated)} 取得</span>`;
   $("#riv-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
-    <thead><tr><th rowspan="2" class="sort" data-sort="w" aria-sort="${rivSort.key === "w" ? (rivSort.dir === "asc" ? "ascending" : "descending") : "none"}" tabindex="0">武器</th>
+    <thead class="stack"><tr><th rowspan="2" class="sort" data-sort="w" aria-sort="${rivSort.key === "w" ? (rivSort.dir === "asc" ? "ascending" : "descending") : "none"}" tabindex="0">武器</th>
       <th rowspan="2" class="sort" data-sort="t" aria-sort="${rivSort.key === "t" ? (rivSort.dir === "asc" ? "ascending" : "descending") : "none"}" tabindex="0">武器種</th>
       <th colspan="4" class="num">未リロール</th><th colspan="4" class="num">リロール済み</th></tr>
       <tr>${th("中央値", "um", rivSort, "num")}${th("平均", "ua", rivSort, "num")}<th class="num">範囲</th>${th("件数", "up", rivSort, "num")}
@@ -480,53 +480,12 @@ async function updateRivensOnly(btn, log) {
   try {
     const r = await api("/api/update-rivens", { method: "POST", body: {} });
     log.textContent = r.log || (r.ok ? "完了しました。" : "失敗しました。");
-    if (r.ok) { rivens = null; dispo = null; if (!$("#view-riven").hidden) await loaders.riven(); }
+    if (r.ok) { rivens = null; if (!$("#view-riven").hidden) await loaders.riven(); }
   } catch (e) { log.textContent = e.message; }
   btn.disabled = false; btn.textContent = label; refreshStatus();
 }
 $("#riv-update").addEventListener("click", () => updateRivensOnly($("#riv-update"), $("#riv-log")));
 $("#update-riv-btn").addEventListener("click", () => updateRivensOnly($("#update-riv-btn"), $("#update-log")));
-
-/* ---------- Riven 性質 ---------- */
-let dispo = null, dpCat = "primary";
-const dpSort = { key: "value", dir: "desc" };
-const dpGetters = { type: r => r.type_ja, name: r => (r.ja || r.en).toLowerCase(), dots: r => r.dots, value: r => r.value };
-const dotsHtml = n => `<span class="dots d${n}" aria-label="性質 ${n}" title="性質 ${n}">${"●".repeat(n)}<span class="off">${"◯".repeat(5 - n)}</span></span>`;
-const DP_RANGES = { 5: "1.31〜1.55", 4: "1.11〜1.30", 3: "0.91〜1.10", 2: "0.71〜0.90", 1: "0.50〜0.70" };
-function renderDispo() {
-  if (!dispo) return;
-  const cnt = {};
-  dispo.rows.forEach(r => { cnt[r.cat] = (cnt[r.cat] || 0) + 1; });
-  const cats = Object.entries(dispo.cats).filter(([k]) => cnt[k]);
-  if (!cnt[dpCat] && cats.length) dpCat = cats[0][0];
-  $("#dp-cats").innerHTML = cats.map(([k, v]) =>
-    `<button class="chip" data-dcat="${esc(k)}" aria-pressed="${dpCat === k}">${esc(v)}<small>${cnt[k]}</small></button>`).join("");
-  const q = $("#dp-q").value.trim().toLowerCase(), d = $("#dp-dots").value;
-  const inCat = dispo.rows.filter(r => r.cat === dpCat);
-  // 並べ替えが同じ値のときは、元の順(性質値の高い順 -> 名前)のまま
-  const list = sortRows(inCat.filter(r => (!d || r.dots === +d) &&
-    (!q || [r.en, r.ja, r.type_ja].some(x => (x || "").toLowerCase().includes(q)))), dpSort, dpGetters);
-  const per = [5, 4, 3, 2, 1].map(n => `<span>性質${n}: ${inCat.filter(r => r.dots === n).length}</span>`).join("");
-  $("#dp-summary").innerHTML = `<span><b class="count">${esc(dispo.cats[dpCat] || "")}</b> 表示 ${list.length} / ${inCat.length} 件</span>
-    <span class="legend">${per}</span>${dispo.updated ? `<span>${esc(dispo.updated)} 取得</span>` : ""}`;
-  $("#dp-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
-    <thead><tr>${th("武器区分", "type", dpSort)}${th("武器名", "name", dpSort)}${th("性質", "dots", dpSort)}${th("性質値", "value", dpSort, "num")}</tr></thead>
-    <tbody>${list.map(r => `<tr><td>${esc(r.type_ja)}</td>
-      <td>${esc(r.ja || r.en)}${r.ja && r.ja !== r.en ? `<span class="sub-en">${esc(r.en)}</span>` : ""}</td>
-      <td title="${DP_RANGES[r.dots]}">${dotsHtml(r.dots)}</td><td class="num">${r.value.toFixed(2)}</td></tr>`).join("")}</tbody></table></div>`
-    : noData("条件に合う武器がありません。");
-}
-$("#dp-cats").addEventListener("click", e => { const c = e.target.closest("[data-dcat]"); if (!c) return; dpCat = c.dataset.dcat; try { localStorage.setItem("wf-dispo-cat", dpCat); } catch (err) {} renderDispo(); });
-onSortClick($("#dp-out"), dpSort, renderDispo, ["dots", "value"]);
-$("#dp-q").addEventListener("input", debounce(renderDispo, 150));
-$("#dp-dots").addEventListener("change", renderDispo);
-loaders.dispo = async () => {
-  if (dispo) { renderDispo(); return; }
-  try { dpCat = localStorage.getItem("wf-dispo-cat") || dpCat; } catch (e) {}
-  $("#dp-out").innerHTML = `<div class="empty">読み込み中...</div>`;
-  try { dispo = await api("/api/dispo"); renderDispo(); }
-  catch (e) { $("#dp-cats").innerHTML = ""; $("#dp-summary").innerHTML = ""; $("#dp-out").innerHTML = noData(e.message); }
-};
 
 /* ---------- デュヴィリサーキット ---------- */
 /* 今週の ID は API(Python)側で計算する。ここは表示・タブ・手動調整の送信だけ。文字はすべて I18N(t)から */
@@ -1508,7 +1467,7 @@ $("#update-btn").addEventListener("click", async () => {
   try {
     const r = await api("/api/update", { method: "POST", body: {} });
     log.textContent = r.log || (r.ok ? "完了しました。" : "失敗しました。");
-    itemKey = null; itemData = null; $("#item-chips").innerHTML = ""; mods = null; rivens = null; modOpen = null; mastery = null; dispo = null; arcanes = null;
+    itemKey = null; itemData = null; $("#item-chips").innerHTML = ""; mods = null; rivens = null; modOpen = null; mastery = null; arcanes = null;
     simReload();  // シミュレータ用データも「データ更新」で作り直すので、開いていれば読み直す
   } catch (e) { log.textContent = e.message; }
   btn.disabled = false; btn.textContent = "公式データを取得"; refreshStatus();

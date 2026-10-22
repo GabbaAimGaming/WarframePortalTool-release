@@ -98,11 +98,6 @@ def dispo_dots(value: float) -> int:
     return 1 if v <= 0.70 else 2 if v <= 0.90 else 3 if v <= 1.10 else 4 if v <= 1.30 else 5
 
 
-def dispo_mark(dots: int) -> str:
-    """性質の表示: ●と◯を合わせて5個 (例: 3 -> ●●●◯◯)"""
-    return "●" * dots + "◯" * (5 - dots)
-
-
 def mod_type_key(it: dict) -> str:
     t = it.get("type") or ""
     if "/Necromech/" in it.get("uniqueName", ""):

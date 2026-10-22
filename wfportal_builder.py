@@ -131,7 +131,7 @@ WEAPON_PRESETS["robotic"] = WEAPON_PRESETS["primary"]
 
 # --------------------------------------------------------------------------
 # Riven (WARFRAME Wiki 掲載の基準値。性質 1.0・最大ランク(8)・効果 2つ/マイナス無しの補正前の値)
-#   値 = 基準値 × 性質値 × 効果数による補正 × 乱数(0.9〜1.1)   ランク r では × (r + 1) / 9
+#   値 = 基準値 × 性質値(RIVEN_DISPO = 1.2 固定)× 効果数による補正 × 乱数(0.9〜1.1)   ランク r では × (r + 1) / 9
 # --------------------------------------------------------------------------
 
 RIVEN_GROUPS = ("rifle", "shotgun", "pistol", "melee", "archgun")
@@ -143,6 +143,8 @@ RIVEN_TYPE_GROUP = {"Rifle Riven Mod": "rifle", "Shotgun Riven Mod": "shotgun", 
 # (効果の数, マイナス効果あり) -> (プラス効果の補正, マイナス効果の補正)
 RIVEN_MODIFIERS = {(2, False): (0.99, 0.0), (2, True): (1.2375, -0.495),
                    (3, False): (0.75, 0.0), (3, True): (0.9375, -0.75)}
+# 性質値(Riven の効果量にかかる倍率)。全武器が 1.2 に固定されたため、武器ごとの値は持たずこの1か所で決める
+RIVEN_DISPO = 1.2
 _G = lambda rifle=None, shotgun=None, pistol=None, melee=None, archgun=None: {  # noqa: E731
     k: v for k, v in (("rifle", rifle), ("shotgun", shotgun), ("pistol", pistol), ("melee", melee), ("archgun", archgun)) if v is not None}
 _GUNS = lambda v: _G(v, v, v, None, v)  # noqa: E731
@@ -246,7 +248,7 @@ def extract_builder_data(en_docs: list[dict], ja_docs: list[dict]) -> dict:
             w = {"en": name, "ja": _clean_name(ja.get(uid, {}).get("name") or name), "cat": cat, "damage": damage,
                  "cc": _num(it.get("criticalChance")), "cd": _num(it.get("criticalMultiplier"), 1.0),
                  "sc": _num(it.get("procChance")), "fire_rate": _num(it.get("fireRate"), 1.0),
-                 "dispo": round(_num(it.get("omegaAttenuation"), 1.0), 2), "shotgun": "shotgun" in uid.lower()}
+                 "shotgun": "shotgun" in uid.lower()}
             if cat != "melee":
                 w.update(multishot=_num(it.get("multishot"), 1.0) or 1.0, magazine=_num(it.get("magazineSize")),
                          reload=_num(it.get("reloadTime")), trigger=str(it.get("trigger") or ""))
@@ -489,10 +491,11 @@ def riven_range(base: float, dispo: float, buffs: int, curse: bool, negative: bo
     return (min(lo, hi), max(lo, hi))
 
 
-def riven_calc(group: str, dispo: float, buffs: list[str], curse: str | None, rank: int = 8) -> dict:
+def riven_calc(group: str, buffs: list[str], curse: str | None, rank: int = 8, dispo: float = RIVEN_DISPO) -> dict:
+    """性質値は既定で RIVEN_DISPO(1.2 固定)。dispo を渡せば別の値でも計算できる(画面からは渡さない)"""
     if group not in RIVEN_GROUPS:
         raise BuilderError("Riven の種類が不正です。")
-    if not 0.1 <= dispo <= 3:
+    if not 0.1 <= dispo <= 3:  # 画面からは来ないが、dispo= で渡されたときのために残す
         raise BuilderError("性質値は 0.5〜1.55 程度の数字で入力してください。")
     if len(buffs) not in (2, 3):
         raise BuilderError("プラス効果は 2 つか 3 つ選んでください。")
@@ -570,12 +573,11 @@ def api_riven(d: Path, body: dict, dispo_rows: list[dict] | None = None) -> dict
     if body.get("name"):
         weapon = _find(_need_data(d)["weapons"], body.get("name"), body.get("cat"))
     try:
-        dispo = float(body.get("dispo") if body.get("dispo") not in (None, "") else (weapon or {}).get("dispo", 1.0))
         rank = int(body.get("rank", 8))
     except (TypeError, ValueError):
-        raise BuilderError("性質値・ランクは数字で入力してください。")
+        raise BuilderError("ランクは数字で入力してください。")
     group = body.get("group") or (riven_group(weapon_riven_type(weapon, dispo_rows)) if weapon else "rifle")
     buffs = [str(x) for x in body.get("buffs") or [] if x]
-    res = riven_calc(group, dispo, buffs, str(body.get("curse")) if body.get("curse") else None, rank)
-    res["weapon"] = {"en": weapon["en"], "ja": weapon["ja"], "dispo": weapon["dispo"]} if weapon else None
+    res = riven_calc(group, buffs, str(body.get("curse")) if body.get("curse") else None, rank)
+    res["weapon"] = {"en": weapon["en"], "ja": weapon["ja"]} if weapon else None
     return res

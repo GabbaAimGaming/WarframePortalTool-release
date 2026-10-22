@@ -1,15 +1,14 @@
-"""CLI: 情報(cycle・baro・riven・dispo)"""
+"""CLI: 情報(cycle・baro・riven)"""
 from __future__ import annotations
 
 import sys
 from datetime import datetime, timedelta, timezone
 
 from wfp.cli.table import print_table
-from wfp.core.common import DISPO_CATS, PHASE_ALIASES, fmt_dur, norm, parse_remaining, rank
+from wfp.core.common import PHASE_ALIASES, fmt_dur, norm, parse_remaining, rank
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
 from wfp.core.loader import load_names, load_rivens
-from wfp.core.names import dispo_mark
-from wfp.core.riven import dispo_table, riven_table, update_rivens
+from wfp.core.riven import riven_table, update_rivens
 from wfp.store import datadir
 
 
@@ -119,25 +118,6 @@ def cmd_riven(args):
           "極端な出品価格が混ざるため、平均より中央値が目安になります。")
 
 
-def cmd_dispo(args):
-    d = datadir.data_dir(args.data_dir)
-    names = load_names(d)
-    if not names.dispo:
-        sys.exit("Riven 性質のデータがありません。`python wfportal.py update` を実行してください。")
-    rows = dispo_table(names, load_rivens(d))
-    rows = [r for r in rows if r["cat"] == args.cat]
-    if args.query:
-        q = " ".join(args.query)
-        rows = [r for r in rows if rank(q, [r["en"], r["ja"]]) is not None]
-    if not rows:
-        sys.exit("条件に合う武器がありません。")
-    print_table(["武器区分", "武器名", "性質", "性質値"],
-                [[r["type_ja"], r["ja"] if r["ja"] == r["en"] else f"{r['ja']} ({r['en']})", dispo_mark(r["dots"]), f"{r['value']:.2f}"]
-                 for r in rows[: args.limit]], right_cols=(3,))
-    print(f"\n{DISPO_CATS[args.cat]}: {len(rows)} 件中 {min(len(rows), args.limit)} 件を表示"
-          "(性質値 0.5〜0.7 ●◯◯◯◯ / 〜0.9 ●●◯◯◯ / 〜1.10 ●●●◯◯ / 〜1.30 ●●●●◯ / 〜1.55 ●●●●●)")
-
-
 def add_cycle(sub) -> None:
     s = sub.add_parser("cycle", help="昼夜サイクルとリセット時刻")
     s.add_argument("action", nargs="?", default="show", choices=["show", "set", "sync"],
@@ -157,14 +137,6 @@ def add_riven(sub) -> None:
     s.set_defaults(fn=cmd_riven)
 
 
-def add_dispo(sub) -> None:
-    s = sub.add_parser("dispo", help="Riven 性質 (武器ごとの性質値。カテゴリーごとに性質の高い順)")
-    s.add_argument("query", nargs="*", help="武器名で絞り込み")
-    s.add_argument("--cat", choices=list(DISPO_CATS), default="primary", help="カテゴリー (既定: primary)")
-    s.add_argument("--limit", type=int, default=60)
-    s.set_defaults(fn=cmd_dispo)
-
-
 def add_baro(sub) -> None:
     s = sub.add_parser("baro", help="バロ吉入手一覧 (Void 商人の商品と所持の照合)")
     s.add_argument("query", nargs="*", metavar="[update|own|unown] 名前",
@@ -176,4 +148,4 @@ def add_baro(sub) -> None:
 
 
 # このグループのコマンド: 名前 -> parser に登録する関数(並び順は wfp/cli/main.py の ORDER)
-COMMANDS = {"cycle": add_cycle, "riven": add_riven, "dispo": add_dispo, "baro": add_baro}
+COMMANDS = {"cycle": add_cycle, "riven": add_riven, "baro": add_baro}

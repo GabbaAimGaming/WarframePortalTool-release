@@ -10,7 +10,7 @@ from wfp.core.riven import dispo_table
 
 
 def sim_dispo_rows(store: Store) -> list[dict]:
-    """シミュレータで武器の Riven の種類を決めるのに使う(Riven性質と同じ判定。相場の武器種を優先)"""
+    """シミュレータで武器の Riven の種類(ライフル / ショットガン等)を決めるのに使う(`dispo_table` の判定。相場の武器種を優先)"""
     names = store.names()
     return dispo_table(names, store.rivens()) if names.dispo else []
 

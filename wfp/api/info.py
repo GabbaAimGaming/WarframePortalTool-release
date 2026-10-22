@@ -1,4 +1,4 @@
-"""画面向け API: 情報(サイクル・侵略サイクル・バロ吉・Riven 相場・Riven 性質・デュヴィリ)"""
+"""画面向け API: 情報(サイクル・侵略サイクル・バロ吉・Riven 相場・デュヴィリ)"""
 from __future__ import annotations
 
 from datetime import datetime
@@ -6,11 +6,11 @@ from datetime import datetime
 import wfportal_baro as wbaro
 import wfportal_worldstate as ws
 from wfp.api.store import ApiError, JST, Store, mtime_jst
-from wfp.core.common import CYCLES, DISPO_CATS, PHASE_ALIASES, parse_remaining
+from wfp.core.common import CYCLES, PHASE_ALIASES, parse_remaining
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
 from wfp.core.duviri import clear_duviri_adjust, duviri_view, set_duviri_adjust
 from wfp.core.invasion import invasion_view, set_invasion_part
-from wfp.core.riven import dispo_table, riven_table
+from wfp.core.riven import riven_table
 from wfp.core.spexchange import spex_view
 
 
@@ -78,15 +78,6 @@ def rivens_list(store: Store) -> dict:
     return {"rows": riven_table(raw, store.names()), "updated": mtime_jst(store.d / "rivens.json")}
 
 
-def dispo_list(store: Store) -> dict:
-    names = store.names()
-    if not names.dispo:
-        raise ApiError("Riven 性質のデータがありません。「データ更新」で取得し直してください"
-                       "(このページを追加する前に取得したデータには含まれていません)。", 409)
-    return {"rows": dispo_table(names, store.rivens()), "cats": DISPO_CATS,
-            "updated": (store.names_info().get("updated") or "")[:10]}
-
-
 # (メソッド, パス) -> 処理。c はリクエスト(wfp/api/server.py の Request)
 def duviri(store: Store) -> dict:
     """デュヴィリサーキットのローテーション(読めないモードは ok: False。エラーにしない)"""
@@ -148,7 +139,6 @@ ROUTES = {
     ("POST", "/api/baro/update"): lambda c: c.empty_body() or run_update_baro(c.store),
     ("POST", "/api/baro/owned"): lambda c: set_baro_owned(c.store, c.body()),
     ("GET", "/api/rivens"): lambda c: rivens_list(c.store),
-    ("GET", "/api/dispo"): lambda c: dispo_list(c.store),
     ("GET", "/api/invasions"): lambda c: invasions(c.store),
     ("POST", "/api/invasions/update"): lambda c: c.empty_body() or sync_invasions(c.store),
     ("POST", "/api/invasions/parts"): lambda c: set_invasion_parts(c.store, c.body()),
