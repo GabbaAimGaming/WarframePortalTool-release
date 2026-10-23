@@ -636,7 +636,7 @@ loaders.invasion = loadInvasion;  // 開くたびに読み直す(ほかのペー
 
 /* ---------- Tips ---------- */
 /* tips フォルダのメモ(.md / .txt / .csv)を表示する。.md は簡単な書き方(見出し・表・箇条書きなど)に対応 */
-let tipsList = null, tipCur = null, tipSeq = 0;
+let tipsList = null, tipCur = null, tipSeq = 0, tipFile = null, tipHeads = "", tipTrashOpen = false;
 try { tipCur = localStorage.getItem("wf-tip"); } catch (e) {}
 const TIP_KINDS = /\.(md|markdown|txt|csv)$/i, TIP_IMAGES = /\.(png|jpe?g|gif|webp)$/i;
 function tipResolve(base, src) {  // メモのファイルから見た相対パス -> tips フォルダの中のパス
@@ -746,26 +746,58 @@ function mdToHtml(text, base, ctx = { h: 0 }) {
   flush();
   return out.join("\n");
 }
-function renderTipsToc(heads = "") {
+/* 目次: API の toc(直下のメモとグループの並び)から描く。▲▼ で並べ替え(_order.json に保存) */
+const tipMv = (list, i, n) => `<button type="button" class="mv" data-list="${esc(list)}" data-i="${i}" data-d="-1" aria-label="上へ" title="上へ"${i ? "" : " disabled"}>▲</button>`
+  + `<button type="button" class="mv" data-list="${esc(list)}" data-i="${i}" data-d="1" aria-label="下へ" title="下へ"${i < n - 1 ? "" : " disabled"}>▼</button>`;
+function renderTipsToc(heads = tipHeads) {
   if (!tipsList) return;
-  let html = "", grp = "";
-  tipsList.items.forEach(t => {
-    if (t.group && t.group !== grp) html += `<div class="grp">${esc(t.group)}</div>`;
-    grp = t.group;
+  tipHeads = heads;
+  const toc = tipsList.toc || [];
+  const link = (t, inGrp, list, i, n) => {
     const cur = t.path === tipCur;
-    html += `<a href="#" data-tip="${esc(t.path)}" class="${t.group ? "in-grp" : ""}" aria-current="${cur}">${esc(t.title)}</a>`;
-    if (cur && heads) html += `<div class="heads${t.group ? " in-grp" : ""}">${heads}</div>`;
-  });
+    return `<div class="ti"><a href="#" data-tip="${esc(t.path)}" class="${inGrp ? "in-grp" : ""}" aria-current="${cur}">${esc(t.title)}</a>${tipMv(list, i, n)}</div>`
+      + (cur && heads ? `<div class="heads${inGrp ? " in-grp" : ""}">${heads}</div>` : "");
+  };
+  const html = toc.map((e, i) => e.type === "group"
+    ? `<div class="grp"><span>${esc(e.label)}${e.items.length ? "" : `<span class="empty-grp">(空)</span>`}</span>${tipMv("top", i, toc.length)}</div>`
+      + e.items.map((t, j) => link(t, true, "g:" + e.name, j, e.items.length)).join("")
+    : link(e, false, "top", i, toc.length)).join("");
   $("#tips-toc").innerHTML = html || `<div class="empty">メモがありません</div>`;
 }
-async function openTip(path) {
-  const seq = ++tipSeq; tipCur = path; $("#tips-err").textContent = "";
-  try { localStorage.setItem("wf-tip", path); } catch (e) {}
+async function moveTip(list, i, d) {
+  const toc = tipsList.toc, order = { top: [...tipsList.order.top], groups: { ...tipsList.order.groups } };
+  const key = e => e.type === "group" ? e.name + "/" : e.path;
+  const swap = arr => { const a = [...arr]; [a[i], a[i + d]] = [a[i + d], a[i]]; return a; };
+  if (list === "top") order.top = swap(toc.map(key));  // 動かした一覧だけを差し替える(ほかは保存済みの並びのまま)
+  else {
+    const g = toc.find(e => e.type === "group" && "g:" + e.name === list); if (!g) return;
+    order.groups[g.name] = swap(g.items.map(t => t.path.slice(g.name.length + 1)));
+  }
+  try { tipsList = await api("/api/tips/order", { method: "POST", body: order }); $("#tips-err").textContent = ""; }
+  catch (e) { $("#tips-err").textContent = e.message; return; }
   renderTipsToc();
+  $(`#tips-toc .mv[data-list="${CSS.escape(list)}"][data-i="${i + d}"][data-d="${d}"]`)?.focus();  // 続けて押せるように
+}
+function tipsButtons() {
+  const editing = !!tipEdit;
+  ["#tips-new", "#tips-group", "#tips-trash-btn"].forEach(s => { $(s).disabled = editing; });  // 再読み込みは押せる(確認してから読み直す)
+  $("#tips-edit-btn").disabled = editing || !(tipFile && tipFile.path === tipCur && tipFile.editable);
+  $("#tips-del").disabled = editing || !(tipFile && tipFile.path === tipCur);
+  $("#tips-trash-btn").setAttribute("aria-pressed", String(tipTrashOpen));
+  $("#tips-body").hidden = editing || tipTrashOpen;
+  $("#tips-edit").hidden = !editing;
+  $("#tips-trash").hidden = editing || !tipTrashOpen;
+}
+async function openTip(path) {
+  if (!tipLeaveEdit()) return;
+  const seq = ++tipSeq; tipCur = path; tipFile = null; tipTrashOpen = false; $("#tips-err").textContent = "";
+  try { localStorage.setItem("wf-tip", path); } catch (e) {}
+  renderTipsToc(""); tipsButtons();
   let f;
   try { f = await api(`/api/tips/file?path=${encodeURIComponent(path)}`); }
   catch (e) { if (seq === tipSeq) $("#tips-body").innerHTML = noData(e.message); return; }
   if (seq !== tipSeq) return;
+  tipFile = f;
   const base = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
   let body;
   if (f.kind === "csv") {
@@ -782,23 +814,172 @@ async function openTip(path) {
   $("#tips-body").innerHTML = `<p class="tip-meta">${esc(f.path)}${f.updated ? ` ・ ${esc(f.updated)} 更新` : ""}</p>` + body;
   const heads = [...$("#tips-body").querySelectorAll("h2[id], h3[id]")]
     .map(h => `<a href="#" data-h="${h.id}" class="${h.tagName.toLowerCase()}">${esc(h.textContent)}</a>`).join("");
-  renderTipsToc(heads);
+  renderTipsToc(heads); tipsButtons();
 }
 async function loadTips() {
+  if (!tipLeaveEdit()) return;
   $("#tips-err").textContent = "";
   try { tipsList = await api("/api/tips"); }
   catch (e) { $("#tips-err").textContent = e.message; return; }
   $("#tips-dir").textContent = tipsList.dir;
+  if (tipTrashOpen) { renderTipsToc(); tipsButtons(); return loadTipsTrash(); }
   if (!tipsList.items.length) {
-    renderTipsToc();
+    tipFile = null; renderTipsToc(""); tipsButtons();
     $("#tips-body").innerHTML = `<div class="empty">${tipsList.exists ? "tips フォルダにメモがありません。" : "tips フォルダがありません。"}
-      「tips フォルダを開く」でフォルダを開き、.md / .txt / .csv のファイルを置いてから「再読み込み」を押してください。</div>`;
+      「新規」でメモを作るか、「tips フォルダを開く」でフォルダを開き、.md / .txt / .csv のファイルを置いてから「再読み込み」を押してください。</div>`;
     return;
   }
   if (!tipsList.items.some(t => t.path === tipCur)) tipCur = tipsList.items[0].path;
   await openTip(tipCur);
 }
+
+/* 確認の小窓: buttons = [{label, value, cls}]。押したボタンの value(Esc・キャンセルは "")を返す */
+function askTips(msg, buttons) {
+  const d = $("#tips-dlg");
+  $("#tips-dlg-msg").textContent = msg;
+  $("#tips-dlg-btns").innerHTML = buttons.map(b => `<button class="btn ${b.cls || ""}" value="${esc(b.value)}"${b.value ? "" : " autofocus"}>${esc(b.label)}</button>`).join("");
+  d.returnValue = "";
+  return new Promise(res => { d.addEventListener("close", () => res(d.returnValue || ""), { once: true }); d.showModal(); });
+}
+const TIP_CANCEL = { label: "キャンセル", value: "", cls: "ghost" };
+const askPurge = async title => await askTips(`「${title}」を完全に消します。元に戻せません。\n本当に消しますか？`,
+  [{ label: "はい", value: "yes", cls: "danger armed" }, { label: "いいえ", value: "", cls: "ghost" }]) === "yes";
+
+/* 編集: 新規(タイトル + 保存先)と既存の .md の書き換え。保存しないで離れるときは確認する */
+let tipEdit = null;  // {mode: "new" | "edit", path, rev, orig}
+const tipDirty = () => !!tipEdit && ($("#te-text").value !== tipEdit.orig || (tipEdit.mode === "new" && $("#te-title").value.trim() !== ""));
+function tipLeaveEdit() {
+  if (!tipEdit) return true;
+  if (tipDirty() && !confirm("編集中の内容が保存されていません。保存しないで移りますか?")) return false;
+  tipEdit = null; tipsButtons();
+  return true;
+}
+function startTipEdit(mode) {
+  const f = tipFile;
+  if (mode === "edit" && !(f && f.editable)) return;
+  tipTrashOpen = false;
+  tipEdit = mode === "edit" ? { mode, path: f.path, rev: f.rev, orig: f.text } : { mode, orig: "" };
+  $("#te-new").hidden = mode !== "new";
+  $("#te-path").hidden = mode !== "edit";
+  $("#te-path").textContent = mode === "edit" ? `${f.path} を編集中(見出しを変えてもファイル名は変わりません)` : "";
+  if (mode === "new") {
+    const curGrp = tipCur && tipCur.includes("/") ? tipCur.slice(0, tipCur.indexOf("/")) : "";
+    const groups = (tipsList ? tipsList.toc : []).filter(e => e.type === "group");
+    $("#te-group").innerHTML = `<option value="">(グループなし)</option>`
+      + groups.map(g => `<option value="${esc(g.name)}"${g.name === curGrp ? " selected" : ""}>${esc(g.label)}</option>`).join("");
+    $("#te-title").value = "";
+  }
+  $("#te-text").value = tipEdit.orig;
+  $("#te-err").textContent = "";
+  tipsButtons();
+  (mode === "new" ? $("#te-title") : $("#te-text")).focus();
+}
+async function saveTipEdit() {
+  if (!tipEdit) return;
+  const body = tipEdit.mode === "edit"
+    ? { path: tipEdit.path, rev: tipEdit.rev, text: $("#te-text").value }
+    : { title: $("#te-title").value, group: $("#te-group").value, text: $("#te-text").value };
+  $("#te-save").disabled = true; $("#te-err").textContent = "";
+  let f;
+  try { f = await api("/api/tips/save", { method: "POST", body }); }
+  catch (e) {
+    $("#te-err").textContent = e.status === 409 ? e.message + "(いまの入力は残っています。必要ならコピーしてから「キャンセル」してください)" : e.message;
+    return;
+  } finally { $("#te-save").disabled = false; }
+  tipEdit = null; tipCur = f.path;
+  await loadTips();
+}
+/* 書き方の挿入。execCommand("insertText") を優先して Ctrl+Z で戻せるようにする */
+function teReplace(ta, start, end, text, selStart = start + text.length, selEnd = selStart) {
+  ta.focus(); ta.setSelectionRange(start, end);
+  if (!document.execCommand("insertText", false, text)) ta.setRangeText(text, start, end, "end");
+  ta.setSelectionRange(selStart, selEnd);
+}
+const TIP_TABLE = "| 項目 | 内容 |\n| --- | --- |\n|  |  |\n";
+$("#tips-edit").querySelector(".te-tools").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const ta = $("#te-text"), v = ta.value, s = ta.selectionStart, en = ta.selectionEnd;
+  if (b.dataset.line) {  // 選んだ行すべての行頭に入れる
+    const ls = v.lastIndexOf("\n", s - 1) + 1, le = v.indexOf("\n", Math.max(en - (en > s && v[en - 1] === "\n" ? 1 : 0), s));
+    const end = le < 0 ? v.length : le, block = v.slice(ls, end).split("\n").map(l => b.dataset.line + l).join("\n");
+    teReplace(ta, ls, end, block, ls + block.length);
+  } else if (b.dataset.block === "table") {  // カーソルの行が空ならそこへ、そうでなければ次の行へ
+    const ls = v.lastIndexOf("\n", s - 1) + 1, le = v.indexOf("\n", s), end = le < 0 ? v.length : le;
+    if (v.slice(ls, end).trim() === "") teReplace(ta, ls, end, TIP_TABLE.slice(0, -1), ls + 2, ls + 4);
+    else teReplace(ta, end, end, "\n" + TIP_TABLE.slice(0, -1), end + 3, end + 5);
+  } else if (b.dataset.wrap) {
+    const w = b.dataset.wrap, sel = v.slice(s, en);
+    teReplace(ta, s, en, w + sel + w, s + w.length, s + w.length + sel.length);
+  } else if (b.dataset.ins) teReplace(ta, s, en, b.dataset.ins);
+});
+$("#te-text").addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); saveTipEdit(); }
+});
+$("#te-title").addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); saveTipEdit(); }
+  else if (e.key === "Enter") { e.preventDefault(); $("#te-text").focus(); }
+});
+$("#tips-edit").addEventListener("submit", e => { e.preventDefault(); saveTipEdit(); });
+$("#te-cancel").addEventListener("click", () => { if (tipLeaveEdit()) tipCur ? openTip(tipCur) : loadTips(); });
+$("#tips-new").addEventListener("click", () => startTipEdit("new"));
+$("#tips-edit-btn").addEventListener("click", () => startTipEdit("edit"));
+leaveGuards.push(() => currentView !== "tips" || tipLeaveEdit());  // メニューで別のページへ移るとき
+window.addEventListener("beforeunload", e => { if (tipDirty()) { e.preventDefault(); e.returnValue = ""; } });
+
+/* 削除: ゴミ箱に入れる / 完全削除(2回目の確認つき) */
+$("#tips-del").addEventListener("click", async () => {
+  const f = tipFile; if (!f) return;
+  const v = await askTips(`「${f.title}」を削除します。`,
+    [{ label: "ゴミ箱に入れる", value: "trash" }, { label: "完全削除する", value: "purge", cls: "danger" }, TIP_CANCEL]);
+  if (!v || (v === "purge" && !await askPurge(f.title))) return;
+  try { await api(v === "trash" ? "/api/tips/trash" : "/api/tips/purge", { method: "POST", body: { path: f.path } }); }
+  catch (e) { $("#tips-err").textContent = e.message; return; }
+  tipCur = null; await loadTips();
+});
+$("#tips-group").addEventListener("click", async () => {
+  const name = prompt("追加するグループの名前(tips の中のフォルダになります)");
+  if (name === null || !name.trim()) return;
+  try { const r = await api("/api/tips/group", { method: "POST", body: { name } }); $("#tips-err").textContent = ""; tipsList = await api("/api/tips");
+    renderTipsToc(); if (r.group !== name.trim()) $("#tips-err").textContent = `使えない文字や同じ名前があったため「${r.group}」で作りました。`; }
+  catch (e) { $("#tips-err").textContent = e.message; }
+});
+
+/* ゴミ箱(tips/_trash/)の一覧: 元に戻す / 完全削除 */
+let tipTrash = [];
+async function loadTipsTrash() {
+  try { tipTrash = (await api("/api/tips/trash")).items; }
+  catch (e) { $("#tips-trash-list").innerHTML = noData(e.message); return; }
+  $("#tips-trash-list").innerHTML = tipTrash.length ? `<div class="tablewrap"><table><thead><tr><th>メモ</th><th>元の場所</th><th>入れた日時</th><th></th></tr></thead><tbody>
+    ${tipTrash.map((t, i) => `<tr><td>${esc(t.title)}</td><td>${esc(t.path)}</td><td>${esc(t.trashed)}</td>
+      <td class="ops"><button class="btn ghost" type="button" data-restore="${i}">元に戻す</button> <button class="btn danger" type="button" data-purge="${i}">完全削除</button></td></tr>`).join("")}
+    </tbody></table></div>` : noData("ゴミ箱は空です。");
+}
+$("#tips-trash-btn").addEventListener("click", async () => {
+  tipTrashOpen = !tipTrashOpen; $("#tips-trash-msg").textContent = ""; tipsButtons();
+  if (tipTrashOpen) await loadTipsTrash();
+});
+$("#tips-trash-list").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-restore], button[data-purge]"); if (!b) return;
+  const t = tipTrash[b.dataset.restore ?? b.dataset.purge]; if (!t) return;
+  let msg;
+  try {
+    if (b.dataset.restore !== undefined) {
+      const r = await api("/api/tips/restore", { method: "POST", body: { id: t.id } });
+      msg = `「${t.title}」を ${r.path} に戻しました。`;
+    } else {
+      if (await askTips(`「${t.title}」をゴミ箱から消します。`, [{ label: "完全削除する", value: "purge", cls: "danger" }, TIP_CANCEL]) !== "purge"
+        || !await askPurge(t.title)) return;
+      await api("/api/tips/purge", { method: "POST", body: { id: t.id } });
+      msg = `「${t.title}」を完全に消しました。`;
+    }
+  } catch (err) { $("#tips-trash-msg").textContent = err.message; return; }
+  try { tipsList = await api("/api/tips"); renderTipsToc(); } catch (err) { /* 目次は次の読み込みで直る */ }
+  await loadTipsTrash();
+  $("#tips-trash-msg").textContent = msg;
+});
 $("#tips-toc").addEventListener("click", e => {
+  const mv = e.target.closest("button.mv");
+  if (mv) { if (!mv.disabled) moveTip(mv.dataset.list, +mv.dataset.i, +mv.dataset.d); return; }
   const a = e.target.closest("a"); if (!a) return; e.preventDefault();
   if (a.dataset.tip) openTip(a.dataset.tip);
   else if (a.dataset.h) document.getElementById(a.dataset.h)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -813,7 +994,7 @@ $("#tips-open").addEventListener("click", async () => {
   try { await api("/api/tips/open", { method: "POST", body: {} }); $("#tips-err").textContent = ""; }
   catch (e) { $("#tips-err").textContent = e.message; }
 });
-loaders.tips = loadTips;  // 開くたびに読み直す(外で編集した内容をすぐ反映)
+loaders.tips = loadTips;  // 開くたびに読み直す(外で編集した内容をすぐ反映。編集中なら確認する)
 
 /* ---------- シミュレータ ---------- */
 /* 計算画面は web/wfportal_builder.html (/builder)。初めて開いたときに読み込み、配色と高さをポータルに合わせる */

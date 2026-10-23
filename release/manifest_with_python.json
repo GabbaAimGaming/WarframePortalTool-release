@@ -1,15 +1,15 @@
 {
-  "version": "1.15",
+  "version": "1.16",
   "edition": "with_python",
   "files": {
     "LICENSE": {
-      "sha256": "dffc4f99d669f13a93bd038a5427dd16c7d4e994f1d58ba6ec308a23c6ac1bdc",
-      "size": 7361,
+      "sha256": "a5e0274f64d7bb26fbb8c48adf3253a07baee9d8b84c849844f9f61dacc014ef",
+      "size": 7359,
       "src": "build/bundled/LICENSE"
     },
     "README.md": {
-      "sha256": "f9317a3ec9f868c65b2b3f535e2148efad8d963f402b21828719f664ea49b799",
-      "size": 38533,
+      "sha256": "4f674c39c401c7af9e9797dd51d171d6a6b4d00f18f1a27e61530a557a5e3393",
+      "size": 39835,
       "src": "build/bundled/README.md"
     },
     "data/baro_rules.json": {
@@ -58,8 +58,8 @@
       "src": "build/bundled/start_wfportal.bat"
     },
     "tips/00_Tipsの使い方.md": {
-      "sha256": "0d472d1766a8cba49d04e04c27fb5f299dd9fd603277884117e5261cc7f01183",
-      "size": 2141,
+      "sha256": "8461b8586511ff6be384818523fef1b4b069b5c05161b848132862d929097431",
+      "size": 2697,
       "src": "tips/00_Tipsの使い方.md"
     },
     "tips/10_日課チェック.md": {
@@ -78,18 +78,18 @@
       "src": "tips/30_Rivenスプライサーの合成表.md"
     },
     "web/ctrl.html": {
-      "sha256": "6d48beaae7e2da80bd5ef106c20fe19efbcc7c24a27cd7a5623a695719fd4731",
-      "size": 105757,
+      "sha256": "0b14f317405d4d8b1b39178e92e2e8ff637ecf1d74d36843770db59916c64210",
+      "size": 117901,
       "src": "web/ctrl.html"
     },
     "web/menu.html": {
-      "sha256": "3bc6f61a7de44e6faa530050d67603334e2069c2257ad623914b0f2d0481cbe5",
-      "size": 20517,
+      "sha256": "6eb50b7b7dec83e0f29412faab1842c782cad3f04e5928a23b20ab7d16d406cf",
+      "size": 20753,
       "src": "web/menu.html"
     },
     "web/view.html": {
-      "sha256": "2c15de1b47519ef3bca1dd6e778cfc6defa4234cebffacb10bfffcfaadede6f3",
-      "size": 53235,
+      "sha256": "a402dea1bd0b2b7c69ab35d5e8b8f46b2c7de2e2a16a9954c332e58aa523e2bd",
+      "size": 59014,
       "src": "web/view.html"
     },
     "web/wfportal_builder.html": {
@@ -148,8 +148,8 @@
       "src": "wfp/api/store.py"
     },
     "wfp/api/tips.py": {
-      "sha256": "8dfa7c1814c899ae5f4a073e69f65f575b392903aa33fb016c4db511775753c3",
-      "size": 5123,
+      "sha256": "3cb1366ab62d3f811468e8a0677570390f9c9f6dd31a96ef48cdaaabed4a2981",
+      "size": 22632,
       "src": "wfp/api/tips.py"
     },
     "wfp/cli/__init__.py": {

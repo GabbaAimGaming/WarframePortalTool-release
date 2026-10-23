@@ -243,7 +243,10 @@ $("#nav").addEventListener("click", e => {
 
 /* ---------- ビュー切り替え ---------- */
 const loaders = {};
+/* ページを離れてよいかを聞く関数(編集中のページが登録する)。どれかが false を返したら移らない */
+const leaveGuards = [];
 function show(view) {
+  if (view !== currentView && leaveGuards.some(ok => !ok(view))) return;
   views.forEach(v => { $("#view-" + v).hidden = v !== view; });
   currentView = view;
   const g = groupOf(view);

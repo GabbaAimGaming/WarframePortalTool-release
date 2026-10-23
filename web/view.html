@@ -375,6 +375,34 @@ td.med { font-weight: 700; }
 .tips-toc .heads.in-grp a { padding-left: 38px; }
 .tips-toc .heads a.h3 { padding-left: 42px; }
 .tips-toc .heads.in-grp a.h3 { padding-left: 50px; }
+.tips-toc .ti, .tips-toc .grp { display: flex; align-items: center; }
+.tips-toc .ti > a { flex: 1; min-width: 0; }
+.tips-toc .ti:hover, .tips-toc .ti:has(> a[aria-current="true"]) { background: var(--panel-2); }
+.tips-toc .grp > span { flex: 1; min-width: 0; }
+.tips-toc .grp .empty-grp { font-size: 11px; letter-spacing: 0; margin-left: 6px; }
+.tips-toc .mv { visibility: hidden; flex: none; width: 22px; height: 22px; padding: 0; margin-right: 2px; font-size: 10px; line-height: 20px;
+  background: transparent; color: var(--mute); border: 1px solid var(--line); cursor: pointer; }
+.tips-toc .mv:hover:not(:disabled) { color: var(--ink); background: var(--panel-2); }
+.tips-toc .mv:disabled { opacity: .3; cursor: default; }
+.tips-toc .ti:hover .mv, .tips-toc .ti:focus-within .mv, .tips-toc .grp:hover .mv, .tips-toc .grp:focus-within .mv { visibility: visible; }
+.tips-toc .mv:last-child { margin-right: 6px; }
+.tips-main { min-width: 0; }
+.tips-edit { border: 1px solid var(--line); background: var(--bg); padding: 14px 16px 16px; min-width: 0; }
+.tips-edit .row + .row, .tips-edit .row + textarea, .tips-edit textarea + .row { margin-top: 10px; }
+.tips-edit .field { flex: 1 1 220px; }
+.tips-edit .te-tools { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+.tips-edit .te-tools button { padding: 3px 10px; font-size: 12px; }
+.tips-edit .te-tools .sep { width: 1px; background: var(--line); margin: 0 4px; }
+.tips-edit textarea { font-family: var(--mono); font-size: 13px; line-height: 1.55; min-height: 50vh; tab-size: 4; }
+.tips-trash { border: 1px solid var(--line); background: var(--bg); padding: 14px 16px 16px; min-width: 0; }
+.tips-trash h3 { margin: 0 0 6px; font-size: 16px; }
+.tips-trash td { white-space: normal; vertical-align: middle; }
+.tips-trash td.ops { white-space: nowrap; text-align: right; }
+.tips-trash td.ops .btn { padding: 3px 10px; font-size: 12px; }
+dialog.tips-dlg { border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 18px 20px 16px; max-width: min(520px, 92vw); }
+dialog.tips-dlg::backdrop { background: rgba(0, 0, 0, .55); }
+dialog.tips-dlg p { margin: 0 0 16px; white-space: pre-line; overflow-wrap: anywhere; }
+dialog.tips-dlg .row { justify-content: flex-end; }
 .tips-body { border: 1px solid var(--line); background: var(--bg); padding: 16px 20px 22px; min-width: 0; min-height: 240px; overflow-wrap: anywhere; }
 .tips-body .tip-meta { font-size: 12px; color: var(--mute); margin: 0 0 10px; }
 .tips-body h1 { font-size: 20px; margin: 0 0 12px; }
@@ -732,8 +760,13 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
       <!-- Tips -->
       <section id="view-tips" hidden>
         <h2>Tips</h2>
-        <p class="lead">すぐ見たいメモをまとめるページです。目次と内容は、ツールのフォルダにある <b>tips</b> フォルダのファイルを編集すると変わります(メモ帳・Excel などで編集できます)。</p>
+        <p class="lead">すぐ見たいメモをまとめるページです。メモはこのページで追加・編集できるほか、ツールのフォルダにある <b>tips</b> フォルダのファイルを直接編集しても変わります(メモ帳・Excel などで編集できます)。</p>
         <div class="row">
+          <button class="btn" type="button" id="tips-new">新規</button>
+          <button class="btn ghost" type="button" id="tips-edit-btn" disabled>編集</button>
+          <button class="btn ghost" type="button" id="tips-del" disabled>削除</button>
+          <button class="btn ghost" type="button" id="tips-group">グループ追加</button>
+          <button class="btn ghost" type="button" id="tips-trash-btn" aria-pressed="false">ゴミ箱</button>
           <button class="btn ghost" type="button" id="tips-reload">再読み込み</button>
           <button class="btn ghost" type="button" id="tips-open">tips フォルダを開く</button>
           <span class="mini" id="tips-dir"></span>
@@ -741,9 +774,47 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
         <div class="err" id="tips-err" role="alert"></div>
         <div class="tips">
           <div class="tips-toc" id="tips-toc" role="navigation" aria-label="Tips の目次"></div>
-          <article class="tips-body" id="tips-body" aria-live="polite"></article>
+          <div class="tips-main">
+            <article class="tips-body" id="tips-body" aria-live="polite"></article>
+            <form class="tips-edit" id="tips-edit" hidden autocomplete="off">
+              <div class="row" id="te-new">
+                <label class="field"><span>タイトル(ファイル名にもなります)</span><input type="text" id="te-title" maxlength="200"></label>
+                <label class="field"><span>保存先</span><select id="te-group"></select></label>
+              </div>
+              <p class="mini" id="te-path" hidden></p>
+              <div class="te-tools" role="toolbar" aria-label="書き方の挿入">
+                <button class="btn ghost" type="button" data-line="## " title="行頭に入れる">見出し</button>
+                <button class="btn ghost" type="button" data-line="### " title="行頭に入れる">小見出し</button>
+                <button class="btn ghost" type="button" data-line="- " title="行頭に入れる">箇条書き</button>
+                <button class="btn ghost" type="button" data-line="1. " title="行頭に入れる">番号</button>
+                <button class="btn ghost" type="button" data-line="- [ ] " title="行頭に入れる">チェック</button>
+                <button class="btn ghost" type="button" data-line="> " title="行頭に入れる">引用</button>
+                <button class="btn ghost" type="button" data-block="table" title="カーソルの次の行に入れる">表</button>
+                <span class="sep" aria-hidden="true"></span>
+                <button class="btn ghost" type="button" data-ins="|" title="カーソル位置に入れる">|</button>
+                <button class="btn ghost" type="button" data-wrap="**" title="選んだ文字を囲む">太字</button>
+                <button class="btn ghost" type="button" data-wrap="`" title="選んだ文字を囲む">コード</button>
+              </div>
+              <textarea id="te-text" rows="24" spellcheck="false" aria-label="本文"></textarea>
+              <div class="row">
+                <button class="btn" type="submit" id="te-save">保存</button>
+                <button class="btn ghost" type="button" id="te-cancel">キャンセル</button>
+                <span class="mini">Ctrl+S でも保存できます</span>
+              </div>
+              <div class="err" id="te-err" role="alert"></div>
+            </form>
+            <div class="tips-trash" id="tips-trash" hidden>
+              <h3>ゴミ箱</h3>
+              <p class="mini">削除したメモの置き場所です(tips フォルダの中の _trash)。「元に戻す」で元の場所に戻ります。</p>
+              <div id="tips-trash-list"></div>
+              <div class="mini" id="tips-trash-msg" aria-live="polite"></div>
+            </div>
+          </div>
         </div>
-        <p class="note">使えるファイル: .md(見出し・表・箇条書き・チェックボックスなどが使える書き方)/ .txt(そのまま表示)/ .csv(表として表示。Excel で編集可)。ファイル名の先頭の数字(例: 10_)は並び順に使われ、目次には表示されません。tips の中にフォルダを作ると、目次の見出しになります(1段まで)。.md の最初の「# 見出し」が目次の名前になります。</p>
+        <dialog class="tips-dlg" id="tips-dlg" aria-label="確認">
+          <form method="dialog"><p id="tips-dlg-msg"></p><div class="row" id="tips-dlg-btns"></div></form>
+        </dialog>
+        <p class="note">使えるファイル: .md(見出し・表・箇条書き・チェックボックスなどが使える書き方)/ .txt(そのまま表示)/ .csv(表として表示。Excel で編集可)。ファイル名の先頭の数字(例: 10_)は並び順に使われ、目次には表示されません(目次の ▲▼ で並べ替えると、そちらが優先されます)。tips の中にフォルダを作ると、目次の見出しになります(1段まで)。.md の最初の「# 見出し」が目次の名前になります。</p>
       </section>
 
       <!-- ページ説明(中身は MENU と I18N の guide.○○ から作る: ctrl.html の renderGuide) -->

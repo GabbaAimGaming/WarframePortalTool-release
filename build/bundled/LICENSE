@@ -117,16 +117,16 @@ SOFTWARE.
 ==============================================================================
 
 python/ フォルダには、Python Software Foundation が配布している
-「Windows embeddable package」(Python 3.12.10, 64-bit) を同梱しています。
+「Windows embeddable package」(Python 3.15.1, 64-bit) を同梱しています。
 Python は PSF License Agreement などのライセンスのもとで配布されており、
 その全文は python/LICENSE.txt にあります。Python は本ソフトウェアの MIT ライセンス
 の対象ではありません。
-同梱にあたり、本ソフトウェアのフォルダを読み込めるように python/python312._pth に
+同梱にあたり、本ソフトウェアのフォルダを読み込めるように python/python315._pth に
 1 行(..)を追加した以外、Python のファイルは変更していません。
 
-The python/ folder contains the "Windows embeddable package" (Python 3.12.10,
+The python/ folder contains the "Windows embeddable package" (Python 3.15.1,
 64-bit) distributed by the Python Software Foundation, under the PSF License
 Agreement and other licenses included in python/LICENSE.txt. Python is not
 covered by the MIT License of this software. Apart from adding one line ("..")
-to python/python312._pth so that the tool's folder can be imported, the Python
+to python/python315._pth so that the tool's folder can be imported, the Python
 files are unmodified.
