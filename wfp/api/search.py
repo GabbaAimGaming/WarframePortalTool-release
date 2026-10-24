@@ -1,10 +1,14 @@
-"""画面向け API: 検索(素材の逆引き・エリア検索)"""
+"""画面向け API: 検索(素材の逆引き・パーツ検索・エリア検索)"""
 from __future__ import annotations
 
 from wfp.api.store import ApiError, Store, need_drops
-from wfp.core.common import MODES_JA, PLANETS_JA, RARITY_JA, SOURCE_CATS, norm, rank
+from wfp.core.common import MASTERY_CATS, MODES_JA, PART_SKIP_CATS, PLANETS_JA, RARITY_JA, SOURCE_CATS, norm, rank
+from wfp.core.names import Names, item_key
 from wfp.drops.search import find_sources, group_candidates, pick_candidates
 from wfp.drops.tables import stage_label
+
+
+SUGGEST_LIMIT = 10  # 候補として返す最大件数(数量違いを束ねた後)。素材から探す・パーツ検索で共用
 
 
 def suggest_items(store: Store, q: str, materials_only: bool) -> list[dict]:
@@ -18,9 +22,48 @@ def suggest_items(store: Store, q: str, materials_only: bool) -> list[dict]:
     out = []
     for base in group_candidates(cands, names).values():
         out.append({"key": base, "ja": names.ja(base), "en": base})
-        if len(out) >= 80:
+        if len(out) >= SUGGEST_LIMIT:
             break
     return out
+
+
+def part_with_owner(names: Names, owners: dict[str, str], name: str) -> tuple[str, str] | None:
+    """パーツ検索の対象なら (本体の英名, カテゴリー)。Names.part_of に加えて、
+    同梱データの extras(設計図ではない作成素材。例: Mandachord)は本体(Octavia)のカテゴリーで扱う"""
+    hit = names.part_of(name)
+    if hit is None and (owner := owners.get(item_key(name))):
+        hit = names.part_of(owner)
+    return hit
+
+
+def suggest_parts(store: Store, q: str, cat: str) -> dict:
+    """パーツ検索の候補。Warframe・武器などの本体・設計図・パーツ(Names.part_of)だけを返す。
+
+    cats はカテゴリーごとの件数(q に合うもの。並びは MASTERY_CATS)、items は cat で絞った候補(最大 SUGGEST_LIMIT 件)、
+    total は絞った後の全件数。カテゴリー名は画面の I18N(part.cat.<キー>)で付ける。入手先は /api/item で引く
+    """
+    if cat and (cat not in MASTERY_CATS or cat in PART_SKIP_CATS):
+        raise ApiError("不明なカテゴリーです。", 400)
+    need_drops(store)
+    names, src = store.names(), store.sources()
+    owners = src.part_owner if src else {}
+    part = lambda n: part_with_owner(names, owners, n)  # noqa: E731
+    parts = [n for n in store.all_items() if part(n)]
+    if q.strip():
+        cands = pick_candidates(q, parts, names)
+    else:
+        cands = sorted(parts, key=lambda n: norm(names.ja(n)))
+    bases = list(group_candidates(cands, names).values())  # 数量違いを束ねた、表示に使う英名
+    cat_by = {b: part(b)[1] for b in bases}
+    counts: dict[str, int] = {}
+    for c in cat_by.values():
+        counts[c] = counts.get(c, 0) + 1
+    picked = [b for b in bases if not cat or cat_by[b] == cat]
+    return {
+        "total": len(picked),
+        "cats": [{"key": c, "n": counts[c]} for c in MASTERY_CATS if c in counts],
+        "items": [{"key": b, "ja": names.ja(b), "en": b, "cat": cat_by[b]} for b in picked[:SUGGEST_LIMIT]],
+    }
 
 
 def lookup_item(store: Store, key: str, events: bool) -> dict:
@@ -84,6 +127,7 @@ def lookup_area(store: Store, kind: str, key: str, all_items: bool, events: bool
 # (メソッド, パス) -> 処理。c はリクエスト(wfp/api/server.py の Request)
 ROUTES = {
     ("GET", "/api/suggest/item"): lambda c: suggest_items(c.store, c.q.get("q", ""), c.flag("materials", True)),
+    ("GET", "/api/suggest/part"): lambda c: suggest_parts(c.store, c.q.get("q", ""), c.q.get("cat", "")),
     ("GET", "/api/item"): lambda c: lookup_item(c.store, c.q.get("key", ""), c.flag("events")),
     ("GET", "/api/suggest/area"): lambda c: suggest_areas(c.store, c.q.get("q", "")),
     ("GET", "/api/area"): lambda c: lookup_area(c.store, c.q.get("type", "planet"), c.q.get("key", ""), c.flag("all"),

@@ -22,7 +22,7 @@ def mod_table(names: Names, drops: Drops | None, sources: Sources | None, owned:
         counts: dict[str, int] = {}
         for s in src:
             counts[s[0]] = counts.get(s[0], 0) + 1
-        best = max(src, key=lambda s: s[4]) if src else None
+        best = max(src, key=lambda s: -1 if s[4] is None else s[4]) if src else None  # 確率の無い入手先(クラン研究)は最後
         out.append({
             **m, "type_ja": MOD_TYPES.get(m["type"], m["type"]), "compat_ja": COMPAT_JA.get(m.get("compat", ""), m.get("compat", "")), "polarity_name": POLARITY_EN.get(m["polarity"], m["polarity"]),
             "rarity_ja": RARITY_JA.get(m["rarity"], m["rarity"]), "owned": m["en"].lower() in owned,

@@ -1,0 +1,448 @@
+{
+ "_comment": "ドロップもクラン研究もしない入手先(Simaris 交換・クエスト報酬など。パーツ検索・素材から探すの入手先に出す)。開発側が手で編集して配布。en はゲームの英名(マスター一覧と同じ)、source は入手先のキー(wfp/core/common.py の OTHER_SOURCES: simaris / quest)、parts は部品(part は PART_WORDS の部品名。source を省略すると本体と同じ。note は部品ごとにも書け、無ければ本体と同じ入手先のときだけ本体の note を使う)、extras は設計図ではない作成素材(item は名前そのまま。例: Octavia の Mandachord。パーツ検索では本体と同じカテゴリーに出る)、body: false は本体の設計図はここで手に入らない(部品だけ。例: Mirage は本体がマーケット購入)、quest はクエスト名({\"en\", \"ja\"}。en と ja が同じでも両方書く。表示は ja だけで、Simaris 交換なら「〜完了後」。部品・extras は note と同じく、無ければ本体と同じ入手先のときだけ本体の quest)、note は入手先の表の詳細欄に出す自由な文(quest があれば「クエスト名 / note」)。同じ en を入手先ごとに分けて複数書いてもよい",
+ "items": [
+  {
+   "en": "Argo & Vel",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "note": ""
+  },
+  {
+   "en": "Atlas",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "quest": {
+    "en": "The Jordas Precept",
+    "ja": "Jordasの教訓"
+   },
+   "note": ""
+  },
+  {
+   "en": "Azima",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "note": ""
+  },
+  {
+   "en": "Azothane",
+   "source": "simaris",
+   "body": false,
+   "parts": [],
+   "extras": [
+    {
+     "item": "Azothane"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "en": "Broken Scepter",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "note": ""
+  },
+  {
+   "en": "Chroma",
+   "source": "quest",
+   "body": true,
+   "parts": [
+    {
+     "part": "Neuroptics",
+     "source": "simaris"
+    },
+    {
+     "part": "Chassis",
+     "source": "simaris"
+    },
+    {
+     "part": "Systems",
+     "source": "simaris"
+    }
+   ],
+   "quest": {
+    "en": "The New Strange",
+    "ja": "新たな怪奇"
+   },
+   "note": ""
+  },
+  {
+   "en": "Edun",
+   "source": "simaris",
+   "body": false,
+   "parts": [],
+   "extras": [
+    {
+     "item": "Edun"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "en": "Ether Daggers",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "note": ""
+  },
+  {
+   "en": "Gara",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "quest": {
+    "en": "Saya's Vigil",
+    "ja": "Sayaの眼"
+   },
+   "note": ""
+  },
+  {
+   "en": "Garuda",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "quest": {
+    "en": "Vox Solaris",
+    "ja": "Vox Solaris"
+   },
+   "note": ""
+  },
+  {
+   "en": "Heliocor",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "note": ""
+  },
+  {
+   "en": "Imperator",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "note": ""
+  },
+  {
+   "en": "Inaros",
+   "source": "simaris",
+   "body": true,
+   "parts": [
+    {
+     "part": "Neuroptics"
+    },
+    {
+     "part": "Chassis"
+    },
+    {
+     "part": "Systems"
+    }
+   ],
+   "quest": {
+    "en": "Sands of Inaros",
+    "ja": "Inarosの砂嵐"
+   },
+   "note": ""
+  },
+  {
+   "en": "Limbo",
+   "source": "simaris",
+   "body": false,
+   "parts": [
+    {
+     "part": "Systems"
+    }
+   ],
+   "quest": {
+    "en": "The Limbo Theorem",
+    "ja": "Limboセオリム"
+   },
+   "note": ""
+  },
+  {
+   "en": "Machete",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "note": ""
+  },
+  {
+   "en": "Mirage",
+   "source": "simaris",
+   "body": false,
+   "parts": [
+    {
+     "part": "Neuroptics"
+    },
+    {
+     "part": "Chassis"
+    },
+    {
+     "part": "Systems"
+    }
+   ],
+   "quest": {
+    "en": "Hidden Messages",
+    "ja": "隠されたメッセージ"
+   },
+   "note": ""
+  },
+  {
+   "en": "Nidus",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "quest": {
+    "en": "The Glast Gambit",
+    "ja": "グラスト・ギャンビット"
+   },
+   "note": ""
+  },
+  {
+   "en": "Octavia",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "extras": [
+    {
+     "item": "Mandachord"
+    }
+   ],
+   "quest": {
+    "en": "Octavia's Anthem",
+    "ja": "Octaviaの賛歌"
+   },
+   "note": ""
+  },
+  {
+   "en": "Odonata",
+   "source": "quest",
+   "body": true,
+   "parts": [
+    {
+     "part": "Wings",
+     "source": "simaris",
+     "quest": {
+      "en": "The Archwing",
+      "ja": "アークウイング"
+     }
+    },
+    {
+     "part": "Harness",
+     "source": "simaris",
+     "quest": {
+      "en": "The Archwing",
+      "ja": "アークウイング"
+     }
+    },
+    {
+     "part": "Systems",
+     "source": "simaris",
+     "quest": {
+      "en": "The Archwing",
+      "ja": "アークウイング"
+     }
+    }
+   ],
+   "quest": {
+    "en": "The Archwing",
+    "ja": "アークウイング"
+   },
+   "note": ""
+  },
+  {
+   "en": "Orvius",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "note": ""
+  },
+  {
+   "en": "Protea",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "quest": {
+    "en": "The Deadlock Protocol",
+    "ja": "デッドロック プロトコル"
+   },
+   "note": ""
+  },
+  {
+   "en": "Revenant",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "quest": {
+    "en": "Mask of the Revenant",
+    "ja": "Revenantの仮面"
+   },
+   "note": ""
+  },
+  {
+   "en": "Sampotes",
+   "source": "simaris",
+   "body": false,
+   "parts": [],
+   "extras": [
+    {
+     "item": "Sampotes"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "en": "Sevagoth",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "quest": {
+    "en": "Call of the Tempestarii",
+    "ja": "嵐を呼ぶ者テンペスタリ"
+   },
+   "note": ""
+  },
+  {
+   "en": "Shedu",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "note": ""
+  },
+  {
+   "en": "Sigma & Octantis",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "note": ""
+  },
+  {
+   "en": "Simulor",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "note": ""
+  },
+  {
+   "en": "Sun & Moon",
+   "source": "simaris",
+   "body": false,
+   "parts": [],
+   "extras": [
+    {
+     "item": "Sun & Moon"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "en": "Syam",
+   "source": "simaris",
+   "body": false,
+   "parts": [],
+   "extras": [
+    {
+     "item": "Syam"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "en": "Thornbak",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "note": ""
+  },
+  {
+   "en": "Titania",
+   "source": "simaris",
+   "body": true,
+   "parts": [
+    {
+     "part": "Neuroptics"
+    },
+    {
+     "part": "Chassis"
+    },
+    {
+     "part": "Systems"
+    }
+   ],
+   "quest": {
+    "en": "The Silver Grove",
+    "ja": "銀の果樹園"
+   },
+   "note": ""
+  },
+  {
+   "en": "Veritux",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "note": ""
+  },
+  {
+   "en": "Vitrica",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "note": ""
+  },
+  {
+   "en": "Xaku",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "quest": {
+    "en": "Heart of Deimos",
+    "ja": "ダイモスの心臓"
+   },
+   "note": ""
+  },
+  {
+   "en": "Xoris",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "extras": [
+    {
+     "item": "Xoris Blade"
+    },
+    {
+     "item": "Xoris Core"
+    },
+    {
+     "item": "Xoris Handle"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "en": "Yareli",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "quest": {
+    "en": "The Waverider",
+    "ja": "ウェーブライダー"
+   },
+   "note": ""
+  },
+  {
+   "en": "Zenistar",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "note": ""
+  },
+  {
+   "en": "Zenith",
+   "source": "simaris",
+   "body": true,
+   "parts": [],
+   "note": ""
+  }
+ ]
+}

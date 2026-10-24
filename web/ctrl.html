@@ -125,76 +125,143 @@ async function refreshStatus() {
   } catch (e) { pill.textContent = "サーバーに接続できません"; pill.classList.add("warn"); }
 }
 
-/* ---------- 素材から探す ---------- */
-let itemKey = null, itemCat = "", itemData = null;
-async function loadItemChips() {
-  const q = $("#item-q").value, mat = $("#item-mat").checked;
-  try {
-    const list = await api(`/api/suggest/item?q=${encodeURIComponent(q)}&materials=${mat ? 1 : 0}`);
-    const box = $("#item-chips");
-    if (!list.length) { box.innerHTML = `<span class="note">一致する項目がありません${mat ? "(「素材のみ」を外すとMODや設計図も探せます)" : ""}</span>`; return list; }
-    box.innerHTML = list.map(i => `<button class="chip" data-key="${esc(i.key)}" aria-pressed="${i.key === itemKey}">${esc(i.ja)}${i.ja !== i.en ? `<small>${esc(i.en)}</small>` : ""}</button>`).join("");
-    return list;
-  } catch (e) { $("#item-chips").innerHTML = ""; $("#item-out").innerHTML = noData(e.message); return []; }
-}
+/* ---------- 入手先の検索(素材から探す・パーツ検索で共用) ---------- */
 /** 入手先の表 (素材から探す / MOD 一覧の詳細で共用) */
 function sourceTable(rows) {
-  const max = Math.max(...rows.map(x => x.chance), 0.0001);
+  const max = Math.max(...rows.map(x => x.chance ?? 0), 0.0001);  // 確率の無い入手先(クラン研究)は「—」でバーを出さない
   return `<div class="tablewrap"><table>
     <thead><tr><th>種類</th><th>入手先</th><th>詳細</th><th>ステージ</th><th>確率</th><th>レア度</th></tr></thead>
     <tbody>${rows.map(x => `<tr><td>${catTag(x.cat, x.cat_ja)}</td><td>${esc(x.place)}${x.event ? '<span class="tag-event">イベント</span>' : ""}</td>
       <td>${esc(x.detail)}</td><td>${esc(x.stage)}</td>
-      <td><div class="chance"><div class="bar"><i style="--w:${(x.chance / max * 100).toFixed(1)}%"></i></div><b>${x.qty ? esc(x.qty) + "個 " : ""}${fmtPct(x.chance)}</b></div></td>
-      <td>${rarity(x.rarity, x.rarity_key)}</td></tr>`).join("")}</tbody></table></div>`;
+      <td>${x.chance == null ? "—" : `<div class="chance"><div class="bar"><i style="--w:${(x.chance / max * 100).toFixed(1)}%"></i></div><b>${x.qty ? esc(x.qty) + "個 " : ""}${fmtPct(x.chance)}</b></div>`}</td>
+      <td>${x.rarity ? rarity(x.rarity, x.rarity_key) : ""}</td></tr>`).join("")}</tbody></table></div>`;
 }
-function renderItemResult() {
-  const r = itemData; if (!r) return;
-  if (itemCat && !r.cats.some(c => c.key === itemCat)) itemCat = "";
-  const rows = itemCat ? r.rows.filter(x => x.cat === itemCat) : r.rows;
-  $("#item-out").innerHTML = `
+/**
+ * 名前で候補を出し、選んだ項目の入手先(/api/item)を表にするページを作る。部品は #<id>-q #<id>-chips #<id>-out #<id>-ev
+ * o.id: ページの id / o.suggest(q): 候補を取る URL / o.list(res): 応答から候補の配列を取り出す(既定は応答そのもの)
+ * o.onSuggest(res): 候補を受け取ったとき(カテゴリーの描画など) / o.more(res, list): 候補の後ろに足す HTML
+ * o.msg: noMatch(res) 候補なし / pick 候補から選ぶ / empty 何も入っていない / noData データなし(どれも文字を返す関数)
+ * 返り値: load(ページを開いたとき) / search(autoPick)(候補を取り直す) / reset(データ更新の後)
+ */
+function sourceSearch(o) {
+  const el = part => $(`#${o.id}-${part}`);
+  const list = o.list || (res => res);
+  let key = null, cat = "", data = null;
+  const chip = i => `<button class="chip" data-key="${esc(i.key)}" aria-pressed="${i.key === key}">${esc(i.ja)}${i.ja !== i.en ? `<small>${esc(i.en)}</small>` : ""}</button>`;
+  async function loadChips() {
+    try {
+      const res = await api(o.suggest(el("q").value)), items = list(res);
+      if (o.onSuggest) o.onSuggest(res);
+      el("chips").innerHTML = items.length ? items.map(chip).join("") + (o.more ? o.more(res, items) : "")
+        : `<span class="note">${esc(o.msg.noMatch(res))}</span>`;
+      return items;
+    } catch (e) { el("chips").innerHTML = ""; el("out").innerHTML = noData(e.message); return []; }
+  }
+  function renderResult() {
+    const r = data; if (!r) return;
+    if (cat && !r.cats.some(c => c.key === cat)) cat = "";
+    const rows = cat ? r.rows.filter(x => x.cat === cat) : r.rows;
+    el("out").innerHTML = `
     <div class="result-head"><h3>${esc(r.ja)}</h3><span class="en">${esc(r.en)}</span><span class="count">${r.total} か所</span></div>
     ${r.cats.length > 1 ? `<div class="seg" role="group" aria-label="入手先の種類">
-      <button class="chip" data-cat="" aria-pressed="${!itemCat}">すべて<small>${r.total}</small></button>
-      ${r.cats.map(c => `<button class="chip" data-cat="${esc(c.key)}" aria-pressed="${itemCat === c.key}">${esc(c.ja)}<small>${c.n}</small></button>`).join("")}</div>` : ""}
+      <button class="chip" data-cat="" aria-pressed="${!cat}">すべて<small>${r.total}</small></button>
+      ${r.cats.map(c => `<button class="chip" data-cat="${esc(c.key)}" aria-pressed="${cat === c.key}">${esc(c.ja)}<small>${c.n}</small></button>`).join("")}</div>` : ""}
     ${sourceTable(rows)}
-    <p class="note">確率: ミッション/バウンティは報酬1回の抽選で選ばれる割合(A→B→C はローテーション)、敵は1体倒したときに落とす割合(「MODドロップ 3%」などは、その敵が MOD を落とす確率を掛けた後の値)、レリックは開けたときに出る割合です。</p>`;
-}
-async function loadItemResult() {
-  if (!itemKey) { $("#item-out").innerHTML = ""; return; }
-  try {
-    itemData = await api(`/api/item?key=${encodeURIComponent(itemKey)}&events=${$("#item-ev").checked ? 1 : 0}`);
-    renderItemResult();
-  } catch (e) { itemData = null; $("#item-out").innerHTML = noData(e.message); }
-}
-$("#item-out").addEventListener("click", e => {
-  const c = e.target.closest("[data-cat]"); if (!c) return;
-  itemCat = c.dataset.cat; renderItemResult();
-});
-async function itemSearch(autoPick) {
-  const list = await loadItemChips();
-  if (!list || !list.length) { itemKey = null; $("#item-out").innerHTML = ""; return; }
-  const q = $("#item-q").value.trim();
-  if (autoPick || !list.some(i => i.key === itemKey)) {
-    const exact = q && list.find(i => [i.ja, i.en].some(n => n.toLowerCase() === q.toLowerCase()));
-    itemKey = exact ? exact.key : (q && list.length === 1 ? list[0].key : (q ? null : itemKey));
-    if (itemKey) { $("#item-chips").querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c.dataset.key === itemKey)); }
+    <p class="note">確率: ミッション/バウンティは報酬1回の抽選で選ばれる割合(A→B→C はローテーション)、敵は1体倒したときに落とす割合(「MODドロップ 3%」などは、その敵が MOD を落とす確率を掛けた後の値)、レリックは開けたときに出る割合です。クラン研究・Simaris 交換・クエスト報酬は確率が無いので「—」です。</p>`;
   }
-  if (!itemKey) $("#item-out").innerHTML = q ? `<div class="empty">候補から選んでください。</div>` : `<div class="empty">素材を選ぶか、名前を入力してください。</div>`;
-  else await loadItemResult();
+  async function loadResult() {
+    if (!key) { el("out").innerHTML = ""; return; }
+    try {
+      data = await api(`/api/item?key=${encodeURIComponent(key)}&events=${el("ev").checked ? 1 : 0}`);
+      renderResult();
+    } catch (e) { data = null; el("out").innerHTML = noData(e.message); }
+  }
+  const markChips = () => el("chips").querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c.dataset.key === key));
+  async function search(autoPick) {
+    const items = await loadChips();
+    if (!items || !items.length) { key = null; el("out").innerHTML = ""; return; }
+    const q = el("q").value.trim();
+    if (autoPick || !items.some(i => i.key === key)) {
+      const exact = q && items.find(i => [i.ja, i.en].some(n => n.toLowerCase() === q.toLowerCase()));
+      key = exact ? exact.key : (q && items.length === 1 ? items[0].key : (q ? null : key));
+      if (key) markChips();
+    }
+    if (!key) el("out").innerHTML = `<div class="empty">${esc(q ? o.msg.pick() : o.msg.empty())}</div>`;
+    else await loadResult();
+  }
+  el("out").addEventListener("click", e => {
+    const c = e.target.closest("[data-cat]"); if (!c) return;
+    cat = c.dataset.cat; renderResult();
+  });
+  el("q").addEventListener("input", debounce(() => search(true)));
+  el("ev").addEventListener("change", loadResult);
+  el("chips").addEventListener("click", e => {
+    const c = e.target.closest(".chip[data-key]"); if (!c) return;
+    key = c.dataset.key; cat = "";
+    markChips();
+    loadResult();
+  });
+  return {
+    search,
+    async load() {
+      const s = await refreshStatus();
+      if (!s || !s.has_drops) { el("chips").innerHTML = ""; el("out").innerHTML = noData(o.msg.noData()); return; }
+      if (!el("chips").children.length || !key) await search(true);
+    },
+    reset() { key = null; data = null; el("chips").innerHTML = ""; },
+  };
 }
-$("#item-q").addEventListener("input", debounce(() => itemSearch(true)));
-$("#item-mat").addEventListener("change", () => itemSearch(false));
-$("#item-ev").addEventListener("change", loadItemResult);
-$("#item-chips").addEventListener("click", e => {
-  const c = e.target.closest(".chip"); if (!c) return;
-  itemKey = c.dataset.key; itemCat = "";
-  $("#item-chips").querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x === c));
-  loadItemResult();
+
+/* ---------- 素材から探す ---------- */
+const itemSearch = sourceSearch({
+  id: "item",
+  suggest: q => `/api/suggest/item?q=${encodeURIComponent(q)}&materials=${$("#item-mat").checked ? 1 : 0}`,
+  msg: {
+    noMatch: () => "一致する項目がありません" + ($("#item-mat").checked ? "(「素材のみ」を外すとMODや設計図も探せます)" : ""),
+    pick: () => "候補から選んでください。",
+    empty: () => "素材を選ぶか、名前を入力してください。",
+    noData: () => "データがありません。「データ更新」から取得してください。",
+  },
 });
-loaders.item = async () => {
-  const s = await refreshStatus();
-  if (!s || !s.has_drops) { $("#item-chips").innerHTML = ""; $("#item-out").innerHTML = noData("データがありません。「データ更新」から取得してください。"); return; }
-  if (!$("#item-chips").children.length || !itemKey) await itemSearch(true);
+$("#item-mat").addEventListener("change", () => itemSearch.search(false));
+loaders.item = itemSearch.load;
+
+/* ---------- パーツ検索 ---------- */
+/* Warframe・武器などの本体・設計図・パーツだけを候補に出す。カテゴリーはマスター一覧と同じ(ファウンダー・その他は除く) */
+let partCat = "";
+try { partCat = localStorage.getItem("wf-part-cat") || ""; } catch (e) {}
+if (partCat && t("part.cat." + partCat) === "part.cat." + partCat) partCat = "";  // 今は無いカテゴリーが残っていたら外す
+const partFmt = (key, vals) => Object.entries(vals).reduce((s, [k, v]) => s.split("{" + k + "}").join(v), t(key));
+const partSearch = sourceSearch({
+  id: "part",
+  suggest: q => `/api/suggest/part?q=${encodeURIComponent(q)}&cat=${encodeURIComponent(partCat)}`,
+  list: res => res.items,
+  onSuggest: res => {
+    const all = res.cats.reduce((n, c) => n + c.n, 0);
+    // 選んでいるカテゴリーに名前の合う候補が無いときも、ボタンは 0 件で残す(押し直して外せるように)
+    const cats = partCat && !res.cats.some(c => c.key === partCat) ? [...res.cats, { key: partCat, n: 0 }] : res.cats;
+    $("#part-cats").innerHTML = `<button class="chip" data-pcat="" aria-pressed="${!partCat}">${esc(t("part.cat.all"))}<small>${all}</small></button>`
+      + cats.map(c => `<button class="chip" data-pcat="${esc(c.key)}" aria-pressed="${partCat === c.key}">${esc(t("part.cat." + c.key))}<small>${c.n}</small></button>`).join("");
+  },
+  more: (res, items) => res.total > items.length ? `<span class="note">${esc(partFmt("part.more", { n: res.total - items.length }))}</span>` : "",
+  msg: {
+    noMatch: () => t("part.nomatch"),
+    pick: () => t("part.pick"),
+    empty: () => t("part.empty"),
+    noData: () => t("part.nodata"),
+  },
+});
+$("#part-cats").addEventListener("click", e => {
+  const c = e.target.closest("[data-pcat]"); if (!c) return;
+  partCat = c.dataset.pcat;
+  try { localStorage.setItem("wf-part-cat", partCat); } catch (err) {}
+  partSearch.search(false);
+});
+loaders.part = () => {
+  applyViewText("part");
+  $("#part-q").placeholder = t("part.placeholder");
+  $("#part-cats").setAttribute("aria-label", t("part.cats"));
+  return partSearch.load();
 };
 
 /* ---------- エリアから探す ---------- */
@@ -1225,7 +1292,7 @@ function renderBaroNow() {
   const label = { here: "来ています", coming: "次に来ます", gone: "前回の来訪(終了しました)" }[cur.state];
   const count = cur.state === "here" ? `帰るまで ${dur(cur.expiry - now)}` : cur.state === "coming" ? `来るまで ${dur(cur.activation - now)}` : "";
   const items = cur.items.length ? `<div class="tablewrap"><table>
-    <thead><tr><th class="chk">所持</th><th>品物</th><th>種類</th><th class="num">ドゥカット</th><th class="num">クレジット</th><th class="num" title="この PC で記録した来訪の回数(今回を含む)">来た回数</th></tr></thead>
+    <thead><tr><th class="chk">所持</th><th>品物</th><th>種類</th><th class="num">デュカット</th><th class="num">クレジット</th><th class="num" title="この PC で記録した来訪の回数(今回を含む)">来た回数</th></tr></thead>
     <tbody>${cur.items.map(r => `<tr class="${r.owned ? "owned" : ""}" data-name="${esc(r.name)}">
       <td class="chk">${baroOwnedCell(r)}</td><td>${baroName(r)}${r.limit ? `<span class="tag-mini">${esc(String(r.limit))} 個まで</span>` : ""}</td>
       <td>${esc(r.kind_ja)}</td><td class="num">${num(r.ducats)}</td><td class="num">${num(r.credits)}</td>
@@ -1257,7 +1324,7 @@ function renderBaro() {
     : `<span><b class="count">${esc(baroKind ? baro.kinds[baroKind] : "照合できる品物")}</b> 所持 ${cur.owned} / ${cur.total}(${p.toFixed(1)}%)</span>
        <span class="progress" aria-hidden="true"><i style="--w:${p.toFixed(1)}%"></i></span><span>表示 ${list.length} 件</span>`;
   $("#baro-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
-    <thead><tr>${th("所持", "owned", baroSort, "chk")}${th("品物", "name", baroSort)}${th("種類", "kind", baroSort)}${th("最後に来た日", "last", baroSort)}${th("回数", "count", baroSort, "num")}${th("ドゥカット", "ducats", baroSort, "num")}${th("クレジット", "credits", baroSort, "num")}</tr></thead>
+    <thead><tr>${th("所持", "owned", baroSort, "chk")}${th("品物", "name", baroSort)}${th("種類", "kind", baroSort)}${th("最後に来た日", "last", baroSort)}${th("回数", "count", baroSort, "num")}${th("デュカット", "ducats", baroSort, "num")}${th("クレジット", "credits", baroSort, "num")}</tr></thead>
     <tbody>${list.map(r => `<tr class="${r.owned ? "owned" : ""}" data-name="${esc(r.name)}">
       <td class="chk">${baroOwnedCell(r)}</td><td>${baroName(r)}${r.seed ? "" : `<span class="tag-mini" title="この PC で記録した来訪で追加された品物です">来訪で追加</span>`}</td>
       <td title="${esc(r.check_by)}">${esc(r.kind_ja)}</td><td>${r.last ? esc(r.last) : `<span class="none" title="この PC ではまだ記録していません">未記録</span>`}</td>
@@ -1660,7 +1727,7 @@ $("#update-btn").addEventListener("click", async () => {
   try {
     const r = await api("/api/update", { method: "POST", body: {} });
     log.textContent = r.log || (r.ok ? "完了しました。" : "失敗しました。");
-    itemKey = null; itemData = null; $("#item-chips").innerHTML = ""; mods = null; rivens = null; modOpen = null; mastery = null; arcanes = null;
+    itemSearch.reset(); partSearch.reset(); mods = null; rivens = null; modOpen = null; mastery = null; arcanes = null;
     simReload();  // シミュレータ用データも「データ更新」で作り直すので、開いていれば読み直す
   } catch (e) { log.textContent = e.message; }
   btn.disabled = false; btn.textContent = "公式データを取得"; refreshStatus();

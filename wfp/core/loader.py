@@ -3,10 +3,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from wfp.core.common import CLAN_FILE, OTHER_FILE
 from wfp.core.names import Names
 from wfp.drops.tables import Drops, Sources
 from wfp.fetch import riven_stats
-from wfp.store import gamedata
+from wfp.store import appdata, gamedata
 
 
 DROPS_MISSING = "ドロップ表がありません。先に `python wfportal.py update` を実行してください。"
@@ -30,8 +31,8 @@ def load_drops(d: Path) -> Drops:
 
 
 def load_sources(d: Path) -> Sources:
-    """ミッション以外の入手先(wfcd/ 以下)"""
-    return Sources(gamedata.read_wfcd(d))
+    """ミッション以外の入手先(wfcd/ 以下)と、同梱のクラン研究・Simaris 交換など(data/parts/clan.json / other.json)"""
+    return Sources(gamedata.read_wfcd(d), appdata.read_parts(CLAN_FILE), appdata.read_parts(OTHER_FILE))
 
 
 def load_rivens(d: Path) -> list[dict] | None:

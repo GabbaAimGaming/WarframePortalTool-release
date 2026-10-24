@@ -6,10 +6,12 @@ import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from wfp.core.common import CLAN_FILE, OTHER_FILE
 from wfp.core.loader import load_drops, load_names, load_rivens, load_sources
 from wfp.core.names import Names
 from wfp.drops.search import all_item_names
 from wfp.drops.tables import Drops, Sources
+from wfp.store import appdata
 
 
 JST = timezone(timedelta(hours=9))
@@ -46,15 +48,18 @@ class Store:
         return {"updated": j.get("updated"), "source": j.get("source"), "mods": len(j.get("mods") or [])}
 
     def sources(self) -> Sources | None:
-        """敵・バウンティ等 (wfcd/ 以下の複数ファイル)。どれかが更新されたら読み直す"""
+        """敵・バウンティ等 (wfcd/ 以下の複数ファイル) と同梱のクラン研究・Simaris 交換など。どれかが更新されたら読み直す。
+        wfcd/ がまだ無くても同梱分の行は返す(どれも無ければ None)"""
         folder = self.d / "wfcd"
         files = sorted(folder.glob("*.json")) if folder.exists() else []
-        stamp = tuple((f.name, f.stat().st_mtime_ns) for f in files)
+        bundled = [appdata.parts_dir() / n for n in (CLAN_FILE, OTHER_FILE)]
+        files_all = files + [f for f in bundled if f.exists()]
+        stamp = tuple((str(f), f.stat().st_mtime_ns) for f in files_all)
         with self._lock:
             hit = self._cache.get("@sources")
             if hit and hit[0] == stamp:
                 return hit[1]
-        obj = load_sources(self.d) if files else None
+        obj = load_sources(self.d) if files_all else None
         with self._lock:
             self._cache["@sources"] = (stamp, obj)
         return obj

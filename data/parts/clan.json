@@ -1,0 +1,1445 @@
+{
+ "_comment": "クラン研究で手に入る設計図(パーツ検索・素材から探すの入手先に「クラン研究」として出す)。開発側が手で編集して配布。プログラムが読むのは en(本体の英名。マスター一覧の名前と同じ)・lab(研究所のキー。wfp/core/common.py の CLAN_LABS)・parts[].part(部品名。PART_WORDS)・parts[].lab(無ければ本体と同じ)・body・note(入手先の表の詳細欄に出す)だけ。ja・type・time・minutes・cost・requires は参考として残している(研究時間などは表示しない)。body: false は本体の設計図が研究に無い(部品だけ。例: Yareli)。省略時は本体の設計図も研究で手に入る。time 等が null・空のものは未調査",
+ "items": [
+  {
+   "en": "Ack & Brunt",
+   "ja": "Ack & Brunt",
+   "type": "melee",
+   "lab": "chemical",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "OGRIS",
+   "parts": []
+  },
+  {
+   "en": "Acrid",
+   "ja": "Acrid",
+   "type": "secondary",
+   "lab": "bio",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "TORID",
+   "parts": []
+  },
+  {
+   "en": "Akstiletto",
+   "ja": "Akstiletto",
+   "type": "secondary",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": null,
+   "parts": []
+  },
+  {
+   "en": "Amesha",
+   "ja": "Amesha",
+   "type": "archwing",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": null,
+   "parts": [
+    {
+     "part": "Harness",
+     "lab": "tenno",
+     "time": "36時間",
+     "minutes": 2160,
+     "cost": 1500,
+     "requires": "AMESHA"
+    },
+    {
+     "part": "Systems",
+     "lab": "tenno",
+     "time": "36時間",
+     "minutes": 2160,
+     "cost": 1500,
+     "requires": "AMESHA"
+    },
+    {
+     "part": "Wings",
+     "lab": "tenno",
+     "time": "36時間",
+     "minutes": 2160,
+     "cost": 1500,
+     "requires": "AMESHA"
+    }
+   ]
+  },
+  {
+   "en": "Amprex",
+   "ja": "Amprex",
+   "type": "primary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "DERA",
+   "parts": []
+  },
+  {
+   "en": "Anku",
+   "ja": "Anku",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "48時間",
+   "minutes": 2880,
+   "cost": 3000,
+   "requires": "AKSTILETTO",
+   "parts": []
+  },
+  {
+   "en": "Arca Plasmor",
+   "ja": "Arca Plasmor",
+   "type": "primary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "LANKA",
+   "parts": []
+  },
+  {
+   "en": "Arca Scisco",
+   "ja": "Arca Scisco",
+   "type": "secondary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "SPECTRA",
+   "parts": []
+  },
+  {
+   "en": "Argonak",
+   "ja": "Argonak",
+   "type": "primary",
+   "lab": "chemical",
+   "time": "60時間",
+   "minutes": 3600,
+   "cost": 3000,
+   "requires": "GRINLOK",
+   "parts": []
+  },
+  {
+   "en": "Attica",
+   "ja": "Attica",
+   "type": "primary",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "AKSTILETTO",
+   "parts": []
+  },
+  {
+   "en": "Banshee",
+   "ja": "Banshee",
+   "type": "frame",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 5000,
+   "requires": null,
+   "parts": [
+    {
+     "part": "Neuroptics",
+     "lab": "tenno",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": "BANSHEE"
+    },
+    {
+     "part": "Chassis",
+     "lab": "tenno",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": "BANSHEE"
+    },
+    {
+     "part": "Systems",
+     "lab": "tenno",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": "BANSHEE"
+    }
+   ]
+  },
+  {
+   "en": "Battacor",
+   "ja": "Battacor",
+   "type": "primary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 5000,
+   "requires": "OCUCOR",
+   "parts": []
+  },
+  {
+   "en": "Baza",
+   "ja": "Baza",
+   "type": "primary",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "AKSTILETTO",
+   "parts": []
+  },
+  {
+   "en": "Buzlok",
+   "ja": "Buzlok",
+   "type": "primary",
+   "lab": "chemical",
+   "time": "60時間",
+   "minutes": 3600,
+   "cost": 3000,
+   "requires": "デトナイト インジェクター",
+   "parts": []
+  },
+  {
+   "en": "Cassowar",
+   "ja": "Cassowar",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "ANKU",
+   "parts": []
+  },
+  {
+   "en": "Castanas",
+   "ja": "Castanas",
+   "type": "secondary",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": null,
+   "parts": []
+  },
+  {
+   "en": "Caustacyst",
+   "ja": "Caustacyst",
+   "type": "melee",
+   "lab": "bio",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "EMBOLIST",
+   "parts": []
+  },
+  {
+   "en": "Cerata",
+   "ja": "Cerata",
+   "type": "melee",
+   "lab": "bio",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "SCOLIAC",
+   "parts": []
+  },
+  {
+   "en": "Convectrix",
+   "ja": "Convectrix",
+   "type": "primary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "LANKA",
+   "parts": []
+  },
+  {
+   "en": "Cyanex",
+   "ja": "Cyanex",
+   "type": "secondary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": null,
+   "parts": []
+  },
+  {
+   "en": "Cycron",
+   "ja": "Cycron",
+   "type": "secondary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "SPECTRA",
+   "parts": []
+  },
+  {
+   "en": "Dagath",
+   "ja": "Dagath",
+   "type": "frame",
+   "lab": "dagath",
+   "time": null,
+   "minutes": null,
+   "cost": null,
+   "requires": null,
+   "parts": [
+    {
+     "part": "Neuroptics",
+     "lab": "dagath",
+     "time": null,
+     "minutes": null,
+     "cost": null,
+     "requires": null
+    },
+    {
+     "part": "Chassis",
+     "lab": "dagath",
+     "time": null,
+     "minutes": null,
+     "cost": null,
+     "requires": null
+    },
+    {
+     "part": "Systems",
+     "lab": "dagath",
+     "time": null,
+     "minutes": null,
+     "cost": null,
+     "requires": null
+    }
+   ]
+  },
+  {
+   "en": "Daikyu",
+   "ja": "Daikyu",
+   "type": "primary",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "AKSTILETTO",
+   "parts": []
+  },
+  {
+   "en": "Dark Split-Sword",
+   "ja": "Dark Split-Sword",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "48時間",
+   "minutes": 2880,
+   "cost": 3000,
+   "requires": "NAMI SKYLA",
+   "parts": []
+  },
+  {
+   "en": "Dera",
+   "ja": "Dera",
+   "type": "primary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "PROVA",
+   "parts": []
+  },
+  {
+   "en": "Djinn",
+   "ja": "Djinn",
+   "type": "robotic",
+   "lab": "bio",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "DUAL ICHOR",
+   "parts": []
+  },
+  {
+   "en": "Dual Cestra",
+   "ja": "Dual Cestra",
+   "type": "secondary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "フィールドロン",
+   "parts": []
+  },
+  {
+   "en": "Dual Ichor",
+   "ja": "Dual Ichor",
+   "type": "melee",
+   "lab": "bio",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "TORID",
+   "parts": []
+  },
+  {
+   "en": "Dual Raza",
+   "ja": "Dual Raza",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": null,
+   "parts": []
+  },
+  {
+   "en": "Dual Toxocyst",
+   "ja": "Dual Toxocyst",
+   "type": "secondary",
+   "lab": "bio",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "ACRID",
+   "parts": []
+  },
+  {
+   "en": "Elytron",
+   "ja": "Elytron",
+   "type": "archwing",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": null,
+   "parts": [
+    {
+     "part": "Harness",
+     "lab": "tenno",
+     "time": "36時間",
+     "minutes": 2160,
+     "cost": 1500,
+     "requires": "ELYTRON"
+    },
+    {
+     "part": "Systems",
+     "lab": "tenno",
+     "time": "36時間",
+     "minutes": 2160,
+     "cost": 1500,
+     "requires": "ELYTRON"
+    },
+    {
+     "part": "Wings",
+     "lab": "tenno",
+     "time": "36時間",
+     "minutes": 2160,
+     "cost": 1500,
+     "requires": "ELYTRON"
+    }
+   ]
+  },
+  {
+   "en": "Embolist",
+   "ja": "Embolist",
+   "type": "secondary",
+   "lab": "bio",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "ACRID",
+   "parts": []
+  },
+  {
+   "en": "Endura",
+   "ja": "Endura",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "NAMI SKYLA",
+   "parts": []
+  },
+  {
+   "en": "Falcor",
+   "ja": "Falcor",
+   "type": "melee",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "PROVA",
+   "parts": []
+  },
+  {
+   "en": "Ferrox",
+   "ja": "Ferrox",
+   "type": "primary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "AMPREX",
+   "parts": []
+  },
+  {
+   "en": "Fluctus",
+   "ja": "Fluctus",
+   "type": "archwing",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": null,
+   "parts": []
+  },
+  {
+   "en": "Flux Rifle",
+   "ja": "Flux Rifle",
+   "type": "primary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "DERA",
+   "parts": []
+  },
+  {
+   "en": "Gazal Machete",
+   "ja": "Gazal Machete",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": null,
+   "parts": []
+  },
+  {
+   "en": "Ghoulsaw",
+   "ja": "Ghoulsaw",
+   "type": "melee",
+   "lab": "bash",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": null,
+   "parts": [
+    {
+     "part": "Engine",
+     "lab": "bash",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1000,
+     "requires": null
+    },
+    {
+     "part": "Grip",
+     "lab": "bash",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1000,
+     "requires": null
+    },
+    {
+     "part": "Chassis",
+     "lab": "bash",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1000,
+     "requires": null
+    },
+    {
+     "part": "Blade",
+     "lab": "bash",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1000,
+     "requires": null
+    }
+   ]
+  },
+  {
+   "en": "Glaxion",
+   "ja": "Glaxion",
+   "type": "primary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "AMPREX",
+   "parts": []
+  },
+  {
+   "en": "Grattler",
+   "ja": "Grattler",
+   "type": "archwing",
+   "lab": "chemical",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 5000,
+   "requires": "OGRIS",
+   "parts": []
+  },
+  {
+   "en": "Grinlok",
+   "ja": "Grinlok",
+   "type": "primary",
+   "lab": "chemical",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "デトナイト インジェクター",
+   "parts": []
+  },
+  {
+   "en": "Guandao",
+   "ja": "Guandao",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "NAMI SKYLA",
+   "parts": []
+  },
+  {
+   "en": "Gunsen",
+   "ja": "Gunsen",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "VENKA",
+   "parts": []
+  },
+  {
+   "en": "Helios",
+   "ja": "Helios",
+   "type": "robotic",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "LANKA",
+   "parts": []
+  },
+  {
+   "en": "Hema",
+   "ja": "Hema",
+   "type": "primary",
+   "lab": "bio",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 10000,
+   "requires": "TORID",
+   "parts": []
+  },
+  {
+   "en": "Ignis",
+   "ja": "Ignis",
+   "type": "primary",
+   "lab": "chemical",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "デトナイト インジェクター",
+   "parts": []
+  },
+  {
+   "en": "Ignis Wraith",
+   "ja": "Ignis Wraith",
+   "type": "primary",
+   "lab": "chemical",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "IGNIS",
+   "note": "2017年イベント上位のみ",
+   "parts": []
+  },
+  {
+   "en": "Itzal",
+   "ja": "Itzal",
+   "type": "archwing",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": null,
+   "parts": [
+    {
+     "part": "Harness",
+     "lab": "tenno",
+     "time": "36時間",
+     "minutes": 2160,
+     "cost": 1500,
+     "requires": "ITZAL"
+    },
+    {
+     "part": "Systems",
+     "lab": "tenno",
+     "time": "36時間",
+     "minutes": 2160,
+     "cost": 1500,
+     "requires": "ITZAL"
+    },
+    {
+     "part": "Wings",
+     "lab": "tenno",
+     "time": "36時間",
+     "minutes": 2160,
+     "cost": 1500,
+     "requires": "ITZAL"
+    }
+   ]
+  },
+  {
+   "en": "Jat Kittag",
+   "ja": "Jat Kittag",
+   "type": "melee",
+   "lab": "chemical",
+   "time": "96時間",
+   "minutes": 5760,
+   "cost": 3000,
+   "requires": "デトナイト インジェクター",
+   "parts": []
+  },
+  {
+   "en": "Jat Kusar",
+   "ja": "Jat Kusar",
+   "type": "melee",
+   "lab": "chemical",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "JAT KITTAG",
+   "parts": []
+  },
+  {
+   "en": "Javlok",
+   "ja": "Javlok",
+   "type": "primary",
+   "lab": "chemical",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "IGNIS",
+   "parts": []
+  },
+  {
+   "en": "Kesheg",
+   "ja": "Kesheg",
+   "type": "melee",
+   "lab": "chemical",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "SYDON",
+   "parts": []
+  },
+  {
+   "en": "Knux",
+   "ja": "Knux",
+   "type": "archwing",
+   "lab": "chemical",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 5000,
+   "requires": "OGRIS",
+   "parts": []
+  },
+  {
+   "en": "Kohmak",
+   "ja": "Kohmak",
+   "type": "secondary",
+   "lab": "chemical",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "MARELOK",
+   "parts": []
+  },
+  {
+   "en": "Komorex",
+   "ja": "Komorex",
+   "type": "primary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "CYANEX",
+   "parts": []
+  },
+  {
+   "en": "Kreska",
+   "ja": "Kreska",
+   "type": "melee",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 5000,
+   "requires": null,
+   "parts": []
+  },
+  {
+   "en": "Lacera",
+   "ja": "Lacera",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "48時間",
+   "minutes": 2880,
+   "cost": 3000,
+   "requires": "NAMI SKYLA",
+   "parts": []
+  },
+  {
+   "en": "Lanka",
+   "ja": "Lanka",
+   "type": "primary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "DERA",
+   "parts": []
+  },
+  {
+   "en": "Larkspur",
+   "ja": "Larkspur",
+   "type": "archwing",
+   "lab": "tenno",
+   "time": "48時間",
+   "minutes": 2880,
+   "cost": 3000,
+   "requires": null,
+   "parts": []
+  },
+  {
+   "en": "Lenz",
+   "ja": "Lenz",
+   "type": "primary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 4000,
+   "requires": "AMPREX",
+   "parts": []
+  },
+  {
+   "en": "Marelok",
+   "ja": "Marelok",
+   "type": "secondary",
+   "lab": "chemical",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "デトナイト インジェクター",
+   "parts": []
+  },
+  {
+   "en": "Masseter",
+   "ja": "Masseter",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "",
+   "minutes": null,
+   "cost": null,
+   "requires": "NAMI SKYLA",
+   "parts": []
+  },
+  {
+   "en": "Mios",
+   "ja": "Mios",
+   "type": "melee",
+   "lab": "bio",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "SCOLIAC",
+   "parts": []
+  },
+  {
+   "en": "Mutalist Quanta",
+   "ja": "Mutalist Quanta",
+   "type": "primary",
+   "lab": "bio",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "EMBOLIST",
+   "parts": []
+  },
+  {
+   "en": "Nami Skyla",
+   "ja": "Nami Skyla",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "48時間",
+   "minutes": 2880,
+   "cost": 3000,
+   "requires": null,
+   "parts": []
+  },
+  {
+   "en": "Nezha",
+   "ja": "Nezha",
+   "type": "frame",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 5000,
+   "requires": null,
+   "parts": [
+    {
+     "part": "Neuroptics",
+     "lab": "tenno",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": "NEZHA"
+    },
+    {
+     "part": "Chassis",
+     "lab": "tenno",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": "NEZHA"
+    },
+    {
+     "part": "Systems",
+     "lab": "tenno",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": "NEZHA"
+    }
+   ]
+  },
+  {
+   "en": "Nikana",
+   "ja": "Nikana",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "48時間",
+   "minutes": 2880,
+   "cost": 3000,
+   "requires": "AKSTILETTO",
+   "parts": []
+  },
+  {
+   "en": "Nukor",
+   "ja": "Nukor",
+   "type": "secondary",
+   "lab": "chemical",
+   "time": "84時間",
+   "minutes": 5040,
+   "cost": 3000,
+   "requires": "デトナイト インジェクター",
+   "parts": []
+  },
+  {
+   "en": "Ocucor",
+   "ja": "Ocucor",
+   "type": "secondary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 5000,
+   "requires": "KRESKA",
+   "parts": []
+  },
+  {
+   "en": "Ogris",
+   "ja": "Ogris",
+   "type": "primary",
+   "lab": "chemical",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "IGNIS",
+   "parts": []
+  },
+  {
+   "en": "Okina",
+   "ja": "Okina",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "NAMI SKYLA",
+   "parts": []
+  },
+  {
+   "en": "Opticor",
+   "ja": "Opticor",
+   "type": "primary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "LANKA",
+   "parts": []
+  },
+  {
+   "en": "Paracyst",
+   "ja": "Paracyst",
+   "type": "primary",
+   "lab": "bio",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "MUTALIST QUANTA",
+   "parts": []
+  },
+  {
+   "en": "Phage",
+   "ja": "Phage",
+   "type": "primary",
+   "lab": "bio",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "ミュータジェン マス",
+   "parts": []
+  },
+  {
+   "en": "Pox",
+   "ja": "Pox",
+   "type": "secondary",
+   "lab": "bio",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "DUAL TOXOCYST",
+   "parts": []
+  },
+  {
+   "en": "Prova",
+   "ja": "Prova",
+   "type": "melee",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "フィールドロン",
+   "parts": []
+  },
+  {
+   "en": "Pupacyst",
+   "ja": "Pupacyst",
+   "type": "melee",
+   "lab": "bio",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "EMBOLIST",
+   "parts": []
+  },
+  {
+   "en": "Pyrana",
+   "ja": "Pyrana",
+   "type": "secondary",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "AKSTILETTO",
+   "parts": []
+  },
+  {
+   "en": "Quanta",
+   "ja": "Quanta",
+   "type": "primary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "PROVA",
+   "parts": []
+  },
+  {
+   "en": "Scoliac",
+   "ja": "Scoliac",
+   "type": "melee",
+   "lab": "bio",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "TORID",
+   "parts": []
+  },
+  {
+   "en": "Scourge",
+   "ja": "Scourge",
+   "type": "primary",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "TONBO",
+   "parts": []
+  },
+  {
+   "en": "Serro",
+   "ja": "Serro",
+   "type": "melee",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "フィールドロン",
+   "parts": []
+  },
+  {
+   "en": "Shaku",
+   "ja": "Shaku",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "48時間",
+   "minutes": 2880,
+   "cost": 3000,
+   "requires": "NAMI SKYLA",
+   "parts": []
+  },
+  {
+   "en": "Silva & Aegis",
+   "ja": "Silva & Aegis",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": null,
+   "parts": []
+  },
+  {
+   "en": "Spectra",
+   "ja": "Spectra",
+   "type": "secondary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "DERA",
+   "parts": []
+  },
+  {
+   "en": "Staticor",
+   "ja": "Staticor",
+   "type": "secondary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "AMPREX",
+   "parts": []
+  },
+  {
+   "en": "Supra",
+   "ja": "Supra",
+   "type": "primary",
+   "lab": "energy",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "PROVA",
+   "parts": []
+  },
+  {
+   "en": "Sybaris",
+   "ja": "Sybaris",
+   "type": "primary",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "AKSTILETTO",
+   "parts": []
+  },
+  {
+   "en": "Sydon",
+   "ja": "Sydon",
+   "type": "melee",
+   "lab": "chemical",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "デトナイト インジェクター",
+   "parts": []
+  },
+  {
+   "en": "Synapse",
+   "ja": "Synapse",
+   "type": "primary",
+   "lab": "bio",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "EMBOLIST",
+   "parts": []
+  },
+  {
+   "en": "Talons",
+   "ja": "Talons",
+   "type": "secondary",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "CASTANAS",
+   "parts": []
+  },
+  {
+   "en": "Tenora",
+   "ja": "Tenora",
+   "type": "primary",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "SYBARIS",
+   "parts": []
+  },
+  {
+   "en": "Tonbo",
+   "ja": "Tonbo",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "48時間",
+   "minutes": 2880,
+   "cost": 3000,
+   "requires": "NAMI SKYLA",
+   "parts": []
+  },
+  {
+   "en": "Torid",
+   "ja": "Torid",
+   "type": "primary",
+   "lab": "bio",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "ミュータジェン マス",
+   "parts": []
+  },
+  {
+   "en": "Twin Krohkur",
+   "ja": "Twin Krohkur",
+   "type": "melee",
+   "lab": "chemical",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "SYDON",
+   "parts": []
+  },
+  {
+   "en": "Veldt",
+   "ja": "Veldt",
+   "type": "primary",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "SYBARIS",
+   "parts": []
+  },
+  {
+   "en": "Velocitus",
+   "ja": "Velocitus",
+   "type": "archwing",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": null,
+   "parts": []
+  },
+  {
+   "en": "Venato",
+   "ja": "Venato",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "",
+   "minutes": null,
+   "cost": null,
+   "requires": "TONBO",
+   "parts": []
+  },
+  {
+   "en": "Venka",
+   "ja": "Venka",
+   "type": "melee",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "SYBARIS",
+   "parts": []
+  },
+  {
+   "en": "Volt",
+   "ja": "Volt",
+   "type": "frame",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 5000,
+   "requires": null,
+   "parts": [
+    {
+     "part": "Neuroptics",
+     "lab": "tenno",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": "VOLT"
+    },
+    {
+     "part": "Chassis",
+     "lab": "tenno",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": "VOLT"
+    },
+    {
+     "part": "Systems",
+     "lab": "tenno",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": "VOLT"
+    }
+   ]
+  },
+  {
+   "en": "Wukong",
+   "ja": "Wukong",
+   "type": "frame",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 5000,
+   "requires": null,
+   "parts": [
+    {
+     "part": "Neuroptics",
+     "lab": "tenno",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": "WUKONG"
+    },
+    {
+     "part": "Chassis",
+     "lab": "tenno",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": "WUKONG"
+    },
+    {
+     "part": "Systems",
+     "lab": "tenno",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": "WUKONG"
+    }
+   ]
+  },
+  {
+   "en": "Yareli",
+   "ja": "Yareli",
+   "type": "frame",
+   "lab": "bash",
+   "time": null,
+   "minutes": null,
+   "cost": null,
+   "requires": null,
+   "parts": [
+    {
+     "part": "Systems",
+     "lab": "bash",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": null
+    },
+    {
+     "part": "Chassis",
+     "lab": "bash",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": null
+    },
+    {
+     "part": "Neuroptics",
+     "lab": "bash",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": null
+    }
+   ],
+   "body": false
+  },
+  {
+   "en": "Zakti",
+   "ja": "Zakti",
+   "type": "secondary",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 3000,
+   "requires": "AKSTILETTO",
+   "parts": []
+  },
+  {
+   "en": "Zephyr",
+   "ja": "Zephyr",
+   "type": "frame",
+   "lab": "tenno",
+   "time": "72時間",
+   "minutes": 4320,
+   "cost": 5000,
+   "requires": null,
+   "parts": [
+    {
+     "part": "Neuroptics",
+     "lab": "tenno",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": "ZEPHYR"
+    },
+    {
+     "part": "Chassis",
+     "lab": "tenno",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": "ZEPHYR"
+    },
+    {
+     "part": "Systems",
+     "lab": "tenno",
+     "time": "72時間",
+     "minutes": 4320,
+     "cost": 1500,
+     "requires": "ZEPHYR"
+    }
+   ]
+  }
+ ]
+}

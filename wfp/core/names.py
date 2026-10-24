@@ -11,9 +11,13 @@ from wfp.core.common import (
     ERA_JA,
     ITEM_TYPES,
     MASTERY_CATS,
+    MASTERY_FOUNDER,
     MASTERY_MAX_RANK,
     MOD_TYPES,
     PART_JA,
+    PART_QUALIFIERS,
+    PART_SKIP_CATS,
+    PART_WORDS,
     rank,
 )
 
@@ -24,6 +28,11 @@ _MASTERY_WEAPON = {"LongGuns": "primary", "Pistols": "secondary", "Melee": "mele
 _MASTERY_SUIT = {"Suits": "warframe", "SpaceSuits": "archwing", "MechSuits": "necramech"}
 # 200/ランクのカテゴリー(robotic はセンチネル本体だけなので mastery_xp で別に判定)
 _MASTERY_XP_200 = ("warframe", "companion", "archwing", "necramech", "kdrive")
+
+
+# パーツ検索の部品名・区分(Names.part_of は小文字で比べる)
+_PART_WORDS = frozenset(w.lower() for w in PART_WORDS)
+_PART_QUALIFIERS = frozenset(w.lower() for w in PART_QUALIFIERS)
 
 
 # 組み立て式の部品。マスタリー経験値が入る部品(下の mastery_slots)以外は一覧に載せない
@@ -259,6 +268,7 @@ class Names:
         # ドロップ表と公式データで大文字小文字が違うことがある(例: "Bane Of Grineer" / "Bane of Grineer")
         self._lower = {k.lower(): v for k, v in self.en2ja.items()}
         self._res_lower = {r.lower() for r in self.resources}
+        self._parts: dict[str, tuple[str, str]] | None = None  # パーツ検索用 {本体の英名(小文字): (英名, カテゴリー)}。初回に作る
 
     @classmethod
     def from_json(cls, j: dict | None) -> "Names":
@@ -300,6 +310,30 @@ class Names:
 
     def is_resource(self, name: str) -> bool:
         return self.split_qty(name)[1].lower() in self._res_lower
+
+    def part_of(self, name: str) -> tuple[str, str] | None:
+        """パーツ検索の対象(Warframe・武器などの本体・設計図・パーツ)なら (本体の英名, マスター一覧のカテゴリー)、違えば None。
+
+        「本体名 + 部品名(PART_WORDS。前に PART_QUALIFIERS が付くことがある)+ Blueprint」の形だけを拾う。
+        本体名は一番長く一致するもの(例: "Lato Prime Barrel" は Lato ではなく Lato Prime)。
+        """
+        if self._parts is None:
+            self._parts = {}
+            for m in sorted(self.mastery, key=lambda m: list(MASTERY_CATS).index(m["cat"]) if m["cat"] in MASTERY_CATS else 99):
+                if m["cat"] not in PART_SKIP_CATS and m.get("id") not in MASTERY_FOUNDER:  # ファウンダー限定品も除く
+                    self._parts.setdefault(m["en"].lower(), (m["en"], m["cat"]))
+        words = self.split_qty(name)[1].lower().split()  # ドロップ表と公式データで大文字小文字が違うことがあるので小文字でそろえる
+        if words and words[-1] == "blueprint":
+            words = words[:-1]
+        for i in range(len(words), 0, -1):
+            hit = self._parts.get(" ".join(words[:i]))
+            if hit is None:
+                continue
+            rest = words[i:]
+            if len(rest) > 1 and rest[0] in _PART_QUALIFIERS:
+                rest = rest[1:]
+            return hit if not rest or " ".join(rest) in _PART_WORDS else None
+        return None
 
 
 def item_key(name: str) -> str:

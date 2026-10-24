@@ -76,7 +76,7 @@ PLANETS_JA = {
     "Ceres": "ケレス", "Eris": "エリス", "Sedna": "セドナ", "Europa": "エウロパ",
     "Void": "ヴォイド", "Phobos": "フォボス", "Deimos": "ダイモス", "Lua": "ルア",
     "Kuva Fortress": "クバ要塞", "Sanctuary": "サンクチュアリ", "Veil Proxima": "ヴェール・プロキシマ",
-    "Zariman": "ザリマン", "Duviri": "デュヴィリ", "Höllvania": "ホルバニア",
+    "Zariman": "ZARIMAN", "Duviri": "デュヴィリ", "Höllvania": "ホルバニア",
     "Dark Refractory, Deimos": "ダーク・リフラクトリー(ダイモス)",
 }
 
@@ -115,11 +115,12 @@ BUILD_TYPES = {"frame": "Warframe", "primary": "プライマリ", "secondary": "
 
 # 入手先の種類
 SOURCE_CATS = {"mission": "ミッション", "enemy": "敵", "bounty": "バウンティ", "relic": "レリック",
-               "special": "特殊ミッション", "key": "キー・ボス", "sortie": "ソーティー"}
+               "special": "特殊ミッション", "key": "キー・ボス", "sortie": "ソーティー", "clan": "クラン研究",
+               "simaris": "Simaris 交換", "quest": "クエスト報酬"}
 
 
 BOUNTY_JA = {"cetusBountyRewards": "平原バウンティ", "solarisBountyRewards": "オーブ峡谷バウンティ",
-             "deimosRewards": "カンビオンの荒地バウンティ", "zarimanRewards": "ザリマン バウンティ",
+             "deimosRewards": "カンビオンの荒地バウンティ", "zarimanRewards": "ZARIMAN バウンティ",
              "entratiLabRewards": "アルブレヒト研究所バウンティ", "hexRewards": "Hex(1999)バウンティ"}
 
 
@@ -152,6 +153,36 @@ MASTERY_MAX_RANK = {"necramech": 40}
 MASTERY_FOUNDER = frozenset({"warframe:excalibur prime", "melee:skana prime", "secondary:lato prime"})
 # Public Export に無い項目を手で足すファイル(data/mastery/ の中)。データ更新・照合で無くても消さない
 MASTERY_EXTRA_FILE = "extra.json"
+
+
+# パーツ検索: ドロップ表の英名が「マスター一覧の項目名 + 部品名(+ Blueprint)」ならパーツとして扱う。
+# 部品名はこの一覧にあるものだけ(スキン・ヘルメット・コンクラーヴ用などを拾わないため。新しい部品名が出たら足す)
+PART_WORDS = frozenset({
+    "Neuroptics", "Chassis", "Systems", "Aspect",                        # Warframe(Aspect は Equinox)
+    "Barrel", "Receiver", "Stock", "Link", "String", "Grip", "Upper Limb", "Lower Limb",
+    "Blade", "Blades", "Handle", "Hilt", "Guard", "Head", "Disc", "Pouch", "Stars", "Ornament",
+    "Gauntlet", "Boot", "Chain", "Glove", "Rivet", "Motor", "Core", "Subcortex", "Engine",
+    "Carapace", "Cerebrum",                                              # センチネル
+    "Harness", "Wings",                                                  # アークウイング
+})
+# 部品名の前に付く区分(Equinox の Day / Night、Furax Wraith の Left / Right)
+PART_QUALIFIERS = frozenset({"Day", "Night", "Left", "Right"})
+# パーツ検索で扱わないマスター一覧のカテゴリー(並びと表示名は MASTERY_CATS)
+PART_SKIP_CATS = frozenset({"extra", "founder"})
+
+
+# クラン研究(同梱の data/parts/ の中のファイル。開発側が手で編集して配布)。研究で手に入る設計図を入手先「クラン研究」として出す
+CLAN_FILE = "clan.json"
+# 研究所: キー -> (英語名, 日本語名)。入手先の表はいま日本語の直書きなので日本語名を使う(英語名は多言語対応のときに使う)
+CLAN_LABS = {"tenno": ("Tenno Lab", "テンノ ラボ"), "energy": ("Energy Lab", "エネルギー ラボ"),
+             "chemical": ("Chemical Lab", "ケミカル ラボ"), "bio": ("Bio Lab", "バイオ ラボ"),
+             "bash": ("Ventkids Bash Lab", "バッシュ ラボ"), "dagath": ("Dagath's Hollow", "Dagathの空洞")}
+# ドロップもクラン研究もしない入手先(同梱の data/parts/ の中のファイル。開発側が手で編集して配布)
+OTHER_FILE = "other.json"
+# 入手先: キー -> (英語名, 日本語名)。キーは入手先の種類(SOURCE_CATS)にもそのまま使う。足すときは SOURCE_CATS にも足す
+OTHER_SOURCES = {"simaris": ("Simaris Offerings", "Simaris 交換"), "quest": ("Quest Reward", "クエスト報酬")}
+# 手で書いた入手先のクエスト名(quest の ja)を詳細欄に出すときの形。キーは入手先のキー、無いキーはクエスト名そのまま
+QUEST_NOTE = {"simaris": "{}完了後"}
 
 
 # 極性(ゲーム内の英語名)
@@ -242,8 +273,9 @@ def to_float(v) -> float:
         return 0.0
 
 
-def pct(x: float) -> str:
-    return f"{x:.2f}%"
+def pct(x: float | None) -> str:
+    """確率の表示。確率の無い入手先(クラン研究)は「—」"""
+    return "—" if x is None else f"{x:.2f}%"
 
 
 # 周期から計算します。通信は不要で、時刻合わせをしなくても下の基準時刻(ref)から計算できます。
@@ -265,7 +297,7 @@ CYCLES = {
               "ref": 1792190609.966, "manual": True, "sync": "cetus"},
     "vallis": {"name": "オーブ峡谷 (Orb Vallis)", "phases": [("warm", "温暖", 400), ("cold", "寒冷", 1200)],
                "ref": 1792189608.0, "manual": True},
-    "zariman": {"name": "ザリマン (Zariman)", "phases": [("corpus", "コーパス", CETUS_PERIOD), ("grineer", "グリニア", CETUS_PERIOD)],
+    "zariman": {"name": "ZARIMAN", "phases": [("corpus", "コーパス", CETUS_PERIOD), ("grineer", "グリニア", CETUS_PERIOD)],
                 "ref": 1792190609.966, "manual": False, "sync": "cetus"},
     "duviri": {"name": "デュヴィリ (Duviri)",
                "phases": [("sorrow", "Sorrow", 7200), ("fear", "Fear", 7200), ("joy", "Joy", 7200),

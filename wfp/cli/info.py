@@ -73,7 +73,7 @@ def cmd_baro(args):
         state = {"here": "来ています", "coming": "次に来ます", "gone": "前回の来訪(終了)"}[cur["state"]]
         print(f"バロ: {state}  {cur['relay']}  {when(cur['activation'])} 〜 {when(cur['expiry'])} JST")
         for it in cur["items"]:
-            print(f"  {mark[it['owned']]} {it['ja']}  ({it['kind_ja']} / {it['ducats']} ドゥカット + {it['credits']:,} cr)")
+            print(f"  {mark[it['owned']]} {it['ja']}  ({it['kind_ja']} / {it['ducats']} デュカット + {it['credits']:,} cr)")
         print()
     else:
         print("今回の品物: 未取得(baro update で取得できます)\n")

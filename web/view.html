@@ -232,7 +232,7 @@ td.num, th.num { text-align: right; }
 .spex .spex-now { font-size: 20px; font-weight: 700; }
 .spex .tablewrap { border-top: 1px solid var(--line); }
 .spex thead th { position: sticky; top: 0; }
-/* 広い画面: 左のカードは3列に固定(ザリマン・ウィークリーリセットが右端に来る)、右に交換のカードを2行ぶんの高さで置く。
+/* 広い画面: 左のカードは3列に固定(ZARIMAN・ウィークリーリセットが右端に来る)、右に交換のカードを2行ぶんの高さで置く。
    交換のカードは左の高さに合わせ(押し広げない)、一覧はカード内でスクロールする */
 @media (min-width: 1700px) {
   #cycle-layout { grid-template-columns: minmax(0, 1fr) 340px; }
@@ -305,6 +305,7 @@ dl.kv dt { color: var(--mute); } dl.kv dd { margin: 0; font-variant-numeric: tab
 .cat.bounty, .cat.special, .cat.key, .cat.sortie { border-color: var(--rar-rare); color: var(--rar-rare); }
 .cat.relic { border-color: var(--rar-legendary); color: var(--rar-legendary); }
 .cat.mission { border-color: var(--accent); color: var(--accent); }
+.cat.clan, .cat.simaris, .cat.quest { border-color: var(--rar-uncommon); color: var(--rar-uncommon); }
 .seg { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
 /* デュヴィリサーキット: 今週・今後の見出し */
 .dv-h { font-size: 15px; margin: 18px 0 8px; }
@@ -510,6 +511,19 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
         <div id="item-out"></div>
       </section>
 
+      <!-- パーツ検索(入手先の表・注記は素材から探すと共用で、多言語対応なし) -->
+      <section id="view-part" hidden>
+        <h2 data-i18n="page.part">パーツ検索</h2>
+        <p class="lead" data-i18n="part.lead">Warframe・武器などの本体・設計図・パーツの名前(日本語・英語・ひらがな)を入力すると、入手先と確率を一覧にします。</p>
+        <div class="row">
+          <input type="text" class="search" id="part-q" placeholder="例: Rhino / Lex Prime" autocomplete="off">
+          <label class="chk"><input type="checkbox" id="part-ev"> <span data-i18n="part.events">イベント限定を含む</span></label>
+        </div>
+        <div class="seg" id="part-cats" role="group" aria-label="カテゴリー"></div>
+        <div class="chips" id="part-chips"></div>
+        <div id="part-out"></div>
+      </section>
+
       <!-- エリアから探す -->
       <section id="view-area" hidden>
         <h2>エリアから探す</h2>
@@ -664,7 +678,7 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
           <div class="cards" id="cycle-cards"></div>
           <div id="cycle-spex"></div>
         </div>
-        <p class="note">「公式データで時刻合わせ」は、押したときだけ公式の World State に問い合わせて、平原・ザリマンの切り替わりと PC の時計のずれを合わせます(60 秒以内に押し直したときは前回の結果を使います)。オーブ峡谷・デュヴィリは公式データに手がかりが無いため、基準時刻から計算します。</p>
+        <p class="note">「公式データで時刻合わせ」は、押したときだけ公式の World State に問い合わせて、平原・ZARIMANの切り替わりと PC の時計のずれを合わせます(60 秒以内に押し直したときは前回の結果を使います)。オーブ峡谷・デュヴィリは公式データに手がかりが無いため、基準時刻から計算します。</p>
         <details id="cycle-setup">
           <summary>手動で時刻合わせ(公式データが取れないとき)</summary>
           <form id="cycle-form" class="formgrid" style="margin-top:12px">

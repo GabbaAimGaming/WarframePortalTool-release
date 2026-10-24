@@ -46,7 +46,7 @@ def cmd_item(args):
     if len(rows) > args.limit:
         print(f"\n(上位 {args.limit} 件を表示。--limit で変更できます)")
     print("\n確率: ミッション/バウンティは報酬1回の抽選で選ばれる割合、敵は1体倒したときに落とす割合、"
-          "レリックは開けたときに出る割合です。")
+          "レリックは開けたときに出る割合です。クラン研究・Simaris 交換・クエスト報酬は確率が無いので「—」です。")
 
 
 def cmd_area(args):
