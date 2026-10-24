@@ -143,7 +143,15 @@ COMPAT_JA = {"Rifle": "ライフル", "Shotgun": "ショットガン", "Pistol":
 # マスター一覧のカテゴリー
 MASTERY_CATS = {"warframe": "Warframe", "primary": "プライマリ", "secondary": "セカンダリ", "melee": "近接",
                 "kitgun": "Kitgun", "zaw": "Zaw", "robotic": "ロボティック", "companion": "コンパニオン",
-                "archgun": "アークウイングガン", "archmelee": "アークウイング近接", "amp": "アンプ"}
+                "archwing": "アークウイング", "archgun": "アークウイングガン", "archmelee": "アークウイング近接",
+                "necramech": "ネクロメカ", "kdrive": "Kドライブ", "amp": "アンプ",
+                "extra": "その他", "founder": "ファウンダー"}
+# マスター一覧の最大ランクの既定値(Public Export に maxLevelCap が無いカテゴリー用。無ければ 30)
+MASTERY_MAX_RANK = {"necramech": 40}
+# ファウンダー限定品。元のカテゴリーから「ファウンダー」へ付け替える(id は元のまま。画面ではチェック ON のときだけ数える)
+MASTERY_FOUNDER = frozenset({"warframe:excalibur prime", "melee:skana prime", "secondary:lato prime"})
+# Public Export に無い項目を手で足すファイル(data/mastery/ の中)。データ更新・照合で無くても消さない
+MASTERY_EXTRA_FILE = "extra.json"
 
 
 # 極性(ゲーム内の英語名)

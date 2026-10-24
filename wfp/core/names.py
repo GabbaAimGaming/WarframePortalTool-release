@@ -11,6 +11,7 @@ from wfp.core.common import (
     ERA_JA,
     ITEM_TYPES,
     MASTERY_CATS,
+    MASTERY_MAX_RANK,
     MOD_TYPES,
     PART_JA,
     rank,
@@ -19,24 +20,35 @@ from wfp.core.common import (
 
 _MASTERY_WEAPON = {"LongGuns": "primary", "Pistols": "secondary", "Melee": "melee", "SpaceGuns": "archgun",
                    "SpaceMelee": "archmelee", "SentinelWeapons": "robotic", "OperatorAmps": "amp"}
+# ExportWarframes の productCategory -> マスター一覧のカテゴリー
+_MASTERY_SUIT = {"Suits": "warframe", "SpaceSuits": "archwing", "MechSuits": "necramech"}
+# 200/ランクのカテゴリー(robotic はセンチネル本体だけなので mastery_xp で別に判定)
+_MASTERY_XP_200 = ("warframe", "companion", "archwing", "necramech", "kdrive")
 
 
 # 組み立て式の部品。マスタリー経験値が入る部品(下の mastery_slots)以外は一覧に載せない
 _MODULAR_PARTS = re.compile(r"/(OperatorAmplifiers|ModularMelee[^/]*|SUModular[^/]*|InfKitGun|Hoverboard|ZanukaPetParts|MoaPetParts)/")
+# MOA・ハウンドの頭(Model)。マスタリー経験値が入る部品なので、組み立て部品の除外より前にロボティックとして拾う
+# (Core・Bracket・Gyro・Stabilizer は入れない)。Nychus は内部名が MoaPetHeadMelee、ハウンドは HeadA〜C
+_COMPANION_HEAD = re.compile(r"/(MoaPets/MoaPetParts/MoaPetHead[^/]+|ZanukaPets/ZanukaPetParts/ZanukaPetPartHead[A-Z])$")
+# 図鑑に載らない印(excludeFromCodex)が付いているが、マスタリー経験値が入るもの。
+# ハウンドの武器 Akaten / Batoten / Lacerten(SentinelWeapons。内部名は ZanukaPetMeleeWeapon PS / IP / IS)
+_MASTERY_CODEX_EXEMPT = re.compile(r"/ZanukaPets/ZanukaPetMeleeWeapon[^/]+$")
 
 
 def mastery_slots(export: str, it: dict) -> list[tuple[str, str]]:
     """Public Export の1項目が、マスター一覧のどのカテゴリーに入るか -> [(カテゴリー, 区分)]
 
     - 組み立て式は、マスタリー経験値が入る部品だけ: Kitgun はチェンバー(プライマリ版とセカンダリ版を別に数える)、
-      Zaw はストライク、アンプはプリズム(と Sirocco)
-    - アビリティ専用武器やコンクラーヴ用など、図鑑に載らないもの(excludeFromCodex)は除く
+      Zaw はストライク、アンプはプリズム(と Sirocco)、Kドライブはボード(Deck)
+    - アビリティ専用武器やコンクラーヴ用など、図鑑に載らないもの(excludeFromCodex)は除く。
+      ただしハウンドの武器(_MASTERY_CODEX_EXEMPT)は印が付いていても載せる
     """
     uid, pc = it.get("uniqueName", ""), it.get("productCategory")
-    if it.get("excludeFromCodex") or not it.get("name"):
+    if not it.get("name") or (it.get("excludeFromCodex") and not _MASTERY_CODEX_EXEMPT.search(uid)):
         return []
     if export == "ExportWarframes":
-        return [("warframe", "")] if pc == "Suits" else []
+        return [(_MASTERY_SUIT[pc], "")] if pc in _MASTERY_SUIT else []
     if export == "ExportSentinels":
         return [("robotic", "")] if pc == "Sentinels" else [("companion", "")] if pc == "KubrowPets" else []
     if export != "ExportWeapons":
@@ -47,14 +59,21 @@ def mastery_slots(export: str, it: dict) -> list[tuple[str, str]]:
         return [("zaw", "")]
     if re.search(r"/(SUModularSecondary[^/]*/Barrel|InfKitGun/Barrels)/", uid):
         return [("kitgun", "primary"), ("kitgun", "secondary")]
+    # Kドライブ: ExportWeapons に productCategory "Pistols" で入っている。ボード以外(ノーズ・リアクター・ジェット)は対象外
+    if re.search(r"/Hoverboard/.*Deck$", uid):
+        return [("kdrive", "")]
+    if _COMPANION_HEAD.search(uid):
+        return [("robotic", "")]
     if _MODULAR_PARTS.search(uid):
         return []
     return [(_MASTERY_WEAPON[pc], "")] if pc in _MASTERY_WEAPON else []
 
 
-def mastery_xp(cat: str, export: str, rank: int) -> int:
-    """ランク最大までのマスタリー経験値: フレーム・コンパニオン・センチネル本体は 200/ランク、武器は 100/ランク"""
-    per = 200 if cat in ("warframe", "companion") or (cat == "robotic" and export == "ExportSentinels") else 100
+def mastery_xp(cat: str, export: str, rank: int, uid: str = "") -> int:
+    """ランク最大までのマスタリー経験値: フレーム・コンパニオン・センチネル本体・MOA/ハウンド(頭)・アークウイング・
+    ネクロメカ・Kドライブは 200/ランク、武器は 100/ランク"""
+    per = 200 if (cat in _MASTERY_XP_200 or (cat == "robotic" and export == "ExportSentinels")
+                  or _COMPANION_HEAD.search(uid)) else 100
     return per * rank
 
 
@@ -190,16 +209,18 @@ def names_from_exports(en_docs: list[dict], ja_docs: list[dict]) -> dict:
                     mid = f"{cat}:{variant}:{name.lower()}" if variant else f"{cat}:{name.lower()}"
                     if mid in mastery:
                         continue
-                    rank = int(it.get("maxLevelCap") or 30)
+                    rank = int(it.get("maxLevelCap") or MASTERY_MAX_RANK.get(cat, 30))
                     mastery[mid] = {"id": mid, "en": name, "cat": cat, "variant": variant, "rank": rank,
                                     "ja": re.sub(r"^<[^>]+>\s*", "", ja.get(it["uniqueName"], (name,))[0]).strip(),
-                                    "xp": mastery_xp(cat, key, rank)}
+                                    "xp": mastery_xp(cat, key, rank, it.get("uniqueName", ""))}
     # Riven 性質 (マスター一覧と同じ数え方の武器から、Riven を付けられないアークウイング近接・アンプを除く)
     dispo: dict[str, dict] = {}
     for doc in en_docs:
         for it in doc.get("ExportWeapons", []):
             if not isinstance(it, dict) or not isinstance(it.get("omegaAttenuation"), (int, float)):
                 continue
+            if _COMPANION_HEAD.search(it.get("uniqueName", "")) or _MASTERY_CODEX_EXEMPT.search(it.get("uniqueName", "")):
+                continue  # MOA・ハウンドの頭とハウンドの武器はマスター一覧(robotic)だけ。Riven 性質には今まで通り出さない
             name = re.sub(r"^<[^>]+>\s*", "", it.get("name", "")).strip()
             for cat, variant in mastery_slots("ExportWeapons", it):
                 if cat not in DISPO_CATS:

@@ -1,5 +1,5 @@
 {
-  "version": "1.16",
+  "version": "1.17",
   "edition": "with_python",
   "files": {
     "LICENSE": {
@@ -8,8 +8,8 @@
       "src": "build/bundled/LICENSE"
     },
     "README.md": {
-      "sha256": "4f674c39c401c7af9e9797dd51d171d6a6b4d00f18f1a27e61530a557a5e3393",
-      "size": 39835,
+      "sha256": "f98020df37f670ac338fac14b80ad66c02d552a4382df023be55c39a9a6fa96c",
+      "size": 40774,
       "src": "build/bundled/README.md"
     },
     "data/baro_rules.json": {
@@ -36,6 +36,11 @@
       "sha256": "4c6bef65164cf4ebd13774ea63eb6a935d7364e803dae85e2668359317d5cabc",
       "size": 3482,
       "src": "data/invasion/parts.json"
+    },
+    "data/mastery/extra.json": {
+      "sha256": "9a10fdc9b8887e01fa11437efdfb5839e1cc644a980a4423eeaff05a740a0689",
+      "size": 416,
+      "src": "data/mastery/extra.json"
     },
     "data/spexchange/spex_rotate.json": {
       "sha256": "da746a7d5fb562085f7746244dfb8e9fc53e93ebf8bb3241eb60e2c4ff5325b1",
@@ -78,8 +83,8 @@
       "src": "tips/30_Rivenスプライサーの合成表.md"
     },
     "web/ctrl.html": {
-      "sha256": "0b14f317405d4d8b1b39178e92e2e8ff637ecf1d74d36843770db59916c64210",
-      "size": 117901,
+      "sha256": "c9d98fdeb6efa09f720a5a2865bc0a663e24901fbf3530c47baf86c81bdb4bef",
+      "size": 118605,
       "src": "web/ctrl.html"
     },
     "web/menu.html": {
@@ -88,8 +93,8 @@
       "src": "web/menu.html"
     },
     "web/view.html": {
-      "sha256": "a402dea1bd0b2b7c69ab35d5e8b8f46b2c7de2e2a16a9954c332e58aa523e2bd",
-      "size": 59014,
+      "sha256": "f24a0c0edb76990bc8f034be5aea67b94406ad6fc0cff5c33b7d254edd6377be",
+      "size": 59395,
       "src": "web/view.html"
     },
     "web/wfportal_builder.html": {
@@ -123,8 +128,8 @@
       "src": "wfp/api/pages.py"
     },
     "wfp/api/personal.py": {
-      "sha256": "0e8c9ed0beeb1ceee3ec9d48b8b3dc0710a24280caf224545fbb0702a08069f6",
-      "size": 12776,
+      "sha256": "09568046a8fdd40d319a84725fcaa0437bdfe0ae73e17a6077dd5ad1b5bfce43",
+      "size": 12798,
       "src": "wfp/api/personal.py"
     },
     "wfp/api/search.py": {
@@ -208,8 +213,8 @@
       "src": "wfp/core/build.py"
     },
     "wfp/core/common.py": {
-      "sha256": "36a09f9ad33d31203ed8be60a5818c056967f30d06fd9cd8e51717b64a8fa830",
-      "size": 18139,
+      "sha256": "cbd2d936f68b6bccf0076c339e941177d07af36b703c8eb6b604c4e6ab1d7727",
+      "size": 18936,
       "src": "wfp/core/common.py"
     },
     "wfp/core/cycle.py": {
@@ -233,8 +238,8 @@
       "src": "wfp/core/loader.py"
     },
     "wfp/core/mastery.py": {
-      "sha256": "68e5d8126c90d429b563443721b46352e828bd7731ced5c86961896e3044a27b",
-      "size": 1049,
+      "sha256": "e5a18f6aa8fa8478ac8db5e52a8b503e3848a943b164a3f05a21c52ab63c459b",
+      "size": 3463,
       "src": "wfp/core/mastery.py"
     },
     "wfp/core/mods.py": {
@@ -243,8 +248,8 @@
       "src": "wfp/core/mods.py"
     },
     "wfp/core/names.py": {
-      "sha256": "63e84bbca9283870caeaad1f66ce6bb113d98e237e9522f4219d9518f01bb74c",
-      "size": 15237,
+      "sha256": "8c66b9e5b9ed754e9bde28a1b9808e9c438b61eca11852ed974833ff1aea7f84",
+      "size": 17305,
       "src": "wfp/core/names.py"
     },
     "wfp/core/riven.py": {
@@ -313,8 +318,8 @@
       "src": "wfp/store/__init__.py"
     },
     "wfp/store/appdata.py": {
-      "sha256": "46e437159ede00242744fba0e80408f1ce45f53db6f336bfb1f8e18acbe64e89",
-      "size": 1574,
+      "sha256": "1bf422badd628775260c12c8cb85fec6320b7b5a4aee5305616c0586e3c44ebf",
+      "size": 1907,
       "src": "wfp/store/appdata.py"
     },
     "wfp/store/build_images.py": {

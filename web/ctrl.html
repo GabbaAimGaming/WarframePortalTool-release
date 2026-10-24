@@ -1029,6 +1029,12 @@ function simReload() { try { const w = $("#sim-frame").contentWindow; if (w && w
 
 /* ---------- マスター一覧 ---------- */
 let mastery = null, msCat = "", msArmed = null;
+// ファウンダー限定品(カテゴリー founder)は、チェック ON のときだけ一覧・件数・経験値の合計に入れる
+let msFounder = false;
+try { msFounder = localStorage.getItem("wf-mastery-founder") === "1"; } catch (e) {}
+$("#ms-founder").checked = msFounder;
+const msRows = () => mastery.rows.filter(r => msFounder || r.cat !== "founder");
+const msCats = () => Object.entries(mastery.cats).filter(([k]) => msFounder || k !== "founder");
 const msSort = { key: "cat", dir: "asc" };
 const msGetters = {
   done: r => (r.done ? 1 : 0), name: r => r.label.toLowerCase(), rank: r => r.rank, xp: r => r.xp,
@@ -1036,19 +1042,19 @@ const msGetters = {
 };
 function msFilter() {
   const q = $("#ms-q").value.trim().toLowerCase(), st = $("#ms-state").value;
-  return mastery.rows.filter(r => (!msCat || r.cat === msCat) && (!st || (st === "done") === r.done) &&
+  return msRows().filter(r => (!msCat || r.cat === msCat) && (!st || (st === "done") === r.done) &&
     (!q || [r.en, r.ja, r.label].some(x => (x || "").toLowerCase().includes(q))));
 }
 function msSummary() {
   const sm = { all: { total: 0, done: 0, xp: 0, xp_done: 0 } };
   Object.keys(mastery.cats).forEach(c => sm[c] = { total: 0, done: 0, xp: 0, xp_done: 0 });
-  mastery.rows.forEach(r => [sm[r.cat], sm.all].forEach(o => { o.total++; o.xp += r.xp; if (r.done) { o.done++; o.xp_done += r.xp; } }));
+  msRows().forEach(r => [sm[r.cat], sm.all].forEach(o => { o.total++; o.xp += r.xp; if (r.done) { o.done++; o.xp_done += r.xp; } }));
   return sm;
 }
 function renderMastery() {
   if (!mastery) return;
   const sm = msSummary();
-  $("#ms-cats").innerHTML = [["", "すべて", sm.all], ...Object.entries(mastery.cats).map(([k, v]) => [k, v, sm[k]])]
+  $("#ms-cats").innerHTML = [["", "すべて", sm.all], ...msCats().map(([k, v]) => [k, v, sm[k]])]
     .map(([k, v, o]) => `<button class="chip" data-mcat="${k}" aria-pressed="${msCat === k}">${esc(v)}<small>${o.done} / ${o.total}</small></button>`).join("");
   let list = msFilter();
   list = sortRows(list, msSort, msGetters);
@@ -1080,6 +1086,12 @@ $("#ms-out").addEventListener("change", e => { const cb = e.target.closest("inpu
 onSortClick($("#ms-out"), msSort, renderMastery, ["done", "rank", "xp"]);
 $("#ms-q").addEventListener("input", debounce(() => { msArmed = null; renderMastery(); }, 150));
 $("#ms-state").addEventListener("change", () => { msArmed = null; renderMastery(); });
+$("#ms-founder").addEventListener("change", e => {
+  msFounder = e.target.checked; msArmed = null;
+  if (!msFounder && msCat === "founder") msCat = "";
+  try { localStorage.setItem("wf-mastery-founder", msFounder ? "1" : "0"); } catch (err) {}
+  renderMastery();
+});
 ["on", "off"].forEach(k => $(`#ms-bulk-${k}`).addEventListener("click", () => {
   if (!mastery) return;
   if (msArmed !== k) { msArmed = k; renderMastery(); setTimeout(() => { if (msArmed === k) { msArmed = null; renderMastery(); } }, 4000); return; }

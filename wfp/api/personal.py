@@ -8,7 +8,7 @@ import wfportal_ocr as ocr
 from wfp.api.store import ApiError, Raw, Store
 from wfp.core.arcane import ArcaneNotFound, arcane_summary, arcane_table, set_arcanes_owned
 from wfp.core.common import ARCANE_CATS, BUILD_TYPES, MASTERY_CATS, MOD_TYPES, POLARITY_EN, SOURCE_CATS, norm
-from wfp.core.mastery import mastery_summary, mastery_table
+from wfp.core.mastery import mastery_items, mastery_summary, mastery_table
 from wfp.core.mods import mod_table
 from wfp.store import build_images, userdata
 
@@ -48,7 +48,7 @@ def mastery_list(store: Store) -> dict:
 def set_mastered(store: Store, body: dict) -> dict:
     ids = body.get("ids")
     ids = [ids] if isinstance(ids, str) else list(ids or [])
-    valid = {m["id"] for m in store.names().mastery}
+    valid = {m["id"] for m in mastery_items(store.names())}
     done = userdata.load_mastered(store.d)
     for i in ids:
         if i not in valid:

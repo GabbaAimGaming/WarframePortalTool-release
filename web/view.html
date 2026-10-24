@@ -617,13 +617,14 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
         <div class="row">
           <input type="text" class="search" id="ms-q" placeholder="名前で絞り込み(例: Rhino / Soma)" autocomplete="off">
           <select id="ms-state" aria-label="状態"><option value="">マスター済み・未マスター</option><option value="todo">未マスターのみ</option><option value="done">マスター済みのみ</option></select>
+          <label class="chk"><input type="checkbox" id="ms-founder"> ファウンダー</label>
           <button class="btn ghost" type="button" id="ms-bulk-on">表示中をすべてマスター済みに</button>
           <button class="btn ghost" type="button" id="ms-bulk-off">表示中のチェックを外す</button>
           <button class="btn ghost" type="button" id="ms-csv">CSVで保存</button>
         </div>
         <div class="summary" id="ms-summary"></div>
         <div id="ms-out"></div>
-        <p class="note">Kitgun はチェンバー(プライマリ版とセカンダリ版は別々)、Zaw はストライク、アンプはプリズムと Sirocco の単位で数えます。MOA・ハウンド(組み立て式のロボティック)、アークウイング本体、ネクラメカ、K-ドライブは含みません。マスタリー経験値はランク最大までの値です(Warframe・コンパニオン・センチネルは 1 ランク 200、武器は 100。Kuva・Tenet・Coda などはランク 40)。</p>
+        <p class="note">Kitgun はチェンバー(プライマリ版とセカンダリ版は別々)、Zaw はストライク、アンプはプリズムと Sirocco、MOA・ハウンドは頭(モデル)、K-ドライブはボードの単位で数えます。Excalibur Prime・Skana Prime・Lato Prime は「ファウンダー」にチェックを入れたときだけ、「ファウンダー」の項目に表示して集計します。プレクサスとアンプ本体は「その他」に入ります。マスタリー経験値はランク最大までの値です(Warframe・コンパニオン・センチネル・MOA/ハウンド・アークウイング・ネクラメカ・K-ドライブ・プレクサスは 1 ランク 200、武器は 100。Kuva・Tenet・Coda などとネクラメカはランク 40)。</p>
       </section>
 
       <!-- 侵略サイクル(文字は I18N の data-i18n で差し替え。中の日本語は読み込み前の表示) -->
