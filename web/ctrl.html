@@ -231,10 +231,11 @@ loaders.item = itemSearch.load;
 let partCat = "";
 try { partCat = localStorage.getItem("wf-part-cat") || ""; } catch (e) {}
 if (partCat && t("part.cat." + partCat) === "part.cat." + partCat) partCat = "";  // 今は無いカテゴリーが残っていたら外す
+try { $("#part-noprime").checked = localStorage.getItem("wf-part-noprime") === "1"; } catch (e) {}
 const partFmt = (key, vals) => Object.entries(vals).reduce((s, [k, v]) => s.split("{" + k + "}").join(v), t(key));
 const partSearch = sourceSearch({
   id: "part",
-  suggest: q => `/api/suggest/part?q=${encodeURIComponent(q)}&cat=${encodeURIComponent(partCat)}`,
+  suggest: q => `/api/suggest/part?q=${encodeURIComponent(q)}&cat=${encodeURIComponent(partCat)}&noprime=${$("#part-noprime").checked ? 1 : 0}`,
   list: res => res.items,
   onSuggest: res => {
     const all = res.cats.reduce((n, c) => n + c.n, 0);
@@ -255,6 +256,10 @@ $("#part-cats").addEventListener("click", e => {
   const c = e.target.closest("[data-pcat]"); if (!c) return;
   partCat = c.dataset.pcat;
   try { localStorage.setItem("wf-part-cat", partCat); } catch (err) {}
+  partSearch.search(false);
+});
+$("#part-noprime").addEventListener("change", e => {  // 入手先がレリックのもの(Prime)を候補から外す。この PC に覚えさせる
+  try { localStorage.setItem("wf-part-noprime", e.target.checked ? "1" : "0"); } catch (err) {}
   partSearch.search(false);
 });
 loaders.part = () => {

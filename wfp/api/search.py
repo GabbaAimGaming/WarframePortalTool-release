@@ -36,19 +36,21 @@ def part_with_owner(names: Names, owners: dict[str, str], name: str) -> tuple[st
     return hit
 
 
-def suggest_parts(store: Store, q: str, cat: str) -> dict:
+def suggest_parts(store: Store, q: str, cat: str, no_prime: bool = False) -> dict:
     """パーツ検索の候補。Warframe・武器などの本体・設計図・パーツ(Names.part_of)だけを返す。
 
     cats はカテゴリーごとの件数(q に合うもの。並びは MASTERY_CATS)、items は cat で絞った候補(最大 SUGGEST_LIMIT 件)、
     total は絞った後の全件数。カテゴリー名は画面の I18N(part.cat.<キー>)で付ける。入手先は /api/item で引く
+    no_prime なら入手先にレリックがある項目(Sources.relic_items)を除く(画面の「Prime を除外する」。件数も除いた後の数)
     """
     if cat and (cat not in MASTERY_CATS or cat in PART_SKIP_CATS):
         raise ApiError("不明なカテゴリーです。", 400)
     need_drops(store)
     names, src = store.names(), store.sources()
     owners = src.part_owner if src else {}
+    relic = src.relic_items if src and no_prime else set()
     part = lambda n: part_with_owner(names, owners, n)  # noqa: E731
-    parts = [n for n in store.all_items() if part(n)]
+    parts = [n for n in store.all_items() if part(n) and item_key(n) not in relic]
     if q.strip():
         cands = pick_candidates(q, parts, names)
     else:
@@ -127,7 +129,7 @@ def lookup_area(store: Store, kind: str, key: str, all_items: bool, events: bool
 # (メソッド, パス) -> 処理。c はリクエスト(wfp/api/server.py の Request)
 ROUTES = {
     ("GET", "/api/suggest/item"): lambda c: suggest_items(c.store, c.q.get("q", ""), c.flag("materials", True)),
-    ("GET", "/api/suggest/part"): lambda c: suggest_parts(c.store, c.q.get("q", ""), c.q.get("cat", "")),
+    ("GET", "/api/suggest/part"): lambda c: suggest_parts(c.store, c.q.get("q", ""), c.q.get("cat", ""), c.flag("noprime")),
     ("GET", "/api/item"): lambda c: lookup_item(c.store, c.q.get("key", ""), c.flag("events")),
     ("GET", "/api/suggest/area"): lambda c: suggest_areas(c.store, c.q.get("q", "")),
     ("GET", "/api/area"): lambda c: lookup_area(c.store, c.q.get("type", "planet"), c.q.get("key", ""), c.flag("all"),
