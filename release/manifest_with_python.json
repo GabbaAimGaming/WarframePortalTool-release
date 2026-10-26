@@ -1,14 +1,14 @@
 {
-  "version": "1.20",
+  "version": "1.21",
   "edition": "with_python",
   "files": {
     "LICENSE": {
-      "sha256": "a5e0274f64d7bb26fbb8c48adf3253a07baee9d8b84c849844f9f61dacc014ef",
+      "sha256": "cdba15f2f1e979dcfeca989036bc7adc1b0da8745941d6c1cae084ea95576db4",
       "size": 7359,
       "src": "build/bundled/LICENSE"
     },
     "README.md": {
-      "sha256": "09388cf87ea81dd8469cf0e2d96dca7b49e065479039820f3eb70c59d9cf4419",
+      "sha256": "f3a0bdd0bad966017588662e370716b88835b693d3ee23b2cdd94fd7e5a8e789",
       "size": 41535,
       "src": "build/bundled/README.md"
     },

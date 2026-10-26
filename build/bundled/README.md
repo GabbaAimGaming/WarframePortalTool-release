@@ -11,7 +11,7 @@ Warframe 用のポータルツール(Python 同梱版。インストール不要
 
 ## 動作環境(Python 同梱版)
 
-- **Python のインストールは不要です。** この版には、Python 公式(python.org)が配布している Windows 用の「埋め込み版 Python」(Python 3.15.1 / 64 ビット)を `python/` フォルダに同梱しています。
+- **Python のインストールは不要です。** この版には、Python 公式(python.org)が配布している Windows 用の「埋め込み版 Python」(Python 3.15.2 / 64 ビット)を `python/` フォルダに同梱しています。
   - インストール作業はなく、PC の設定(PATH など)も変更しません。不要になったらフォルダごと削除するだけです。
   - すでに Python をお使いの方は、Python を同梱していない通常版(lite 版)もお使いいただけます。
 - **OS**: Windows 10 / 11(64 ビット)専用です。
@@ -49,7 +49,7 @@ WarframePortalTool/
 │   └── winocr.ps1       # Windows 標準の文字認識(Windows.Media.Ocr)を呼ぶスクリプト
 ├── start_wfportal.bat   # Windows 用: ダブルクリックで UI を起動(初回はロゴ素材も取得)
 ├── LICENSE              # 使用条件・免責事項
-├── python/              # 同梱の Python (python.org 公式の埋め込み版 Python 3.15.1。中身は変更しない)
+├── python/              # 同梱の Python (python.org 公式の埋め込み版 Python 3.15.2。中身は変更しない)
 ├── web/
 │   ├── ctrl.html        # UI 画面の基礎部(骨組み・画面の動き。タブのアイコンもここに埋め込み)
 │   ├── menu.html        # UI 画面のメニュー部(メニューの並びと表示する文字)
