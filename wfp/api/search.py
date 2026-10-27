@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 from wfp.api.store import ApiError, Store, need_drops
-from wfp.core.common import MASTERY_CATS, MODES_JA, PART_SKIP_CATS, PLANETS_JA, RARITY_JA, SOURCE_CATS, norm, rank
+from wfp.core.common import MASTERY_CATS, PART_SKIP_CATS, PLANETS_JA, SOURCE_CATS, name_txt, norm, rank, txt
 from wfp.core.names import Names, item_key
 from wfp.drops.search import find_sources, group_candidates, pick_candidates
-from wfp.drops.tables import stage_label
+from wfp.drops.tables import mission_place, stage_label
 
 
 SUGGEST_LIMIT = 10  # 候補として返す最大件数(数量違いを束ねた後)。素材から探す・パーツ検索で共用
@@ -44,7 +44,7 @@ def suggest_parts(store: Store, q: str, cat: str, no_prime: bool = False) -> dic
     no_prime なら入手先にレリックがある項目(Sources.relic_items)を除く(画面の「Prime を除外する」。件数も除いた後の数)
     """
     if cat and (cat not in MASTERY_CATS or cat in PART_SKIP_CATS):
-        raise ApiError("不明なカテゴリーです。", 400)
+        raise ApiError(txt("err.part.cat"), 400)
     need_drops(store)
     names, src = store.names(), store.sources()
     owners = src.part_owner if src else {}
@@ -72,30 +72,32 @@ def lookup_item(store: Store, key: str, events: bool) -> dict:
     drops, names = need_drops(store), store.names()
     rows = find_sources(key, drops, store.sources(), names, events=events)
     if not rows:
-        raise ApiError("該当する入手先がありません。", 404)
+        raise ApiError(txt("err.item.none"), 404)
     counts: dict[str, int] = {}
     for r in rows:
         counts[r["cat"]] = counts.get(r["cat"], 0) + 1
     return {
         "ja": names.ja(key), "en": key, "total": len(rows),
-        "cats": [{"key": c, "ja": SOURCE_CATS[c], "n": counts[c]} for c in SOURCE_CATS if c in counts],
-        "rows": [{**r, "rarity_key": r["rarity"], "rarity": r["rarity_ja"]} for r in rows],
+        "cats": [{"key": c, "n": counts[c]} for c in SOURCE_CATS if c in counts],  # 種類の名前は画面の I18N(src.cat.<キー>)
+        "rows": rows,  # rarity はキー。place・detail・stage はテキスト指定
     }
 
 
 def planets(store: Store) -> list[dict]:
+    """惑星の一覧。name は表示名のテキスト指定(画面の I18N の planet.<英名>)"""
     drops = need_drops(store)
-    return [{"type": "planet", "key": p, "ja": PLANETS_JA.get(p, p)} for p in drops.planets]
+    return [{"type": "planet", "key": p, "name": name_txt("planet.", p)} for p in drops.planets]
 
 
 def suggest_areas(store: Store, q: str) -> list[dict]:
+    """惑星・ノードの候補。惑星は英名・日本語名(PLANETS_JA)のどちらでも探せる。ノード名は英語(sub は惑星のテキスト指定)"""
     drops = need_drops(store)
     if not q.strip():
         return planets(store)
-    out = [p for p in planets(store) if rank(q, [p["key"], p["ja"]]) is not None]
+    out = [p for p in planets(store) if rank(q, [p["key"], PLANETS_JA.get(p["key"], p["key"])]) is not None]
     for planet, node in drops.node_order:
         if rank(q, [node]) is not None:
-            out.append({"type": "node", "key": f"{planet}|{node}", "ja": node, "sub": PLANETS_JA.get(planet, planet)})
+            out.append({"type": "node", "key": f"{planet}|{node}", "name": node, "sub": name_txt("planet.", planet)})
     return out[:80]
 
 
@@ -103,11 +105,11 @@ def lookup_area(store: Store, kind: str, key: str, all_items: bool, events: bool
     drops, names = need_drops(store), store.names()
     if kind == "planet":
         targets = [(p, n) for p, n in drops.node_order if p == key]
-        title = PLANETS_JA.get(key, key)
+        title = name_txt("planet.", key)
     else:
         planet, _, node = key.partition("|")
         targets = [(planet, node)]
-        title = f"{PLANETS_JA.get(planet, planet)} / {node}"
+        title = mission_place(planet, node)
     nodes = []
     for planet, node in targets:
         rows = [r for r in drops.rows if r[0] == planet and r[1] == node]
@@ -118,11 +120,11 @@ def lookup_area(store: Store, kind: str, key: str, all_items: bool, events: bool
             if all_items or names.is_resource(r[5]):
                 by_rot.setdefault(r[4], []).append(r)
         stages = [{"stage": stage_label(rot), "items": [{
-            "ja": names.ja(r[5]), "en": r[5], "chance": r[6], "rarity": RARITY_JA.get(r[7], r[7]), "rarity_key": r[7],
+            "ja": names.ja(r[5]), "en": r[5], "chance": r[6], "rarity": r[7],
         } for r in sorted(lst, key=lambda x: -x[6])]} for rot, lst in sorted(by_rot.items())]
         if stages or kind == "node":
-            nodes.append({"planet": PLANETS_JA.get(planet, planet), "node": node,
-                          "mode": MODES_JA.get(rows[0][2], rows[0][2]), "event": rows[0][3], "stages": stages})
+            nodes.append({"planet": name_txt("planet.", planet), "node": node,
+                          "mode": name_txt("mode.", rows[0][2]), "event": rows[0][3], "stages": stages})
     return {"title": title, "nodes": nodes}
 
 

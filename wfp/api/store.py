@@ -6,7 +6,7 @@ import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from wfp.core.common import CLAN_FILE, OTHER_FILE
+from wfp.core.common import CLAN_FILE, OTHER_FILE, render_ja, txt
 from wfp.core.loader import load_drops, load_names, load_rivens, load_sources
 from wfp.core.names import Names
 from wfp.drops.search import all_item_names
@@ -81,9 +81,20 @@ class Store:
 
 
 class ApiError(Exception):
-    def __init__(self, msg: str, status: int = 400):
-        super().__init__(msg)
+    """API のエラー。msg は日本語の文か、テキスト指定(txt("err.…", 値=…)。リストも可)。
+
+    テキスト指定なら画面は表示中の言語で出す(応答の text)。日本語の文(error)は TEXT_JA から作る。
+    日本語の文を直接渡す書き方は多言語対応の済んでいないページ用(画面はその文をそのまま出す)
+    """
+
+    def __init__(self, msg, status: int = 400):
+        self.text = None if isinstance(msg, str) else msg
+        super().__init__(render_ja(msg) if self.text else msg)
         self.status = status
+
+    def payload(self) -> dict:
+        """応答の本文: {"error": 日本語の文, "text": テキスト指定(あれば)}"""
+        return {"error": str(self), **({"text": self.text} if self.text else {})}
 
 
 class Raw:
@@ -96,7 +107,7 @@ class Raw:
 def need_drops(store: Store) -> Drops:
     drops = store.drops()
     if drops is None:
-        raise ApiError("データがありません。メニューの「データ更新」から取得してください。", 409)
+        raise ApiError(txt("err.nodata"), 409)
     return drops
 
 

@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 
 from wfp.core.common import (INVASION_INFESTED, INVASION_PART_KINDS, INVASION_PARTS_FILE, INVASION_WEAPON_PART_PREFIX,
-                             PLANETS_JA)
+                             PLANETS_JA, TextError, txt)
 from wfp.core.names import Names
 from wfp.store import appdata, gamedata, userdata
 
@@ -186,10 +186,10 @@ def set_invasion_part(d: Path, path: str, owned: bool, src: Path | None = None) 
     """パーツの取得済みを付け外しする(path は収集表のパス。別名でもよい)。一覧に無ければ ValueError"""
     weapons = load_parts(src)
     if weapons is None:
-        raise ValueError("獲得パーツの一覧(同梱データ)が読めません。")
+        raise TextError(txt("err.invasion.broken"))
     hit = part_index(weapons).get(path)
     if hit is None:
-        raise ValueError("一覧に無いパーツです。")
+        raise TextError(txt("err.invasion.unknown"))
     done = userdata.load_invasion_parts(d)
     if owned:
         done.add(hit["path"])

@@ -1,5 +1,5 @@
 {
- "_comment": "ドロップもクラン研究もしない入手先(Simaris 交換・クエスト報酬など。パーツ検索・素材から探すの入手先に出す)。開発側が手で編集して配布。en はゲームの英名(マスター一覧と同じ)、source は入手先のキー(wfp/core/common.py の OTHER_SOURCES: simaris / quest)、parts は部品(part は PART_WORDS の部品名。source を省略すると本体と同じ。note は部品ごとにも書け、無ければ本体と同じ入手先のときだけ本体の note を使う)、extras は設計図ではない作成素材(item は名前そのまま。例: Octavia の Mandachord。パーツ検索では本体と同じカテゴリーに出る)、body: false は本体の設計図はここで手に入らない(部品だけ。例: Mirage は本体がマーケット購入)、quest はクエスト名({\"en\", \"ja\"}。en と ja が同じでも両方書く。表示は ja だけで、Simaris 交換なら「〜完了後」。部品・extras は note と同じく、無ければ本体と同じ入手先のときだけ本体の quest)、note は入手先の表の詳細欄に出す自由な文(quest があれば「クエスト名 / note」)。同じ en を入手先ごとに分けて複数書いてもよい",
+ "_comment": "ドロップもクラン研究もしない入手先(Simaris 交換・クエスト報酬など。パーツ検索・素材から探すの入手先に出す)。開発側が手で編集して配布。en はゲームの英名(マスター一覧と同じ)、source は入手先のキー(wfp/core/common.py の OTHER_SOURCES: simaris / quest)、parts は部品(part は PART_WORDS の部品名。source を省略すると本体と同じ。note は部品ごとにも書け、無ければ本体と同じ入手先のときだけ本体の note を使う)、extras は設計図ではない作成素材(item は名前そのまま。例: Octavia の Mandachord。パーツ検索では本体と同じカテゴリーに出る)、body: false は本体の設計図はここで手に入らない(部品だけ。例: Mirage は本体がマーケット購入)、quest はクエスト名({\"en\", \"ja\"}。en と ja が同じでも両方書く。画面の言語で出し(無ければ ja)、Simaris 交換なら「〜完了後」。部品・extras は note と同じく、無ければ本体と同じ入手先のときだけ本体の quest)、note は入手先の表の詳細欄に出す自由な文(文字列か、言語ごとに書いた {\"ja\", \"en\"}。quest があれば「クエスト名 / note」)。同じ en を入手先ごとに分けて複数書いてもよい",
  "items": [
   {
    "en": "Argo & Vel",

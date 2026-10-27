@@ -5,7 +5,7 @@ import io
 import zipfile
 from pathlib import Path
 
-from wfp.core.common import FANKIT_LOGOS_URL, FANKIT_PAGE
+from wfp.core.common import FANKIT_LOGOS_URL, FANKIT_PAGE, TextFailure, error_text, say, txt
 from wfp.core import common
 from wfp.fetch import net
 
@@ -39,12 +39,12 @@ def extract_logos(raw: bytes, dest: Path) -> int:
     画像以外のファイルや、dest の外に出る名前(../ など)は無視する。
     """
     if not zipfile.is_zipfile(io.BytesIO(raw)):
-        raise RuntimeError("ダウンロードした内容が zip ではありませんでした(配布元の仕様が変わった可能性があります)")
+        raise TextFailure(txt("err.logo.notzip"))
     count = 0
     with zipfile.ZipFile(io.BytesIO(raw)) as z:
         infos = [i for i in z.infolist() if not i.is_dir()]
         if sum(i.file_size for i in infos) > LOGO_MAX_BYTES:
-            raise RuntimeError("展開後のサイズが大きすぎるため中止しました")
+            raise TextFailure(txt("err.logo.toolarge"))
         dest_root = dest.resolve()
         for info in infos:
             parts = [x for x in info.filename.replace("\\", "/").split("/") if x not in ("", ".")]
@@ -59,7 +59,7 @@ def extract_logos(raw: bytes, dest: Path) -> int:
             out.write_bytes(z.read(info))
             count += 1
     if count == 0:
-        raise RuntimeError("zip の中にロゴ画像が見つかりませんでした")
+        raise TextFailure(txt("err.logo.noimage"))
     return count
 
 
@@ -67,28 +67,28 @@ def fetch_logos(d: Path | None = None, force: bool = False) -> Path | None:
     """公式ファンキットの Logos を取得して保存する。失敗しても例外にせず None を返す(ツールはロゴ無しで動く)"""
     have = find_logos_dir(d)
     if have and not force:
-        print(f"ロゴ素材は取得済みです: {have}")
+        say(txt("log.logo.have", dir=str(have)))
         return have
-    print("公式ファンキット(Warframe Fan Kit)のロゴ素材を取得中...")
-    print(f"  配布元: Digital Extremes 公式 ({FANKIT_PAGE})")
+    say(txt("log.fetching.logo"))
+    say(txt("log.logo.from", url=FANKIT_PAGE), 1)
     try:
         raw = net.http_get(FANKIT_LOGOS_URL, timeout=180)
     except Exception as e:  # noqa: BLE001
-        print(f"  失敗しました: {e}")
-        print("  ※ロゴ無しでもツールは使えます。あとで「python wfportal.py logos」で取り直せます。")
+        say(txt("log.logo.failed", e=error_text(e)), 1)
+        say(txt("log.logo.later"), 1)
         return None
     last_err = None
     for dest in logos_dirs(d):
         try:
             n = extract_logos(raw, dest)
-            print(f"  {n} ファイルを保存しました -> {dest}")
-            print("  ※ロゴ素材の権利は Digital Extremes にあります。個人の利用にとどめ、再配布しないでください。")
+            say(txt("log.logo.saved", n=str(n), dir=str(dest)), 1)
+            say(txt("log.logo.rights"), 1)
             return dest
         except PermissionError as e:
             last_err = e  # ツールのフォルダに書けないときは次の候補へ
         except Exception as e:  # noqa: BLE001
             last_err = e
             break
-    print(f"  保存に失敗しました: {last_err}")
-    print("  ※ロゴ無しでもツールは使えます。あとで「python wfportal.py logos」で取り直せます。")
+    say(txt("log.logo.savefail", e=error_text(last_err) if last_err else ""), 1)
+    say(txt("log.logo.later"), 1)
     return None

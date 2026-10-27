@@ -12,7 +12,7 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from wfp.core.common import DUVIRI_BASE_FILE, DUVIRI_MODES
+from wfp.core.common import DUVIRI_BASE_FILE, DUVIRI_MODES, TextError, txt
 from wfp.core.cycle import clock_offset, next_weekly_reset
 from wfp.store import appdata, userdata
 
@@ -88,7 +88,7 @@ def _now(d: Path, now: float | None) -> float:
 
 def _rotation(mode: str, src: Path | None) -> list[dict] | None:
     if mode not in DUVIRI_MODES:
-        raise ValueError("モードを選んでください。")
+        raise TextError(txt("err.duviri.mode"))
     return check_rotation(appdata.read_duviri(DUVIRI_MODES[mode], src))
 
 
@@ -96,9 +96,9 @@ def set_duviri_adjust(d: Path, mode: str, rid: object, now: float | None = None,
     """今週の ID を rid に合わせて保存する。モード・ID が正しくなければ ValueError(保存しない)"""
     rot = _rotation(mode, src)
     if rot is None:
-        raise ValueError("ローテーションのデータが読めないため、調整できません。")
+        raise TextError(txt("err.duviri.broken"))
     if isinstance(rid, bool) or not isinstance(rid, int) or not 1 <= rid <= len(rot):
-        raise ValueError(f"ID は 1〜{len(rot)} で選んでください。")
+        raise TextError(txt("err.duviri.id", max=str(len(rot))))
     t = _now(d, now)
     adjust = userdata.load_duviri_adjust(d)
     adjust[mode] = {"id": rid, "week": week_start(datetime.fromtimestamp(t, timezone.utc)).isoformat(), "set_at": int(t)}
@@ -108,7 +108,7 @@ def set_duviri_adjust(d: Path, mode: str, rid: object, now: float | None = None,
 def clear_duviri_adjust(d: Path, mode: str) -> None:
     """そのモードの手動調整を消す(同梱の設定に戻す)。調整が無くてもエラーにしない"""
     if mode not in DUVIRI_MODES:
-        raise ValueError("モードを選んでください。")
+        raise TextError(txt("err.duviri.mode"))
     adjust = userdata.load_duviri_adjust(d)
     if mode in adjust:
         del adjust[mode]

@@ -1,7 +1,7 @@
 """アルケイン所持一覧"""
 from __future__ import annotations
 
-from wfp.core.common import ARCANE_CATS, ARCANE_DROP_ONLY_CATS, ARCANE_DROP_ONLY_MAX_RANK, RARITY_JA
+from wfp.core.common import ARCANE_CATS, ARCANE_DROP_ONLY_CATS, ARCANE_DROP_ONLY_MAX_RANK, TextError, txt
 from wfp.core.names import Names, arcane_cat
 
 
@@ -24,12 +24,12 @@ def arcane_entries(names: Names, drop_items=()) -> list[dict]:
 
 
 def arcane_table(names: Names, owned: dict[str, int], drop_items=()) -> list[dict]:
-    """所持状況つきの一覧。ランクは最大ランクを超えないように丸める(ゲーム側で最大ランクが下がった場合に備えて)"""
+    """所持状況つきの一覧。ランクは最大ランクを超えないように丸める(ゲーム側で最大ランクが下がった場合に備えて)。
+    カテゴリー・レア度はキーのまま(表示名は画面の I18N / CLI は ARCANE_CATS・RARITY_JA)"""
     out = []
     for m in arcane_entries(names, drop_items):
         k = m["en"].lower()
-        out.append({**m, "cat_ja": ARCANE_CATS.get(m["cat"], m["cat"]),
-                    "rarity_ja": RARITY_JA.get(m["rarity"], m["rarity"]), "owned": k in owned,
+        out.append({**m, "owned": k in owned,
                     "rank": min(owned[k], m["max_rank"]) if k in owned else None})
     return out
 
@@ -46,7 +46,7 @@ def arcane_summary(rows: list[dict]) -> dict:
     return out
 
 
-class ArcaneNotFound(ValueError):
+class ArcaneNotFound(TextError):
     """一覧に無いアルケイン名"""
 
 
@@ -63,9 +63,9 @@ def set_arcanes_owned(names: Names, owned: dict[str, int], targets: list[str], i
     for en in targets:
         m = by.get(str(en).lower())
         if m is None:
-            raise ArcaneNotFound(f"アルケインが見つかりません: {en}")
+            raise ArcaneNotFound(txt("err.arcane.unknown", name=en))
         if rank_ is not None and not (0 <= rank_ <= m["max_rank"]):
-            raise ValueError(f"{m['en']} のランクは 0〜{m['max_rank']} です: {rank_}")
+            raise TextError(txt("err.arcane.range", name=m["en"], max=str(m["max_rank"]), rank=str(rank_)))
         hits.append(m)
     for m in hits:
         k = m["en"].lower()

@@ -10,15 +10,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from wfp.core.common import MASTERY_CATS, MASTERY_EXTRA_FILE, MASTERY_FOUNDER
+from wfp.core.common import MASTERY_CATS, MASTERY_EXTRA_FILE, MASTERY_FOUNDER, render_ja, txt
 from wfp.core.names import Names
 from wfp.store import appdata
 
 
 def mastery_label(m: dict) -> str:
-    """表示名。Kitgun はプライマリ版とセカンダリ版を区別する"""
-    v = {"primary": "プライマリ", "secondary": "セカンダリ"}.get(m.get("variant", ""), "")
-    return f"{m['ja']} ({v})" if v else m["ja"]
+    """日本語の表示名(CLI 用)。Kitgun はプライマリ版とセカンダリ版を区別する(画面は I18N の mastery.variant で同じ形にする)"""
+    v = m.get("variant", "")
+    return render_ja(txt("mastery.variant", name=m["ja"], variant=txt("mastery.variant." + v))) if v else m["ja"]
 
 
 def check_extra(raw: object) -> list[dict]:
@@ -50,8 +50,8 @@ def mastery_items(names: Names, src: Path | None = None) -> list[dict]:
 
 
 def mastery_table(names: Names, done: set[str], src: Path | None = None) -> list[dict]:
-    return [{**m, "cat_ja": MASTERY_CATS.get(m["cat"], m["cat"]), "label": mastery_label(m), "done": m["id"] in done}
-            for m in mastery_items(names, src)]
+    """マスター済みの印つきの一覧。カテゴリー・Kitgun の区別(variant)はキーのまま(表示名は画面 / CLI で付ける)"""
+    return [{**m, "done": m["id"] in done} for m in mastery_items(names, src)]
 
 
 def mastery_summary(rows: list[dict]) -> dict:

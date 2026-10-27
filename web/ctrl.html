@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <!-- 基礎部: 文書の骨組みとコントローラー(基礎スクリプト・各ページの処理・起動)。サーバー(wfp/api/pages.py)が
-     INCLUDE の目印に web/view.html(表示部)と web/menu.html(メニュー部)を差し込んで1枚のページにする。 -->
+     INCLUDE の目印に web/view.html(表示部)・web/i18n.html(文字を引く部品)・web/menu.html(メニュー部)を差し込んで1枚のページにする。 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Warframe Portal</title>
@@ -21,7 +21,9 @@
       <small class="ver" id="app-ver"></small>
     </div>
     <div class="spacer"></div>
-    <span class="pill" id="status-pill">データ確認中...</span>
+    <!-- 言語の切り替え(ボタンは web/menu.html の renderLangSwitch が I18N の言語から作る) -->
+    <div class="lang-sw" id="lang-sw" role="group" hidden></div>
+    <span class="pill" id="status-pill" aria-live="polite">データ確認中...</span>
   </header>
 
   <div class="body">
@@ -43,19 +45,21 @@ async function api(path, opts = {}) {
   if (opts.body !== undefined) { init.headers["Content-Type"] = "application/json"; init.body = JSON.stringify(opts.body); }
   const res = await fetch(path, init);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) { const e = new Error(data.error || `エラー (${res.status})`); e.status = res.status; throw e; }
+  // エラーの文: テキスト指定(text)があれば表示中の言語で、無ければ日本語の文(error)のまま(多言語対応の済んでいない API)
+  if (!res.ok) { const e = new Error(data.text ? renderTxt(data.text) : (data.error || fmt("err.http", { status: res.status }))); e.status = res.status; throw e; }
   return data;
 }
-const debounce = (fn, ms = 180) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const debounce = (fn, ms = 180) => { let timer; return (...a) => { clearTimeout(timer); timer = setTimeout(() => fn(...a), ms); }; };
 const pct = x => x.toFixed(2) + "%";
 const dur = sec => {
   sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
   const p = n => String(n).padStart(2, "0");
   return h ? `${h}:${p(m)}:${p(s)}` : `${p(m)}:${p(s)}`;
 };
-const rarity = (ja, key) => `<span class="rar ${esc(key)}">${esc(ja)}</span>`;
+/* レア度(キーは Common など)・入手先の種類(キーは mission など)の札。文字は I18N の rarity.<キー> / src.cat.<キー> */
+const rarity = key => `<span class="rar ${esc(key)}">${esc(tName("rarity.", key))}</span>`;
 const noData = msg => `<div class="empty">${esc(msg)}</div>`;
-const catTag = (key, ja) => `<span class="cat ${esc(key)}">${esc(ja)}</span>`;
+const catTag = (key, label) => `<span class="cat ${esc(key)}">${esc(label != null ? label : tName("src.cat.", key))}</span>`;
 const fmtPct = x => x >= 1 ? x.toFixed(2) + "%" : x >= 0.01 ? x.toFixed(3) + "%" : x.toPrecision(2) + "%";
 /** 見出しクリックで並べ替える表 (state = {key, dir}) */
 function sortRows(rows, state, getters) {
@@ -85,6 +89,7 @@ function onSortClick(container, state, render, numericKeys = []) {
 }
 
 </script>
+<!-- INCLUDE:i18n.html#script -->
 <!-- INCLUDE:menu.html#script -->
 <script>
 /* ---------- ロゴ ---------- */
@@ -113,28 +118,36 @@ async function refreshStatus() {
     if (s.version) $("#app-ver").textContent = `v${s.version}`;
     if (s.has_logo) applyLogo();
     pill.classList.toggle("warn", !s.has_drops);
-    pill.textContent = s.has_drops ? `データ ${s.drops_updated} 取得 / 項目 ${s.counts.items}` : "データ未取得 — 「データ更新」から取得してください";
-    const info = $("#update-info");
-    info.innerHTML = s.has_drops
-      ? `<dt>ドロップ表</dt><dd>${esc(s.drops_updated)} に取得(${s.counts.nodes} ノード / 全 ${s.counts.items} 項目)</dd>
-         <dt>敵・バウンティ等</dt><dd>${s.extra_files ? `${esc(s.extra_updated)} に取得(${s.extra_files} / ${s.extra_total} ファイル、${s.counts.sources.toLocaleString()} 件)` : "未取得"}</dd>
-         <dt>Riven相場</dt><dd>${s.rivens_updated ? `${esc(s.rivens_updated)} に取得(${s.rivens_count} 件)` : "未取得"}</dd>
-         <dt>日本語名辞書</dt><dd>${s.has_names ? esc((s.names_updated || "").replace("T", " ").replace("+00:00", " UTC")) + " に取得" + (s.names_source ? `(${esc(s.names_source)} / MOD ${s.counts.mods} 件)` : "") : "未取得(英語名で表示されます)"}</dd>`
-      : `<dt>状態</dt><dd>まだデータがありません</dd>`;
+    lastStatus = s; renderStatus();
     return s;
-  } catch (e) { pill.textContent = "サーバーに接続できません"; pill.classList.add("warn"); }
+  } catch (e) { lastStatus = null; pill.dataset.state = "offline"; pill.textContent = t("status.offline"); pill.classList.add("warn"); }
+}
+/* ヘッダーのデータの状態と、データ更新ページの一覧(言語を切り替えたら描き直す) */
+let lastStatus = null;
+function renderStatus() {
+  const pill = $("#status-pill"), s = lastStatus;
+  if (!s) { pill.textContent = t(pill.dataset.state === "offline" ? "status.offline" : "status.checking"); return; }
+  pill.textContent = s.has_drops ? fmt("status.data", { at: s.drops_updated, n: s.counts.items }) : t("status.nodata");
+  const row = (k, v) => `<dt>${esc(t(k))}</dt><dd>${esc(v)}</dd>`;
+  $("#update-info").innerHTML = s.has_drops
+    ? row("upd.drops", fmt("upd.drops.v", { at: s.drops_updated, nodes: s.counts.nodes, items: s.counts.items }))
+      + row("upd.extra", s.extra_files ? fmt("upd.extra.v", { at: s.extra_updated, files: s.extra_files, total: s.extra_total, n: s.counts.sources.toLocaleString(locale()) }) : t("upd.none"))
+      + row("upd.riven", s.rivens_updated ? fmt("upd.riven.v", { at: s.rivens_updated, n: s.rivens_count }) : t("upd.none"))
+      + row("upd.names", s.has_names ? fmt("upd.names.v", { at: (s.names_updated || "").replace("T", " ").replace("+00:00", " UTC") })
+        + (s.names_source ? fmt("upd.names.src", { src: tName("export.src.", s.names_source), n: s.counts.mods }) : "") : t("upd.names.none"))
+    : row("upd.state", t("upd.empty"));
 }
 
 /* ---------- 入手先の検索(素材から探す・パーツ検索で共用) ---------- */
-/** 入手先の表 (素材から探す / MOD 一覧の詳細で共用) */
+/** 入手先の表 (素材から探す / パーツ検索 / MOD 一覧の詳細で共用)。行の place・detail・stage は API のテキスト指定 */
 function sourceTable(rows) {
   const max = Math.max(...rows.map(x => x.chance ?? 0), 0.0001);  // 確率の無い入手先(クラン研究)は「—」でバーを出さない
   return `<div class="tablewrap"><table>
-    <thead><tr><th>種類</th><th>入手先</th><th>詳細</th><th>ステージ</th><th>確率</th><th>レア度</th></tr></thead>
-    <tbody>${rows.map(x => `<tr><td>${catTag(x.cat, x.cat_ja)}</td><td>${esc(x.place)}${x.event ? '<span class="tag-event">イベント</span>' : ""}</td>
-      <td>${esc(x.detail)}</td><td>${esc(x.stage)}</td>
-      <td>${x.chance == null ? "—" : `<div class="chance"><div class="bar"><i style="--w:${(x.chance / max * 100).toFixed(1)}%"></i></div><b>${x.qty ? esc(x.qty) + "個 " : ""}${fmtPct(x.chance)}</b></div>`}</td>
-      <td>${x.rarity ? rarity(x.rarity, x.rarity_key) : ""}</td></tr>`).join("")}</tbody></table></div>`;
+    <thead><tr>${["cat", "place", "detail", "stage", "chance", "rarity"].map(c => `<th>${esc(t("src.col." + c))}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(x => `<tr><td>${catTag(x.cat)}</td><td>${esc(renderTxt(x.place))}${x.event ? `<span class="tag-event">${esc(t("src.event"))}</span>` : ""}</td>
+      <td>${esc(renderTxt(x.detail))}</td><td>${esc(renderTxt(x.stage))}</td>
+      <td>${x.chance == null ? "—" : `<div class="chance"><div class="bar"><i style="--w:${(x.chance / max * 100).toFixed(1)}%"></i></div><b>${x.qty ? esc(fmt("src.qty", { n: x.qty })) : ""}${fmtPct(x.chance)}</b></div>`}</td>
+      <td>${x.rarity ? rarity(x.rarity) : ""}</td></tr>`).join("")}</tbody></table></div>`;
 }
 /**
  * 名前で候補を出し、選んだ項目の入手先(/api/item)を表にするページを作る。部品は #<id>-q #<id>-chips #<id>-out #<id>-ev
@@ -147,7 +160,9 @@ function sourceSearch(o) {
   const el = part => $(`#${o.id}-${part}`);
   const list = o.list || (res => res);
   let key = null, cat = "", data = null;
-  const chip = i => `<button class="chip" data-key="${esc(i.key)}" aria-pressed="${i.key === key}">${esc(i.ja)}${i.ja !== i.en ? `<small>${esc(i.en)}</small>` : ""}</button>`;
+  // 候補の名前: 日本語の画面は日本語名(下に英名)、ほかの言語は英名(ゲームの名前は Export の英語・日本語の2つだけ)
+  const nameOf = i => (lang === "ja" ? i.ja : i.en), subOf = i => (lang === "ja" && i.ja !== i.en ? i.en : "");
+  const chip = i => `<button class="chip" data-key="${esc(i.key)}" aria-pressed="${i.key === key}">${esc(nameOf(i))}${subOf(i) ? `<small>${esc(subOf(i))}</small>` : ""}</button>`;
   async function loadChips() {
     try {
       const res = await api(o.suggest(el("q").value)), items = list(res);
@@ -162,12 +177,12 @@ function sourceSearch(o) {
     if (cat && !r.cats.some(c => c.key === cat)) cat = "";
     const rows = cat ? r.rows.filter(x => x.cat === cat) : r.rows;
     el("out").innerHTML = `
-    <div class="result-head"><h3>${esc(r.ja)}</h3><span class="en">${esc(r.en)}</span><span class="count">${r.total} か所</span></div>
-    ${r.cats.length > 1 ? `<div class="seg" role="group" aria-label="入手先の種類">
-      <button class="chip" data-cat="" aria-pressed="${!cat}">すべて<small>${r.total}</small></button>
-      ${r.cats.map(c => `<button class="chip" data-cat="${esc(c.key)}" aria-pressed="${cat === c.key}">${esc(c.ja)}<small>${c.n}</small></button>`).join("")}</div>` : ""}
+    <div class="result-head"><h3>${esc(nameOf(r))}</h3>${subOf(r) ? `<span class="en">${esc(subOf(r))}</span>` : ""}<span class="count">${esc(fmt("src.count", { n: r.total }))}</span></div>
+    ${r.cats.length > 1 ? `<div class="seg" role="group" aria-label="${esc(t("src.cats"))}">
+      <button class="chip" data-cat="" aria-pressed="${!cat}">${esc(t("src.all"))}<small>${r.total}</small></button>
+      ${r.cats.map(c => `<button class="chip" data-cat="${esc(c.key)}" aria-pressed="${cat === c.key}">${esc(tName("src.cat.", c.key))}<small>${c.n}</small></button>`).join("")}</div>` : ""}
     ${sourceTable(rows)}
-    <p class="note">確率: ミッション/バウンティは報酬1回の抽選で選ばれる割合(A→B→C はローテーション)、敵は1体倒したときに落とす割合(「MODドロップ 3%」などは、その敵が MOD を落とす確率を掛けた後の値)、レリックは開けたときに出る割合です。クラン研究・Simaris 交換・クエスト報酬は確率が無いので「—」です。</p>`;
+    <p class="note">${esc(t("src.footnote"))}</p>`;
   }
   async function loadResult() {
     if (!key) { el("out").innerHTML = ""; return; }
@@ -209,6 +224,8 @@ function sourceSearch(o) {
       if (!el("chips").children.length || !key) await search(true);
     },
     reset() { key = null; data = null; el("chips").innerHTML = ""; },
+    // 言語を切り替えたとき: 候補と結果を手元のデータで描き直す(取り直さない)
+    relabel() { applyViewText(o.id); if (data) renderResult(); return el("chips").children.length ? loadChips() : null; },
   };
 }
 
@@ -217,22 +234,22 @@ const itemSearch = sourceSearch({
   id: "item",
   suggest: q => `/api/suggest/item?q=${encodeURIComponent(q)}&materials=${$("#item-mat").checked ? 1 : 0}`,
   msg: {
-    noMatch: () => "一致する項目がありません" + ($("#item-mat").checked ? "(「素材のみ」を外すとMODや設計図も探せます)" : ""),
-    pick: () => "候補から選んでください。",
-    empty: () => "素材を選ぶか、名前を入力してください。",
-    noData: () => "データがありません。「データ更新」から取得してください。",
+    noMatch: () => t($("#item-mat").checked ? "item.nomatch.mat" : "item.nomatch"),
+    pick: () => t("item.pick"),
+    empty: () => t("item.empty"),
+    noData: () => t("item.nodata"),
   },
 });
 $("#item-mat").addEventListener("change", () => itemSearch.search(false));
-loaders.item = itemSearch.load;
+loaders.item = () => { applyViewText("item"); return itemSearch.load(); };
+relabel.item = itemSearch.relabel;
 
 /* ---------- パーツ検索 ---------- */
 /* Warframe・武器などの本体・設計図・パーツだけを候補に出す。カテゴリーはマスター一覧と同じ(ファウンダー・その他は除く) */
 let partCat = "";
 try { partCat = localStorage.getItem("wf-part-cat") || ""; } catch (e) {}
-if (partCat && t("part.cat." + partCat) === "part.cat." + partCat) partCat = "";  // 今は無いカテゴリーが残っていたら外す
+if (partCat && !hasText("mastery.cat." + partCat)) partCat = "";  // 今は無いカテゴリーが残っていたら外す
 try { $("#part-noprime").checked = localStorage.getItem("wf-part-noprime") === "1"; } catch (e) {}
-const partFmt = (key, vals) => Object.entries(vals).reduce((s, [k, v]) => s.split("{" + k + "}").join(v), t(key));
 const partSearch = sourceSearch({
   id: "part",
   suggest: q => `/api/suggest/part?q=${encodeURIComponent(q)}&cat=${encodeURIComponent(partCat)}&noprime=${$("#part-noprime").checked ? 1 : 0}`,
@@ -242,9 +259,9 @@ const partSearch = sourceSearch({
     // 選んでいるカテゴリーに名前の合う候補が無いときも、ボタンは 0 件で残す(押し直して外せるように)
     const cats = partCat && !res.cats.some(c => c.key === partCat) ? [...res.cats, { key: partCat, n: 0 }] : res.cats;
     $("#part-cats").innerHTML = `<button class="chip" data-pcat="" aria-pressed="${!partCat}">${esc(t("part.cat.all"))}<small>${all}</small></button>`
-      + cats.map(c => `<button class="chip" data-pcat="${esc(c.key)}" aria-pressed="${partCat === c.key}">${esc(t("part.cat." + c.key))}<small>${c.n}</small></button>`).join("");
+      + cats.map(c => `<button class="chip" data-pcat="${esc(c.key)}" aria-pressed="${partCat === c.key}">${esc(tName("mastery.cat.", c.key))}<small>${c.n}</small></button>`).join("");
   },
-  more: (res, items) => res.total > items.length ? `<span class="note">${esc(partFmt("part.more", { n: res.total - items.length }))}</span>` : "",
+  more: (res, items) => res.total > items.length ? `<span class="note">${esc(fmt("part.more", { n: res.total - items.length }))}</span>` : "",
   msg: {
     noMatch: () => t("part.nomatch"),
     pick: () => t("part.pick"),
@@ -262,38 +279,47 @@ $("#part-noprime").addEventListener("change", e => {  // 入手先がレリッ�
   try { localStorage.setItem("wf-part-noprime", e.target.checked ? "1" : "0"); } catch (err) {}
   partSearch.search(false);
 });
-loaders.part = () => {
-  applyViewText("part");
-  $("#part-q").placeholder = t("part.placeholder");
-  $("#part-cats").setAttribute("aria-label", t("part.cats"));
-  return partSearch.load();
-};
+loaders.part = () => { applyViewText("part"); return partSearch.load(); };
+relabel.part = partSearch.relabel;
 
 /* ---------- エリアから探す ---------- */
-let areaSel = null;
+let areaSel = null, areaList = null, areaRes = null;  // 候補・結果は言語の切り替えで描き直すため手元に残す
+const areaItem = i => (lang === "ja" ? i.ja : i.en);  // アイテム名(日本語の画面は日本語名、ほかは英名)
+function renderAreaChips() {
+  const list = areaList || [];
+  $("#area-chips").innerHTML = list.length ? list.map(i =>
+    `<button class="chip" data-type="${i.type}" data-key="${esc(i.key)}" aria-pressed="${areaSel && areaSel.key === i.key && areaSel.type === i.type}">${esc(renderTxt(i.name))}${i.sub ? `<small>${esc(renderTxt(i.sub))}</small>` : ""}</button>`).join("")
+    : `<span class="note">${esc(t("area.nomatch"))}</span>`;
+}
 async function loadAreaChips() {
   try {
-    const list = await api(`/api/suggest/area?q=${encodeURIComponent($("#area-q").value)}`);
-    $("#area-chips").innerHTML = list.length ? list.map(i =>
-      `<button class="chip" data-type="${i.type}" data-key="${esc(i.key)}" aria-pressed="${areaSel && areaSel.key === i.key && areaSel.type === i.type}">${esc(i.ja)}${i.sub ? `<small>${esc(i.sub)}</small>` : ""}</button>`).join("")
-      : `<span class="note">一致するエリアがありません</span>`;
-    return list;
-  } catch (e) { $("#area-out").innerHTML = noData(e.message); return []; }
+    areaList = await api(`/api/suggest/area?q=${encodeURIComponent($("#area-q").value)}`);
+    renderAreaChips();
+    return areaList;
+  } catch (e) { areaList = null; $("#area-out").innerHTML = noData(e.message); return []; }
+}
+function renderAreaResult() {
+  const r = areaRes;
+  if (!areaSel || !r) { if (!areaSel) $("#area-out").innerHTML = `<div class="empty">${esc(t("area.pick"))}</div>`; return; }
+  const title = esc(renderTxt(r.title));
+  if (!r.nodes.length) { $("#area-out").innerHTML = `<div class="result-head"><h3>${title}</h3></div>` + noData(t("area.none")); return; }
+  const head = ["stage", "item", "chance", "rarity"].map(c => `<th>${esc(t("area.col." + c))}</th>`).join("");
+  $("#area-out").innerHTML = `<div class="result-head"><h3>${title}</h3><span class="count">${esc(fmt("area.count", { n: r.nodes.length }))}</span></div>
+    <div class="cards">${r.nodes.map(n => {
+      const max = Math.max(1, ...n.stages.flatMap(s => s.items.map(i => i.chance)));
+      const rows = n.stages.flatMap(s => s.items.map((i, k) => `<tr><td>${k === 0 ? esc(renderTxt(s.stage)) : ""}</td><td>${esc(areaItem(i))}</td>
+        <td><div class="chance" style="min-width:150px"><div class="bar"><i style="--w:${(i.chance / max * 100).toFixed(1)}%"></i></div><b>${pct(i.chance)}</b></div></td>
+        <td>${rarity(i.rarity)}</td></tr>`)).join("");
+      return `<div class="card"><header><b>${esc(n.node)}</b><span>${esc(renderTxt(n.planet))} / ${esc(renderTxt(n.mode))}${n.event ? `<span class="tag-event">${esc(t("src.event"))}</span>` : ""}</span></header>
+        ${rows ? `<div class="tablewrap"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty">${esc(t("area.nomaterial"))}</div>`}</div>`;
+    }).join("")}</div>`;
 }
 async function loadAreaResult() {
-  if (!areaSel) { $("#area-out").innerHTML = `<div class="empty">惑星またはノードを選んでください。</div>`; return; }
+  areaRes = null;
+  if (!areaSel) { renderAreaResult(); return; }
   try {
-    const r = await api(`/api/area?type=${areaSel.type}&key=${encodeURIComponent(areaSel.key)}&all=${$("#area-all").checked ? 1 : 0}&events=${$("#area-ev").checked ? 1 : 0}`);
-    if (!r.nodes.length) { $("#area-out").innerHTML = `<div class="result-head"><h3>${esc(r.title)}</h3></div>` + noData("表示できるドロップがありません(「素材以外も表示」で増える場合があります)。"); return; }
-    $("#area-out").innerHTML = `<div class="result-head"><h3>${esc(r.title)}</h3><span class="count">${r.nodes.length} ノード</span></div>
-      <div class="cards">${r.nodes.map(n => {
-        const max = Math.max(1, ...n.stages.flatMap(s => s.items.map(i => i.chance)));
-        const rows = n.stages.flatMap(s => s.items.map((i, k) => `<tr><td>${k === 0 ? esc(s.stage) : ""}</td><td>${esc(i.ja)}</td>
-          <td><div class="chance" style="min-width:150px"><div class="bar"><i style="--w:${(i.chance / max * 100).toFixed(1)}%"></i></div><b>${pct(i.chance)}</b></div></td>
-          <td>${rarity(i.rarity, i.rarity_key)}</td></tr>`)).join("");
-        return `<div class="card"><header><b>${esc(n.node)}</b><span>${esc(n.planet)} / ${esc(n.mode)}${n.event ? '<span class="tag-event">イベント</span>' : ""}</span></header>
-          ${rows ? `<div class="tablewrap"><table><thead><tr><th>ステージ</th><th>アイテム</th><th>確率</th><th>レア度</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty">素材のドロップはありません</div>`}</div>`;
-      }).join("")}</div>`;
+    areaRes = await api(`/api/area?type=${areaSel.type}&key=${encodeURIComponent(areaSel.key)}&all=${$("#area-all").checked ? 1 : 0}&events=${$("#area-ev").checked ? 1 : 0}`);
+    renderAreaResult();
   } catch (e) { $("#area-out").innerHTML = noData(e.message); }
 }
 $("#area-q").addEventListener("input", debounce(async () => {
@@ -309,47 +335,52 @@ $("#area-chips").addEventListener("click", e => {
   loadAreaResult();
 });
 loaders.area = async () => {
+  applyViewText("area");
   const s = await refreshStatus();
-  if (!s || !s.has_drops) { $("#area-chips").innerHTML = ""; $("#area-out").innerHTML = noData("データがありません。「データ更新」から取得してください。"); return; }
+  if (!s || !s.has_drops) { $("#area-chips").innerHTML = ""; $("#area-out").innerHTML = noData(t("area.nodata")); return; }
   await loadAreaChips(); await loadAreaResult();
 };
+relabel.area = () => { applyViewText("area"); if (areaList) renderAreaChips(); renderAreaResult(); };
 
 /* ---------- MOD 入手一覧 ---------- */
 let mods = null, modMeta = null, modOpen = null;
 const modSort = { key: "ja", dir: "asc" };
 const RAR_ORDER = { Common: 1, Uncommon: 2, Rare: 3, Legendary: 4 };
 const modGetters = {
-  ja: m => m.ja.toLowerCase(), type: m => m.type_ja, pol: m => m.polarity_name, rar: m => RAR_ORDER[m.rarity] || 0,
+  ja: m => modName(m).toLowerCase(), type: m => tName("mod.type.", m.type), pol: m => m.polarity_name, rar: m => RAR_ORDER[m.rarity] || 0,
   total: m => m.total, best: m => m.best ? m.best.chance : null, own: m => (m.owned ? 1 : 0),
 };
+/* MOD 名: 日本語の画面は日本語名、ほかの言語は英名。対象(compat)は I18N の mod.compat.<英名>(無ければ英名) */
+const modName = m => (lang === "ja" ? m.ja : m.en);
+const modCompat = m => tName("mod.compat.", m.compat || "");
 function modFilter() {
-  const q = $("#mods-q").value.trim().toLowerCase(), t = $("#mods-type").value, r = $("#mods-rar").value,
+  const q = $("#mods-q").value.trim().toLowerCase(), ty = $("#mods-type").value, r = $("#mods-rar").value,
     src = $("#mods-src").value, own = $("#mods-own").value;
-  return mods.filter(m => (!t || m.type === t) && (!r || m.rarity === r) &&
+  return mods.filter(m => (!ty || m.type === ty) && (!r || m.rarity === r) &&
     (!own || (own === "yes") === m.owned) &&
     (!src || (src === "any" ? m.total > 0 : src === "none" ? m.total === 0 : (m.counts[src] || 0) > 0)) &&
-    (!q || [m.ja, m.en, m.compat, m.compat_ja].some(x => (x || "").toLowerCase().includes(q))));
+    (!q || [m.ja, m.en, m.compat, modCompat(m)].some(x => (x || "").toLowerCase().includes(q))));
 }
 function renderMods() {
   if (!mods) return;
   const list = sortRows(modFilter(), modSort, modGetters);
   const owned = mods.filter(m => m.owned).length, shownOwned = list.filter(m => m.owned).length;
-  $("#mods-summary").innerHTML = `<span>表示 <b class="count">${list.length}</b> / ${mods.length} 件(うち所持 ${shownOwned})</span>
-    <span>全体の所持 ${owned} / ${mods.length}(${(owned / mods.length * 100).toFixed(1)}%)</span>
+  $("#mods-summary").innerHTML = `<span>${fmt("mods.summary", { shown: `<b class="count">${list.length}</b>`, total: mods.length, owned: shownOwned })}</span>
+    <span>${esc(fmt("mods.summary.all", { owned, total: mods.length, pct: (owned / mods.length * 100).toFixed(1) }))}</span>
     <span class="progress" aria-hidden="true"><i style="--w:${(owned / mods.length * 100).toFixed(1)}%"></i></span>`;
-  if (!list.length) { $("#mods-out").innerHTML = noData("条件に合う MOD がありません。"); return; }
+  if (!list.length) { $("#mods-out").innerHTML = noData(t("mods.none")); return; }
   const shown = list.slice(0, 600);
   $("#mods-out").innerHTML = `<div class="tablewrap tall"><table>
-    <thead><tr>${th("所持", "own", modSort, "chk")}${th("MOD", "ja", modSort)}${th("種別", "type", modSort)}${th("極性", "pol", modSort)}${th("レア度", "rar", modSort)}
-      ${th("入手先(件数)", "total", modSort)}${th("最も確率が高い入手先", "best", modSort)}</tr></thead>
+    <thead><tr>${th(esc(t("mods.col.own")), "own", modSort, "chk")}${th(esc(t("mods.col.mod")), "ja", modSort)}${th(esc(t("mods.col.type")), "type", modSort)}${th(esc(t("mods.col.pol")), "pol", modSort)}${th(esc(t("src.col.rarity")), "rar", modSort)}
+      ${th(esc(t("mods.col.total")), "total", modSort)}${th(esc(t("mods.col.best")), "best", modSort)}</tr></thead>
     <tbody>${shown.map(m => `<tr class="mod-row${m.owned ? " owned" : ""}" data-en="${esc(m.en)}" aria-expanded="${modOpen === m.en}">
-      <td class="chk"><input type="checkbox" class="own" ${m.owned ? "checked" : ""} aria-label="${esc(m.ja)} を所持"></td>
-      <td>${esc(m.ja)}${m.ja !== m.en ? `<span class="sub-en">${esc(m.en)}</span>` : ""}${m.compat ? `<div class="mini">${esc(m.compat_ja)}</div>` : ""}</td>
-      <td>${esc(m.type_ja)}</td><td>${esc(m.polarity_name)}</td><td>${m.rarity ? rarity(m.rarity_ja, m.rarity) : ""}</td>
-      <td>${m.total ? `<div class="badges">${Object.entries(m.counts).map(([c, n]) => catTag(c, `${modMeta.cats[c]} ${n}`)).join("")}</div>` : `<span class="none">記載なし</span>`}</td>
-      <td class="wrap">${m.best ? `${catTag(m.best.cat, m.best.cat_ja)} ${esc(m.best.place)} <b>${fmtPct(m.best.chance)}</b>` : ""}</td></tr>
-      ${modOpen === m.en ? `<tr class="detail"><td colspan="7" id="mod-detail">読み込み中...</td></tr>` : ""}`).join("")}</tbody></table></div>
-    ${list.length > shown.length ? `<p class="note">先頭 ${shown.length} 件を表示しています。絞り込むと残りも表示されます。</p>` : ""}`;
+      <td class="chk"><input type="checkbox" class="own" ${m.owned ? "checked" : ""} aria-label="${esc(fmt("mods.own.aria", { name: modName(m) }))}"></td>
+      <td>${esc(modName(m))}${lang === "ja" && m.ja !== m.en ? `<span class="sub-en">${esc(m.en)}</span>` : ""}${m.compat ? `<div class="mini">${esc(modCompat(m))}</div>` : ""}</td>
+      <td>${esc(tName("mod.type.", m.type))}</td><td>${esc(m.polarity_name)}</td><td>${m.rarity ? rarity(m.rarity) : ""}</td>
+      <td>${m.total ? `<div class="badges">${Object.entries(m.counts).map(([c, n]) => catTag(c, `${tName("src.cat.", c)} ${n}`)).join("")}</div>` : `<span class="none">${esc(t("mods.unlisted"))}</span>`}</td>
+      <td class="wrap">${m.best ? `${catTag(m.best.cat)} ${esc(renderTxt(m.best.place))} <b>${fmtPct(m.best.chance)}</b>` : ""}</td></tr>
+      ${modOpen === m.en ? `<tr class="detail"><td colspan="7" id="mod-detail">${esc(t("common.loading"))}</td></tr>` : ""}`).join("")}</tbody></table></div>
+    ${list.length > shown.length ? `<p class="note">${esc(fmt("mods.first", { n: shown.length }))}</p>` : ""}`;
   if (modOpen && list.some(m => m.en === modOpen)) loadModDetail(modOpen);
 }
 async function loadModDetail(en) {
@@ -357,8 +388,8 @@ async function loadModDetail(en) {
   try {
     const r = await api(`/api/item?key=${encodeURIComponent(en)}&events=1`);
     if (modOpen !== en || !box()) return;
-    box().innerHTML = sourceTable(r.rows.slice(0, 40)) + (r.rows.length > 40 ? `<p class="note">確率の高い順に 40 件を表示(全 ${r.rows.length} 件)。すべて見るには「素材から探す」で「素材のみ」を外して検索してください。</p>` : "");
-  } catch (e) { if (box()) box().innerHTML = noData(e.status === 404 ? "公式ドロップ表に記載がありません(シンジケート・バロ・ナイトウェーブ・クエスト報酬など)。" : e.message); }
+    box().innerHTML = sourceTable(r.rows.slice(0, 40)) + (r.rows.length > 40 ? `<p class="note">${esc(fmt("mods.detail.more", { n: r.rows.length }))}</p>` : "");
+  } catch (e) { if (box()) box().innerHTML = noData(e.status === 404 ? t("mods.detail.none") : e.message); }
 }
 $("#mods-out").addEventListener("change", async e => {
   const cb = e.target.closest("input.own"); if (!cb) return;
@@ -378,28 +409,38 @@ $("#mods-q").addEventListener("input", debounce(renderMods, 150));
 function alertBox(msg) { $("#mods-summary").insertAdjacentHTML("beforeend", `<span class="err">${esc(msg)}</span>`); }
 $("#mods-csv").addEventListener("click", () => {
   if (!mods) return;
-  const cats = Object.keys(modMeta.cats);
-  const head = ["所持", "MOD", "MOD(英語)", "対象", "種別", "極性", "レア度", ...cats.map(c => modMeta.cats[c] + "(件)"), "最も確率が高い入手先", "確率(%)"];
+  const cats = modMeta.cats;  // 入手先の種類(キーの並び)
+  const head = [t("mods.col.own"), t("mods.col.mod"), t("mods.csv.en"), t("mods.csv.compat"), t("mods.col.type"), t("mods.col.pol"), t("src.col.rarity"),
+    ...cats.map(c => fmt("mods.csv.count", { cat: tName("src.cat.", c) })), t("mods.col.best"), t("mods.csv.chance")];
   const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const lines = [head.map(q).join(",")].concat(sortRows(modFilter(), modSort, modGetters).map(m => [
-    m.owned ? "○" : "", m.ja, m.en, m.compat_ja, m.type_ja, m.polarity_name, m.rarity_ja, ...cats.map(c => m.counts[c] || 0),
-    m.best ? `${m.best.cat_ja}: ${m.best.place} ${m.best.detail} ${m.best.stage}` : "記載なし", m.best ? m.best.chance.toFixed(4) : ""].map(q).join(",")));
+    m.owned ? "○" : "", modName(m), m.en, m.compat ? modCompat(m) : "", tName("mod.type.", m.type), m.polarity_name, m.rarity ? tName("rarity.", m.rarity) : "",
+    ...cats.map(c => m.counts[c] || 0),
+    m.best ? `${tName("src.cat.", m.best.cat)}: ${renderTxt(m.best.place)} ${renderTxt(m.best.detail)} ${renderTxt(m.best.stage)}` : t("mods.unlisted"), m.best ? m.best.chance.toFixed(4) : ""].map(q).join(",")));
   const blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv" });
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-  a.download = `mod一覧_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  a.download = `${t("mods.csv.file")}_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 });
+/* 種別・入手先の絞り込みの選択肢(言語を切り替えたら作り直す。選んでいる値は残す) */
+function renderModOptions() {
+  const keep = sel => { const v = $(sel).value; return () => { $(sel).value = v; }; };
+  const t1 = keep("#mods-type"), t2 = keep("#mods-src");
+  $("#mods-type").innerHTML = `<option value="">${esc(t("mods.type.all"))}</option>` + modMeta.types
+    .filter(k => mods.some(m => m.type === k)).map(k => `<option value="${esc(k)}">${esc(tName("mod.type.", k))}</option>`).join("");
+  $("#mods-src").innerHTML = `<option value="">${esc(t("mods.src.all"))}</option><option value="any">${esc(t("mods.src.any"))}</option><option value="none">${esc(t("mods.unlisted"))}</option>` +
+    modMeta.cats.map(k => `<option value="${esc(k)}">${esc(fmt("mods.src.cat", { cat: tName("src.cat.", k) }))}</option>`).join("");
+  t1(); t2();
+}
 loaders.mods = async () => {
-  if (mods) { renderMods(); return; }
-  $("#mods-out").innerHTML = `<div class="empty">読み込み中...</div>`;
+  applyViewText("mods"); scanLabel();
+  if (mods) { renderModOptions(); renderMods(); return; }
+  $("#mods-out").innerHTML = `<div class="empty">${esc(t("common.loading"))}</div>`;
   try {
     const r = await api("/api/mods"); mods = r.mods; modMeta = r;
-    $("#mods-type").innerHTML = `<option value="">すべての種別</option>` + Object.entries(r.types)
-      .filter(([k]) => mods.some(m => m.type === k)).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
-    $("#mods-src").innerHTML = `<option value="">入手先: すべて</option><option value="any">ドロップ表に記載あり</option><option value="none">記載なし</option>` +
-      Object.entries(r.cats).map(([k, v]) => `<option value="${k}">${esc(v)}で入手</option>`).join("");
-    renderMods();
+    renderModOptions(); renderMods();
   } catch (e) { $("#mods-summary").innerHTML = ""; $("#mods-out").innerHTML = noData(e.message); }
 };
+relabel.mods = () => { applyViewText("mods"); scanLabel(); if (scan.reads || scan.on) scanRender(); if (mods) { renderModOptions(); renderMods(); } };
 
 /* ---------- ゲーム画面から MOD を読み取って所持チェック ---------- */
 const AUTO_SCORE = 0.9;  // これ以上の一致度なら自動でチェック。未満は「要確認」
@@ -407,12 +448,12 @@ let scan = { on: false, stream: null, timer: null, busy: false, last: null, fram
 function scanRender(state) {
   $("#scan-panel").hidden = false;
   if (state !== undefined) $("#scan-state").textContent = state;
-  $("#scan-stats").textContent = `読み取り ${scan.reads} 回 / 見つけた MOD ${scan.seen.size} 件 / 新しく所持にした ${scan.added.length} 件`;
-  $("#scan-new").innerHTML = scan.added.length ? `<span class="mini">新しく所持にした(× で取り消し)</span><div class="chips">${scan.added.slice(-60).reverse()
+  $("#scan-stats").textContent = fmt("scan.stats", { reads: scan.reads, seen: scan.seen.size, added: scan.added.length });
+  $("#scan-new").innerHTML = scan.added.length ? `<span class="mini">${esc(t("scan.added"))}</span><div class="chips">${scan.added.slice(-60).reverse()
     .map(en => `<button class="chip" data-undo="${esc(en)}">${esc(en)}<span class="x" aria-hidden="true">×</span></button>`).join("")}</div>` : "";
   const maybe = [...scan.maybe.values()];
-  $("#scan-maybe").innerHTML = maybe.length ? `<span class="mini">要確認(クリックで所持にする)</span><div class="chips">${maybe
-    .map(m => `<button class="chip" data-own="${esc(m.en)}" title="読み取り: ${esc(m.read)}">${esc(m.en)}<small>${Math.round(m.score * 100)}%</small></button>`).join("")}</div>` : "";
+  $("#scan-maybe").innerHTML = maybe.length ? `<span class="mini">${esc(t("scan.maybe"))}</span><div class="chips">${maybe
+    .map(m => `<button class="chip" data-own="${esc(m.en)}" title="${esc(fmt("scan.read", { text: m.read }))}">${esc(m.en)}<small>${Math.round(m.score * 100)}%</small></button>`).join("")}</div>` : "";
 }
 async function markOwned(list, owned) {
   if (!list.length) return;
@@ -422,7 +463,7 @@ async function markOwned(list, owned) {
 async function scanImage(blob) {
   const res = await fetch("/api/mods/scan", { method: "POST", headers: { "Content-Type": blob.type || "image/png" }, body: blob });
   const r = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(r.error || `エラー (${res.status})`);
+  if (!res.ok) throw new Error(r.text ? renderTxt(r.text) : (r.error || fmt("err.http", { status: res.status })));
   scan.reads++;
   const confirm = $("#scan-confirm").checked, add = [];
   r.found.forEach(m => {
@@ -449,50 +490,56 @@ async function scanTick() {
   const v = $("#scan-video");
   if (!scan.on || scan.busy || !v.videoWidth) return;
   scan.frames++;
-  if (!frameChanged(v)) { scanRender("読み取り中(画面の変化を待っています)"); return; }
+  if (!frameChanged(v)) { scanRender(t("scan.waiting")); return; }
   scan.busy = true;
   try {
     const c = document.createElement("canvas"); c.width = v.videoWidth; c.height = v.videoHeight;
     c.getContext("2d").drawImage(v, 0, 0);
     const blob = await new Promise(r => c.toBlob(r, "image/png"));
-    scanRender("読み取り中...");
+    scanRender(t("scan.reading"));
     const n = await scanImage(blob);
-    scanRender(`読み取り中(直前の画面で ${n} 件の MOD 名を確認)`);
-  } catch (e) { scanRender(`読み取りに失敗しました: ${e.message}`); scan.last = null; }
+    scanRender(fmt("scan.found", { n }));
+  } catch (e) { scanRender(fmt("scan.failed", { msg: e.message })); scan.last = null; }
   scan.busy = false;
 }
 async function scanStart() {
   const info = await loadOcrInfo();
-  if (!info.available) { scanRender(`使えません: ${info.reason || "文字認識が使えません"}`); return; }
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { scanRender("このブラウザは画面の取り込みに対応していません。Chrome か Edge で開いてください。"); return; }
+  if (!info.available) { scanRender(fmt("scan.unavailable", { reason: ocrReason(info) })); return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { scanRender(t("scan.nobrowser")); return; }
   try {
     scan.stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 2 }, audio: false });
-  } catch (e) { scanRender("画面の共有がキャンセルされました。"); return; }
+  } catch (e) { scanRender(t("scan.cancel")); return; }
   const v = $("#scan-video"); v.srcObject = scan.stream; await v.play().catch(() => {});
   scan.stream.getVideoTracks()[0].addEventListener("ended", scanStop);  // ブラウザ側で「共有を停止」したとき
   scan.on = true; scan.last = null;
-  $("#scan-toggle").setAttribute("aria-pressed", "true"); $("#scan-toggle").textContent = "ゲーム画面の読み取り: ON";
-  scanRender("読み取り中...");
+  scanLabel();
+  scanRender(t("scan.reading"));
   scan.timer = setInterval(scanTick, 2500); scanTick();
 }
 function scanStop() {
   scan.on = false; clearInterval(scan.timer); scan.timer = null;
-  if (scan.stream) scan.stream.getTracks().forEach(t => t.stop());
+  if (scan.stream) scan.stream.getTracks().forEach(tr => tr.stop());
   scan.stream = null; $("#scan-video").srcObject = null;
-  $("#scan-toggle").setAttribute("aria-pressed", "false"); $("#scan-toggle").textContent = "ゲーム画面の読み取り: OFF";
-  if (!$("#scan-panel").hidden) scanRender("停止しました");
+  scanLabel();
+  if (!$("#scan-panel").hidden) scanRender(t("scan.stopped"));
 }
+/* 読み取りのボタンの文字(ON / OFF) */
+function scanLabel() {
+  $("#scan-toggle").setAttribute("aria-pressed", String(scan.on)); $("#scan-toggle").textContent = t(scan.on ? "scan.on" : "scan.off");
+}
+/* 文字認識が使えない理由(API のテキスト指定。無ければ「使えません」) */
+const ocrReason = info => (info.reason ? renderTxt(info.reason) : t("err.ocr.none"));
 $("#scan-toggle").addEventListener("click", () => scan.on ? scanStop() : scanStart());
 $("#scan-file-btn").addEventListener("click", () => $("#scan-files").click());
 $("#scan-files").addEventListener("change", async e => {
   const files = [...e.target.files]; e.target.value = "";
   const info = await loadOcrInfo();
-  if (!info.available) { scanRender(`使えません: ${info.reason || "文字認識が使えません"}`); return; }
+  if (!info.available) { scanRender(fmt("scan.unavailable", { reason: ocrReason(info) })); return; }
   for (let i = 0; i < files.length; i++) {
-    scanRender(`スクリーンショットを読み取り中... ${i + 1} / ${files.length}`);
-    try { await scanImage(files[i]); } catch (err) { scanRender(`${files[i].name} を読み取れませんでした: ${err.message}`); return; }
+    scanRender(fmt("scan.files", { i: i + 1, n: files.length }));
+    try { await scanImage(files[i]); } catch (err) { scanRender(fmt("scan.file.failed", { file: files[i].name, msg: err.message })); return; }
   }
-  scanRender(`スクリーンショット ${files.length} 枚を読み取りました`);
+  scanRender(fmt("scan.files.done", { n: files.length }));
 });
 $("#scan-panel").addEventListener("click", async e => {
   const undo = e.target.closest("[data-undo]"), own = e.target.closest("[data-own]");
@@ -506,52 +553,60 @@ $("#scan-panel").addEventListener("click", async e => {
 let rivens = null;
 const rivSort = { key: "um", dir: "desc" };
 const rivGetters = {
-  w: r => r.veiled ? "" : r.weapon_ja.toLowerCase(), t: r => r.type_ja,
+  w: r => r.veiled ? "" : rivWeapon(r).toLowerCase(), t: r => rivType(r.type),
   um: r => r.unrolled ? r.unrolled.median : null, ua: r => r.unrolled ? r.unrolled.avg : null, up: r => r.unrolled ? r.unrolled.pop : null,
   rm: r => r.rerolled ? r.rerolled.median : null, ra: r => r.rerolled ? r.rerolled.avg : null, rp: r => r.rerolled ? r.rerolled.pop : null,
 };
-const plat = v => Math.round(v).toLocaleString();
+const plat = v => Math.round(v).toLocaleString(locale());
+/* 武器種(I18N の riven.type.<英語名>。表に無ければ " Riven Mod" を除いた英語名)・武器名(日本語の画面は日本語名) */
+const rivType = k => (hasText("riven.type." + k) ? t("riven.type." + k) : k.replace(" Riven Mod", ""));
+const rivWeapon = r => (r.veiled ? t("riv.veiled") : lang === "ja" ? r.weapon_ja : r.weapon_en);
 function rivCells(st) {
   if (!st) return `<td class="num none">—</td><td class="num none">—</td><td class="num none">—</td><td class="num none">—</td>`;
-  return `<td class="num med">${plat(st.median)}</td><td class="num">${plat(st.avg)}</td><td class="num mini">${plat(st.min)}〜${plat(st.max)}</td><td class="num">${Math.round(st.pop)}</td>`;
+  return `<td class="num med">${plat(st.median)}</td><td class="num">${plat(st.avg)}</td><td class="num mini">${esc(fmt("common.range", { a: plat(st.min), b: plat(st.max) }))}</td><td class="num">${Math.round(st.pop)}</td>`;
 }
 function renderRivens() {
   if (!rivens) return;
-  const q = $("#riv-q").value.trim().toLowerCase(), t = $("#riv-type").value, veiled = $("#riv-veiled").checked;
-  const list = sortRows(rivens.rows.filter(r => (!t || r.type === t) && (veiled || !r.veiled) &&
-    (!q || [r.weapon_ja, r.weapon_en, r.type_ja].some(x => (x || "").toLowerCase().includes(q)))), rivSort, rivGetters);
-  $("#riv-summary").innerHTML = `<span>表示 <b class="count">${list.length}</b> / ${rivens.rows.length} 件</span><span>${esc(rivens.updated)} 取得</span>`;
+  const q = $("#riv-q").value.trim().toLowerCase(), ty = $("#riv-type").value, veiled = $("#riv-veiled").checked;
+  const list = sortRows(rivens.rows.filter(r => (!ty || r.type === ty) && (veiled || !r.veiled) &&
+    (!q || [r.weapon_ja, r.weapon_en, rivType(r.type)].some(x => (x || "").toLowerCase().includes(q)))), rivSort, rivGetters);
+  $("#riv-summary").innerHTML = `<span>${fmt("riv.summary", { shown: `<b class="count">${list.length}</b>`, total: rivens.rows.length })}</span><span>${esc(fmt("riv.updated", { at: rivens.updated }))}</span>`;
   $("#riv-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
-    <thead class="stack"><tr><th rowspan="2" class="sort" data-sort="w" aria-sort="${rivSort.key === "w" ? (rivSort.dir === "asc" ? "ascending" : "descending") : "none"}" tabindex="0">武器</th>
-      <th rowspan="2" class="sort" data-sort="t" aria-sort="${rivSort.key === "t" ? (rivSort.dir === "asc" ? "ascending" : "descending") : "none"}" tabindex="0">武器種</th>
-      <th colspan="4" class="num">未リロール</th><th colspan="4" class="num">リロール済み</th></tr>
-      <tr>${th("中央値", "um", rivSort, "num")}${th("平均", "ua", rivSort, "num")}<th class="num">範囲</th>${th("件数", "up", rivSort, "num")}
-      ${th("中央値", "rm", rivSort, "num")}${th("平均", "ra", rivSort, "num")}<th class="num">範囲</th>${th("件数", "rp", rivSort, "num")}</tr></thead>
-    <tbody>${list.map(r => `<tr><td class="${r.veiled ? "veiled" : ""}">${esc(r.weapon_ja)}${!r.veiled && r.weapon_ja !== r.weapon_en ? `<span class="sub-en">${esc(r.weapon_en)}</span>` : ""}</td>
-      <td>${esc(r.type_ja)}</td>${rivCells(r.unrolled)}${rivCells(r.rerolled)}</tr>`).join("")}</tbody></table></div>`
-    : noData("条件に合う Riven がありません。");
+    <thead class="stack"><tr><th rowspan="2" class="sort" data-sort="w" aria-sort="${rivSort.key === "w" ? (rivSort.dir === "asc" ? "ascending" : "descending") : "none"}" tabindex="0">${esc(t("riv.col.weapon"))}</th>
+      <th rowspan="2" class="sort" data-sort="t" aria-sort="${rivSort.key === "t" ? (rivSort.dir === "asc" ? "ascending" : "descending") : "none"}" tabindex="0">${esc(t("riv.col.type"))}</th>
+      <th colspan="4" class="num">${esc(t("riv.unrolled"))}</th><th colspan="4" class="num">${esc(t("riv.rerolled"))}</th></tr>
+      <tr>${["u", "r"].map(p => `${th(esc(t("riv.median")), p + "m", rivSort, "num")}${th(esc(t("riv.avg")), p + "a", rivSort, "num")}<th class="num">${esc(t("riv.range"))}</th>${th(esc(t("riv.pop")), p + "p", rivSort, "num")}`).join("")}</tr></thead>
+    <tbody>${list.map(r => `<tr><td class="${r.veiled ? "veiled" : ""}">${esc(rivWeapon(r))}${!r.veiled && lang === "ja" && r.weapon_ja !== r.weapon_en ? `<span class="sub-en">${esc(r.weapon_en)}</span>` : ""}</td>
+      <td>${esc(rivType(r.type))}</td>${rivCells(r.unrolled)}${rivCells(r.rerolled)}</tr>`).join("")}</tbody></table></div>`
+    : noData(t("riv.none"));
 }
 onSortClick($("#riv-out"), rivSort, renderRivens, ["um", "ua", "up", "rm", "ra", "rp"]);
 $("#riv-q").addEventListener("input", debounce(renderRivens, 150));
 $("#riv-type").addEventListener("change", renderRivens);
 $("#riv-veiled").addEventListener("change", renderRivens);
+/* 武器種の選択肢(言語を切り替えたら作り直す。選んでいる値は残す) */
+function renderRivenTypes() {
+  const keep = $("#riv-type").value, types = [...new Set(rivens.rows.map(r => r.type))];
+  $("#riv-type").innerHTML = `<option value="">${esc(t("riv.type.all"))}</option>` + types.map(k => `<option value="${esc(k)}">${esc(rivType(k))}</option>`).join("");
+  $("#riv-type").value = keep;
+}
 loaders.riven = async () => {
-  if (rivens) { renderRivens(); return; }
+  applyViewText("riven");
+  if (rivens) { renderRivenTypes(); renderRivens(); return; }
   try {
     rivens = await api("/api/rivens");
-    const types = [...new Map(rivens.rows.map(r => [r.type, r.type_ja])).entries()];
-    $("#riv-type").innerHTML = `<option value="">すべての武器種</option>` + types.map(([k, v]) => `<option value="${esc(k)}">${esc(v)}</option>`).join("");
-    renderRivens();
+    renderRivenTypes(); renderRivens();
   } catch (e) { $("#riv-summary").innerHTML = ""; $("#riv-out").innerHTML = noData(e.message); }
 };
+relabel.riven = () => { applyViewText("riven"); relabelLogs(); if (rivens) { renderRivenTypes(); renderRivens(); } };
 
 /* ---------- Riven 相場だけ更新 ---------- */
 async function updateRivensOnly(btn, log) {
-  btn.disabled = true; const label = btn.textContent; btn.textContent = "取得中...";
-  log.hidden = false; log.textContent = "Riven 相場を取得しています...";
+  btn.disabled = true; const label = btn.textContent; btn.textContent = t("riv.fetching");
+  log.hidden = false; log.textContent = t("riv.fetching.log");
   try {
     const r = await api("/api/update-rivens", { method: "POST", body: {} });
-    log.textContent = r.log || (r.ok ? "完了しました。" : "失敗しました。");
+    showLog(log, r);
     if (r.ok) { rivens = null; if (!$("#view-riven").hidden) await loaders.riven(); }
   } catch (e) { log.textContent = e.message; }
   btn.disabled = false; btn.textContent = label; refreshStatus();
@@ -573,7 +628,7 @@ function dvTable(rows, cols, withDate) {
       n.map(i => `<td>${dvItem(r.items[i])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 function renderDuviri() {
-  document.querySelectorAll("#view-duviri [data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+  applyViewText("duviri");
   if (!duviri) return;
   const keys = duviri.modes.map(m => m.key);
   if (!keys.includes(dvMode)) dvMode = keys[0];
@@ -582,7 +637,7 @@ function renderDuviri() {
   const m = duviri.modes.find(x => x.key === dvMode);
   $("#dv-adjust").hidden = !m || !m.ok;
   if (!m || !m.ok) { $("#dv-out").innerHTML = noData(t("duviri.broken")); return; }
-  $("#dv-out").innerHTML = `<h3 class="dv-h">${esc(t("duviri.current"))}<span class="note">${esc(dvDate(m.current.date))}〜</span>${
+  $("#dv-out").innerHTML = `<h3 class="dv-h">${esc(t("duviri.current"))}<span class="note">${esc(fmt("duviri.from", { date: dvDate(m.current.date) }))}</span>${
       m.manual ? `<span class="tag-event">${esc(t("duviri.manual"))}</span>` : ""}</h3>
     ${dvTable([m.current], m.columns, false)}
     <h3 class="dv-h">${esc(t("duviri.upcoming"))}</h3>
@@ -616,6 +671,7 @@ async function loadDuviri() {
   catch (e) { $("#dv-modes").innerHTML = ""; $("#dv-adjust").hidden = true; $("#dv-out").innerHTML = noData(e.message); }
 }
 loaders.duviri = loadDuviri;
+relabel.duviri = renderDuviri;
 
 /* ---------- 侵略サイクル ---------- */
 /* 一覧・照合は API(Python)側で作る。ここは表示とチェックの送信だけ。文字はすべて I18N(t)から。
@@ -669,7 +725,7 @@ function renderInvasionParts() {
       p.active ? `<span class="tag-mini">${esc(t("invasion.active"))}</span>` : ""}</label>`).join("")}</div></div>`).join("");
 }
 function renderInvasion() {
-  document.querySelectorAll("#view-invasion [data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+  applyViewText("invasion");
   if (!inv) return;
   $("#inv-list").innerHTML = renderInvasionList();
   $("#inv-parts").innerHTML = renderInvasionParts();
@@ -704,6 +760,7 @@ async function loadInvasion() {
   try { inv = await api("/api/invasions"); renderInvasion(); }
   catch (e) { $("#inv-list").innerHTML = noData(e.message); }
 }
+relabel.invasion = renderInvasion;
 loaders.invasion = loadInvasion;  // 開くたびに読み直す(ほかのページの「時刻合わせ」で取り直した結果も反映)
 
 /* ---------- Tips ---------- */
@@ -843,7 +900,7 @@ async function moveTip(list, i, d) {
   if (list === "top") order.top = swap(toc.map(key));  // 動かした一覧だけを差し替える(ほかは保存済みの並びのまま)
   else {
     const g = toc.find(e => e.type === "group" && "g:" + e.name === list); if (!g) return;
-    order.groups[g.name] = swap(g.items.map(t => t.path.slice(g.name.length + 1)));
+    order.groups[g.name] = swap(g.items.map(it => it.path.slice(g.name.length + 1)));
   }
   try { tipsList = await api("/api/tips/order", { method: "POST", body: order }); $("#tips-err").textContent = ""; }
   catch (e) { $("#tips-err").textContent = e.message; return; }
@@ -901,7 +958,7 @@ async function loadTips() {
       「新規」でメモを作るか、「tips フォルダを開く」でフォルダを開き、.md / .txt / .csv のファイルを置いてから「再読み込み」を押してください。</div>`;
     return;
   }
-  if (!tipsList.items.some(t => t.path === tipCur)) tipCur = tipsList.items[0].path;
+  if (!tipsList.items.some(it => it.path === tipCur)) tipCur = tipsList.items[0].path;
   await openTip(tipCur);
 }
 
@@ -913,16 +970,17 @@ function askTips(msg, buttons) {
   d.returnValue = "";
   return new Promise(res => { d.addEventListener("close", () => res(d.returnValue || ""), { once: true }); d.showModal(); });
 }
-const TIP_CANCEL = { label: "キャンセル", value: "", cls: "ghost" };
-const askPurge = async title => await askTips(`「${title}」を完全に消します。元に戻せません。\n本当に消しますか？`,
-  [{ label: "はい", value: "yes", cls: "danger armed" }, { label: "いいえ", value: "", cls: "ghost" }]) === "yes";
+/* 小窓の文字は開くときに表示中の言語で作る(関数にしておき、言語を切り替えた後も合うように) */
+const tipCancel = () => ({ label: t("dlg.cancel"), value: "", cls: "ghost" });
+const askPurge = async title => await askTips(fmt("dlg.purge.confirm", { title }),
+  [{ label: t("dlg.yes"), value: "yes", cls: "danger armed" }, { label: t("dlg.no"), value: "", cls: "ghost" }]) === "yes";
 
 /* 編集: 新規(タイトル + 保存先)と既存の .md の書き換え。保存しないで離れるときは確認する */
 let tipEdit = null;  // {mode: "new" | "edit", path, rev, orig}
 const tipDirty = () => !!tipEdit && ($("#te-text").value !== tipEdit.orig || (tipEdit.mode === "new" && $("#te-title").value.trim() !== ""));
 function tipLeaveEdit() {
   if (!tipEdit) return true;
-  if (tipDirty() && !confirm("編集中の内容が保存されていません。保存しないで移りますか?")) return false;
+  if (tipDirty() && !confirm(t("te.leave"))) return false;
   tipEdit = null; tipsButtons();
   return true;
 }
@@ -933,11 +991,11 @@ function startTipEdit(mode) {
   tipEdit = mode === "edit" ? { mode, path: f.path, rev: f.rev, orig: f.text } : { mode, orig: "" };
   $("#te-new").hidden = mode !== "new";
   $("#te-path").hidden = mode !== "edit";
-  $("#te-path").textContent = mode === "edit" ? `${f.path} を編集中(見出しを変えてもファイル名は変わりません)` : "";
+  $("#te-path").textContent = mode === "edit" ? fmt("te.editing", { path: f.path }) : "";
   if (mode === "new") {
     const curGrp = tipCur && tipCur.includes("/") ? tipCur.slice(0, tipCur.indexOf("/")) : "";
     const groups = (tipsList ? tipsList.toc : []).filter(e => e.type === "group");
-    $("#te-group").innerHTML = `<option value="">(グループなし)</option>`
+    $("#te-group").innerHTML = `<option value="">${esc(t("te.nogroup"))}</option>`
       + groups.map(g => `<option value="${esc(g.name)}"${g.name === curGrp ? " selected" : ""}>${esc(g.label)}</option>`).join("");
     $("#te-title").value = "";
   }
@@ -955,7 +1013,7 @@ async function saveTipEdit() {
   let f;
   try { f = await api("/api/tips/save", { method: "POST", body }); }
   catch (e) {
-    $("#te-err").textContent = e.status === 409 ? e.message + "(いまの入力は残っています。必要ならコピーしてから「キャンセル」してください)" : e.message;
+    $("#te-err").textContent = e.status === 409 ? fmt("te.conflict", { msg: e.message }) : e.message;
     return;
   } finally { $("#te-save").disabled = false; }
   tipEdit = null; tipCur = f.path;
@@ -967,7 +1025,7 @@ function teReplace(ta, start, end, text, selStart = start + text.length, selEnd 
   if (!document.execCommand("insertText", false, text)) ta.setRangeText(text, start, end, "end");
   ta.setSelectionRange(selStart, selEnd);
 }
-const TIP_TABLE = "| 項目 | 内容 |\n| --- | --- |\n|  |  |\n";
+const tipTable = () => t("te.table");  // 表の雛形(見出しは表示中の言語)
 $("#tips-edit").querySelector(".te-tools").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   const ta = $("#te-text"), v = ta.value, s = ta.selectionStart, en = ta.selectionEnd;
@@ -977,8 +1035,9 @@ $("#tips-edit").querySelector(".te-tools").addEventListener("click", e => {
     teReplace(ta, ls, end, block, ls + block.length);
   } else if (b.dataset.block === "table") {  // カーソルの行が空ならそこへ、そうでなければ次の行へ
     const ls = v.lastIndexOf("\n", s - 1) + 1, le = v.indexOf("\n", s), end = le < 0 ? v.length : le;
-    if (v.slice(ls, end).trim() === "") teReplace(ta, ls, end, TIP_TABLE.slice(0, -1), ls + 2, ls + 4);
-    else teReplace(ta, end, end, "\n" + TIP_TABLE.slice(0, -1), end + 3, end + 5);
+    const tb = tipTable(), w = tb.indexOf(" |", 2) - 2;  // 最初の見出しの長さ(挿入後にそこを選ぶ)
+    if (v.slice(ls, end).trim() === "") teReplace(ta, ls, end, tb.slice(0, -1), ls + 2, ls + 2 + w);
+    else teReplace(ta, end, end, "\n" + tb.slice(0, -1), end + 3, end + 3 + w);
   } else if (b.dataset.wrap) {
     const w = b.dataset.wrap, sel = v.slice(s, en);
     teReplace(ta, s, en, w + sel + w, s + w.length, s + w.length + sel.length);
@@ -1001,53 +1060,57 @@ window.addEventListener("beforeunload", e => { if (tipDirty()) { e.preventDefaul
 /* 削除: ゴミ箱に入れる / 完全削除(2回目の確認つき) */
 $("#tips-del").addEventListener("click", async () => {
   const f = tipFile; if (!f) return;
-  const v = await askTips(`「${f.title}」を削除します。`,
-    [{ label: "ゴミ箱に入れる", value: "trash" }, { label: "完全削除する", value: "purge", cls: "danger" }, TIP_CANCEL]);
+  const v = await askTips(fmt("dlg.del", { title: f.title }),
+    [{ label: t("dlg.trash"), value: "trash" }, { label: t("dlg.purge"), value: "purge", cls: "danger" }, tipCancel()]);
   if (!v || (v === "purge" && !await askPurge(f.title))) return;
   try { await api(v === "trash" ? "/api/tips/trash" : "/api/tips/purge", { method: "POST", body: { path: f.path } }); }
   catch (e) { $("#tips-err").textContent = e.message; return; }
   tipCur = null; await loadTips();
 });
 $("#tips-group").addEventListener("click", async () => {
-  const name = prompt("追加するグループの名前(tips の中のフォルダになります)");
+  const name = prompt(t("dlg.group"));
   if (name === null || !name.trim()) return;
   try { const r = await api("/api/tips/group", { method: "POST", body: { name } }); $("#tips-err").textContent = ""; tipsList = await api("/api/tips");
-    renderTipsToc(); if (r.group !== name.trim()) $("#tips-err").textContent = `使えない文字や同じ名前があったため「${r.group}」で作りました。`; }
+    renderTipsToc(); if (r.group !== name.trim()) $("#tips-err").textContent = fmt("dlg.group.renamed", { name: r.group }); }
   catch (e) { $("#tips-err").textContent = e.message; }
 });
 
 /* ゴミ箱(tips/_trash/)の一覧: 元に戻す / 完全削除 */
-let tipTrash = [];
+let tipTrash = [], tipTrashMsg = null;  // tipTrashMsg: 元に戻した・消したときの案内(テキスト指定。言語を切り替えたら描き直す)
 async function loadTipsTrash() {
   try { tipTrash = (await api("/api/tips/trash")).items; }
   catch (e) { $("#tips-trash-list").innerHTML = noData(e.message); return; }
-  $("#tips-trash-list").innerHTML = tipTrash.length ? `<div class="tablewrap"><table><thead><tr><th>メモ</th><th>元の場所</th><th>入れた日時</th><th></th></tr></thead><tbody>
-    ${tipTrash.map((t, i) => `<tr><td>${esc(t.title)}</td><td>${esc(t.path)}</td><td>${esc(t.trashed)}</td>
-      <td class="ops"><button class="btn ghost" type="button" data-restore="${i}">元に戻す</button> <button class="btn danger" type="button" data-purge="${i}">完全削除</button></td></tr>`).join("")}
-    </tbody></table></div>` : noData("ゴミ箱は空です。");
+  renderTipsTrash();
+}
+/* ゴミ箱の一覧を描く(言語を切り替えたら描き直す) */
+function renderTipsTrash() {
+  $("#tips-trash-list").innerHTML = tipTrash.length ? `<div class="tablewrap"><table><thead><tr>${["note", "path", "at"].map(c => `<th>${esc(t("trash.col." + c))}</th>`).join("")}<th></th></tr></thead><tbody>
+    ${tipTrash.map((tr, i) => `<tr><td>${esc(tr.title)}</td><td>${esc(tr.path)}</td><td>${esc(tr.trashed)}</td>
+      <td class="ops"><button class="btn ghost" type="button" data-restore="${i}">${esc(t("trash.restore"))}</button> <button class="btn danger" type="button" data-purge="${i}">${esc(t("trash.purge"))}</button></td></tr>`).join("")}
+    </tbody></table></div>` : noData(t("trash.empty"));
 }
 $("#tips-trash-btn").addEventListener("click", async () => {
-  tipTrashOpen = !tipTrashOpen; $("#tips-trash-msg").textContent = ""; tipsButtons();
+  tipTrashOpen = !tipTrashOpen; tipTrashMsg = null; $("#tips-trash-msg").textContent = ""; tipsButtons();
   if (tipTrashOpen) await loadTipsTrash();
 });
 $("#tips-trash-list").addEventListener("click", async e => {
   const b = e.target.closest("button[data-restore], button[data-purge]"); if (!b) return;
-  const t = tipTrash[b.dataset.restore ?? b.dataset.purge]; if (!t) return;
+  const tr = tipTrash[b.dataset.restore ?? b.dataset.purge]; if (!tr) return;
   let msg;
   try {
     if (b.dataset.restore !== undefined) {
-      const r = await api("/api/tips/restore", { method: "POST", body: { id: t.id } });
-      msg = `「${t.title}」を ${r.path} に戻しました。`;
+      const r = await api("/api/tips/restore", { method: "POST", body: { id: tr.id } });
+      msg = { k: "trash.restored", v: { title: tr.title, path: r.path } };
     } else {
-      if (await askTips(`「${t.title}」をゴミ箱から消します。`, [{ label: "完全削除する", value: "purge", cls: "danger" }, TIP_CANCEL]) !== "purge"
-        || !await askPurge(t.title)) return;
-      await api("/api/tips/purge", { method: "POST", body: { id: t.id } });
-      msg = `「${t.title}」を完全に消しました。`;
+      if (await askTips(fmt("dlg.trash.purge", { title: tr.title }), [{ label: t("dlg.purge"), value: "purge", cls: "danger" }, tipCancel()]) !== "purge"
+        || !await askPurge(tr.title)) return;
+      await api("/api/tips/purge", { method: "POST", body: { id: tr.id } });
+      msg = { k: "trash.purged", v: { title: tr.title } };
     }
-  } catch (err) { $("#tips-trash-msg").textContent = err.message; return; }
+  } catch (err) { tipTrashMsg = null; $("#tips-trash-msg").textContent = err.message; return; }
   try { tipsList = await api("/api/tips"); renderTipsToc(); } catch (err) { /* 目次は次の読み込みで直る */ }
   await loadTipsTrash();
-  $("#tips-trash-msg").textContent = msg;
+  tipTrashMsg = msg; $("#tips-trash-msg").textContent = renderTxt(msg);
 });
 $("#tips-toc").addEventListener("click", e => {
   const mv = e.target.closest("button.mv");
@@ -1058,15 +1121,27 @@ $("#tips-toc").addEventListener("click", e => {
 });
 $("#tips-body").addEventListener("click", e => {
   const a = e.target.closest("a[data-tip]"); if (!a) return; e.preventDefault();
-  if (tipsList && tipsList.items.some(t => t.path === a.dataset.tip)) openTip(a.dataset.tip);
-  else $("#tips-err").textContent = `リンク先のメモが見つかりません: ${a.dataset.tip}`;
+  if (tipsList && tipsList.items.some(it => it.path === a.dataset.tip)) openTip(a.dataset.tip);
+  else $("#tips-err").textContent = fmt("tips.linkmissing", { path: a.dataset.tip });
 });
 $("#tips-reload").addEventListener("click", loadTips);
 $("#tips-open").addEventListener("click", async () => {
   try { await api("/api/tips/open", { method: "POST", body: {} }); $("#tips-err").textContent = ""; }
   catch (e) { $("#tips-err").textContent = e.message; }
 });
-loaders.tips = loadTips;  // 開くたびに読み直す(外で編集した内容をすぐ反映。編集中なら確認する)
+loaders.tips = () => { applyViewText("tips"); return loadTips(); };  // 開くたびに読み直す(外で編集した内容をすぐ反映。編集中なら確認する)
+/* 言語を切り替えたとき: 枠の説明文・ボタンと編集画面(入力中の内容はそのまま)。目次・メモの中身は日本語のまま */
+relabel.tips = () => {
+  applyViewText("tips");
+  if (!tipEdit) return;
+  if (tipEdit.mode === "edit") $("#te-path").textContent = fmt("te.editing", { path: tipEdit.path });
+  const none = $("#te-group").querySelector('option[value=""]'); if (none) none.textContent = t("te.nogroup");
+};
+const relabelTipsEdit = relabel.tips;
+relabel.tips = () => {
+  relabelTipsEdit();
+  if (tipTrashOpen) { renderTipsTrash(); if (tipTrashMsg) $("#tips-trash-msg").textContent = renderTxt(tipTrashMsg); }
+};
 
 /* ---------- シミュレータ ---------- */
 /* 計算画面は web/wfportal_builder.html (/builder)。初めて開いたときに読み込み、配色と高さをポータルに合わせる */
@@ -1092,9 +1167,11 @@ $("#sim-frame").addEventListener("load", () => {
   if (doc && window.ResizeObserver) { simObserver?.disconnect(); simObserver = new ResizeObserver(simFit); simObserver.observe(doc.querySelector(".wrap") || doc.body); }
 });
 try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => setTimeout(simTheme, 0)); } catch (e) {}
+relabel.sim = () => applyViewText("sim");  // 中の計算画面は setLang が wfSetLang で伝える
 loaders.sim = () => {
+  applyViewText("sim");
   const f = $("#sim-frame");
-  if (!f.getAttribute("src")) f.setAttribute("src", "/builder");
+  if (!f.getAttribute("src")) f.setAttribute("src", "/builder?lang=" + encodeURIComponent(lang));  // 言語はポータルに合わせる
   else simFit();
 };
 function simReload() { try { const w = $("#sim-frame").contentWindow; if (w && w.wfReload) w.wfReload(); } catch (e) {} }
@@ -1106,46 +1183,48 @@ let msFounder = false;
 try { msFounder = localStorage.getItem("wf-mastery-founder") === "1"; } catch (e) {}
 $("#ms-founder").checked = msFounder;
 const msRows = () => mastery.rows.filter(r => msFounder || r.cat !== "founder");
-const msCats = () => Object.entries(mastery.cats).filter(([k]) => msFounder || k !== "founder");
+const msCats = () => mastery.cats.filter(k => msFounder || k !== "founder");
+/* 名前: 日本語の画面は日本語名、ほかは英名。Kitgun はプライマリ版・セカンダリ版を区別する(I18N の mastery.variant) */
+const msLabel = r => { const n = lang === "ja" ? r.ja : r.en; return r.variant ? fmt("mastery.variant", { name: n, variant: t("mastery.variant." + r.variant) }) : n; };
 const msSort = { key: "cat", dir: "asc" };
 const msGetters = {
-  done: r => (r.done ? 1 : 0), name: r => r.label.toLowerCase(), rank: r => r.rank, xp: r => r.xp,
-  cat: r => Object.keys(mastery.cats).indexOf(r.cat) * 10000 + 0, // 並べ替えの基準: カテゴリー順 -> 名前
+  done: r => (r.done ? 1 : 0), name: r => msLabel(r).toLowerCase(), rank: r => r.rank, xp: r => r.xp,
+  cat: r => mastery.cats.indexOf(r.cat) * 10000 + 0, // 並べ替えの基準: カテゴリー順 -> 名前
 };
 function msFilter() {
   const q = $("#ms-q").value.trim().toLowerCase(), st = $("#ms-state").value;
   return msRows().filter(r => (!msCat || r.cat === msCat) && (!st || (st === "done") === r.done) &&
-    (!q || [r.en, r.ja, r.label].some(x => (x || "").toLowerCase().includes(q))));
+    (!q || [r.en, r.ja, msLabel(r)].some(x => (x || "").toLowerCase().includes(q))));
 }
 function msSummary() {
   const sm = { all: { total: 0, done: 0, xp: 0, xp_done: 0 } };
-  Object.keys(mastery.cats).forEach(c => sm[c] = { total: 0, done: 0, xp: 0, xp_done: 0 });
+  mastery.cats.forEach(c => sm[c] = { total: 0, done: 0, xp: 0, xp_done: 0 });
   msRows().forEach(r => [sm[r.cat], sm.all].forEach(o => { o.total++; o.xp += r.xp; if (r.done) { o.done++; o.xp_done += r.xp; } }));
   return sm;
 }
 function renderMastery() {
   if (!mastery) return;
   const sm = msSummary();
-  $("#ms-cats").innerHTML = [["", "すべて", sm.all], ...msCats().map(([k, v]) => [k, v, sm[k]])]
+  $("#ms-cats").innerHTML = [["", t("src.all"), sm.all], ...msCats().map(k => [k, tName("mastery.cat.", k), sm[k]])]
     .map(([k, v, o]) => `<button class="chip" data-mcat="${k}" aria-pressed="${msCat === k}">${esc(v)}<small>${o.done} / ${o.total}</small></button>`).join("");
   let list = msFilter();
   list = sortRows(list, msSort, msGetters);
-  if (msSort.key === "cat") list.sort((a, b) => (msGetters.cat(a) - msGetters.cat(b)) * (msSort.dir === "asc" ? 1 : -1) || a.label.localeCompare(b.label, "ja"));
+  if (msSort.key === "cat") list.sort((a, b) => (msGetters.cat(a) - msGetters.cat(b)) * (msSort.dir === "asc" ? 1 : -1) || msLabel(a).localeCompare(msLabel(b), locale()));
   const cur = msCat ? sm[msCat] : sm.all, pctDone = cur.total ? cur.done / cur.total * 100 : 0;
-  $("#ms-summary").innerHTML = `<span><b class="count">${esc(msCat ? mastery.cats[msCat] : "全体")}</b> マスター済み ${cur.done} / ${cur.total}(${pctDone.toFixed(1)}%)</span>
+  $("#ms-summary").innerHTML = `<span><b class="count">${esc(msCat ? tName("mastery.cat.", msCat) : t("ms.all"))}</b> ${esc(fmt("ms.summary", { done: cur.done, total: cur.total, pct: pctDone.toFixed(1) }))}</span>
     <span class="progress" aria-hidden="true"><i style="--w:${pctDone.toFixed(1)}%"></i></span>
-    <span>マスタリー経験値 ${cur.xp_done.toLocaleString()} / ${cur.xp.toLocaleString()}</span><span>表示 ${list.length} 件</span>`;
+    <span>${esc(fmt("ms.xp", { done: cur.xp_done.toLocaleString(locale()), total: cur.xp.toLocaleString(locale()) }))}</span><span>${esc(fmt("common.shown", { n: list.length }))}</span>`;
   ["on", "off"].forEach(k => {
-    const b = $(`#ms-bulk-${k}`), label = k === "on" ? "表示中をすべてマスター済みに" : "表示中のチェックを外す";
-    b.textContent = msArmed === k ? `本当に ${list.length} 件を変更` : label; b.classList.toggle("danger", msArmed === k); b.classList.toggle("armed", msArmed === k);
+    const b = $(`#ms-bulk-${k}`), label = t("ms.bulk." + k);
+    b.textContent = msArmed === k ? fmt("common.confirm.n", { n: list.length }) : label; b.classList.toggle("danger", msArmed === k); b.classList.toggle("armed", msArmed === k);
   });
   $("#ms-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
-    <thead><tr>${th("済", "done", msSort, "chk")}${th("名前", "name", msSort)}${th("カテゴリー", "cat", msSort)}${th("最大ランク", "rank", msSort, "num")}${th("マスタリー経験値", "xp", msSort, "num")}</tr></thead>
+    <thead><tr>${th(esc(t("ms.col.done")), "done", msSort, "chk")}${th(esc(t("ms.col.name")), "name", msSort)}${th(esc(t("ms.col.cat")), "cat", msSort)}${th(esc(t("ms.col.rank")), "rank", msSort, "num")}${th(esc(t("ms.col.xp")), "xp", msSort, "num")}</tr></thead>
     <tbody>${list.map(r => `<tr class="${r.done ? "owned" : ""}" data-id="${esc(r.id)}">
-      <td class="chk"><input type="checkbox" class="own" ${r.done ? "checked" : ""} aria-label="${esc(r.label)} をマスター済み"></td>
-      <td>${esc(r.label)}${r.ja !== r.en ? `<span class="sub-en">${esc(r.en)}</span>` : ""}</td><td>${esc(r.cat_ja)}</td>
-      <td class="num">${r.rank}</td><td class="num">${r.xp.toLocaleString()}</td></tr>`).join("")}</tbody></table></div>`
-    : noData("条件に合うものがありません。");
+      <td class="chk"><input type="checkbox" class="own" ${r.done ? "checked" : ""} aria-label="${esc(fmt("ms.done.aria", { name: msLabel(r) }))}"></td>
+      <td>${esc(msLabel(r))}${lang === "ja" && r.ja !== r.en ? `<span class="sub-en">${esc(r.en)}</span>` : ""}</td><td>${esc(tName("mastery.cat.", r.cat))}</td>
+      <td class="num">${r.rank}</td><td class="num">${r.xp.toLocaleString(locale())}</td></tr>`).join("")}</tbody></table></div>`
+    : noData(t("common.none"));
 }
 async function setMastered(ids, done) {
   const before = mastery.rows.filter(r => ids.includes(r.id)).map(r => [r, r.done]);
@@ -1174,27 +1253,31 @@ $("#ms-founder").addEventListener("change", e => {
 $("#ms-csv").addEventListener("click", () => {
   if (!mastery) return;
   const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const lines = [["マスター済み", "名前", "名前(英語)", "カテゴリー", "最大ランク", "マスタリー経験値"].map(q).join(",")]
-    .concat(msFilter().map(r => [r.done ? "○" : "", r.label, r.en, r.cat_ja, r.rank, r.xp].map(q).join(",")));
+  const lines = [[t("ms.csv.done"), t("ms.col.name"), t("ms.csv.en"), t("ms.col.cat"), t("ms.col.rank"), t("ms.col.xp")].map(q).join(",")]
+    .concat(msFilter().map(r => [r.done ? "○" : "", msLabel(r), r.en, tName("mastery.cat.", r.cat), r.rank, r.xp].map(q).join(",")));
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv" }));
-  a.download = `マスター一覧_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  a.download = `${t("ms.csv.file")}_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 });
 loaders.mastery = async () => {
+  applyViewText("mastery");
   if (mastery) { renderMastery(); return; }
-  $("#ms-out").innerHTML = `<div class="empty">読み込み中...</div>`;
+  $("#ms-out").innerHTML = `<div class="empty">${esc(t("common.loading"))}</div>`;
   try { mastery = await api("/api/mastery"); renderMastery(); }
   catch (e) { $("#ms-cats").innerHTML = ""; $("#ms-summary").innerHTML = ""; $("#ms-out").innerHTML = noData(e.message); }
 };
+relabel.mastery = () => { applyViewText("mastery"); renderMastery(); };
 
 /* ---------- アルケイン所持 ---------- */
 let arcanes = null, acCat = "warframe";
 const acSort = { key: "name", dir: "asc" };
 const AC_RARITY = { Legendary: 4, Rare: 3, Uncommon: 2, Common: 1 };
 const acGetters = {
-  owned: r => (r.owned ? 1 : 0), name: r => (r.ja || r.en).toLowerCase(),
+  owned: r => (r.owned ? 1 : 0), name: r => acName(r).toLowerCase(),
   rarity: r => AC_RARITY[r.rarity] || 0, rank: r => (r.owned ? r.rank : -1),
 };
+/* 名前: 日本語の画面は日本語名(無ければ英名)、ほかは英名 */
+const acName = r => (lang === "ja" ? r.ja || r.en : r.en);
 function acFilter(inCat) {
   const q = $("#ac-q").value.trim().toLowerCase(), st = $("#ac-state").value;
   return inCat.filter(r => (!q || [r.en, r.ja].some(x => (x || "").toLowerCase().includes(q))) &&
@@ -1203,35 +1286,35 @@ function acFilter(inCat) {
 }
 function acSummary() {
   const sm = { all: { total: 0, owned: 0, maxed: 0 } };
-  Object.keys(arcanes.cats).forEach(c => sm[c] = { total: 0, owned: 0, maxed: 0 });
+  arcanes.cats.forEach(c => sm[c] = { total: 0, owned: 0, maxed: 0 });
   arcanes.rows.forEach(r => [sm[r.cat], sm.all].forEach(o => { if (!o) return; o.total++; if (r.owned) { o.owned++; if (r.rank === r.max_rank) o.maxed++; } }));
   return sm;
 }
 const acRankHtml = r => r.owned
-  ? `<select class="arc-rank" aria-label="${esc(r.ja || r.en)} のランク">${Array.from({ length: r.max_rank + 1 }, (_, i) =>
+  ? `<select class="arc-rank" aria-label="${esc(fmt("ac.name.aria", { name: acName(r) }))}">${Array.from({ length: r.max_rank + 1 }, (_, i) =>
       `<option value="${i}"${i === r.rank ? " selected" : ""}>${i}</option>`).join("")}</select><span class="arc-max">/ ${r.max_rank}</span>`
   : `<span class="none">-</span><span class="arc-max">/ ${r.max_rank}</span>`;
 function renderArcanes() {
   if (!arcanes) return;
   const sm = acSummary();
   // Riven 性質と同じく、アルケインがあるカテゴリーだけをタブにする
-  const cats = Object.entries(arcanes.cats).filter(([k]) => sm[k] && sm[k].total);
-  if (!(sm[acCat] && sm[acCat].total) && cats.length) acCat = cats[0][0];
-  $("#ac-cats").innerHTML = cats.map(([k, v]) =>
-    `<button class="chip" data-acat="${esc(k)}" aria-pressed="${acCat === k}">${esc(v)}<small>${sm[k].owned} / ${sm[k].total}</small></button>`).join("");
+  const cats = arcanes.cats.filter(k => sm[k] && sm[k].total);
+  if (!(sm[acCat] && sm[acCat].total) && cats.length) acCat = cats[0];
+  $("#ac-cats").innerHTML = cats.map(k =>
+    `<button class="chip" data-acat="${esc(k)}" aria-pressed="${acCat === k}">${esc(tName("arcane.cat.", k))}<small>${sm[k].owned} / ${sm[k].total}</small></button>`).join("");
   const inCat = arcanes.rows.filter(r => r.cat === acCat);
   const list = sortRows(acFilter(inCat), acSort, acGetters);
   const cur = sm[acCat] || { total: 0, owned: 0, maxed: 0 }, pct = cur.total ? cur.owned / cur.total * 100 : 0;
-  $("#ac-summary").innerHTML = `<span><b class="count">${esc(arcanes.cats[acCat] || "")}</b> 所持 ${cur.owned} / ${cur.total}(${pct.toFixed(1)}%)</span>
+  $("#ac-summary").innerHTML = `<span><b class="count">${esc(tName("arcane.cat.", acCat))}</b> ${esc(fmt("ac.summary", { owned: cur.owned, total: cur.total, pct: pct.toFixed(1) }))}</span>
     <span class="progress" aria-hidden="true"><i style="--w:${pct.toFixed(1)}%"></i></span>
-    <span>ランク最大 ${cur.maxed}</span><span>全体 所持 ${sm.all.owned} / ${sm.all.total}・ランク最大 ${sm.all.maxed}</span><span>表示 ${list.length} 件</span>`;
+    <span>${esc(fmt("ac.maxed", { n: cur.maxed }))}</span><span>${esc(fmt("ac.overall", { owned: sm.all.owned, total: sm.all.total, maxed: sm.all.maxed }))}</span><span>${esc(fmt("common.shown", { n: list.length }))}</span>`;
   $("#ac-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
-    <thead><tr>${th("所持", "owned", acSort, "chk")}${th("名前", "name", acSort)}${th("レア度", "rarity", acSort)}${th("ランク", "rank", acSort, "num")}</tr></thead>
+    <thead><tr>${th(esc(t("mods.col.own")), "owned", acSort, "chk")}${th(esc(t("ms.col.name")), "name", acSort)}${th(esc(t("src.col.rarity")), "rarity", acSort)}${th(esc(t("ac.col.rank")), "rank", acSort, "num")}</tr></thead>
     <tbody>${list.map(r => `<tr class="${r.owned ? "owned" : ""}" data-en="${esc(r.en)}">
-      <td class="chk"><input type="checkbox" class="own" ${r.owned ? "checked" : ""} aria-label="${esc(r.ja || r.en)} を所持"></td>
-      <td>${esc(r.ja || r.en)}</td>
-      <td>${r.rarity ? rarity(r.rarity_ja, r.rarity) : `<span class="none">-</span>`}</td><td class="num">${acRankHtml(r)}</td></tr>`).join("")}</tbody></table></div>`
-    : noData("条件に合うアルケインがありません。");
+      <td class="chk"><input type="checkbox" class="own" ${r.owned ? "checked" : ""} aria-label="${esc(fmt("ac.own.aria", { name: acName(r) }))}"></td>
+      <td>${esc(acName(r))}</td>
+      <td>${r.rarity ? rarity(r.rarity) : `<span class="none">-</span>`}</td><td class="num">${acRankHtml(r)}</td></tr>`).join("")}</tbody></table></div>`
+    : noData(t("ac.none"));
 }
 async function setArcane(en, owned, rank) {
   const r = arcanes.rows.find(x => x.en === en); if (!r) return;
@@ -1255,35 +1338,40 @@ $("#ac-csv").addEventListener("click", () => {
   if (!arcanes) return;
   const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const rows = sortRows(acFilter(arcanes.rows.filter(r => r.cat === acCat)), acSort, acGetters);
-  const lines = [["所持", "名前", "種類", "レア度", "ランク", "最大ランク"].map(q).join(",")]
-    .concat(rows.map(r => [r.owned ? "○" : "", r.ja || r.en, r.cat_ja, r.rarity_ja, r.owned ? r.rank : "", r.max_rank].map(q).join(",")));
+  const lines = [[t("mods.col.own"), t("ms.col.name"), t("ac.csv.cat"), t("src.col.rarity"), t("ac.col.rank"), t("ac.csv.max")].map(q).join(",")]
+    .concat(rows.map(r => [r.owned ? "○" : "", acName(r), tName("arcane.cat.", r.cat), r.rarity ? tName("rarity.", r.rarity) : "", r.owned ? r.rank : "", r.max_rank].map(q).join(",")));
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv" }));
-  a.download = `アルケイン所持_${arcanes.cats[acCat] || acCat}_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  a.download = `${t("ac.csv.file")}_${tName("arcane.cat.", acCat)}_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 });
 loaders.arcane = async () => {
+  applyViewText("arcane");
   if (arcanes) { renderArcanes(); return; }
   try { acCat = localStorage.getItem("wf-arcane-cat") || acCat; } catch (e) {}
-  $("#ac-out").innerHTML = `<div class="empty">読み込み中...</div>`;
+  $("#ac-out").innerHTML = `<div class="empty">${esc(t("common.loading"))}</div>`;
   try { arcanes = await api("/api/arcanes"); renderArcanes(); }
   catch (e) { $("#ac-cats").innerHTML = ""; $("#ac-summary").innerHTML = ""; $("#ac-out").innerHTML = noData(e.message); }
 };
+relabel.arcane = () => { applyViewText("arcane"); renderArcanes(); };
 
 /* ---------- バロ吉入手一覧 ---------- */
 let baro = null, baroAt = 0, baroKind = "";
 const baroSort = { key: "last", dir: "desc" };
 const baroGetters = {
   owned: r => (r.owned === true ? 2 : r.owned === false ? 1 : 0), name: r => (r.ja || r.name).toLowerCase(),
-  kind: r => r.kind_ja, last: r => r.last, count: r => r.count, ducats: r => r.ducats, credits: r => r.credits,
+  kind: r => tName("baro.kind.", r.kind), last: r => r.last, count: r => r.count, ducats: r => r.ducats, credits: r => r.credits,
 };
-const jstTime = t => new Date(t * 1000).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
-const num = v => (v === null || v === undefined ? `<span class="none">-</span>` : Number(v).toLocaleString());
-const baroName = r => `${esc(r.ja || r.name)}${r.ja && r.ja !== r.name ? `<span class="sub-en">${esc(r.name)}</span>` : ""}`;
+const jstTime = sec => new Date(sec * 1000).toLocaleString(locale(), { timeZone: "Asia/Tokyo", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+const num = v => (v === null || v === undefined ? `<span class="none">-</span>` : Number(v).toLocaleString(locale()));
+/* 品物名: 日本語の画面は日本語名(下に英名)、ほかは英名 */
+const baroLabel = r => (lang === "ja" ? r.ja || r.name : r.name);
+const baroName = r => `${esc(baroLabel(r))}${lang === "ja" && r.ja && r.ja !== r.name ? `<span class="sub-en">${esc(r.name)}</span>` : ""}`;
+const baroCheckBy = r => fmt("baro.checkby", { by: t("baro.check." + r.kind) });
 /* 所持の欄: 装飾・外装などはチェック、MOD・武器はほかの一覧の結果を表示、消耗品などは照合しない */
 function baroOwnedCell(r) {
-  if (r.kind === "manual") return `<input type="checkbox" class="own" ${r.owned ? "checked" : ""} aria-label="${esc(r.ja || r.name)} を所持">`;
-  if (r.owned === null) return `<span class="none" title="${esc(r.check_by)}">-</span>`;
-  return r.owned ? `<span class="baro-mark" title="${esc(r.check_by)}">✓</span>` : `<span class="none" title="${esc(r.check_by)}">×</span>`;
+  if (r.kind === "manual") return `<input type="checkbox" class="own" ${r.owned ? "checked" : ""} aria-label="${esc(fmt("mods.own.aria", { name: baroLabel(r) }))}">`;
+  if (r.owned === null) return `<span class="none" title="${esc(baroCheckBy(r))}">-</span>`;
+  return r.owned ? `<span class="baro-mark" title="${esc(baroCheckBy(r))}">✓</span>` : `<span class="none" title="${esc(baroCheckBy(r))}">×</span>`;
 }
 function baroFilter(rows) {
   const q = $("#baro-q").value.trim().toLowerCase(), st = $("#baro-state").value;
@@ -1292,25 +1380,27 @@ function baroFilter(rows) {
 }
 function renderBaroNow() {
   const cur = baro && baro.current, box = $("#baro-now");
-  if (!cur) { box.innerHTML = `<p class="note">今回の品物はまだ取得していません。「バロ情報を更新」で取得できます。</p>`; return; }
+  if (!cur) { box.innerHTML = `<p class="note">${esc(t("baro.notyet"))}</p>`; return; }
   const el = (Date.now() - baroAt) / 1000, now = baro.now + el;
-  const label = { here: "来ています", coming: "次に来ます", gone: "前回の来訪(終了しました)" }[cur.state];
-  const count = cur.state === "here" ? `帰るまで ${dur(cur.expiry - now)}` : cur.state === "coming" ? `来るまで ${dur(cur.activation - now)}` : "";
+  const label = t("baro.state." + cur.state);
   const items = cur.items.length ? `<div class="tablewrap"><table>
-    <thead><tr><th class="chk">所持</th><th>品物</th><th>種類</th><th class="num">デュカット</th><th class="num">クレジット</th><th class="num" title="この PC で記録した来訪の回数(今回を含む)">来た回数</th></tr></thead>
+    <thead><tr><th class="chk">${esc(t("mods.col.own"))}</th><th>${esc(t("baro.col.item"))}</th><th>${esc(t("mods.col.type"))}</th><th class="num">${esc(t("baro.col.ducats"))}</th><th class="num">${esc(t("baro.col.credits"))}</th><th class="num" title="${esc(t("baro.col.times.title"))}">${esc(t("baro.col.times"))}</th></tr></thead>
     <tbody>${cur.items.map(r => `<tr class="${r.owned ? "owned" : ""}" data-name="${esc(r.name)}">
-      <td class="chk">${baroOwnedCell(r)}</td><td>${baroName(r)}${r.limit ? `<span class="tag-mini">${esc(String(r.limit))} 個まで</span>` : ""}</td>
-      <td>${esc(r.kind_ja)}</td><td class="num">${num(r.ducats)}</td><td class="num">${num(r.credits)}</td>
-      <td class="num">${r.count ? num(r.count) : `<span class="none">初めて</span>`}</td></tr>`).join("")}</tbody></table></div>`
-    : `<div class="pad"><span class="note">${cur.state === "here" ? "品物の一覧がありません。" : "品物は来訪中だけ公開されます。"}</span></div>`;
-  const unnamed = cur.items.some(r => !r.named) && !baro.has_paths ? `<p class="note">品物の名前を表示するには、一度「データ更新」をしてください(いまは内部の名前で表示しています)。</p>` : "";
-  box.innerHTML = `<div class="card"><header><b>Baro Ki'Teer</b><span class="baro-state ${esc(cur.state)}">${esc(label)}</span>
-    <span>${esc(cur.relay)} / ${esc(jstTime(cur.activation))} 〜 ${esc(jstTime(cur.expiry))} JST</span><span id="baro-count">${esc(count)}</span></header>${items}</div>${unnamed}`;
+      <td class="chk">${baroOwnedCell(r)}</td><td>${baroName(r)}${r.limit ? `<span class="tag-mini">${esc(fmt("baro.limit", { n: r.limit }))}</span>` : ""}</td>
+      <td>${esc(tName("baro.kind.", r.kind))}</td><td class="num">${num(r.ducats)}</td><td class="num">${num(r.credits)}</td>
+      <td class="num">${r.count ? num(r.count) : `<span class="none">${esc(t("baro.first"))}</span>`}</td></tr>`).join("")}</tbody></table></div>`
+    : `<div class="pad"><span class="note">${esc(t(cur.state === "here" ? "baro.noitems" : "baro.hidden"))}</span></div>`;
+  const unnamed = cur.items.some(r => !r.named) && !baro.has_paths ? `<p class="note">${esc(t("baro.unnamed"))}</p>` : "";
+  box.innerHTML = `<div class="card"><header><b>${esc(t("baro.trader"))}</b><span class="baro-state ${esc(cur.state)}">${esc(label)}</span>
+    <span>${esc(renderTxt(cur.relay))} / ${esc(fmt("common.range", { a: jstTime(cur.activation), b: jstTime(cur.expiry) }))} JST</span><span id="baro-count">${esc(baroCount(cur, now))}</span></header>${items}</div>${unnamed}`;
 }
+/* 来るまで・帰るまでの残り時間 */
+const baroCount = (cur, now) => cur.state === "here" ? fmt("baro.leaves", { t: dur(cur.expiry - now) })
+  : cur.state === "coming" ? fmt("baro.arrives", { t: dur(cur.activation - now) }) : "";
 function renderBaroInfo() {
   const parts = [];
-  if (baro.current && baro.current.fetched_at) parts.push(`今回の品物 ${jstTime(baro.current.fetched_at)} に取得`);
-  parts.push(baro.visits.count ? `記録した来訪 ${baro.visits.count} 回(最新 ${baro.visits.latest})` : "記録した来訪はまだありません");
+  if (baro.current && baro.current.fetched_at) parts.push(fmt("baro.fetched", { at: jstTime(baro.current.fetched_at) }));
+  parts.push(baro.visits.count ? fmt("baro.visits", { n: baro.visits.count, latest: baro.visits.latest }) : t("baro.novisits"));
   $("#baro-info").textContent = parts.join(" / ");
 }
 function renderBaro() {
@@ -1318,23 +1408,24 @@ function renderBaro() {
   renderBaroInfo(); renderBaroNow();
   if (!baro.rows.length) {
     $("#baro-kinds").innerHTML = ""; $("#baro-summary").innerHTML = "";
-    $("#baro-out").innerHTML = noData(baro.has_names ? "履歴リストはまだ空です。バロが来ているときに「バロ情報を更新」を押すと追加されます。" : "初期リストを作るには、先に「データ更新」で公式データを取得してください。"); return;
+    $("#baro-out").innerHTML = noData(t(baro.has_names ? "baro.empty" : "baro.nonames")); return;
   }
   const sm = baro.summary;
   const chip = (k, label, o) => `<button class="chip" data-bkind="${esc(k)}" aria-pressed="${baroKind === k}">${esc(label)}<small>${k === "repeat" ? o.total : `${o.owned} / ${o.total}`}</small></button>`;
-  $("#baro-kinds").innerHTML = chip("", "すべて", sm.all) + Object.entries(baro.kinds).map(([k, v]) => chip(k, v, sm[k])).join("");
+  $("#baro-kinds").innerHTML = chip("", t("src.all"), sm.all) + baro.kinds.map(k => chip(k, tName("baro.kind.", k), sm[k])).join("");
   const list = sortRows(baroFilter(baro.rows), baroSort, baroGetters);
   const cur = baroKind ? sm[baroKind] : sm.all, p = cur.total ? cur.owned / cur.total * 100 : 0;
-  $("#baro-summary").innerHTML = baroKind === "repeat" ? `<span>照合しない品物 ${cur.total} 件</span><span>表示 ${list.length} 件</span>`
-    : `<span><b class="count">${esc(baroKind ? baro.kinds[baroKind] : "照合できる品物")}</b> 所持 ${cur.owned} / ${cur.total}(${p.toFixed(1)}%)</span>
-       <span class="progress" aria-hidden="true"><i style="--w:${p.toFixed(1)}%"></i></span><span>表示 ${list.length} 件</span>`;
+  const shownTxt = `<span>${esc(fmt("common.shown", { n: list.length }))}</span>`;
+  $("#baro-summary").innerHTML = baroKind === "repeat" ? `<span>${esc(fmt("baro.repeat.sum", { n: cur.total }))}</span>${shownTxt}`
+    : `<span><b class="count">${esc(baroKind ? tName("baro.kind.", baroKind) : t("baro.checkable"))}</b> ${esc(fmt("ac.summary", { owned: cur.owned, total: cur.total, pct: p.toFixed(1) }))}</span>
+       <span class="progress" aria-hidden="true"><i style="--w:${p.toFixed(1)}%"></i></span>${shownTxt}`;
   $("#baro-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
-    <thead><tr>${th("所持", "owned", baroSort, "chk")}${th("品物", "name", baroSort)}${th("種類", "kind", baroSort)}${th("最後に来た日", "last", baroSort)}${th("回数", "count", baroSort, "num")}${th("デュカット", "ducats", baroSort, "num")}${th("クレジット", "credits", baroSort, "num")}</tr></thead>
+    <thead><tr>${th(esc(t("mods.col.own")), "owned", baroSort, "chk")}${th(esc(t("baro.col.item")), "name", baroSort)}${th(esc(t("mods.col.type")), "kind", baroSort)}${th(esc(t("baro.col.last")), "last", baroSort)}${th(esc(t("baro.col.count")), "count", baroSort, "num")}${th(esc(t("baro.col.ducats")), "ducats", baroSort, "num")}${th(esc(t("baro.col.credits")), "credits", baroSort, "num")}</tr></thead>
     <tbody>${list.map(r => `<tr class="${r.owned ? "owned" : ""}" data-name="${esc(r.name)}">
-      <td class="chk">${baroOwnedCell(r)}</td><td>${baroName(r)}${r.seed ? "" : `<span class="tag-mini" title="この PC で記録した来訪で追加された品物です">来訪で追加</span>`}</td>
-      <td title="${esc(r.check_by)}">${esc(r.kind_ja)}</td><td>${r.last ? esc(r.last) : `<span class="none" title="この PC ではまだ記録していません">未記録</span>`}</td>
+      <td class="chk">${baroOwnedCell(r)}</td><td>${baroName(r)}${r.seed ? "" : `<span class="tag-mini" title="${esc(t("baro.added.title"))}">${esc(t("baro.added"))}</span>`}</td>
+      <td title="${esc(baroCheckBy(r))}">${esc(tName("baro.kind.", r.kind))}</td><td>${r.last ? esc(r.last) : `<span class="none" title="${esc(t("baro.unrecorded.title"))}">${esc(t("baro.unrecorded"))}</span>`}</td>
       <td class="num">${r.count ? num(r.count) : `<span class="none">-</span>`}</td><td class="num">${num(r.ducats)}</td><td class="num">${num(r.credits)}</td></tr>`).join("")}</tbody></table></div>`
-    : noData("条件に合う品物がありません。");
+    : noData(t("baro.none"));
 }
 async function loadBaro() {
   try { baro = await api("/api/baro"); baroAt = Date.now(); $("#baro-err").textContent = ""; renderBaro(); }
@@ -1348,10 +1439,10 @@ async function setBaroOwned(name, owned) {
 }
 $("#baro-update").addEventListener("click", async () => {
   const btn = $("#baro-update");
-  btn.disabled = true; $("#baro-err").textContent = ""; $("#baro-info").textContent = "取得しています...";
+  btn.disabled = true; $("#baro-err").textContent = ""; $("#baro-info").textContent = t("baro.fetching");
   try {
     baro = await api("/api/baro/update", { method: "POST", body: {} }); baroAt = Date.now(); renderBaro();
-    if (baro.update.errors.length) $("#baro-err").textContent = baro.update.errors.join(" / ");
+    if (baro.update.errors.length) $("#baro-err").textContent = baro.update.errors.map(renderTxt).join(" / ");
   } catch (e) { $("#baro-err").textContent = e.message; if (baro) renderBaroInfo(); }
   btn.disabled = false;
 });
@@ -1367,9 +1458,10 @@ setInterval(() => {
   if ($("#view-baro").hidden || !baro || !baro.current || !$("#baro-count")) return;
   const cur = baro.current, now = baro.now + (Date.now() - baroAt) / 1000;
   if ((cur.state === "here" && now >= cur.expiry) || (cur.state === "coming" && now >= cur.activation)) { loadBaro(); return; }
-  $("#baro-count").textContent = cur.state === "here" ? `帰るまで ${dur(cur.expiry - now)}` : cur.state === "coming" ? `来るまで ${dur(cur.activation - now)}` : "";
+  $("#baro-count").textContent = baroCount(cur, now);
 }, 1000);
-loaders.baro = loadBaro;  // MOD・マスターのチェックはほかのページで変わるので、開くたびに読み直す
+loaders.baro = () => { applyViewText("baro"); return loadBaro(); };
+relabel.baro = () => { applyViewText("baro"); if (baro) renderBaro(); };  // MOD・マスターのチェックはほかのページで変わるので、開くたびに読み直す
 
 /* ---------- サイクル ---------- */
 let cyc = null, cycAt = 0, cycTimer = null;
@@ -1378,12 +1470,12 @@ function renderCycles() {
   const el = (Date.now() - cycAt) / 1000;
   const cards = cyc.cycles.map(c => {
     const left = c.left - el;
-    return `<div class="card"><header><b>${esc(c.name)}</b><span class="cyc-src ${esc(c.source)}">${esc(c.source_ja)}</span></header><div class="pad">
-      <span class="cyc-phase ${esc(c.phase_key)}">${esc(c.phase)}</span><span class="clock">${dur(left)}</span>
-      <span class="note">残り時間 <span class="cyc-next">→ 次は ${esc(c.next)}</span>${c.cambion ? ` / カンビオンの荒地: ${esc(c.cambion)}` : ""}</span></div></div>`;
+    return `<div class="card"><header><b>${esc(t("cycle.name." + c.key))}</b><span class="cyc-src ${esc(c.source)}">${esc(t("cycle.src." + c.source))}</span></header><div class="pad">
+      <span class="cyc-phase ${esc(c.phase_key)}">${esc(t("cycle.phase." + c.phase_key))}</span><span class="clock">${dur(left)}</span>
+      <span class="note">${esc(t("cyc.left"))} <span class="cyc-next">${esc(fmt("cyc.next", { phase: t("cycle.phase." + c.next_key) }))}</span>${c.cambion ? ` / ${esc(fmt("cyc.cambion", { phase: t("cycle.cambion." + c.cambion) }))}` : ""}</span></div></div>`;
   });
-  cards.push(`<div class="card"><header><b>デイリーリセット</b><span>${esc(cyc.daily.at)} JST</span></header><div class="pad"><span class="clock">${dur(cyc.daily.left - el)}</span></div></div>`);
-  cards.push(`<div class="card"><header><b>ウィークリーリセット</b><span>${esc(cyc.weekly.at)} JST</span></header><div class="pad"><span class="clock">${dur(cyc.weekly.left - el)}</span></div></div>`);
+  cards.push(`<div class="card"><header><b>${esc(t("cyc.daily"))}</b><span>${esc(cyc.daily.at)} JST</span></header><div class="pad"><span class="clock">${dur(cyc.daily.left - el)}</span></div></div>`);
+  cards.push(`<div class="card"><header><b>${esc(t("cyc.weekly"))}</b><span>${esc(cyc.weekly.at)} JST</span></header><div class="pad"><span class="clock">${dur(cyc.weekly.left - el)}</span></div></div>`);
   $("#cycle-cards").innerHTML = cards.join("");
   // どれかのフェーズが切り替わったら取得し直す
   if (cyc.cycles.some(c => c.left - el < 0) || cyc.daily.left - el < 0) loadCycles();
@@ -1408,10 +1500,11 @@ function renderSpex() {
 }
 function renderCycleSyncInfo() {
   const at = cyc && cyc.clock_synced_at;
-  if (!at) { $("#cyc-sync-info").textContent = "まだ公式データと同期していません(基準時刻から計算しています)"; return; }
+  if (!at) { $("#cyc-sync-info").textContent = t("cyc.nosync"); return; }
   const d = new Date(at * 1000), off = cyc.offset;
-  $("#cyc-sync-info").textContent = `最終同期 ${d.toLocaleString("ja-JP", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}` +
-    ` / PC の時計のずれ ${off ? `${off > 0 ? "+" : ""}${off} 秒(補正して表示)` : "なし"}`;
+  $("#cyc-sync-info").textContent = fmt("cyc.synced", {
+    at: d.toLocaleString(locale(), { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }),
+    off: off ? fmt("cyc.offset", { sec: `${off > 0 ? "+" : ""}${off}` }) : t("cyc.offset.none") });
 }
 async function loadCycles() {
   try { cyc = await api("/api/cycles"); cycAt = Date.now(); renderCycles(); renderSpex(); renderCycleSyncInfo(); fillCycleKeys(); }
@@ -1420,21 +1513,22 @@ async function loadCycles() {
 /* 手動の時刻合わせ: 対象とフェーズの選択肢はサーバーの定義(manual のもの)から作る */
 function fillCycleKeys() {
   const sel = $("#cf-key"), keep = sel.value, manual = cyc.cycles.filter(c => c.manual);
-  sel.innerHTML = manual.map(c => `<option value="${esc(c.key)}">${esc(c.name)}</option>`).join("");
+  sel.innerHTML = manual.map(c => `<option value="${esc(c.key)}">${esc(t("cycle.name." + c.key))}</option>`).join("");
   if (manual.some(c => c.key === keep)) sel.value = keep;
   fillPhaseOptions();
 }
 function fillPhaseOptions() {
-  const c = cyc && cyc.cycles.find(x => x.key === $("#cf-key").value);
-  $("#cf-phase").innerHTML = c ? c.phases.map(p => `<option>${esc(p)}</option>`).join("") : "";
+  const c = cyc && cyc.cycles.find(x => x.key === $("#cf-key").value), keep = $("#cf-phase").value;
+  $("#cf-phase").innerHTML = c ? c.phase_keys.map(p => `<option value="${esc(p)}">${esc(t("cycle.phase." + p))}</option>`).join("") : "";
+  if (c && c.phase_keys.includes(keep)) $("#cf-phase").value = keep;
 }
 $("#cf-key").addEventListener("change", fillPhaseOptions);
 $("#cyc-sync").addEventListener("click", async () => {
   const btn = $("#cyc-sync");
-  btn.disabled = true; $("#cyc-sync-err").textContent = ""; $("#cyc-sync-info").textContent = "公式データを取得しています...";
+  btn.disabled = true; $("#cyc-sync-err").textContent = ""; $("#cyc-sync-info").textContent = t("cyc.fetching");
   try {
     cyc = await api("/api/cycles/sync", { method: "POST", body: {} }); cycAt = Date.now(); renderCycles(); renderSpex(); renderCycleSyncInfo();
-    if (cyc.synced && cyc.synced.cached) $("#cyc-sync-info").textContent += "(60 秒以内なので前回の取得結果を使いました)";
+    if (cyc.synced && cyc.synced.cached) $("#cyc-sync-info").textContent += t("invasion.cached");
   } catch (e) { $("#cyc-sync-err").textContent = e.message; renderCycleSyncInfo(); }
   btn.disabled = false;
 });
@@ -1445,11 +1539,12 @@ $("#cycle-form").addEventListener("submit", async e => {
     cycAt = Date.now(); renderCycles(); renderSpex(); $("#cf-rem").value = "";
   } catch (err) { $("#cf-err").textContent = err.message; }
 });
-loaders.cycle = loadCycles;
+loaders.cycle = () => { applyViewText("cycle"); return loadCycles(); };
+relabel.cycle = () => { applyViewText("cycle"); if (cyc) { renderCycles(); renderSpex(); renderCycleSyncInfo(); fillCycleKeys(); } };
 setInterval(() => { if (!$("#view-cycle").hidden) renderCycles(); }, 1000);
 
 /* ---------- ビルド ---------- */
-let builds = [], btypes = {}, editing = null, armed = null;
+let builds = [], btypes = [], editing = null, armed = null;
 /* フォームで編集中の画像: {saved: ファイル名} か {blob, url} (まだ保存していない新しい画像) */
 let formImages = [];
 const imgUrl = name => `/api/build-image/${encodeURIComponent(name)}`;
@@ -1459,22 +1554,23 @@ function clearFormImages() {
 }
 function renderFormImages() {
   updateAnalyzeBtn();
-  $("#b-thumbs").innerHTML = formImages.map((im, i) => `<div class="thumb" data-i="${i}" title="クリックで拡大">
-    <img src="${im.saved ? imgUrl(im.saved) : im.url}" alt="画像 ${i + 1}" loading="lazy">
-    ${im.saved ? "" : `<span class="new">未保存</span>`}
-    <button type="button" class="x" data-rm="${i}" aria-label="画像 ${i + 1} を外す">×</button></div>`).join("");
+  $("#b-thumbs").innerHTML = formImages.map((im, i) => `<div class="thumb" data-i="${i}" title="${esc(t("b.thumb.title"))}">
+    <img src="${im.saved ? imgUrl(im.saved) : im.url}" alt="${esc(fmt("b.image.n", { n: i + 1 }))}" loading="lazy">
+    ${im.saved ? "" : `<span class="new">${esc(t("b.unsaved"))}</span>`}
+    <button type="button" class="x" data-rm="${i}" aria-label="${esc(fmt("b.image.remove", { n: i + 1 }))}">×</button></div>`).join("");
 }
 /* ---------- 画像の自動解析 (Windows の文字認識) ---------- */
 let ocrInfo = null, ocrResult = null, ocrRun = 0;
-const SLOT_JA = { match: "極性一致", neutral: "極性なし", mismatch: "極性不一致" };
 async function loadOcrInfo() {
   if (ocrInfo) return ocrInfo;
   try { ocrInfo = await api("/api/ocr-info"); } catch (e) { ocrInfo = { available: false, reason: e.message }; }
-  $("#b-ocr-note").textContent = ocrInfo.available
-    ? (ocrInfo.english ? "画像を追加すると自動で読み取ります。" : "英語の文字認識が入っていないため、MOD 名の精度が下がることがあります(Windows の設定 → 言語 で English を追加すると改善します)。")
-    : `画像の自動解析は使えません: ${ocrInfo.reason || ""}`;
+  renderOcrNote();
   updateAnalyzeBtn();
   return ocrInfo;
+}
+function renderOcrNote() {
+  if (!ocrInfo) return;
+  $("#b-ocr-note").textContent = ocrInfo.available ? t(ocrInfo.english ? "ocr.ready" : "ocr.noenglish") : fmt("ocr.unavailable", { reason: ocrReason(ocrInfo) });
 }
 function updateAnalyzeBtn() { $("#b-analyze").hidden = !(ocrInfo && ocrInfo.available && formImages.length); }
 function mergeOcr(list) {
@@ -1494,54 +1590,57 @@ const polSummary = list => Object.entries(list.reduce((a, p) => (a[p] = (a[p] ||
   .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([p, n]) => `${p}×${n}`).join(", ");
 function renderOcr(r, msg = "") {
   const box = $("#b-ocr"); box.hidden = false;
-  const f = r.forma, t = r.target;
-  box.innerHTML = `<h5>画像の読み取り結果<span class="mini">(${r.images} 枚)</span></h5>
+  const f = r.forma, tg = r.target, nm = x => (lang === "ja" ? x.ja : x.en);  // 名前: 日本語の画面は日本語名、ほかは英名
+  const check = x => (x.score < 0.95 ? `<span class="check" title="${esc(fmt("scan.read", { text: x.read }))}">${esc(t("ocr.check"))}</span>` : "");
+  box.innerHTML = `<h5>${esc(t("ocr.title"))}<span class="mini">${esc(fmt("ocr.images", { n: r.images }))}</span></h5>
     <dl class="kv">
-      <dt>対象</dt><dd>${t ? `${esc(t.ja)}${t.ja !== t.en ? `<span class="sub-en">${esc(t.en)}</span>` : ""} / ${esc(btypes[t.type] || t.type)}${t.score < 0.95 ? `<span class="check" title="読み取り: ${esc(t.read)}">要確認</span>` : ""}`
-        : `<span class="none">読み取れませんでした${r.has_items ? "" : "(「データ更新」を実行するとフレーム・武器名も照合できます)"}</span>`}</dd>
-      <dt>フォーマ</dt><dd>${f.value === null ? `<span class="none">読み取れませんでした</span>`
-        : f.source === "display" ? `${f.value}(画面上部「${t ? esc(t.en.toUpperCase()) : "装備名"} [${f.rank ?? "ランク"}]」の後ろの数字)${f.estimate !== null && f.estimate !== undefined && f.estimate !== f.value ? `<span class="mini"> / 極性からの推定 ${f.estimate}</span>` : ""}`
-        : `${f.value}(推定: 極性が一致しているスロットの数)`}</dd>
-      ${f.polarized && f.polarized.length ? `<dt>極性</dt><dd>${esc(polSummary(f.polarized))}</dd>` : ""}
-      <dt>MOD</dt><dd>${r.mods.filter(m => m.kind !== "arcane").length} 件</dd>
-      ${r.mods.some(m => m.kind === "arcane") ? `<dt>アルケイン</dt><dd>${r.mods.filter(m => m.kind === "arcane").map(m => esc(m.en)).join(", ")}</dd>` : ""}
+      <dt>${esc(t("ocr.target"))}</dt><dd>${tg ? `${esc(nm(tg))}${lang === "ja" && tg.ja !== tg.en ? `<span class="sub-en">${esc(tg.en)}</span>` : ""} / ${esc(tName("build.type.", tg.type))}${check(tg)}`
+        : `<span class="none">${esc(t(r.has_items ? "ocr.fail" : "ocr.fail.items"))}</span>`}</dd>
+      <dt>${esc(t("ocr.forma"))}</dt><dd>${f.value === null ? `<span class="none">${esc(t("ocr.fail"))}</span>`
+        : f.source === "display" ? `${esc(fmt("ocr.forma.display", { n: f.value, name: tg ? tg.en.toUpperCase() : t("ocr.forma.gear"), rank: f.rank ?? t("ocr.forma.rank") }))}${f.estimate !== null && f.estimate !== undefined && f.estimate !== f.value ? `<span class="mini">${esc(fmt("ocr.forma.est.also", { n: f.estimate }))}</span>` : ""}`
+        : esc(fmt("ocr.forma.est", { n: f.value }))}</dd>
+      ${f.polarized && f.polarized.length ? `<dt>${esc(t("ocr.pol"))}</dt><dd>${esc(polSummary(f.polarized))}</dd>` : ""}
+      <dt>MOD</dt><dd>${esc(fmt("ocr.mods.n", { n: r.mods.filter(m => m.kind !== "arcane").length }))}</dd>
+      ${r.mods.some(m => m.kind === "arcane") ? `<dt>${esc(t("b.arcanes"))}</dt><dd>${r.mods.filter(m => m.kind === "arcane").map(m => esc(m.en)).join(", ")}</dd>` : ""}
     </dl>
-    ${r.mods.some(m => m.kind !== "arcane") ? `<ol>${r.mods.filter(m => m.kind !== "arcane").map(m => `<li>${esc(m.ja)}${m.polarity ? `<span class="pol">${esc(m.polarity)}</span>` : ""}
-      ${m.slot ? `<span class="slot ${m.slot}" title="ドレイン ${m.drain}">${SLOT_JA[m.slot]}</span>` : ""}
-      ${m.score < 0.95 ? `<span class="check" title="読み取り: ${esc(m.read)}">要確認</span>` : ""}</li>`).join("")}</ol>` : ""}
-    <div class="row"><button type="button" class="btn" id="ocr-apply">フォームにすべて反映(上書き)</button><span class="mini">${esc(msg)}</span></div>
-    <p class="note">読み取りは推定です。保存前に内容を確認してください。フォーマの推定は「MOD が最大ランク」「極性が一致すると消費が半分になる」ことを使っており、元から付いている極性も1つと数えます。</p>`;
+    ${r.mods.some(m => m.kind !== "arcane") ? `<ol>${r.mods.filter(m => m.kind !== "arcane").map(m => `<li>${esc(nm(m))}${m.polarity ? `<span class="pol">${esc(m.polarity)}</span>` : ""}
+      ${m.slot ? `<span class="slot ${m.slot}" title="${esc(fmt("ocr.drain", { n: m.drain }))}">${esc(t("ocr.slot." + m.slot))}</span>` : ""}
+      ${check(m)}</li>`).join("")}</ol>` : ""}
+    <div class="row"><button type="button" class="btn" id="ocr-apply">${esc(t("ocr.apply"))}</button><span class="mini">${esc(msg)}</span></div>
+    <p class="note">${esc(t("ocr.note"))}</p>`;
 }
 function applyOcr(r, onlyEmpty) {
   const filled = [];
   const set = (id, v, label, empty) => { if (v === null || v === undefined || v === "") return; if (!onlyEmpty || empty) { $(id).value = v; filled.push(label); } };
   const targetWasEmpty = !$("#b-target").value.trim();
   if (r.target) {
-    set("#b-target", r.target.en, "対象", targetWasEmpty);
-    set("#b-type", r.target.type, "種別", targetWasEmpty);
-    set("#b-name", r.target.en, "ビルド名", !$("#b-name").value.trim());
+    set("#b-target", r.target.en, t("b.lbl.target"), targetWasEmpty);
+    set("#b-type", r.target.type, t("b.lbl.type"), targetWasEmpty);
+    set("#b-name", r.target.en, t("b.lbl.name"), !$("#b-name").value.trim());
   }
   const modList = r.mods.filter(m => m.kind !== "arcane"), arcList = r.mods.filter(m => m.kind === "arcane");
-  if (modList.length) set("#b-mods", modList.map(m => m.en).join("\n"), "MOD", !$("#b-mods").value.trim());
-  if (arcList.length) set("#b-arcanes", arcList.map(m => m.en).join("\n"), "アルケイン", !$("#b-arcanes").value.trim());
+  if (modList.length) set("#b-mods", modList.map(m => m.en).join("\n"), t("b.lbl.mods"), !$("#b-mods").value.trim());
+  if (arcList.length) set("#b-arcanes", arcList.map(m => m.en).join("\n"), t("b.arcanes"), !$("#b-arcanes").value.trim());
   // ゲーム内の表示から読めたフォーマ数はそのまま登録する。推定値は空欄(0)のときだけ入れる
-  if (r.forma.value !== null) set("#b-forma", r.forma.value, "フォーマ", r.forma.source === "display" || !(+$("#b-forma").value));
+  if (r.forma.value !== null) set("#b-forma", r.forma.value, t("b.lbl.forma"), r.forma.source === "display" || !(+$("#b-forma").value));
   if (r.forma.polarized && r.forma.polarized.length) {
-    const line = `極性(推定): ${polSummary(r.forma.polarized)}`;
-    const note = $("#b-note").value.split("\n").filter(l => !l.startsWith("極性(推定):"));
-    $("#b-note").value = [...note.filter(Boolean), line].join("\n"); filled.push("メモ(極性)");
+    // メモの極性の行は1行だけにする(どの言語で書いた行も置き換える)
+    const heads = Object.keys(I18N).map(c => (I18N[c]["b.pol.line"] || "").split("{list}")[0]).filter(Boolean);
+    const line = fmt("b.pol.line", { list: polSummary(r.forma.polarized) });
+    const note = $("#b-note").value.split("\n").filter(l => !heads.some(h => l.startsWith(h)));
+    $("#b-note").value = [...note.filter(Boolean), line].join("\n"); filled.push(t("b.lbl.memo"));
   }
   return filled;
 }
 async function analyzeImages(list, auto) {
   if (!list.length) return;
   const info = await loadOcrInfo();
-  if (!info.available) { if (!auto) { $("#b-ocr").hidden = false; $("#b-ocr").innerHTML = noData(info.reason || "文字認識が使えません。"); } return; }
+  if (!info.available) { if (!auto) { $("#b-ocr").hidden = false; $("#b-ocr").innerHTML = noData(ocrReason(info)); } return; }
   const run = ++ocrRun, btn = $("#b-analyze"), out = [];
   btn.disabled = true; $("#b-ocr").hidden = false;
   try {
     for (let i = 0; i < list.length; i++) {
-      $("#b-ocr").innerHTML = `<span class="busy">画像を読み取り中... ${i + 1} / ${list.length}(1枚に数秒かかります)</span>`;
+      $("#b-ocr").innerHTML = `<span class="busy">${esc(fmt("ocr.reading", { i: i + 1, n: list.length }))}</span>`;
       const im = list[i];
       let r;
       if (im.saved) r = await api(`/api/build-analyze?image=${encodeURIComponent(im.saved)}`, { method: "POST", body: {} });
@@ -1549,22 +1648,22 @@ async function analyzeImages(list, auto) {
         const blob = im.blob.size > 18 * 1024 * 1024 ? await prepareImage(im.blob) : im.blob;
         const res = await fetch("/api/build-analyze", { method: "POST", headers: { "Content-Type": blob.type || "image/png" }, body: blob });
         r = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(r.error || `エラー (${res.status})`);
+        if (!res.ok) throw new Error(r.text ? renderTxt(r.text) : (r.error || fmt("err.http", { status: res.status })));
       }
       out.push(r);
     }
     if (run !== ocrRun) return;
     ocrResult = mergeOcr(out);
     const filled = auto ? applyOcr(ocrResult, true) : [];
-    renderOcr(ocrResult, auto ? (filled.length ? `${filled.join("・")}を入力しました。入力済みの項目は、画面に表示されたフォーマ数を除いて変更していません。` : "入力済みの項目は変更していません。") : "");
-  } catch (e) { if (run === ocrRun) $("#b-ocr").innerHTML = `<span class="err">読み取れませんでした: ${esc(e.message)}</span>`; }
+    renderOcr(ocrResult, auto ? (filled.length ? fmt("ocr.filled", { list: filled.join(t("list.and")) }) : t("ocr.unchanged")) : "");
+  } catch (e) { if (run === ocrRun) $("#b-ocr").innerHTML = `<span class="err">${esc(fmt("ocr.failed", { msg: e.message }))}</span>`; }
   btn.disabled = false;
 }
 $("#b-analyze").addEventListener("click", () => analyzeImages(formImages, false));
 $("#b-ocr").addEventListener("click", e => {
   if (!e.target.closest("#ocr-apply") || !ocrResult) return;
   const filled = applyOcr(ocrResult, false);
-  renderOcr(ocrResult, `${filled.join("・")}を反映しました。保存ボタンで登録されます。`);
+  renderOcr(ocrResult, fmt("ocr.applied", { list: filled.join(t("list.and")) }));
 });
 
 /** 大きい画像(4MB超)は縮小してから送る。GIF はアニメーションを壊さないようそのまま */
@@ -1580,7 +1679,7 @@ async function prepareImage(file) {
 }
 function addImageFiles(files) {
   const ok = [...files].filter(f => /^image\/(png|jpeg|gif|webp)$/.test(f.type));
-  if (!ok.length) { $("#b-err").textContent = "PNG / JPEG / GIF / WebP の画像を選んでください。"; return; }
+  if (!ok.length) { $("#b-err").textContent = t("b.pick.images"); return; }
   $("#b-err").textContent = "";
   const added = ok.map(f => ({ blob: f, url: URL.createObjectURL(f) }));
   formImages.push(...added);
@@ -1589,23 +1688,25 @@ function addImageFiles(files) {
 }
 function resetBuildForm() {
   editing = null; $("#build-form").reset(); $("#b-forma").value = 0; clearFormImages(); $("#b-arc-note").textContent = "";
-  $("#build-form-title").textContent = "ビルドを追加"; $("#b-cancel").hidden = true; $("#b-err").textContent = "";
+  $("#b-cancel").hidden = true; $("#b-err").textContent = ""; renderBuildFormTitle();
 }
+function renderBuildFormTitle() { $("#build-form-title").textContent = editing ? fmt("b.edit", { name: editing }) : t("b.add"); }
 function renderBuilds() {
-  const q = $("#b-filter").value.trim().toLowerCase(), t = $("#b-filter-type").value;
-  const list = builds.filter(b => (!t || b.type === t) &&
+  const q = $("#b-filter").value.trim().toLowerCase(), ft = $("#b-filter-type").value;
+  const list = builds.filter(b => (!ft || b.type === ft) &&
     (!q || [b.name, b.target, ...(b.tags || []), ...(b.arcanes || [])].some(x => (x || "").toLowerCase().includes(q))));
   $("#build-list").innerHTML = list.length ? list.map(b => `
-    <div class="card build"><header><b>${esc(b.name)}</b><span>${esc(btypes[b.type] || b.type)}${b.target ? " / " + esc(b.target) : ""}</span></header>
-    <div class="pad"><div class="meta">フォーマ ${b.forma || 0} / MOD ${(b.mods || []).length}${(b.arcanes || []).length ? ` / アルケイン ${b.arcanes.length}` : ""}${(b.images || []).length ? ` / 画像 ${b.images.length}` : ""}</div>
+    <div class="card build"><header><b>${esc(b.name)}</b><span>${esc(tName("build.type.", b.type))}${b.target ? " / " + esc(b.target) : ""}</span></header>
+    <div class="pad"><div class="meta">${esc([fmt("b.meta.forma", { n: b.forma || 0 }), fmt("b.meta.mods", { n: (b.mods || []).length }),
+      ...((b.arcanes || []).length ? [fmt("b.meta.arcanes", { n: b.arcanes.length })] : []), ...((b.images || []).length ? [fmt("b.meta.images", { n: b.images.length })] : [])].join(" / "))}</div>
       ${(b.mods || []).length ? `<ol>${b.mods.map(m => `<li>${esc(m)}</li>`).join("")}</ol>` : ""}
-      ${(b.arcanes || []).length ? `<div class="arcs"><span class="mini">アルケイン</span> ${b.arcanes.map(a => `<span class="arc">${esc(a)}</span>`).join("")}</div>` : ""}
+      ${(b.arcanes || []).length ? `<div class="arcs"><span class="mini">${esc(t("b.arcanes"))}</span> ${b.arcanes.map(a => `<span class="arc">${esc(a)}</span>`).join("")}</div>` : ""}
       ${b.note ? `<div>${esc(b.note)}</div>` : ""}
       ${(b.tags || []).length ? `<div class="tags">${b.tags.map(x => `<span>#${esc(x)}</span>`).join("")}</div>` : ""}
-      ${(b.images || []).length ? `<div class="thumbs">${b.images.map((n, i) => `<button type="button" class="thumb" data-view-img="${esc(b.name)}" data-i="${i}" aria-label="${esc(b.name)} の画像 ${i + 1} を拡大"><img src="${imgUrl(n)}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
-      <div class="acts"><button class="btn ghost" data-edit="${esc(b.name)}">編集</button>
-        <button class="btn danger${armed === b.name ? " armed" : ""}" data-del="${esc(b.name)}">${armed === b.name ? "本当に削除" : "削除"}</button></div></div></div>`).join("")
-    : `<div class="empty">${builds.length ? "条件に合うビルドがありません。" : "まだビルドがありません。上のフォームから追加してください。"}</div>`;
+      ${(b.images || []).length ? `<div class="thumbs">${b.images.map((n, i) => `<button type="button" class="thumb" data-view-img="${esc(b.name)}" data-i="${i}" aria-label="${esc(fmt("b.image.enlarge", { name: b.name, n: i + 1 }))}"><img src="${imgUrl(n)}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
+      <div class="acts"><button class="btn ghost" data-edit="${esc(b.name)}">${esc(t("b.edit.btn"))}</button>
+        <button class="btn danger${armed === b.name ? " armed" : ""}" data-del="${esc(b.name)}">${esc(t(armed === b.name ? "b.del.confirm" : "b.del"))}</button></div></div></div>`).join("")
+    : `<div class="empty">${esc(t(builds.length ? "b.none" : "b.empty"))}</div>`;
 }
 let arcaneNames = [];
 const ARC_LIMIT = { frame: 2, primary: 1, secondary: 1, melee: 1 };  // ゲーム内で装備できる数
@@ -1614,8 +1715,8 @@ function arcNote() {
   const limit = ARC_LIMIT[$("#b-type").value], known = new Set(arcaneNames.map(a => a.toLowerCase()));
   const unknown = lines.filter(a => known.size && !known.has(a.toLowerCase()));
   const msgs = [];
-  if (limit && lines.length > limit) msgs.push(`${btypes[$("#b-type").value]}に装備できるアルケインは ${limit} つまでです(いま ${lines.length} つ)。`);
-  if (unknown.length) msgs.push(`一覧に無い名前: ${unknown.join(", ")}`);
+  if (limit && lines.length > limit) msgs.push(fmt("b.arc.limit", { type: tName("build.type.", $("#b-type").value), limit, n: lines.length }));
+  if (unknown.length) msgs.push(fmt("b.arc.unknown", { list: unknown.join(", ") }));
   $("#b-arc-note").textContent = msgs.join(" ");
   $("#b-arc-note").classList.toggle("err", msgs.length > 0);
 }
@@ -1634,10 +1735,14 @@ async function loadBuilds() {
   const r = await api("/api/builds"); builds = r.builds; btypes = r.types;
   arcaneNames = r.arcanes || [];
   $("#arcane-list").innerHTML = arcaneNames.map(a => `<option value="${esc(a)}">`).join("");
-  $("#b-type").innerHTML = Object.entries(btypes).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
-  const cur = $("#b-filter-type").value;
-  $("#b-filter-type").innerHTML = `<option value="">すべての種別</option>` + Object.entries(btypes).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
-  $("#b-filter-type").value = cur; renderBuilds();
+  renderBuildTypes(); renderBuilds();
+}
+/* 種別の選択肢(言語を切り替えたら作り直す。選んでいる値は残す) */
+function renderBuildTypes() {
+  const opts = btypes.map(k => `<option value="${esc(k)}">${esc(tName("build.type.", k))}</option>`).join("");
+  const cur = $("#b-type").value, curF = $("#b-filter-type").value;
+  $("#b-type").innerHTML = opts; if (cur) $("#b-type").value = cur;
+  $("#b-filter-type").innerHTML = `<option value="">${esc(t("mods.type.all"))}</option>` + opts; $("#b-filter-type").value = curF;
 }
 $("#build-form").addEventListener("submit", async e => {
   e.preventDefault(); $("#b-err").textContent = "";
@@ -1653,11 +1758,11 @@ $("#build-form").addEventListener("submit", async e => {
     editing = name;
     const pending = formImages.filter(i => !i.saved);
     for (let k = 0; k < pending.length; k++) {
-      $("#b-err").textContent = `画像を保存中... ${k + 1} / ${pending.length}`;
+      $("#b-err").textContent = fmt("b.saving.image", { i: k + 1, n: pending.length });
       const blob = await prepareImage(pending[k].blob);
       const res = await fetch(`/api/build-image?name=${encodeURIComponent(name)}`, { method: "POST", headers: { "Content-Type": blob.type || "image/png" }, body: blob });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(`画像 ${k + 1} を保存できませんでした: ${data.error || res.status}(ビルド本体は保存済みです)`);
+      if (!res.ok) throw new Error(fmt("b.image.failed", { n: k + 1, msg: data.text ? renderTxt(data.text) : (data.error || res.status) }));
       builds = data.builds;
       pending[k].saved = data.builds.find(x => x.name === name).images.slice(-1)[0];
       URL.revokeObjectURL(pending[k].url); delete pending[k].url; delete pending[k].blob;
@@ -1670,8 +1775,8 @@ $("#build-form").addEventListener("submit", async e => {
 $("#b-drop").addEventListener("click", () => $("#b-file").click());
 $("#b-drop").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#b-file").click(); } });
 $("#b-file").addEventListener("change", e => { addImageFiles(e.target.files); e.target.value = ""; });
-["dragenter", "dragover"].forEach(t => $("#b-drop").addEventListener(t, e => { e.preventDefault(); $("#b-drop").classList.add("over"); }));
-["dragleave", "drop"].forEach(t => $("#b-drop").addEventListener(t, () => $("#b-drop").classList.remove("over")));
+["dragenter", "dragover"].forEach(ev => $("#b-drop").addEventListener(ev, e => { e.preventDefault(); $("#b-drop").classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => $("#b-drop").addEventListener(ev, () => $("#b-drop").classList.remove("over")));
 $("#b-drop").addEventListener("drop", e => { e.preventDefault(); addImageFiles(e.dataTransfer.files); });
 document.addEventListener("paste", e => {
   if ($("#view-build").hidden) return;
@@ -1682,8 +1787,8 @@ document.addEventListener("paste", e => {
 $("#b-thumbs").addEventListener("click", e => {
   const rm = e.target.closest("[data-rm]");
   if (rm) { const [im] = formImages.splice(+rm.dataset.rm, 1); if (im.url) URL.revokeObjectURL(im.url); renderFormImages(); return; }
-  const t = e.target.closest(".thumb"); if (!t) return;
-  openLightbox(formImages.map(im => im.saved ? imgUrl(im.saved) : im.url), +t.dataset.i);
+  const tb = e.target.closest(".thumb"); if (!tb) return;
+  openLightbox(formImages.map(im => im.saved ? imgUrl(im.saved) : im.url), +tb.dataset.i);
 });
 /* 拡大表示 */
 let lb = { urls: [], i: 0 };
@@ -1712,7 +1817,7 @@ $("#build-list").addEventListener("click", async e => {
     const b = builds.find(x => x.name === ed.dataset.edit); if (!b) return;
     editing = b.name; $("#b-name").value = b.name; $("#b-type").value = b.type; $("#b-target").value = b.target || "";
     $("#b-forma").value = b.forma || 0; $("#b-mods").value = (b.mods || []).join("\n"); $("#b-arcanes").value = (b.arcanes || []).join("\n"); $("#b-tags").value = (b.tags || []).join(",");
-    $("#b-note").value = b.note || ""; $("#build-form-title").textContent = `「${b.name}」を編集`; $("#b-cancel").hidden = false;
+    $("#b-note").value = b.note || ""; renderBuildFormTitle(); $("#b-cancel").hidden = false;
     clearFormImages(); formImages = (b.images || []).map(n => ({ saved: n })); renderFormImages();
     $("#build-form-wrap").open = true; $("#b-name").focus(); window.scrollTo({ top: 0, behavior: "smooth" });
   } else if (del) {
@@ -1723,21 +1828,34 @@ $("#build-list").addEventListener("click", async e => {
     catch (err) { $("#b-err").textContent = err.message; }
   }
 });
-loaders.build = () => { loadOcrInfo(); return loadBuilds().catch(e => { $("#build-list").innerHTML = noData(e.message); }); };
+loaders.build = () => {
+  applyViewText("build"); renderBuildFormTitle(); loadOcrInfo();
+  return loadBuilds().catch(e => { $("#build-list").innerHTML = noData(e.message); });
+};
+relabel.build = () => {
+  applyViewText("build"); renderBuildFormTitle(); renderOcrNote(); renderFormImages(); arcNote();
+  if (btypes.length) { renderBuildTypes(); renderBuilds(); }
+  if (ocrResult && !$("#b-ocr").hidden) renderOcr(ocrResult);
+};
 
 /* ---------- データ更新 ---------- */
 $("#update-btn").addEventListener("click", async () => {
   const btn = $("#update-btn"), log = $("#update-log");
-  btn.disabled = true; btn.textContent = "取得中..."; log.hidden = false; log.textContent = "取得しています。数十秒かかることがあります...";
+  btn.disabled = true; btn.textContent = t("upd.fetching"); log.hidden = false; log.textContent = t("upd.fetching.log");
   try {
     const r = await api("/api/update", { method: "POST", body: {} });
-    log.textContent = r.log || (r.ok ? "完了しました。" : "失敗しました。");
+    showLog(log, r);
     itemSearch.reset(); partSearch.reset(); mods = null; rivens = null; modOpen = null; mastery = null; arcanes = null;
     simReload();  // シミュレータ用データも「データ更新」で作り直すので、開いていれば読み直す
   } catch (e) { log.textContent = e.message; }
-  btn.disabled = false; btn.textContent = "公式データを取得"; refreshStatus();
+  btn.disabled = false; btn.textContent = t("upd.btn"); refreshStatus();
 });
-loaders.update = refreshStatus;
+/* ログの表示: 結果を覚えておき、言語を切り替えたら描き直す(ログの欄ごと) */
+const shownLogs = new Map();
+function showLog(el, r) { shownLogs.set(el, r); el.textContent = renderLog(r, t(r.ok ? "common.done" : "common.failed")); }
+function relabelLogs() { shownLogs.forEach((r, el) => { el.textContent = renderLog(r, t(r.ok ? "common.done" : "common.failed")); }); }
+loaders.update = () => { applyViewText("update"); return refreshStatus(); };
+relabel.update = () => { applyViewText("update"); renderStatus(); relabelLogs(); };
 
 /* ---------- トップ・ページ説明 ---------- */
 /* どちらも MENU から組み立てる(ページを足すと自動で載る)。ノンカテゴリのページ(トップ自身を除く)は「その他」にまとめる */
@@ -1752,9 +1870,8 @@ function menuSections() {
   if (other.length) out.push({ label: t("group.other"), items: other });
   return out;
 }
-function applyViewText(id) {
-  document.querySelectorAll(`#view-${id} [data-i18n]`).forEach(el => { el.textContent = t(el.dataset.i18n); });
-}
+/* ページのマークアップの文字を表示中の言語にする(決まりは web/i18n.html の applyText) */
+function applyViewText(id) { const root = $(`#view-${id}`); if (root) applyText(root); }
 function renderHome() {
   applyViewText("home");
   $("#home-cards").innerHTML = menuSections().map(s => `<div class="card"><header><b>${esc(s.label)}</b></header>${
@@ -1769,8 +1886,8 @@ document.addEventListener("click", e => {
   const b = e.target.closest("[data-go]");
   if (b) { show(b.dataset.go); window.scrollTo(0, 0); }
 });
-loaders.home = renderHome;
-loaders.guide = renderGuide;
+loaders.home = relabel.home = renderHome;
+loaders.guide = relabel.guide = renderGuide;
 
 /* ---------- 起動 ---------- */
 (async () => {

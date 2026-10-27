@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import urllib.request
 
+from wfp.core.common import say, txt
 from wfp.fetch import decode
 
 
@@ -29,10 +30,10 @@ def fetch_json(urls: list[str], verbose: bool = False) -> bytes:
             raw = http_get(url)
             decode.parse_json_bytes(raw)
             if verbose:
-                print(f"  取得元: {url}")
+                say(txt("log.source", src=url), 1)
             return raw
         except Exception as e:  # noqa: BLE001
             errors.append(f"{url} ({e})")
             if verbose:
-                print(f"  失敗: {url} ({e})")
+                say(txt("log.failed.what", what=url, e=str(e)), 1)
     raise RuntimeError(" / ".join(errors))

@@ -1,189 +1,44 @@
-<!-- メニュー部: 表示する文字(I18N)・メニューの並び(MENU)・メニューの描画とページの切り替え(show)。
-     web/ctrl.html の基礎スクリプト($ esc api など)のあと、ページ処理の前に読まれる。
+<!-- メニュー部: 言語の切り替え・メニューの並び(MENU)・メニューの描画とページの切り替え(show)。
+     web/ctrl.html の基礎スクリプト($ esc api など)と、文字を引く部品(web/i18n.html の t fmt renderTxt など)のあと、ページ処理の前に読まれる。
      読み込んだ時点でページ(<section>)の有無を見てメニューを描くので、表示部(web/view.html)のマークアップが先に必要。 -->
 <!-- PART:script -->
 <script>
-/* ---------- 表示する文字(言語ごと) ---------- */
-/* キー → 文字。今の言語に無いキーは日本語、それも無ければキーそのものを表示する。
-   いまはメニュー・トップ・ページ説明・デュヴィリサーキット・侵略サイクルのページが対象(ページの文字はマークアップの data-i18n か t("…") で引く)。
-   中身は JSON と同じ形にしてあるので、増えたら別ファイルに切り出せる */
-const I18N = {
-  ja: {
-    "menu.aria": "メニュー", "menu.title": "Menu",
-    "group.search": "各種検索", "group.personal": "個人チェック表", "group.info": "情報", "group.simulation": "シミュレーション", "group.other": "その他",
-    "page.home": "トップ", "page.home.sub": "各ページへのジャンプ",
-    "page.item": "素材から探す", "page.item.sub": "素材名 → 入手場所と確率",
-    "page.part": "パーツ検索", "page.part.sub": "Warframe・武器のパーツ → 入手場所と確率",
-    "page.area": "エリアから探す", "page.area.sub": "惑星・ノード → 出る素材",
-    "page.mastery": "マスター一覧", "page.mastery.sub": "Warframe・武器のマスター状況",
-    "page.mods": "MOD入手一覧", "page.mods.sub": "入手先と所持チェック",
-    "page.arcane": "アルケイン所持一覧", "page.arcane.sub": "所持チェックとランク",
-    "page.baro": "バロ吉入手一覧", "page.baro.sub": "Void商人の商品と所持の照合",
-    "page.riven": "Riven相場", "page.riven.sub": "公式の週次統計",
-    "page.invasion": "侵略サイクル", "page.invasion.sub": "侵略ミッションと獲得パーツ",
-    "page.cycle": "サイクル", "page.cycle.sub": "昼夜・リセット",
-    "page.duviri": "デュヴィリサーキット", "page.duviri.sub": "週替わりの報酬",
-    "page.build": "ビルド", "page.build.sub": "登録と管理",
-    "page.sim": "シミュレータ", "page.sim.sub": "フレーム・武器・Riven の計算",
-    "page.tips": "Tips", "page.tips.sub": "すぐ見たいメモ",
-    "page.guide": "ページ説明", "page.guide.sub": "各ページでできること",
-    "page.update": "データ更新", "page.update.sub": "公式データの取得",
-    "home.lead": "見たいページへ、ここから移動できます。",
-    "guide.lead": "各ページでできることの説明です。「開く」でそのページに移動します。", "guide.open": "開く",
-    "guide.item": "素材名(日本語・英語・ひらがな)を入れると、入手できるミッション・敵・バウンティ・レリックと確率を一覧で表示します。",
-    "guide.part": "Warframe・武器などの本体・設計図・パーツの名前(日本語・英語・ひらがな)を入れると、入手できるミッション・敵・バウンティ・レリックと確率を一覧で表示します。カテゴリー(マスター一覧と同じ分け方)で候補を絞り込めます。「Prime を除外する」にチェックすると、入手先がレリックのもの(Prime の設計図・パーツ)を候補から外します。クラン研究(研究所も表示)・Simaris 交換・クエスト報酬で手に入るものも出ます。どれにも無いもの(マーケット・侵略の報酬など)は出てきません。",
-    "guide.area": "惑星やノードを選ぶと、そこで出る素材と確率をステージごとに表示します。",
-    "guide.mastery": "Warframe・武器などのマスター済みをチェックして、カテゴリごとの進み具合を確認できます。",
-    "guide.mods": "MOD の入手先と確率を調べ、持っている MOD にチェックを付けられます。MOD 一覧の画像からの読み取りにも対応しています。",
-    "guide.arcane": "持っているアルケインと、そのランクを記録します。",
-    "guide.baro": "バロ吉の履歴リストと今回の品物を確認し、持っているものとの照合ができます。",
-    "guide.riven": "公式の週次統計から、武器ごとの Riven の相場を確認できます。",
-    "guide.invasion": "いま進行中の侵略(場所・報酬・進み具合)と、侵略で手に入る武器パーツの一覧を表示します。手に入れたパーツにチェックを付けて管理できます。",
-    "guide.cycle": "平原などの昼夜と、デイリー・ウィークリーのリセットまでの時間を表示します。今週のスティール・エッセンス交換の報酬も確認できます。",
-    "guide.duviri": "デュヴィリサーキットの今週の報酬と今後のローテーションを、ノーマルと鋼の道のりで確認できます。",
-    "guide.build": "ビルドに名前をつけて保存・管理します。画像から MOD などを読み取って登録することもできます(Windows の文字認識を使います)。",
-    "guide.sim": "フレームの性能、武器の DPS、Riven の振れ幅を計算します。",
-    "guide.tips": "自分用のメモ(.md / .csv / .txt)を表示します。tips フォルダのファイルを編集すると内容が変わります。",
-    "guide.update": "公式データ(ドロップ表・日本語名・Riven 相場など)を取得します。ゲームのアップデート後に実行してください。",
-    "duviri.lead": "サーキットで選べる報酬の今週分と、来週以降の並びです。毎週月曜 9:00(JST)のウィークリーリセットで切り替わります。",
-    "duviri.normal": "ノーマル", "duviri.steelpath": "鋼の道のり",
-    "duviri.current": "今週の報酬", "duviri.upcoming": "今後のローテーション",
-    "duviri.date": "週(月曜)", "duviri.col": "報酬{n}", "duviri.weekday": "(月)",
-    "duviri.manual": "手動で調整中", "duviri.broken": "ローテーションのデータが読めません。",
-    "duviri.none": "ローテーションが1件だけなので、今後の表はありません。", "duviri.loading": "読み込み中...",
-    "duviri.adjust": "ゲーム内とズレているとき(手動で調整)", "duviri.adjust.id": "今週の ID(表示中のモード)",
-    "duviri.adjust.save": "保存", "duviri.adjust.reset": "同梱の設定に戻す",
-    "duviri.adjust.help": "ゲーム内の今週の報酬に合う ID を選んで保存すると、以降はそこから毎週進めて表示します。調整はモードごとで、ツールの更新では消えません。「同梱の設定に戻す」で調整を消せます。",
-    "spex.title": "スティール・エッセンス交換", "spex.current": "今週の報酬:",
-    "spex.date": "週(月曜)", "spex.item": "報酬", "spex.broken": "交換のデータが読めません。",
-    /* 交換の報酬名の置き換え(キーは JSON の綴りの小文字。末尾の数量 " x3" は除いた名前。表に無いものは英語のまま) */
-    "spex.item.umbra forma blueprint": "Umbraフォーマの設計図", "spex.item.forma": "フォーマ",
-    "spex.item.rifle riven mod": "ライフルRivenMOD", "spex.item.shotgun riven mod": "ショットガンRivenMOD",
-    "invasion.lead": "いま進行中の侵略と、侵略で手に入る武器パーツの取得状況です。侵略の一覧は「公式データで更新」を押したときに取り直します。",
-    "invasion.sync": "公式データで更新", "invasion.syncing": "公式データを取得しています...",
-    "invasion.fetched": "最終取得 {at}", "invasion.cached": "(60 秒以内なので前回の取得結果を使いました)",
-    "invasion.list": "侵略ミッション", "invasion.parts": "獲得パーツ一覧", "invasion.sum": "{owned} / {total} 取得",
-    "invasion.nodata": "まだ公式データを取得していません。「公式データで更新」を押してください。",
-    "invasion.stale": "保存済みの公式データに侵略の情報がありません(この機能を入れる前に取得したものです)。「公式データで更新」を押してください。",
-    "invasion.none": "進行中の侵略はありません。", "invasion.loading": "読み込み中...",
-    "invasion.noregions": "ノード名の辞書がまだ無いため、内部名で表示しています。「データ更新」を実行するとノード名で表示します。",
-    "invasion.broken": "獲得パーツの一覧(同梱データ)が読めません。",
-    "invasion.unknown": "一覧に無い武器パーツが侵略に来ています",
-    "invasion.unknown.help": "同梱の一覧(data/invasion/parts.json)に無いパーツです。開発側への連絡をお願いします。",
-    "invasion.node": "{node}({planet})", "invasion.vs": "{a} → {d}",
-    "invasion.side": "{f}側の報酬", "invasion.noreward": "報酬なし",
-    "invasion.progress": "進行度 {p}%", "invasion.count": " ×{n}",
-    "invasion.owned": "取得済み", "invasion.active": "侵略中",
-    "invasion.note": "報酬はその陣営の側でミッションを3回クリアすると手に入ります。完了した侵略は表示しません。取得済みのチェックはこの PC に保存され、ツールの更新では消えません。",
-    "invasion.faction.FC_GRINEER": "グリニア", "invasion.faction.FC_CORPUS": "コーパス", "invasion.faction.FC_INFESTATION": "感染体",
-    /* パーツの種類(同梱の parts.json の kind) */
-    "invasion.part.blueprint": "設計図", "invasion.part.barrel": "バレル", "invasion.part.receiver": "レシーバー",
-    "invasion.part.stock": "ストック", "invasion.part.link": "リンク", "invasion.part.blade": "ブレード",
-    "invasion.part.heatsink": "ヒートシンク", "invasion.part.hilt": "ヒルト",
-    /* パーツ検索(カテゴリーはマスター一覧と同じ。キーは wfp/core/common.py の MASTERY_CATS) */
-    "part.lead": "Warframe・武器などの本体・設計図・パーツの名前(日本語・英語・ひらがな)を入力すると、入手先と確率を一覧にします。",
-    "part.placeholder": "例: Rhino / Lex Prime", "part.events": "イベント限定を含む", "part.cats": "カテゴリー",
-    "part.noprime": "Prime を除外する",
-    "part.nomatch": "一致するパーツがありません。", "part.pick": "候補から選んでください。",
-    "part.empty": "パーツを選ぶか、名前を入力してください。", "part.nodata": "データがありません。「データ更新」から取得してください。",
-    "part.more": "ほか {n} 件(名前やカテゴリーで絞り込めます)",
-    "part.cat.all": "すべて", "part.cat.warframe": "Warframe", "part.cat.primary": "プライマリ", "part.cat.secondary": "セカンダリ",
-    "part.cat.melee": "近接", "part.cat.kitgun": "Kitgun", "part.cat.zaw": "Zaw", "part.cat.robotic": "ロボティック",
-    "part.cat.companion": "コンパニオン", "part.cat.archwing": "アークウイング", "part.cat.archgun": "アークウイングガン",
-    "part.cat.archmelee": "アークウイング近接", "part.cat.necramech": "ネクロメカ", "part.cat.kdrive": "Kドライブ", "part.cat.amp": "アンプ",
-  },
-  en: {
-    "menu.aria": "Menu", "menu.title": "Menu",
-    "group.search": "Search", "group.personal": "Personal Checklists", "group.info": "Info", "group.simulation": "Simulation", "group.other": "Others",
-    "page.home": "Home", "page.home.sub": "Jump to any page",
-    "page.item": "Find by Material", "page.item.sub": "Material → where it drops",
-    "page.part": "Part Search", "page.part.sub": "Warframe / weapon parts → where they drop",
-    "page.area": "Find by Area", "page.area.sub": "Planet / node → drops",
-    "page.mastery": "Mastery", "page.mastery.sub": "Mastery progress",
-    "page.mods": "Mods", "page.mods.sub": "Sources and owned mods",
-    "page.arcane": "Arcanes", "page.arcane.sub": "Owned arcanes and ranks",
-    "page.baro": "Baro Ki'Teer", "page.baro.sub": "Void Trader items vs. owned",
-    "page.riven": "Riven Prices", "page.riven.sub": "Official weekly stats",
-    "page.invasion": "Invasions", "page.invasion.sub": "Invasion missions and parts",
-    "page.cycle": "Cycles", "page.cycle.sub": "Day/night and resets",
-    "page.duviri": "Duviri Circuit", "page.duviri.sub": "Weekly rewards",
-    "page.build": "Builds", "page.build.sub": "Save and manage",
-    "page.sim": "Simulator", "page.sim.sub": "Frame / weapon / Riven math",
-    "page.tips": "Tips", "page.tips.sub": "Quick notes",
-    "page.guide": "Page Guide", "page.guide.sub": "What each page does",
-    "page.update": "Data Update", "page.update.sub": "Fetch official data",
-    "home.lead": "Jump to any page from here.",
-    "guide.lead": "What you can do on each page. Press Open to go to it.", "guide.open": "Open",
-    "guide.item": "Type a material name (Japanese, English or hiragana) to list the missions, enemies, bounties and relics that drop it, with chances.",
-    "guide.part": "Type the name of a Warframe, weapon or other item, or one of its blueprints or parts (Japanese, English or hiragana) to list the missions, enemies, bounties and relics that drop it, with chances. Narrow the candidates by category (same as the Mastery list). Check \"Exclude Prime\" to hide items that come from relics (Prime blueprints and parts). Items from clan research (with the lab), Simaris offerings and quest rewards are also listed. Items found in none of these (market, invasion rewards, etc.) are not listed.",
-    "guide.area": "Pick a planet or node to see the materials it drops and their chances, stage by stage.",
-    "guide.mastery": "Tick off mastered Warframes and weapons and check your progress per category.",
-    "guide.mods": "Look up where mods drop and tick the ones you own. Mod lists can also be read from a screenshot.",
-    "guide.arcane": "Record the arcanes you own and their ranks.",
-    "guide.baro": "See Baro Ki'Teer's history list and this visit's items, checked against what you own.",
-    "guide.riven": "See Riven prices per weapon from the official weekly stats.",
-    "guide.invasion": "Shows the invasions in progress (location, rewards, progress) and every weapon part invasions give. Tick the parts you have collected.",
-    "guide.cycle": "Day/night for the open worlds and the time until the daily and weekly resets. Also shows this week's Steel Essence exchange reward.",
-    "guide.duviri": "This week's Duviri Circuit rewards and the coming rotation, for Normal and Steel Path.",
-    "guide.build": "Save and manage your builds. Mods and more can be read from a screenshot (uses Windows text recognition).",
-    "guide.sim": "Calculate frame stats, weapon DPS and Riven ranges.",
-    "guide.tips": "Shows your own notes (.md / .csv / .txt). Edit the files in the tips folder to change it.",
-    "guide.update": "Fetch the official data (drop tables, Japanese names, Riven prices, etc.). Run it after game updates.",
-    "duviri.lead": "This week's Circuit rewards and the rotation for the coming weeks. Changes at the weekly reset (Monday 0:00 UTC).",
-    "duviri.normal": "Normal", "duviri.steelpath": "Steel Path",
-    "duviri.current": "This week", "duviri.upcoming": "Upcoming rotation",
-    "duviri.date": "Week of", "duviri.col": "Reward {n}", "duviri.weekday": " (Mon)",
-    "duviri.manual": "Adjusted manually", "duviri.broken": "The rotation data could not be read.",
-    "duviri.none": "There is only one rotation, so nothing is upcoming.", "duviri.loading": "Loading...",
-    "duviri.adjust": "Out of sync with the game? (adjust manually)", "duviri.adjust.id": "This week's ID (current mode)",
-    "duviri.adjust.save": "Save", "duviri.adjust.reset": "Back to bundled settings",
-    "duviri.adjust.help": "Pick the ID that matches this week's rewards in game; the rotation advances from there every week. Adjustments are per mode and survive tool updates.",
-    "spex.title": "Steel Essence Exchange", "spex.current": "This week: ",
-    "spex.date": "Week of", "spex.item": "Reward", "spex.broken": "The exchange data could not be read.",
-    "invasion.lead": "Invasions in progress and the weapon parts you have collected from them. The invasion list is refreshed when you press Update from official data.",
-    "invasion.sync": "Update from official data", "invasion.syncing": "Fetching official data...",
-    "invasion.fetched": "Last fetched {at}", "invasion.cached": " (within 60 seconds, so the previous result was used)",
-    "invasion.list": "Invasion missions", "invasion.parts": "Weapon parts", "invasion.sum": "{owned} / {total} collected",
-    "invasion.nodata": "No official data yet. Press Update from official data.",
-    "invasion.stale": "The saved official data has no invasions (it was fetched before this page existed). Press Update from official data.",
-    "invasion.none": "No invasions in progress.", "invasion.loading": "Loading...",
-    "invasion.noregions": "Node names are not available yet, so internal names are shown. Run Data Update to get them.",
-    "invasion.broken": "The parts list (bundled data) could not be read.",
-    "invasion.unknown": "Weapon parts not in the list are being offered",
-    "invasion.unknown.help": "These parts are missing from the bundled list (data/invasion/parts.json). Please report them.",
-    "invasion.node": "{node} ({planet})", "invasion.vs": "{a} → {d}",
-    "invasion.side": "{f} reward", "invasion.noreward": "No reward",
-    "invasion.progress": "Progress {p}%", "invasion.count": " x{n}",
-    "invasion.owned": "Collected", "invasion.active": "Available",
-    "invasion.note": "Rewards are earned by completing three missions for that side. Finished invasions are hidden. Collected checks are saved on this PC and survive tool updates.",
-    "invasion.faction.FC_GRINEER": "Grineer", "invasion.faction.FC_CORPUS": "Corpus", "invasion.faction.FC_INFESTATION": "Infested",
-    "invasion.part.blueprint": "Blueprint", "invasion.part.barrel": "Barrel", "invasion.part.receiver": "Receiver",
-    "invasion.part.stock": "Stock", "invasion.part.link": "Link", "invasion.part.blade": "Blade",
-    "invasion.part.heatsink": "Heatsink", "invasion.part.hilt": "Hilt",
-    "part.lead": "Type the name of a Warframe, weapon or other item, or one of its blueprints or parts (Japanese, English or hiragana) to list where it drops and the chances.",
-    "part.placeholder": "e.g. Rhino / Lex Prime", "part.events": "Include event-only", "part.cats": "Category",
-    "part.noprime": "Exclude Prime",
-    "part.nomatch": "No matching parts.", "part.pick": "Pick one of the candidates.",
-    "part.empty": "Pick a part or type a name.", "part.nodata": "No data yet. Get it from the Data Update page.",
-    "part.more": "{n} more (narrow by name or category)",
-    "part.cat.all": "All", "part.cat.warframe": "Warframe", "part.cat.primary": "Primary", "part.cat.secondary": "Secondary",
-    "part.cat.melee": "Melee", "part.cat.kitgun": "Kitgun", "part.cat.zaw": "Zaw", "part.cat.robotic": "Robotic",
-    "part.cat.companion": "Companion", "part.cat.archwing": "Archwing", "part.cat.archgun": "Arch-gun",
-    "part.cat.archmelee": "Arch-melee", "part.cat.necramech": "Necramech", "part.cat.kdrive": "K-Drive", "part.cat.amp": "Amp",
-  },
-};
-let lang = "ja";
-function t(key) {
-  const own = I18N[lang] && I18N[lang][key];
-  return own != null ? own : (I18N.ja[key] != null ? I18N.ja[key] : key);
+/* ---------- 言語の切り替え ---------- */
+/* ヘッダーのボタンで切り替え、localStorage(wf-lang)に覚える。URL の ?lang=en は覚えている言語より優先する。
+   切り替えたときは、メニューと表示中のページを描き直す。ページは relabel.<id> に描き直しの関数を登録する
+   (データを取り直さず、手元の結果と入力を保ったまま文字だけ変えるもの)。登録の無いページは次に開いたときに反映される */
+const relabel = {};
+function renderLangSwitch() {
+  const box = $("#lang-sw");
+  if (!box) return;
+  box.setAttribute("aria-label", t("lang.switch"));
+  box.replaceChildren(...Object.keys(I18N).map(code => {
+    const b = document.createElement("button");
+    b.type = "button"; b.dataset.lang = code; b.lang = code;
+    b.textContent = I18N[code]["lang.short"] || code.toUpperCase();
+    b.title = I18N[code]["lang.name"] || code;
+    b.setAttribute("aria-pressed", String(code === lang));
+    return b;
+  }));
+  box.hidden = Object.keys(I18N).length < 2;
 }
-/* 言語の切り替え(いまは画面にボタンを出さない。確認用に URL の ?lang=en で切り替わる) */
-function setLang(code) {
+function setLang(code, remember = true) {
   if (!I18N[code]) return;
   lang = code;
   document.documentElement.lang = code;
+  if (remember) { try { localStorage.setItem("wf-lang", code); } catch (e) {} }
+  renderLangSwitch();
   renderMenu();
+  if (typeof renderStatus === "function") renderStatus();  // ヘッダーのデータの状態(ページ処理の部品。読み込み前は無い)
+  if (currentView && relabel[currentView]) relabel[currentView]();
+  // シミュレータ(iframe の別ページ)にも伝える。まだ開いていなければ、開いたときに覚えた言語で表示される
+  const sim = document.querySelector("#view-sim iframe");
+  try { if (sim && sim.contentWindow && sim.contentWindow.wfSetLang) sim.contentWindow.wfSetLang(code); } catch (e) {}
 }
+$("#lang-sw") && $("#lang-sw").addEventListener("click", e => {
+  const b = e.target.closest("[data-lang]");
+  if (b && b.dataset.lang !== lang) setLang(b.dataset.lang);
+});
 
 /* ---------- メニュー ---------- */
 /* 並びとカテゴリー分け。項目はページの id(<section id="view-○○">)。
@@ -281,8 +136,8 @@ function show(view) {
   loaders[view] && loaders[view]();
 }
 {
-  const q = new URLSearchParams(location.search).get("lang");
-  if (q && I18N[q]) { lang = q; document.documentElement.lang = q; }
+  lang = initialLang(); document.documentElement.lang = lang;
+  renderLangSwitch();
   renderMenu();
 }
 

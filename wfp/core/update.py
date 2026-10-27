@@ -12,37 +12,37 @@ from pathlib import Path
 import wfportal_baro as wbaro
 import wfportal_builder as wb
 from wfp.core import invasion, riven
-from wfp.core.common import DROPS_URLS, WFCD_BASES, WFCD_EXTRA
+from wfp.core.common import DROPS_URLS, WFCD_BASES, WFCD_EXTRA, TextError, TextFailure, error_text, name_txt, say, txt
 from wfp.fetch import exports, logos, net
 from wfp.store import gamedata
 
 
-class UpdateFailed(Exception):
-    """データ更新を続けられない(ドロップ表か名前辞書が取れなかった)"""
+class UpdateFailed(TextFailure):
+    """データ更新を続けられない(ドロップ表か名前辞書が取れなかった)。文はテキスト指定"""
 
 
 def update_all(d: Path) -> None:
     """公式データをまとめて取得・更新する(CLI の update / 画面の「データ更新」)。
 
-    進み具合は print で出す(画面は標準出力を横取りしてログにする)。各段階は失敗しても前回分で続行し、
+    進み具合は say で出す(CLI は日本語で標準出力に、画面は collect_log で集めて表示中の言語にする)。各段階は失敗しても前回分で続行し、
     ドロップ表か名前辞書が取れなかったときだけ UpdateFailed で止める。
     """
-    print("ドロップ表を取得中...")
+    say(txt("log.fetching.drops"))
     raw = None
     for url in DROPS_URLS:
         try:
             raw = net.http_get(url)
             json.loads(raw)
-            print(f"  取得元: {url}")
+            say(txt("log.source", src=url), 1)
             break
         except Exception as e:  # noqa: BLE001
-            print(f"  失敗: {url} ({e})")
+            say(txt("log.failed.what", what=url, e=error_text(e)), 1)
             raw = None
     if raw is None:
-        raise UpdateFailed("ドロップ表を取得できませんでした。ネットワーク設定を確認してください。")
+        raise UpdateFailed(txt("err.update.drops"))
     (d / "missionRewards.json").write_bytes(raw)
 
-    print("追加の入手先(敵・バウンティ・レリック等)を取得中...")
+    say(txt("log.fetching.extra"))
     (d / "wfcd").mkdir(exist_ok=True)
     ok_extra = 0
     for name in WFCD_EXTRA:
@@ -50,47 +50,47 @@ def update_all(d: Path) -> None:
             (d / "wfcd" / f"{name}.json").write_bytes(net.fetch_json([f"{b}/{name}.json" for b in WFCD_BASES]))
             ok_extra += 1
         except Exception as e:  # noqa: BLE001
-            print(f"  失敗: {name} ({e})  ※前回取得分があればそれを使います")
-    print(f"  {ok_extra} / {len(WFCD_EXTRA)} ファイル取得")
+            say(txt("log.failed.keep", what=name, e=error_text(e)), 1)
+    say(txt("log.extra.count", ok=str(ok_extra), total=str(len(WFCD_EXTRA))), 1)
 
     riven.update_rivens(d)
 
-    print("名前辞書(Public Export)を取得中...")
+    say(txt("log.fetching.names"))
     docs: dict = {}
     try:
         names = exports.fetch_names(docs)
     except Exception as e:  # noqa: BLE001
-        raise UpdateFailed(f"名前辞書を取得できませんでした: {e}") from e
+        raise UpdateFailed(txt("err.update.names", e=error_text(e))) from e
     names["updated"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     (d / "names.json").write_text(json.dumps(names, ensure_ascii=False), encoding="utf-8")
-    print(f"完了: 名前 {len(names['en2ja'])} 件 / 素材 {len(names['resources'])} 件 / MOD {len(names['mods'])} 件 -> {d}")
+    say(txt("log.names.done", names=str(len(names["en2ja"])), res=str(len(names["resources"])), mods=str(len(names["mods"])), dir=str(d)))
 
     # シミュレータ用のデータ(フレーム・武器の性能)も、同じ Export から作る(追加のダウンロードはしない)
     try:
         sim = wb.save_builder_data(d, wb.extract_builder_data(docs["en"], docs["ja"]), docs["source"])
-        print(f"シミュレータ用データ: フレーム {len(sim['frames'])} 件 / 武器 {len(sim['weapons'])} 件")
+        say(txt("log.sim.done", f=str(len(sim["frames"])), w=str(len(sim["weapons"]))))
     except Exception as e:  # noqa: BLE001
-        print(f"  シミュレータ用データを作れませんでした: {e}  ※前回取得分があればそれを使います")
+        say(txt("log.sim.failed", e=error_text(e)), 1)
 
     # バロの在庫(内部パス)を名前にする辞書も、同じ Export から作る
     try:
         paths = wbaro.item_paths_from_exports(docs["en"])
         wbaro.save_item_paths(d, paths)
-        print(f"内部パスの辞書: {len(paths)} 件")
+        say(txt("log.paths.done", n=str(len(paths))))
     except Exception as e:  # noqa: BLE001
-        print(f"  内部パスの辞書を作れませんでした: {e}  ※前回取得分があればそれを使います")
+        say(txt("log.paths.failed", e=error_text(e)), 1)
 
     # 侵略サイクルのノード名(SolNode… → ノード名・惑星名)。名前辞書とは別に取る(names.json に混ぜないため)
-    print("ノード名(ExportRegions)を取得中...")
+    say(txt("log.fetching.regions"))
     try:
         en_doc, ja_doc, src = exports.fetch_regions()
         regions = invasion.regions_from_exports(en_doc, ja_doc)
         if not regions:
-            raise RuntimeError("ノードが見つかりません")
+            raise TextFailure(txt("err.regions.none"))
         gamedata.save_regions(d, regions)
-        print(f"ノード名: {len(regions)} 件(取得元: {src})")
+        say(txt("log.regions.done", n=str(len(regions)), src=name_txt("export.src.", src)))
     except Exception as e:  # noqa: BLE001
-        print(f"  ノード名を取得できませんでした: {e}  ※前回取得分があればそれを使います(無ければ内部名で表示)")
+        say(txt("log.regions.failed", e=error_text(e)), 1)
 
     if not logos.find_logos_dir(d):  # 初回(ロゴ素材が未取得)のときだけ取得する
         logos.fetch_logos(d)

@@ -20,7 +20,7 @@ import urllib.request
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 
-from wfp.core.common import PLANETS_JA
+from wfp.core.common import name_txt, render_ja, txt
 from wfp.core.cycle import apply_worldstate_cycles, clock_offset
 from wfp.fetch import decode, net
 from wfp.store import userdata
@@ -205,7 +205,12 @@ def sync(d: Path, force: bool = False, verbose: bool = False, fetcher=None, now:
     return {**snap, "cached": False}
 
 
-def relay_label(node: str) -> str:
+def relay_txt(node: str):
+    """バロが来るリレーのテキスト指定(「Orcus Relay(冥王星)」。惑星の無いリレー・知らないノードは名前だけ)"""
     name, planet = RELAYS.get(node, (node, ""))
-    planet_ja = PLANETS_JA.get(planet, planet)
-    return f"{name}({planet_ja})" if planet_ja else name
+    return txt("baro.relay", name=name, planet=name_txt("planet.", planet)) if planet else name
+
+
+def relay_label(node: str) -> str:
+    """リレーの日本語の表示名(CLI 用)"""
+    return render_ja(relay_txt(node))

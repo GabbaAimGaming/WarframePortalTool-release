@@ -8,9 +8,9 @@ from pathlib import Path
 from wfp.cli.table import pad, print_table
 from wfp.core.arcane import arcane_summary, arcane_table, set_arcanes_owned
 from wfp.core.build import find_build
-from wfp.core.common import ARCANE_CATS, BUILD_TYPES, MASTERY_CATS, MOD_TYPES, SOURCE_CATS, norm, pct, rank
+from wfp.core.common import ARCANE_CATS, BUILD_TYPES, MASTERY_CATS, MOD_TYPES, RARITY_JA, SOURCE_CATS, norm, pct, rank, render_ja
 from wfp.core.loader import load_drops, load_names, load_sources
-from wfp.core.mastery import mastery_summary, mastery_table
+from wfp.core.mastery import mastery_label, mastery_summary, mastery_table
 from wfp.core.mods import mod_table
 from wfp.drops.search import all_item_names
 from wfp.store import build_images, datadir, userdata
@@ -52,9 +52,10 @@ def cmd_mods(args):
     out = []
     for m in rows[: args.limit]:
         b = m["best"]
-        out.append(["✓" if m["owned"] else "", m["ja"], m["type_ja"], m["polarity_name"], m["rarity_ja"],
+        out.append(["✓" if m["owned"] else "", m["ja"], MOD_TYPES.get(m["type"], m["type"]), m["polarity_name"],
+                    RARITY_JA.get(m["rarity"], m["rarity"]),
                     " ".join(f"{SOURCE_CATS[c]}{n}" for c, n in m["counts"].items()) or "記載なし",
-                    f"{b['cat_ja']}: {b['place']} {pct(b['chance'])}" if b else ""])
+                    f"{SOURCE_CATS[b['cat']]}: {render_ja(b['place'])} {pct(b['chance'])}" if b else ""])
     print_table(["所持", "MOD", "種別", "極性", "レア度", "入手先(件数)", "最も確率が高い入手先"], out)
     print(f"\n{len(rows)} 件中 {min(len(rows), args.limit)} 件を表示 / 所持 {sum(m['owned'] for m in rows)} 件")
     print("「記載なし」はドロップ表に無いもの(シンジケート・バロ・ナイトウェーブ・クエスト報酬など)です。")
@@ -66,7 +67,8 @@ def cmd_mastery(args):
     if not names.mastery:
         sys.exit("マスター一覧のデータがありません。`python wfportal.py update` を実行してください。")
     done = userdata.load_mastered(d)
-    rows = mastery_table(names, done)
+    # 表示名(Kitgun の区別つき)とカテゴリー名は CLI で付ける(一覧の中身はキーのまま)
+    rows = [{**r, "label": mastery_label(r), "cat_ja": MASTERY_CATS.get(r["cat"], r["cat"])} for r in mastery_table(names, done)]
     action, query = "list", list(args.query)
     if query and query[0] in ("list", "done", "undo"):
         action, query = query[0], query[1:]
@@ -112,7 +114,8 @@ def cmd_arcane(args):
                  "(この機能を追加する前に取得したデータには含まれていません)。")
     owned = userdata.load_arcanes_owned(d)
     drop_items = all_item_names(load_drops(d), load_sources(d)) if (d / "missionRewards.json").exists() else []
-    rows = arcane_table(names, owned, drop_items)
+    rows = [{**r, "cat_ja": ARCANE_CATS.get(r["cat"], r["cat"]), "rarity_ja": RARITY_JA.get(r["rarity"], r["rarity"])}
+            for r in arcane_table(names, owned, drop_items)]
     action, query = "list", list(args.query)
     if query and query[0] in ("list", "own", "unown"):
         action, query = query[0], query[1:]

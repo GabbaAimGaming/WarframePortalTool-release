@@ -168,7 +168,7 @@ def _rev(p: Path) -> str:
 def tip_file(root: Path, rel: str) -> dict:
     p = tip_path(root, rel)
     if p is None or p.suffix.lower() not in TIPS_KINDS:
-        raise ApiError("メモが見つかりません。目次を読み込み直してください。", 404)
+        raise ApiError(common.txt("err.tips.missing"), 404)
     text = _read_tip_text(p)
     kind = TIPS_KINDS[p.suffix.lower()]
     out = {"path": rel, "title": _tip_title(p, text), "kind": kind, "updated": mtime_jst(p),
@@ -234,17 +234,19 @@ def _write_text(p: Path, text: str) -> None:
 class _Writing:
     """書き込みの失敗を画面向けの文言にする(PermissionError はほかのアプリで開いているときに多い)"""
 
-    def __init__(self, failed: str):
-        self.failed = failed
+    def __init__(self, failed):
+        self.failed = failed  # 文字列(日本語)か、テキスト指定(画面が表示中の言語で出す。メモの保存だけ)
 
     def __enter__(self):
         return self
 
     def __exit__(self, et, e, tb):
+        text = not isinstance(self.failed, str)
         if et is not None and issubclass(et, PermissionError):
-            raise ApiError(f"{self.failed}。ファイルがほかのアプリで開かれていないか、書き込みが許可されているか確認してください。", 423) from e
+            raise ApiError(common.txt("err.tips.locked", what=self.failed) if text else
+                           f"{self.failed}。ファイルがほかのアプリで開かれていないか、書き込みが許可されているか確認してください。", 423) from e
         if et is not None and issubclass(et, OSError):
-            raise ApiError(f"{self.failed}: {e}", 500) from e
+            raise ApiError(common.txt("err.tips.write", what=self.failed, e=str(e)) if text else f"{self.failed}: {e}", 500) from e
         return False
 
 
@@ -263,7 +265,7 @@ def _str(body: dict, key: str) -> str:
 
 def _check_size(text: str) -> None:
     if len(text.encode("utf-8")) > TIPS_EDIT_MAX_BYTES:
-        raise ApiError(f"メモが大きすぎます(上限 {TIPS_EDIT_MAX_BYTES // 1024}KB)。", 413)
+        raise ApiError(common.txt("err.tips.large", kb=str(TIPS_EDIT_MAX_BYTES // 1024)), 413)
 
 
 def _group_dir(root: Path, group: str) -> Path | None:
@@ -284,25 +286,25 @@ def save_tip(root: Path, body) -> dict:
     text, rel = body.get("text"), _str(body, "path")
     if not isinstance(text, str):
         raise ApiError("text は文字列で指定してください。")
-    with _TIPS_LOCK, _Writing("保存できませんでした"):
+    with _TIPS_LOCK, _Writing(common.txt("err.tips.save")):
         if rel:
             p = tip_path(root, rel)
             if p is None:
-                raise ApiError("メモが見つかりません。目次を読み込み直してください。", 404)
+                raise ApiError(common.txt("err.tips.missing"), 404)
             if TIPS_KINDS.get(p.suffix.lower()) not in TIPS_EDIT_KINDS or p.stat().st_size > TIPS_EDIT_MAX_BYTES:
-                raise ApiError("画面で編集できるのは .md のメモ(900KB 以下)だけです。")
+                raise ApiError(common.txt("err.tips.editable", kb=str(TIPS_EDIT_MAX_BYTES // 1024)))
             if _str(body, "rev") != _rev(p):
-                raise ApiError("ほかのアプリでメモが変更されています。内容を確かめてから、もう一度開き直してください。", 409)
+                raise ApiError(common.txt("err.tips.changed"), 409)
             _check_size(text)
             _write_text(p, text)
         else:
             title = " ".join(_str(body, "title").split())
             if not title:
-                raise ApiError("タイトルを入れてください。")
+                raise ApiError(common.txt("err.tips.title"))
             group = _str(body, "group")
             d = _group_dir(root, group) if group else root
             if d is None:
-                raise ApiError("グループが見つかりません。目次を読み込み直してください。", 404)
+                raise ApiError(common.txt("err.tips.group"), 404)
             text = f"# {title}\n\n{text.lstrip(chr(10))}"
             _check_size(text)
             root.mkdir(parents=True, exist_ok=True)
@@ -358,17 +360,17 @@ def _trash_item(root: Path, tid) -> Path:
         and not tid.startswith(".") and tid != TIPS_TRASH_INDEX
     p = td / tid if ok else None
     if p is None or not p.is_file() or p.suffix.lower() not in TIPS_KINDS:
-        raise ApiError("ゴミ箱にメモが見つかりません。一覧を読み込み直してください。", 404)
+        raise ApiError(common.txt("err.tips.trashmissing"), 404)
     return p
 
 
 def trash_tip(root: Path, body) -> dict:
     """メモをゴミ箱(tips/_trash/)へ移す。元の場所・日時・タイトルは _index.json に残す"""
     rel = _str(_obj(body), "path")
-    with _TIPS_LOCK, _Writing("ゴミ箱に移せませんでした"):
+    with _TIPS_LOCK, _Writing(common.txt("err.tips.trashmove")):
         p = tip_path(root, rel)
         if p is None or p.suffix.lower() not in TIPS_KINDS:
-            raise ApiError("メモが見つかりません。目次を読み込み直してください。", 404)
+            raise ApiError(common.txt("err.tips.missing"), 404)
         rel, title = _rel(root, p), _tip_title(p)
         td = root / TIPS_TRASH
         td.mkdir(exist_ok=True)
@@ -398,7 +400,7 @@ def trash_list(root: Path) -> dict:
 def restore_tip(root: Path, body) -> dict:
     """ゴミ箱から元の場所へ戻す。元のグループが無ければ作り直す。同じ名前があれば「名前 (2)」"""
     tid = _obj(body).get("id")
-    with _TIPS_LOCK, _Writing("元に戻せませんでした"):
+    with _TIPS_LOCK, _Writing(common.txt("err.tips.restore")):
         src = _trash_item(root, tid)
         td = src.parent
         entries = _trash_index(td)
@@ -422,7 +424,7 @@ def _group_name_ok(name: str) -> bool:
 def purge_tip(root: Path, body) -> dict:
     """完全に消す。id ならゴミ箱の中、path なら目次のメモ。メモに貼った画像は残す"""
     body = _obj(body)
-    with _TIPS_LOCK, _Writing("削除できませんでした"):
+    with _TIPS_LOCK, _Writing(common.txt("err.tips.purge")):
         if "id" in body:
             p = _trash_item(root, body.get("id"))
             p.unlink()
@@ -431,7 +433,7 @@ def purge_tip(root: Path, body) -> dict:
         rel = _str(body, "path")
         p = tip_path(root, rel)
         if p is None or p.suffix.lower() not in TIPS_KINDS:
-            raise ApiError("メモが見つかりません。目次を読み込み直してください。", 404)
+            raise ApiError(common.txt("err.tips.missing"), 404)
         rel = _rel(root, p)
         p.unlink()
         _drop_order(root, rel)

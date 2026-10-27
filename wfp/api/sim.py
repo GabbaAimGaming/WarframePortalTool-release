@@ -6,6 +6,7 @@ import io
 
 import wfportal_builder as wb
 from wfp.api.store import Store
+from wfp.core.common import collect_log
 from wfp.core.riven import dispo_table
 
 
@@ -16,10 +17,11 @@ def sim_dispo_rows(store: Store) -> list[dict]:
 
 
 def run_update_sim(store: Store) -> dict:
+    """シミュレータ用データだけ取り直す。log は日本語のログ、lines は同じ行のテキスト指定(画面が表示中の言語で出す)"""
     buf = io.StringIO()
-    with contextlib.redirect_stdout(buf):
+    with contextlib.redirect_stdout(buf), collect_log() as lines:
         ok = wb.update_builder_data(store.d)
-    return {"ok": ok, "log": buf.getvalue()}
+    return {"ok": ok, "log": buf.getvalue(), "lines": lines}
 
 
 # (メソッド, パス) -> 処理。c はリクエスト(wfp/api/server.py の Request)

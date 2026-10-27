@@ -5,7 +5,7 @@ import sys
 
 from wfp.cli.common import need_drops
 from wfp.cli.table import print_table
-from wfp.core.common import MODES_JA, PLANETS_JA, RARITY_JA, SOURCE_CATS, norm, pct, rank
+from wfp.core.common import MODES_JA, PLANETS_JA, RARITY_JA, SOURCE_CATS, norm, pct, rank, render_ja
 from wfp.core.loader import load_names, load_sources
 from wfp.drops.search import all_item_names, find_sources, group_candidates, pick_candidates
 from wfp.drops.tables import stage_label
@@ -40,8 +40,9 @@ def cmd_item(args):
     if args.cat:
         rows = [r for r in rows if r["cat"] in args.cat]
     print(f"■ {names.ja(base)}  ({base})  — {len(rows)} か所\n")
-    out = [[r["cat_ja"], r["place"] + (" [イベント]" if r["event"] else ""), r["detail"], r["stage"],
-            (f"{r['qty']}個 " if r["qty"] else "") + pct(r["chance"]), r["rarity_ja"]] for r in rows[: args.limit]]
+    out = [[SOURCE_CATS.get(r["cat"], r["cat"]), render_ja(r["place"]) + (" [イベント]" if r["event"] else ""), render_ja(r["detail"]),
+            render_ja(r["stage"]), (f"{r['qty']}個 " if r["qty"] else "") + pct(r["chance"]), RARITY_JA.get(r["rarity"], r["rarity"])]
+           for r in rows[: args.limit]]
     print_table(["種類", "入手先", "詳細", "ステージ", "確率", "レア度"], out, right_cols=(4,))
     if len(rows) > args.limit:
         print(f"\n(上位 {args.limit} 件を表示。--limit で変更できます)")
@@ -82,7 +83,7 @@ def cmd_area(args):
         for rot in sorted(by_rot):
             first = True
             for r in sorted(by_rot[rot], key=lambda x: -x[6]):
-                out.append([stage_label(rot) if first else "", names.ja(r[5]), pct(r[6]), RARITY_JA.get(r[7], r[7])])
+                out.append([render_ja(stage_label(rot)) if first else "", names.ja(r[5]), pct(r[6]), RARITY_JA.get(r[7], r[7])])
                 first = False
         if not out and len(targets) > 1:
             continue  # 素材が出ないノードは一覧から省く

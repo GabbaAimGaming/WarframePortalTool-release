@@ -17,6 +17,7 @@ import wfportal_builder as wb
 from wfp.api import admin, info, pages, personal, search, sim, tips
 from wfp.api.store import ApiError, Raw, Store
 from wfp.core import common
+from wfp.core.common import txt
 from wfp.fetch import logos
 from wfp.store import build_images, datadir
 
@@ -35,20 +36,21 @@ def collect_routes(groups=GROUPS) -> tuple[dict, dict]:
     return exact, prefix
 
 
-def page(name: str):
-    return lambda c: Raw((common.APP_DIR / "web" / name).read_bytes(), "text/html; charset=utf-8")
-
-
 def ui_page(c: "Request") -> Raw:
-    """メイン画面: web/ctrl.html・menu.html・view.html を組み立てた1枚(wfp/api/pages.py)"""
+    """メイン画面: web/ctrl.html・menu.html・view.html・i18n.html を組み立てた1枚(wfp/api/pages.py)"""
     return Raw(pages.ui_html(), "text/html; charset=utf-8")
+
+
+def builder_page(c: "Request") -> Raw:
+    """シミュレータ: web/wfportal_builder.html に i18n.html と言語の表を差し込んだもの(wfp/api/pages.py)"""
+    return Raw(pages.builder_html(), "text/html; charset=utf-8")
 
 
 def logo(c: "Request") -> Raw:
     """各自の PC に取得した公式ファンキットのロゴ(同梱はしていない)"""
     ld = logos.find_logos_dir(c.store.d)
     if ld is None:
-        raise ApiError("ロゴ素材が未取得です。", 404)
+        raise ApiError(txt("err.logo.none"), 404)
     return Raw((ld / "LotusFlower.png").read_bytes(), "image/png", "private, max-age=86400")
 
 
@@ -57,8 +59,8 @@ PAGES = {
     ("GET", "/"): ui_page,
     ("GET", "/index.html"): ui_page,
     # シミュレータ(メニューの「シミュレータ」の中に表示する。単独のページとしても開ける)
-    ("GET", "/builder"): page("wfportal_builder.html"),
-    ("GET", "/simulator"): page("wfportal_builder.html"),
+    ("GET", "/builder"): builder_page,
+    ("GET", "/simulator"): builder_page,
     ("GET", "/logo.png"): logo,
 }
 
@@ -77,14 +79,14 @@ class Request:
     def body(self) -> dict:
         h = self.handler.headers
         if "application/json" not in (h.get("Content-Type") or ""):
-            raise ApiError("Content-Type は application/json にしてください。", 415)
+            raise ApiError(txt("err.req.json_type"), 415)
         n = int(h.get("Content-Length") or 0)
         if n > 1_000_000:
-            raise ApiError("リクエストが大きすぎます。", 413)
+            raise ApiError(txt("err.req.too_large"), 413)
         try:
             return json.loads(self.handler.rfile.read(n) or b"{}")
         except json.JSONDecodeError:
-            raise ApiError("JSON を読み取れません。")
+            raise ApiError(txt("err.req.bad_json"))
 
     def empty_body(self) -> None:
         """本文を使わない POST でも、形式(JSON)の検査はする。戻り値は常に None"""
@@ -93,10 +95,10 @@ class Request:
     def image(self) -> bytes:
         h = self.handler.headers
         if not (h.get("Content-Type") or "").startswith("image/"):
-            raise ApiError("画像ファイルを送ってください。", 415)
+            raise ApiError(txt("err.req.image_type"), 415)
         n = int(h.get("Content-Length") or 0)
         if n > build_images.IMAGE_MAX_BYTES:
-            raise ApiError(f"画像が大きすぎます(上限 {build_images.IMAGE_MAX_BYTES // 1024 // 1024}MB)。", 413)
+            raise ApiError(txt("err.req.image_large", mb=str(build_images.IMAGE_MAX_BYTES // 1024 // 1024)), 413)
         return self.handler.rfile.read(n)
 
 
@@ -151,8 +153,10 @@ def make_handler(store: Store, tips_dir: Path | None = None):
                 if isinstance(out, Raw):
                     return self._send(200, out.body, out.ctype, out.cache)
                 return self._json(out)
-            except (ApiError, wb.BuilderError) as e:
-                self._json({"error": str(e)}, e.status)
+            except ApiError as e:
+                self._json(e.payload(), e.status)
+            except wb.BuilderError as e:
+                self._json({"error": str(e), "text": e.text}, e.status)
             except (BrokenPipeError, ConnectionResetError):
                 pass  # ブラウザ側が先に接続を閉じた
             except Exception as e:  # noqa: BLE001

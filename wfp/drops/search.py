@@ -3,30 +3,30 @@ from __future__ import annotations
 
 from typing import Callable
 
-from wfp.core.common import MODES_JA, PLANETS_JA, RARITY_JA, SOURCE_CATS, norm, rank
+from wfp.core.common import SOURCE_CATS, name_txt, norm, rank, render_ja
 from wfp.core.names import Names, item_key
-from wfp.drops.tables import Drops, Sources, stage_label
+from wfp.drops.tables import Drops, Sources, mission_place, stage_label
 
 
 def find_sources(key: str, drops: "Drops", sources: Sources | None, names: Names, events: bool = False) -> list[dict]:
-    """項目(英名)の入手先を、ミッション・敵・バウンティ・レリック・クラン研究等すべてから集めて確率の高い順に返す(確率の無いクラン研究は最後)。"""
+    """項目(英名)の入手先を、ミッション・敵・バウンティ・レリック・クラン研究等すべてから集めて確率の高い順に返す(確率の無いクラン研究は最後)。
+
+    cat は入手先の種類のキー(SOURCE_CATS)、rarity はレア度のキー(Common など)、place・detail・stage はテキスト指定
+    (wfp/core/common.py の txt。画面は web/i18n の表で、CLI は render_ja で文にする)。並びは日本語の入手先名で決める
+    """
     k = item_key(key)
     out = []
     for planet, node, mode, event, rot, item, chance, rarity in drops.rows:
         if item_key(item) == k and (events or not event):
-            out.append({"cat": "mission", "place": f"{PLANETS_JA.get(planet, planet)} / {node}", "planet": PLANETS_JA.get(planet, planet),
-                        "node": node, "detail": MODES_JA.get(mode, mode), "event": event, "stage": stage_label(rot),
-                        "qty": names.split_qty(item)[0], "chance": chance, "rarity": rarity})
+            out.append({"cat": "mission", "place": mission_place(planet, node), "detail": name_txt("mode.", mode), "event": event,
+                        "stage": stage_label(rot), "qty": names.split_qty(item)[0], "chance": chance, "rarity": rarity})
     for cat, place, detail, rot, item, chance, rarity in (sources.rows if sources else []):
         if item_key(item) == k:
-            out.append({"cat": cat, "place": place, "planet": "", "node": place, "detail": detail, "event": False,
+            out.append({"cat": cat, "place": place, "detail": detail, "event": False,
                         "stage": stage_label(rot), "qty": names.split_qty(item)[0], "chance": chance, "rarity": rarity})
     order = {c: i for i, c in enumerate(SOURCE_CATS)}
     # 確率の無い入手先(クラン研究)は確率のある行のあと
-    out.sort(key=lambda r: (r["chance"] is None, -(r["chance"] or 0), order.get(r["cat"], 99), r["place"]))
-    for r in out:
-        r["cat_ja"] = SOURCE_CATS.get(r["cat"], r["cat"])
-        r["rarity_ja"] = RARITY_JA.get(r["rarity"], r["rarity"])
+    out.sort(key=lambda r: (r["chance"] is None, -(r["chance"] or 0), order.get(r["cat"], 99), render_ja(r["place"])))
     return out
 
 

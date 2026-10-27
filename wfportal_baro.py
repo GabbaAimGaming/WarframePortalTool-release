@@ -39,9 +39,9 @@ OWNED_FILE = "baro_owned.json"    # このページの手動チェック
 PATHS_FILE = "item_paths.json"    # 内部パス → 英語名(「データ更新」で作る)
 RULES_FILE = common.APP_DIR / "data" / "baro_rules.json"  # 初期リストの除外・追加(ツールに同梱。編集してよい)
 
-# 照合の種類
-KINDS = {"mod": "MOD", "weapon": "武器", "manual": "装飾・外装など", "repeat": "消耗品など"}
-CHECK_BY = {"mod": "MOD入手一覧の所持", "weapon": "マスター一覧のマスター済み", "manual": "このページのチェック", "repeat": "照合しない"}
+# 照合の種類(表示名は wfp/core/common.py。画面は I18N の baro.kind.<キー> / baro.check.<キー>)
+KINDS = common.BARO_KINDS
+CHECK_BY = common.BARO_CHECK_BY
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 TENNOCON_NODES = {"TennoConHUB2"}  # TennoCon は過去の品物がすべて並ぶ特別な来訪なので、記録しない
 
@@ -248,10 +248,10 @@ def set_manual_owned(d: Path, name: str, owned: bool, names: Names | None = None
     """手動チェックを付け外しする(装飾・外装など、ほかの一覧で照合できないものだけ)"""
     key = name.strip().lower()
     if not key:
-        raise ValueError("名前がありません。")
+        raise common.TextError(common.txt("err.baro.noname"))
     known = {r["name"].lower(): r["kind"] for r in load_history_items(d, names or load_names(d))}
     if known.get(key, fix_kind(key, "manual")) != "manual":
-        raise ValueError(f"{name} は {CHECK_BY[known[key]]} で照合します(このページではチェックしません)。")
+        raise common.TextError(common.txt("err.baro.notmanual", name=name, by=common.txt("baro.check." + known[key])))
     s = load_manual_owned(d)
     (s.add if owned else s.discard)(key)
     (d / OWNED_FILE).write_text(json.dumps(sorted(s), ensure_ascii=False, indent=0), encoding="utf-8")
@@ -280,8 +280,8 @@ class Owned:
 
 
 def row(name: str, kind: str, names: Names, owned: Owned) -> dict:
-    return {"name": name, "ja": names.ja(name), "kind": kind, "kind_ja": KINDS[kind], "check_by": CHECK_BY[kind],
-            "owned": owned.status(name, kind)}
+    """照合表の1行。種類はキー(表示名・照合先は画面の I18N / CLI は KINDS・CHECK_BY)"""
+    return {"name": name, "ja": names.ja(name), "kind": kind, "owned": owned.status(name, kind)}
 
 
 def history_rows(items: list[dict], names: Names, owned: Owned) -> list[dict]:
@@ -318,7 +318,7 @@ def current_trader(snap: dict | None, items_hist: list[dict], paths: dict, names
                       "credits": it["credits"], "limit": it["limit"], "in_history": bool(h),
                       "count": h["count"] if h else 0})
     state = "here" if t["activation"] <= now < t["expiry"] else ("coming" if t["activation"] > now else "gone")
-    return {"character": t["character"], "node": t["node"], "relay": ws.relay_label(t["node"]),
+    return {"character": t["character"], "node": t["node"], "relay": ws.relay_txt(t["node"]),
             "activation": t["activation"], "expiry": t["expiry"], "state": state, "items": items,
             "fetched_at": (snap or {}).get("fetched_at")}
 
@@ -343,7 +343,7 @@ def baro_view(d: Path, names: Names, now: float | None = None) -> dict:
     owned = Owned(d, names)
     rows = history_rows(items, names, owned)
     offset = clock_offset(userdata.load_cycles(d))
-    return {"rows": rows, "summary": summary(rows), "kinds": KINDS,
+    return {"rows": rows, "summary": summary(rows), "kinds": list(KINDS),  # 種類は並び(キー)だけ
             "visits": {"count": len(visits), "latest": max(visits, default=None)},
             "current": current_trader(ws.load_snapshot(d), items, load_item_paths(d), names, owned, now + offset),
             "has_names": bool(names.mastery or names.mods), "has_paths": (d / PATHS_FILE).exists(), "now": now + offset}
@@ -359,5 +359,5 @@ def update_all(d: Path, force: bool = False, verbose: bool = False) -> dict:
         now = time.time() + clock_offset(userdata.load_cycles(d))
         result["recorded"] = record_visit(d, snap, load_item_paths(d), now)
     except ws.WorldStateError as e:
-        result["errors"].append(f"今回の品物(公式データ)を取得できませんでした: {e}")
+        result["errors"].append(common.txt("err.baro.fetch", e=str(e)))  # テキスト指定(CLI は render_ja で出す)
     return result

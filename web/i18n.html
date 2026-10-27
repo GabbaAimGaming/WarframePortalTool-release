@@ -1,0 +1,68 @@
+<!-- 文字を引く部品: 言語ごとの表(I18N)と、t・fmt・renderTxt などの関数。
+     メイン画面(web/ctrl.html)とシミュレータ(web/wfportal_builder.html)の両方に差し込む(wfp/api/pages.py)。
+     I18N の中身は web/i18n/<言語>.json。組み立てるとき pages.py が下の目印(I18N:DATA)に差し込む。 -->
+<!-- PART:script -->
+<script>
+/* ---------- 表示する文字(言語ごと) ---------- */
+/* 中身は web/i18n/<言語>.json(キー → 文字)。画面を組み立てるとき wfp/api/pages.py が下の目印の行に差し込む。
+   言語を足すときは JSON を1つ足すだけ(切り替えのボタンも自動で増える)。各言語の lang.name / lang.short がボタンの文字。
+   今の言語に無いキーは日本語、それも無ければキーそのものを表示する。
+   キーの決まり:
+   - spex.item.<小文字の名前>: 交換の報酬名の置き換え(キーは JSON の綴りの小文字。末尾の数量 " x3" は除いた名前)。
+     表に無いものは原文(英語)のまま出すので、英語の表には置かない
+   - invasion.part.<kind>: 侵略のパーツの種類(同梱の parts.json の kind)
+   - mastery.cat.<キー>: マスター一覧・パーツ検索のカテゴリー(キーは wfp/core/common.py の MASTERY_CATS)
+   - 表示名の表(planet. mode. rarity. src.cat. mod.type. arcane.cat. baro.kind. など)の日本語は wfp/core/common.py の JA_TABLES と同じにする(テストで確認) */
+const I18N = /* I18N:DATA */ {};
+let lang = "ja";
+function t(key) {
+  const own = I18N[lang] && I18N[lang][key];
+  return own != null ? own : (I18N.ja[key] != null ? I18N.ja[key] : key);
+}
+/* 文字の中の {名前} を値で置き換える(例: fmt("invasion.sum", { owned: 1, total: 5 })) */
+function fmt(key, vals) {
+  return t(key).replace(/\{(\w+)\}/g, (m, k) => (vals && vals[k] != null ? String(vals[k]) : m));
+}
+/* 表にあるキーか(表示中の言語か日本語) */
+const hasText = key => (I18N[lang] && I18N[lang][key] != null) || I18N.ja[key] != null;
+/* 表示名の表のキー(prefix + 名前)。表に無い名前はそのまま出す(例: tName("planet.", "Mercury")) */
+const tName = (prefix, name) => (name && hasText(prefix + name) ? t(prefix + name) : (name || ""));
+/* API が返す「テキスト指定」を文にする(決まりは wfp/core/common.py の render_txt と同じ):
+   文字列はそのまま / リストは list.sep でつなぐ / {k, v, d} は表の文の {名前} を v で置き換え(表に無ければ d)/
+   {l: {言語: 文}} は表示中の言語、無ければ ja、en の順 */
+function renderTxt(x) {
+  if (x == null) return "";
+  if (typeof x === "string") return x;
+  if (typeof x === "number") return String(x);
+  if (Array.isArray(x)) return x.map(renderTxt).join(t("list.sep"));
+  if (x.l) return [lang, "ja", "en"].map(c => x.l[c]).find(s => s) || "";
+  if (typeof x.k === "string") {
+    if (!hasText(x.k)) return x.d != null ? x.d : x.k;
+    const v = x.v || {};
+    return t(x.k).replace(/\{(\w+)\}/g, (m, k) => (k in v ? renderTxt(v[k]) : m));
+  }
+  return String(x);
+}
+/* 日付・数値の書式に使うロケール(各言語の lang.locale。無ければ言語コードのまま) */
+const locale = () => (I18N[lang] && I18N[lang]["lang.locale"]) || lang;
+/* データ更新などのログ(API の lines = [{level, text}])を表示中の言語の文にする。lines が無い古い形は log(日本語)のまま */
+function renderLog(r, fallback = "") {
+  if (r && Array.isArray(r.lines) && r.lines.length) return r.lines.map(l => "  ".repeat(l.level || 0) + renderTxt(l.text)).join("\n");
+  return (r && r.log) || fallback;
+}
+/* 最初に表示する言語: URL の ?lang=、無ければこの PC に覚えた言語(localStorage の wf-lang)、無ければ日本語 */
+function initialLang() {
+  const q = new URLSearchParams(location.search).get("lang");
+  let saved = null;
+  try { saved = localStorage.getItem("wf-lang"); } catch (e) {}
+  return q && I18N[q] ? q : (saved && I18N[saved] ? saved : "ja");
+}
+/* ページのマークアップの文字を表示中の言語にする: data-i18n(中身)・data-i18n-placeholder(入力欄の例)・
+   data-i18n-aria(読み上げの名前)・data-i18n-title(ヒント)。root の中だけ */
+function applyText(root) {
+  root.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+  root.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  root.querySelectorAll("[data-i18n-aria]").forEach(el => { el.setAttribute("aria-label", t(el.dataset.i18nAria)); });
+  root.querySelectorAll("[data-i18n-title]").forEach(el => { el.title = t(el.dataset.i18nTitle); });
+}
+</script>

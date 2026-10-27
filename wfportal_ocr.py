@@ -29,7 +29,7 @@ import unicodedata
 from difflib import SequenceMatcher
 from pathlib import Path
 
-from wfp.core.common import BUILD_TYPES, POLARITY_EN
+from wfp.core.common import BUILD_TYPES, POLARITY_EN, TextError, txt
 from wfp.core.loader import load_names
 from wfp.core.names import Names
 from wfp.store import build_images
@@ -39,8 +39,8 @@ PS_SCRIPT = HERE / "ocr" / "winocr.ps1"
 DEFAULT_LANGS = "en-US,ja-JP"  # MOD 名は英語、「フォーマ」などの表示は日本語の場合がある
 
 
-class OcrUnavailable(Exception):
-    pass
+class OcrUnavailable(TextError):
+    """文字認識が使えない・失敗した。文はテキスト指定(画面は表示中の言語、CLI は日本語)"""
 
 
 # --------------------------------------------------------------------------
@@ -64,9 +64,9 @@ def _run_ps(args: list[str], timeout: int) -> dict:
         return {"available": [r.get("lang") for r in data.get("results", [])]} if "-ListLanguages" in args else data
     ps = find_powershell()
     if not ps:
-        raise OcrUnavailable("Windows の文字認識は Windows 10/11 でのみ使えます。")
+        raise OcrUnavailable(txt("err.ocr.windows"))
     if not PS_SCRIPT.exists():
-        raise OcrUnavailable(f"{PS_SCRIPT} が見つかりません。")
+        raise OcrUnavailable(txt("err.ocr.script", path=str(PS_SCRIPT)))
     fd, out = tempfile.mkstemp(suffix=".json", prefix="wfocr_")
     os.close(fd)
     try:
@@ -75,12 +75,12 @@ def _run_ps(args: list[str], timeout: int) -> dict:
         try:
             proc = subprocess.run(cmd, capture_output=True, timeout=timeout, creationflags=flags)
         except subprocess.TimeoutExpired:
-            raise OcrUnavailable(f"文字認識が {timeout} 秒以内に終わりませんでした。")
+            raise OcrUnavailable(txt("err.ocr.timeout", sec=str(timeout)))
         text = Path(out).read_text(encoding="utf-8-sig") if Path(out).stat().st_size else ""
         data = json.loads(text) if text else {}
         if proc.returncode != 0 or "error" in data:
-            msg = data.get("error") or proc.stderr.decode("utf-8", "replace").strip() or f"終了コード {proc.returncode}"
-            raise OcrUnavailable(f"文字認識に失敗しました: {msg}")
+            msg = data.get("error") or proc.stderr.decode("utf-8", "replace").strip() or f"exit {proc.returncode}"
+            raise OcrUnavailable(txt("err.ocr.failed", msg=msg))
         return data
     finally:
         try:

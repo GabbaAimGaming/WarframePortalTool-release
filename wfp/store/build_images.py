@@ -4,6 +4,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from wfp.core.common import TextError, txt
+
 
 IMAGE_DIR = "build_images"
 
@@ -32,10 +34,10 @@ def image_ext(data: bytes) -> str | None:
 
 def save_build_image(d: Path, data: bytes) -> str:
     if len(data) > IMAGE_MAX_BYTES:
-        raise ValueError(f"画像が大きすぎます(上限 {IMAGE_MAX_BYTES // 1024 // 1024}MB)。")
+        raise TextError(txt("err.req.image_large", mb=str(IMAGE_MAX_BYTES // 1024 // 1024)))
     ext = image_ext(data)
     if not ext:
-        raise ValueError("PNG / JPEG / GIF / WebP の画像を選んでください。")
+        raise TextError(txt("err.image.format"))
     import uuid
     folder = d / IMAGE_DIR
     folder.mkdir(exist_ok=True)

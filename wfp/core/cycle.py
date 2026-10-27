@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from wfp.core.common import CAMBION, CETUS_PERIOD, CYCLES, CYCLE_SOURCES, fmt_dur
+from wfp.core.common import CETUS_PERIOD, CYCLES, TextError, fmt_clock, txt
 from wfp.store import userdata
 
 
@@ -38,11 +38,11 @@ def cycle_anchor(key: str, phase: str | None, remaining: float, now: float) -> f
     phases = CYCLES[key]["phases"]
     keys = [p[0] for p in phases]
     if phase not in keys:
-        raise ValueError(f"フェーズは {' / '.join(p[1] for p in phases)} のいずれかを指定してください。")
+        raise TextError(txt("err.cycle.phase"))
     i = keys.index(phase)
     length = phases[i][2]
     if not 0 < remaining <= length:
-        raise ValueError(f"残り時間が範囲外です(このフェーズは最長 {fmt_dur(length)})。")
+        raise TextError(txt("err.cycle.range", max=fmt_clock(length)))
     phase_start = now + remaining - length
     return phase_start - sum(p[2] for p in phases[:i])
 
@@ -58,7 +58,7 @@ def anchor_from_cetus_expiry(key: str, expiry: float) -> float:
     if key == "zariman":
         n = round((expiry - CYCLES[key]["ref"]) / CETUS_PERIOD)
         return expiry if n % 2 == 0 else expiry - CETUS_PERIOD
-    raise ValueError(f"{key} は World State から同期できません。")
+    raise TextError(txt("err.cycle.nosync", name=key))
 
 
 def clock_offset(store: dict) -> float:
@@ -69,7 +69,7 @@ def clock_offset(store: dict) -> float:
 def set_manual_cycle(d: Path, key: str, phase: str | None, remaining: float, now: float | None = None) -> dict:
     """ゲーム内で見た残り時間で時刻合わせして保存する。保存後の cycles.json の中身を返す"""
     if key not in CYCLES or not CYCLES[key]["manual"]:
-        raise ValueError(f"手動で合わせられるのは {' / '.join(k for k, c in CYCLES.items() if c['manual'])} です。")
+        raise TextError(txt("err.cycle.manual"))
     store = userdata.load_cycles(d)
     now = (time.time() if now is None else now) + clock_offset(store)
     store[key] = {"anchor": cycle_anchor(key, phase, remaining, now), "source": "manual", "synced_at": now}
@@ -90,7 +90,11 @@ def apply_worldstate_cycles(d: Path, cetus_expiry: float, offset: float, now: fl
 
 
 def cycle_rows(d: Path, now: float | None = None) -> dict:
-    """画面・コマンド共通のサイクル表示。now は PC の時刻(省略時は現在)。時計のずれは中で補正する"""
+    """画面・コマンド共通のサイクル表示。now は PC の時刻(省略時は現在)。時計のずれは中で補正する。
+
+    名前・段階・取得元はキーだけ(表示名は画面の I18N の cycle.name.<キー> / cycle.phase.<段階> / cycle.src.<取得元>、
+    CLI は CYCLES・CYCLE_SOURCES)。cambion はカンビオンの荒地の段階のキー(Cetus と同じ day / night)
+    """
     store = userdata.load_cycles(d)
     offset = clock_offset(store)
     t = (time.time() if now is None else now) + offset
@@ -98,14 +102,14 @@ def cycle_rows(d: Path, now: float | None = None) -> dict:
     for key, c in CYCLES.items():
         saved = store.get(key)
         anchor, source = (saved["anchor"], saved["source"]) if saved else (c["ref"], "default")
-        k, jp, left = cycle_state(key, anchor, t)
-        nk, njp = cycle_next(key, anchor, t)
-        row = {"key": key, "name": c["name"], "phase_key": k, "phase": jp, "left": left, "next_key": nk, "next": njp,
-               "source": source, "source_ja": CYCLE_SOURCES[source], "synced_at": saved.get("synced_at") if saved else None,
-               "manual": c["manual"], "phases": [p[1] for p in c["phases"]], "phase_keys": [p[0] for p in c["phases"]],
-               "max": {p[1]: p[2] for p in c["phases"]}}
+        k, _, left = cycle_state(key, anchor, t)
+        nk, _ = cycle_next(key, anchor, t)
+        row = {"key": key, "phase_key": k, "left": left, "next_key": nk,
+               "source": source, "synced_at": saved.get("synced_at") if saved else None,
+               "manual": c["manual"], "phase_keys": [p[0] for p in c["phases"]],
+               "max": {p[0]: p[2] for p in c["phases"]}}
         if key == "cetus":
-            row["cambion"] = CAMBION[k]
+            row["cambion"] = k
         rows.append(row)
     return {"now": t, "offset": offset, "clock_synced_at": (store.get("_clock") or {}).get("synced_at"), "cycles": rows}
 

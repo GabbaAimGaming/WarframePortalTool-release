@@ -5,7 +5,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 
 from wfp.cli.table import print_table
-from wfp.core.common import PHASE_ALIASES, fmt_dur, norm, parse_remaining, rank
+from wfp.core.common import BARO_KINDS, CAMBION, CYCLE_SOURCES, CYCLES, PHASE_ALIASES, RIVEN_TYPES_JA, fmt_dur, norm, parse_remaining, rank, render_ja
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
 from wfp.core.loader import load_names, load_rivens
 from wfp.core.riven import riven_table, update_rivens
@@ -34,11 +34,13 @@ def cmd_cycle(args):
     now = view["now"]
     nowdt = datetime.fromtimestamp(now, jst)
     print(f"現在 {nowdt:%Y-%m-%d %H:%M:%S} JST" + (f"  (PC の時計を {view['offset']:+.0f} 秒補正)" if view["offset"] else "") + "\n")
+    phase_ja = {p[0]: p[1] for c in CYCLES.values() for p in c["phases"]}
     for r in view["cycles"]:
         end = datetime.fromtimestamp(now + r["left"], jst)
-        print(f"{r['name']}: {r['phase']}  残り {fmt_dur(r['left'])}  (切替 {end:%H:%M:%S} → {r['next']})  [{r['source_ja']}]")
+        print(f"{CYCLES[r['key']]['name']}: {phase_ja[r['phase_key']]}  残り {fmt_dur(r['left'])}  "
+              f"(切替 {end:%H:%M:%S} → {phase_ja[r['next_key']]})  [{CYCLE_SOURCES[r['source']]}]")
         if "cambion" in r:
-            print(f"カンビオンの荒地: {r['cambion']}  (Cetus と連動)")
+            print(f"カンビオンの荒地: {CAMBION[r['cambion']]}  (Cetus と連動)")
     dr, wr = next_daily_reset(nowdt), next_weekly_reset(nowdt)
     print(f"\nデイリーリセットまで  {fmt_dur((dr - nowdt).total_seconds())}  ({dr.astimezone(jst):%m/%d %H:%M} JST)")
     print(f"ウィークリーリセットまで {fmt_dur((wr - nowdt).total_seconds())}  ({wr.astimezone(jst):%m/%d %H:%M} JST)")
@@ -52,7 +54,7 @@ def cmd_baro(args):
     if action == "update":
         r = wbaro.update_all(d, verbose=True)
         if r["errors"]:
-            sys.exit(" / ".join(r["errors"]))
+            sys.exit(" / ".join(render_ja(e) for e in r["errors"]))
         if r["recorded"]:
             print(f"  {r['recorded']} の来訪を記録しました(履歴リストに追加・最後に来た日と回数を更新)")
     elif action in ("own", "unown"):
@@ -71,9 +73,9 @@ def cmd_baro(args):
     if cur:
         when = lambda t: datetime.fromtimestamp(t, jst).strftime("%m/%d %H:%M")
         state = {"here": "来ています", "coming": "次に来ます", "gone": "前回の来訪(終了)"}[cur["state"]]
-        print(f"バロ: {state}  {cur['relay']}  {when(cur['activation'])} 〜 {when(cur['expiry'])} JST")
+        print(f"バロ: {state}  {render_ja(cur['relay'])}  {when(cur['activation'])} 〜 {when(cur['expiry'])} JST")
         for it in cur["items"]:
-            print(f"  {mark[it['owned']]} {it['ja']}  ({it['kind_ja']} / {it['ducats']} デュカット + {it['credits']:,} cr)")
+            print(f"  {mark[it['owned']]} {it['ja']}  ({BARO_KINDS[it['kind']]} / {it['ducats']} デュカット + {it['credits']:,} cr)")
         print()
     else:
         print("今回の品物: 未取得(baro update で取得できます)\n")
@@ -90,7 +92,7 @@ def cmd_baro(args):
           f"  記録した来訪 {v['count']} 回" + (f"(最新 {v['latest']})" if v["latest"] else ""))
     for r in rows[:args.limit]:
         seen = f"最後 {r['last']} / {r['count']} 回" if r["count"] else "未記録"
-        print(f"  {mark[r['owned']]} {r['ja']}  [{r['kind_ja']}]  {seen}")
+        print(f"  {mark[r['owned']]} {r['ja']}  [{BARO_KINDS[r['kind']]}]  {seen}")
     if len(rows) > args.limit:
         print(f"  ... ほか {len(rows) - args.limit} 件 (--limit で増やせます)")
 
@@ -102,7 +104,9 @@ def cmd_riven(args):
     raw = load_rivens(d)
     if raw is None:
         sys.exit("Riven 相場のデータがありません。`python wfportal.py update` を実行してください。")
-    rows = riven_table(raw, load_names(d))
+    # 武器種・未開封の表示名は CLI で付ける(一覧の中身はキーのまま)
+    rows = [{**r, "type_ja": RIVEN_TYPES_JA.get(r["type"], r["type"].replace(" Riven Mod", "")),
+             "weapon_ja": r["weapon_ja"] if not r["veiled"] else "未開封(ヴェール)"} for r in riven_table(raw, load_names(d))]
     if args.query:
         q = " ".join(args.query)
         rows = [r for r in rows if rank(q, [r["weapon_en"], r["weapon_ja"], r["type_ja"]]) is not None]

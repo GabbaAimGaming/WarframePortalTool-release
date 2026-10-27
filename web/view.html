@@ -114,6 +114,16 @@ header::after {
   color: var(--on-secondary); opacity: .85; font-variant-numeric: tabular-nums;
 }
 .pill.warn { color: var(--danger); border-color: var(--danger); opacity: 1; }
+/* 言語の切り替え(ヘッダー右)。押している言語はアクセント色 */
+.lang-sw { display: flex; margin-right: 10px; }
+.lang-sw[hidden] { display: none; }
+.lang-sw button {
+  font: inherit; font-size: 12px; padding: 3px 9px; cursor: pointer; letter-spacing: .06em;
+  border: 1px solid var(--line); background: transparent; color: var(--on-secondary); opacity: .7;
+}
+.lang-sw button + button { margin-left: -1px; }
+.lang-sw button[aria-pressed="true"] { position: relative; opacity: 1; color: var(--accent); border-color: var(--accent); font-weight: 700; }
+.lang-sw button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* ---- 非公式表記(右下に常時表示) ---- */
 .unofficial {
@@ -500,39 +510,39 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
 
       <!-- 素材から探す -->
       <section id="view-item" hidden>
-        <h2>素材から探す</h2>
-        <p class="lead">素材名(日本語・英語・ひらがな)を入力すると、ミッション・敵・バウンティ・レリックなどの入手先と確率を一覧にします。</p>
+        <h2 data-i18n="page.item">素材から探す</h2>
+        <p class="lead" data-i18n="item.lead">素材名(日本語・英語・ひらがな)を入力すると、ミッション・敵・バウンティ・レリックなどの入手先と確率を一覧にします。</p>
         <div class="row">
-          <input type="text" class="search" id="item-q" placeholder="例: ニューロード / neurodes" autocomplete="off">
-          <label class="chk"><input type="checkbox" id="item-mat" checked> 素材のみ</label>
-          <label class="chk"><input type="checkbox" id="item-ev"> イベント限定を含む</label>
+          <input type="text" class="search" id="item-q" data-i18n-placeholder="item.placeholder" placeholder="例: ニューロード / neurodes" autocomplete="off">
+          <label class="chk"><input type="checkbox" id="item-mat" checked> <span data-i18n="item.materials">素材のみ</span></label>
+          <label class="chk"><input type="checkbox" id="item-ev"> <span data-i18n="src.events">イベント限定を含む</span></label>
         </div>
         <div class="chips" id="item-chips"></div>
         <div id="item-out"></div>
       </section>
 
-      <!-- パーツ検索(入手先の表・注記は素材から探すと共用で、多言語対応なし) -->
+      <!-- パーツ検索(入手先の表・注記は素材から探すと共用) -->
       <section id="view-part" hidden>
         <h2 data-i18n="page.part">パーツ検索</h2>
         <p class="lead" data-i18n="part.lead">Warframe・武器などの本体・設計図・パーツの名前(日本語・英語・ひらがな)を入力すると、入手先と確率を一覧にします。</p>
         <div class="row">
-          <input type="text" class="search" id="part-q" placeholder="例: Rhino / Lex Prime" autocomplete="off">
+          <input type="text" class="search" id="part-q" data-i18n-placeholder="part.placeholder" placeholder="例: Rhino / Lex Prime" autocomplete="off">
           <label class="chk"><input type="checkbox" id="part-ev"> <span data-i18n="part.events">イベント限定を含む</span></label>
           <label class="chk"><input type="checkbox" id="part-noprime"> <span data-i18n="part.noprime">Prime を除外する</span></label>
         </div>
-        <div class="seg" id="part-cats" role="group" aria-label="カテゴリー"></div>
+        <div class="seg" id="part-cats" role="group" data-i18n-aria="part.cats" aria-label="カテゴリー"></div>
         <div class="chips" id="part-chips"></div>
         <div id="part-out"></div>
       </section>
 
       <!-- エリアから探す -->
       <section id="view-area" hidden>
-        <h2>エリアから探す</h2>
-        <p class="lead">惑星またはノード名を選ぶと、出現ステージごとに素材と確率を表示します。</p>
+        <h2 data-i18n="page.area">エリアから探す</h2>
+        <p class="lead" data-i18n="area.lead">惑星またはノード名を選ぶと、出現ステージごとに素材と確率を表示します。</p>
         <div class="row">
-          <input type="text" class="search" id="area-q" placeholder="例: 地球 / Cervantes" autocomplete="off">
-          <label class="chk"><input type="checkbox" id="area-all"> 素材以外(MOD・設計図)も表示</label>
-          <label class="chk"><input type="checkbox" id="area-ev"> イベント限定を含む</label>
+          <input type="text" class="search" id="area-q" data-i18n-placeholder="area.placeholder" placeholder="例: 地球 / Cervantes" autocomplete="off">
+          <label class="chk"><input type="checkbox" id="area-all"> <span data-i18n="area.all">素材以外(MOD・設計図)も表示</span></label>
+          <label class="chk"><input type="checkbox" id="area-ev"> <span data-i18n="src.events">イベント限定を含む</span></label>
         </div>
         <div class="chips" id="area-chips"></div>
         <div id="area-out"></div>
@@ -540,106 +550,106 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
 
       <!-- MOD 入手一覧 -->
       <section id="view-mods" hidden>
-        <h2>MOD入手一覧</h2>
-        <p class="lead">すべての MOD の入手先(ミッション・敵・バウンティ等)をまとめた表です。行をクリックすると入手先の詳細、左端のチェックで所持状況を記録できます。</p>
+        <h2 data-i18n="page.mods">MOD入手一覧</h2>
+        <p class="lead" data-i18n="mods.lead">すべての MOD の入手先(ミッション・敵・バウンティ等)をまとめた表です。行をクリックすると入手先の詳細、左端のチェックで所持状況を記録できます。</p>
         <div class="row">
-          <input type="text" class="search" id="mods-q" placeholder="MOD名・対象(例: Vitality / Khora)" autocomplete="off">
-          <select id="mods-type" aria-label="種別"></select>
-          <select id="mods-rar" aria-label="レア度">
-            <option value="">すべてのレア度</option><option value="Common">コモン</option><option value="Uncommon">アンコモン</option>
-            <option value="Rare">レア</option><option value="Legendary">レジェンダリー</option></select>
-          <select id="mods-src" aria-label="入手先"></select>
-          <select id="mods-own" aria-label="所持">
-            <option value="">所持・未所持</option><option value="no">未所持のみ</option><option value="yes">所持済みのみ</option></select>
-          <button class="btn ghost" id="mods-csv" type="button">CSVで保存</button>
+          <input type="text" class="search" id="mods-q" data-i18n-placeholder="mods.placeholder" placeholder="MOD名・対象(例: Vitality / Khora)" autocomplete="off">
+          <select id="mods-type" data-i18n-aria="mods.col.type" aria-label="種別"></select>
+          <select id="mods-rar" data-i18n-aria="src.col.rarity" aria-label="レア度">
+            <option value="" data-i18n="mods.rar.all">すべてのレア度</option><option value="Common" data-i18n="rarity.Common">コモン</option><option value="Uncommon" data-i18n="rarity.Uncommon">アンコモン</option>
+            <option value="Rare" data-i18n="rarity.Rare">レア</option><option value="Legendary" data-i18n="rarity.Legendary">レジェンダリー</option></select>
+          <select id="mods-src" data-i18n-aria="src.col.place" aria-label="入手先"></select>
+          <select id="mods-own" data-i18n-aria="mods.col.own" aria-label="所持">
+            <option value="" data-i18n="mods.own.all">所持・未所持</option><option value="no" data-i18n="mods.own.no">未所持のみ</option><option value="yes" data-i18n="mods.own.yes">所持済みのみ</option></select>
+          <button class="btn ghost" id="mods-csv" type="button" data-i18n="common.csv">CSVで保存</button>
         </div>
         <div class="row" style="margin-top:8px">
           <button class="btn ghost live" id="scan-toggle" type="button" aria-pressed="false">ゲーム画面の読み取り: OFF</button>
-          <button class="btn ghost" id="scan-file-btn" type="button">スクリーンショットから読み取る</button>
+          <button class="btn ghost" id="scan-file-btn" type="button" data-i18n="scan.file">スクリーンショットから読み取る</button>
           <input type="file" id="scan-files" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
-          <label class="chk"><input type="checkbox" id="scan-confirm"> 自動でチェックせず、確認してから付ける</label>
+          <label class="chk"><input type="checkbox" id="scan-confirm"> <span data-i18n="scan.confirm">自動でチェックせず、確認してから付ける</span></label>
         </div>
         <div class="scan" id="scan-panel" hidden aria-live="polite">
           <div class="scan-head"><video id="scan-video" muted playsinline></video>
             <div><b id="scan-state"></b><div class="mini" id="scan-stats"></div></div></div>
           <div id="scan-new"></div>
           <div id="scan-maybe"></div>
-          <p class="note">ゲームの MOD 画面を開いてスクロールしていくと、映った MOD 名を読み取って所持にチェックします(数秒ごと・画面が変わったときだけ)。一致度が低いものは「要確認」に出るので、正しければクリックしてください。読み取りは Windows の文字認識を使います。排他的フルスクリーンでは映らないことがあるので、その場合はボーダーレス(ウィンドウ)表示にするか、スクリーンショットから読み取ってください。</p>
+          <p class="note" data-i18n="scan.note">ゲームの MOD 画面を開いてスクロールしていくと、映った MOD 名を読み取って所持にチェックします(数秒ごと・画面が変わったときだけ)。一致度が低いものは「要確認」に出るので、正しければクリックしてください。読み取りは Windows の文字認識を使います。排他的フルスクリーンでは映らないことがあるので、その場合はボーダーレス(ウィンドウ)表示にするか、スクリーンショットから読み取ってください。</p>
         </div>
         <div class="summary" id="mods-summary"></div>
         <div id="mods-out"></div>
-        <p class="note">確率: ミッション/バウンティは報酬1回の抽選、敵は1体倒したとき、レリックは開けたときに出る割合です。「記載なし」は公式ドロップ表に無いもの(シンジケート・バロ・ナイトウェーブ・クエスト報酬など)です。</p>
+        <p class="note" data-i18n="mods.note">確率: ミッション/バウンティは報酬1回の抽選、敵は1体倒したとき、レリックは開けたときに出る割合です。「記載なし」は公式ドロップ表に無いもの(シンジケート・バロ・ナイトウェーブ・クエスト報酬など)です。</p>
       </section>
 
       <!-- アルケイン所持 -->
       <section id="view-arcane" hidden>
-        <h2>アルケイン所持</h2>
-        <p class="lead">公式データ(ExportRelicArcane.json)のアルケインを装備先ごとに一覧にします。左端のチェックで所持として記録し、ランクを選べます(この PC に保存)。名前とレア度はカタカナで表示します(英語名でも絞り込めます)。</p>
-        <div class="seg" id="ac-cats" role="group" aria-label="種類"></div>
+        <h2 data-i18n="ac.title">アルケイン所持</h2>
+        <p class="lead" data-i18n="ac.lead">公式データ(ExportRelicArcane.json)のアルケインを装備先ごとに一覧にします。左端のチェックで所持として記録し、ランクを選べます(この PC に保存)。名前とレア度はカタカナで表示します(英語名でも絞り込めます)。</p>
+        <div class="seg" id="ac-cats" role="group" data-i18n-aria="mods.col.type" aria-label="種類"></div>
         <div class="row">
-          <input type="text" class="search" id="ac-q" placeholder="名前で絞り込み(例: Energize / エナージャイズ)" autocomplete="off">
-          <select id="ac-state" aria-label="状態"><option value="">所持・未所持</option><option value="owned">所持のみ</option>
-            <option value="unowned">未所持のみ</option><option value="maxed">ランク最大のみ</option><option value="notmax">所持していてランク最大でないもの</option></select>
-          <button class="btn ghost" type="button" id="ac-csv">CSVで保存</button>
+          <input type="text" class="search" id="ac-q" data-i18n-placeholder="ac.placeholder" placeholder="名前で絞り込み(例: Energize / エナージャイズ)" autocomplete="off">
+          <select id="ac-state" data-i18n-aria="common.state" aria-label="状態"><option value="" data-i18n="mods.own.all">所持・未所持</option><option value="owned" data-i18n="ac.state.owned">所持のみ</option>
+            <option value="unowned" data-i18n="mods.own.no">未所持のみ</option><option value="maxed" data-i18n="ac.state.maxed">ランク最大のみ</option><option value="notmax" data-i18n="ac.state.notmax">所持していてランク最大でないもの</option></select>
+          <button class="btn ghost" type="button" id="ac-csv" data-i18n="common.csv">CSVで保存</button>
         </div>
         <div class="summary" id="ac-summary"></div>
         <div id="ac-out"></div>
-        <p class="note">種類(装備先)は名前から判定しています(Arcane・Molt・Theorem は Warframe、Magus・Emergence はオペレーター、Virtuos・Eternal はアンプ、Pax・Residual は Kitgun、Exodia は Zaw など)。判定できない新しいアルケインは「その他」に入ります。テクトリストアーティファクト用の Zid-An は、公式データにまだ無いためドロップ表から補います(英語名・レア度なし・最大ランク 5。公式データに入ればそちらを使います)。公式データにあってもゲームに実装されていない 7 件(Arcane Survival・Shield・Defense・Detoxifier・Liquid・Protection・Temperance)は載せません。チェックを外すとランクも消えます。新しいアルケインはゲームのアップデートで増えるので、「データ更新」で取り直してください。</p>
+        <p class="note" data-i18n="ac.note">種類(装備先)は名前から判定しています(Arcane・Molt・Theorem は Warframe、Magus・Emergence はオペレーター、Virtuos・Eternal はアンプ、Pax・Residual は Kitgun、Exodia は Zaw など)。判定できない新しいアルケインは「その他」に入ります。テクトリストアーティファクト用の Zid-An は、公式データにまだ無いためドロップ表から補います(英語名・レア度なし・最大ランク 5。公式データに入ればそちらを使います)。公式データにあってもゲームに実装されていない 7 件(Arcane Survival・Shield・Defense・Detoxifier・Liquid・Protection・Temperance)は載せません。チェックを外すとランクも消えます。新しいアルケインはゲームのアップデートで増えるので、「データ更新」で取り直してください。</p>
       </section>
 
       <!-- Riven 相場 -->
       <!-- バロ吉入手一覧 -->
       <section id="view-baro" hidden>
-        <h2>バロ吉入手一覧</h2>
-        <p class="lead">Void 商人(Baro Ki'Teer)が今回持ってきた品物と、これまでに持ってきた品物を、自分の所持と照合します。MOD は「MOD入手一覧」の所持、武器は「マスター一覧」のマスター済みで判定し、装飾・外装などはこのページでチェックします(この PC に保存)。</p>
+        <h2 data-i18n="page.baro">バロ吉入手一覧</h2>
+        <p class="lead" data-i18n="baro.lead">Void 商人(Baro Ki'Teer)が今回持ってきた品物と、これまでに持ってきた品物を、自分の所持と照合します。MOD は「MOD入手一覧」の所持、武器は「マスター一覧」のマスター済みで判定し、装飾・外装などはこのページでチェックします(この PC に保存)。</p>
         <div class="cyc-sync">
-          <button class="btn" type="button" id="baro-update">バロ情報を更新</button>
+          <button class="btn" type="button" id="baro-update" data-i18n="baro.update">バロ情報を更新</button>
           <span class="note" id="baro-info" role="status"></span>
         </div>
         <div class="err" id="baro-err" role="alert"></div>
         <div id="baro-now"></div>
-        <h3 class="baro-h">履歴リスト(これまでに持ってきた品物)</h3>
-        <div class="seg" id="baro-kinds" role="group" aria-label="種類"></div>
+        <h3 class="baro-h" data-i18n="baro.history">履歴リスト(これまでに持ってきた品物)</h3>
+        <div class="seg" id="baro-kinds" role="group" data-i18n-aria="mods.col.type" aria-label="種類"></div>
         <div class="row">
-          <input type="text" class="search" id="baro-q" placeholder="名前で絞り込み(例: Primed / プライムド)" autocomplete="off">
-          <select id="baro-state" aria-label="状態"><option value="">所持・未所持</option><option value="unowned">未所持のみ</option><option value="owned">所持のみ</option></select>
+          <input type="text" class="search" id="baro-q" data-i18n-placeholder="baro.placeholder" placeholder="名前で絞り込み(例: Primed / プライムド)" autocomplete="off">
+          <select id="baro-state" data-i18n-aria="common.state" aria-label="状態"><option value="" data-i18n="mods.own.all">所持・未所持</option><option value="unowned" data-i18n="mods.own.no">未所持のみ</option><option value="owned" data-i18n="ac.state.owned">所持のみ</option></select>
         </div>
         <div class="summary" id="baro-summary"></div>
         <div id="baro-out"></div>
-        <p class="note">履歴リストは、公式データ(「データ更新」で取得)から作る初期リスト(名前が Prisma で始まる武器など・名前が Primed で始まるレジェンダリーの MOD・Primed Chamber)に、この PC で記録したバロの来訪を足したものです。今回の品物は「バロ情報を更新」を押したときだけ公式の World State に問い合わせて取得し、バロが来ていれば来訪を記録します(リストに無い品物は追加し、ある品物は「最後に来た日」「回数」を更新)。過去の日付は分からないため、「最後に来た日」「回数」はこの PC で記録した来訪だけで数えます(TennoCon の来訪は記録しません)。名前が Skin で終わるものは装飾・外装として扱います。消耗品・ブースター・レリックなど何度でも買えるものは照合しません。初期リストから外す Primed MOD・追加する品物は、ツールのフォルダの <code>data/baro_rules.json</code> で変えられます。</p>
+        <p class="note" data-i18n="baro.note">履歴リストは、公式データ(「データ更新」で取得)から作る初期リスト(名前が Prisma で始まる武器など・名前が Primed で始まるレジェンダリーの MOD・Primed Chamber)に、この PC で記録したバロの来訪を足したものです。今回の品物は「バロ情報を更新」を押したときだけ公式の World State に問い合わせて取得し、バロが来ていれば来訪を記録します(リストに無い品物は追加し、ある品物は「最後に来た日」「回数」を更新)。過去の日付は分からないため、「最後に来た日」「回数」はこの PC で記録した来訪だけで数えます(TennoCon の来訪は記録しません)。名前が Skin で終わるものは装飾・外装として扱います。消耗品・ブースター・レリックなど何度でも買えるものは照合しません。初期リストから外す Primed MOD・追加する品物は、ツールのフォルダの data/baro_rules.json で変えられます。</p>
       </section>
 
       <section id="view-riven" hidden>
-        <h2>Riven相場</h2>
-        <p class="lead">公式が毎週公開している PC 版の Riven MOD 取引統計です。単位はプラチナ。</p>
+        <h2 data-i18n="page.riven">Riven相場</h2>
+        <p class="lead" data-i18n="riv.lead">公式が毎週公開している PC 版の Riven MOD 取引統計です。単位はプラチナ。</p>
         <div class="row">
-          <input type="text" class="search" id="riv-q" placeholder="武器名(例: Rubico / ルビコ)" autocomplete="off">
-          <select id="riv-type" aria-label="武器種"></select>
-          <label class="chk"><input type="checkbox" id="riv-veiled" checked> 未開封(ヴェール)を含む</label>
-          <button class="btn ghost" type="button" id="riv-update">Riven相場だけ更新</button>
+          <input type="text" class="search" id="riv-q" data-i18n-placeholder="riv.placeholder" placeholder="武器名(例: Rubico / ルビコ)" autocomplete="off">
+          <select id="riv-type" data-i18n-aria="riv.col.type" aria-label="武器種"></select>
+          <label class="chk"><input type="checkbox" id="riv-veiled" checked> <span data-i18n="riv.veiled.include">未開封(ヴェール)を含む</span></label>
+          <button class="btn ghost" type="button" id="riv-update" data-i18n="riv.update">Riven相場だけ更新</button>
         </div>
         <pre class="log" id="riv-log" hidden></pre>
         <div class="summary" id="riv-summary"></div>
         <div id="riv-out"></div>
-        <p class="note">極端な出品価格が混ざるため、平均より中央値が目安になります。件数が少ない武器は振れ幅が大きくなります。</p>
+        <p class="note" data-i18n="riv.note">極端な出品価格が混ざるため、平均より中央値が目安になります。件数が少ない武器は振れ幅が大きくなります。</p>
       </section>
 
       <!-- マスター一覧 -->
       <section id="view-mastery" hidden>
-        <h2>マスター一覧</h2>
-        <p class="lead">Warframe・武器・コンパニオンなどのマスター状況です。左端のチェックでマスター済みとして記録します(この PC に保存)。</p>
-        <div class="seg" id="ms-cats" role="group" aria-label="カテゴリー"></div>
+        <h2 data-i18n="page.mastery">マスター一覧</h2>
+        <p class="lead" data-i18n="ms.lead">Warframe・武器・コンパニオンなどのマスター状況です。左端のチェックでマスター済みとして記録します(この PC に保存)。</p>
+        <div class="seg" id="ms-cats" role="group" data-i18n-aria="part.cats" aria-label="カテゴリー"></div>
         <div class="row">
-          <input type="text" class="search" id="ms-q" placeholder="名前で絞り込み(例: Rhino / Soma)" autocomplete="off">
-          <select id="ms-state" aria-label="状態"><option value="">マスター済み・未マスター</option><option value="todo">未マスターのみ</option><option value="done">マスター済みのみ</option></select>
-          <label class="chk"><input type="checkbox" id="ms-founder"> ファウンダー</label>
-          <button class="btn ghost" type="button" id="ms-bulk-on">表示中をすべてマスター済みに</button>
-          <button class="btn ghost" type="button" id="ms-bulk-off">表示中のチェックを外す</button>
-          <button class="btn ghost" type="button" id="ms-csv">CSVで保存</button>
+          <input type="text" class="search" id="ms-q" data-i18n-placeholder="ms.placeholder" placeholder="名前で絞り込み(例: Rhino / Soma)" autocomplete="off">
+          <select id="ms-state" data-i18n-aria="common.state" aria-label="状態"><option value="" data-i18n="ms.state.all">マスター済み・未マスター</option><option value="todo" data-i18n="ms.state.todo">未マスターのみ</option><option value="done" data-i18n="ms.state.done">マスター済みのみ</option></select>
+          <label class="chk"><input type="checkbox" id="ms-founder"> <span data-i18n="mastery.cat.founder">ファウンダー</span></label>
+          <button class="btn ghost" type="button" id="ms-bulk-on" data-i18n="ms.bulk.on">表示中をすべてマスター済みに</button>
+          <button class="btn ghost" type="button" id="ms-bulk-off" data-i18n="ms.bulk.off">表示中のチェックを外す</button>
+          <button class="btn ghost" type="button" id="ms-csv" data-i18n="common.csv">CSVで保存</button>
         </div>
         <div class="summary" id="ms-summary"></div>
         <div id="ms-out"></div>
-        <p class="note">Kitgun はチェンバー(プライマリ版とセカンダリ版は別々)、Zaw はストライク、アンプはプリズムと Sirocco、MOA・ハウンドは頭(モデル)、K-ドライブはボードの単位で数えます。Excalibur Prime・Skana Prime・Lato Prime は「ファウンダー」にチェックを入れたときだけ、「ファウンダー」の項目に表示して集計します。プレクサスとアンプ本体は「その他」に入ります。マスタリー経験値はランク最大までの値です(Warframe・コンパニオン・センチネル・MOA/ハウンド・アークウイング・ネクラメカ・K-ドライブ・プレクサスは 1 ランク 200、武器は 100。Kuva・Tenet・Coda などとネクラメカはランク 40)。</p>
+        <p class="note" data-i18n="ms.note">Kitgun はチェンバー(プライマリ版とセカンダリ版は別々)、Zaw はストライク、アンプはプリズムと Sirocco、MOA・ハウンドは頭(モデル)、K-ドライブはボードの単位で数えます。Excalibur Prime・Skana Prime・Lato Prime は「ファウンダー」にチェックを入れたときだけ、「ファウンダー」の項目に表示して集計します。プレクサスとアンプ本体は「その他」に入ります。マスタリー経験値はランク最大までの値です(Warframe・コンパニオン・センチネル・MOA/ハウンド・アークウイング・ネクラメカ・K-ドライブ・プレクサスは 1 ランク 200、武器は 100。Kuva・Tenet・Coda などとネクラメカはランク 40)。</p>
       </section>
 
       <!-- 侵略サイクル(文字は I18N の data-i18n で差し替え。中の日本語は読み込み前の表示) -->
@@ -667,10 +677,10 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
 
       <!-- サイクル -->
       <section id="view-cycle" hidden>
-        <h2>サイクル</h2>
-        <p class="lead">昼夜などの切り替えと、デイリー・ウィークリーのリセットまでの時間です。周期から計算するので、通信しなくても表示できます。</p>
+        <h2 data-i18n="page.cycle">サイクル</h2>
+        <p class="lead" data-i18n="cyc.lead">昼夜などの切り替えと、デイリー・ウィークリーのリセットまでの時間です。周期から計算するので、通信しなくても表示できます。</p>
         <div class="cyc-sync">
-          <button class="btn" type="button" id="cyc-sync">公式データで時刻合わせ</button>
+          <button class="btn" type="button" id="cyc-sync" data-i18n="cyc.sync">公式データで時刻合わせ</button>
           <span class="note" id="cyc-sync-info" role="status"></span>
         </div>
         <div class="err" id="cyc-sync-err" role="alert"></div>
@@ -679,18 +689,18 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
           <div class="cards" id="cycle-cards"></div>
           <div id="cycle-spex"></div>
         </div>
-        <p class="note">「公式データで時刻合わせ」は、押したときだけ公式の World State に問い合わせて、平原・ZARIMANの切り替わりと PC の時計のずれを合わせます(60 秒以内に押し直したときは前回の結果を使います)。オーブ峡谷・デュヴィリは公式データに手がかりが無いため、基準時刻から計算します。</p>
+        <p class="note" data-i18n="cyc.note">「公式データで時刻合わせ」は、押したときだけ公式の World State に問い合わせて、平原・ZARIMANの切り替わりと PC の時計のずれを合わせます(60 秒以内に押し直したときは前回の結果を使います)。オーブ峡谷・デュヴィリは公式データに手がかりが無いため、基準時刻から計算します。</p>
         <details id="cycle-setup">
-          <summary>手動で時刻合わせ(公式データが取れないとき)</summary>
+          <summary data-i18n="cyc.manual">手動で時刻合わせ(公式データが取れないとき)</summary>
           <form id="cycle-form" class="formgrid" style="margin-top:12px">
-            <label class="field"><span>対象</span><select id="cf-key"></select></label>
-            <label class="field"><span>いまのフェーズ</span><select id="cf-phase"></select></label>
-            <label class="field"><span>そのフェーズの残り時間(例 45:30 / 分だけでも可)</span>
+            <label class="field"><span data-i18n="cyc.f.key">対象</span><select id="cf-key"></select></label>
+            <label class="field"><span data-i18n="cyc.f.phase">いまのフェーズ</span><select id="cf-phase"></select></label>
+            <label class="field"><span data-i18n="cyc.f.rem">そのフェーズの残り時間(例 45:30 / 分だけでも可)</span>
               <input type="text" id="cf-rem" placeholder="45:30" autocomplete="off"></label>
-            <div class="field"><span>&nbsp;</span><button class="btn" type="submit">保存</button></div>
+            <div class="field"><span>&nbsp;</span><button class="btn" type="submit" data-i18n="duviri.adjust.save">保存</button></div>
           </form>
           <div class="err" id="cf-err" role="alert"></div>
-          <p class="note">ゲーム内で見た残り時間を入れると、以降はそこから計算して表示します。あとで「公式データで時刻合わせ」をすると、公式データの方で上書きします。</p>
+          <p class="note" data-i18n="cyc.f.note">ゲーム内で見た残り時間を入れると、以降はそこから計算して表示します。あとで「公式データで時刻合わせ」をすると、公式データの方で上書きします。</p>
         </details>
       </section>
 
@@ -698,7 +708,7 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
       <section id="view-duviri" hidden>
         <h2 data-i18n="page.duviri">デュヴィリサーキット</h2>
         <p class="lead" data-i18n="duviri.lead">サーキットで選べる報酬の今週分と、来週以降の並びです。毎週月曜 9:00(JST)のウィークリーリセットで切り替わります。</p>
-        <div class="seg" id="dv-modes" role="group" aria-label="モード"></div>
+        <div class="seg" id="dv-modes" role="group" data-i18n-aria="duviri.modes" aria-label="モード"></div>
         <div id="dv-out"></div>
         <details id="dv-adjust" hidden>
           <summary data-i18n="duviri.adjust">ゲーム内とズレているとき(手動で調整)</summary>
@@ -714,77 +724,79 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
 
       <!-- ビルド -->
       <section id="view-build" hidden>
-        <h2>ビルド</h2>
-        <p class="lead">フレーム・武器のビルドを登録して管理します(この PC に保存)。</p>
+        <h2 data-i18n="b.title">ビルド</h2>
+        <p class="lead" data-i18n="b.lead">フレーム・武器のビルドを登録して管理します(この PC に保存)。</p>
         <details id="build-form-wrap" open>
           <summary id="build-form-title">ビルドを追加</summary>
           <form id="build-form">
             <div class="formgrid">
-              <label class="field"><span>ビルド名</span><input type="text" id="b-name" required autocomplete="off"></label>
-              <label class="field"><span>種別</span><select id="b-type"></select></label>
-              <label class="field"><span>対象(フレーム名・武器名)</span><input type="text" id="b-target" autocomplete="off"></label>
-              <label class="field"><span>フォーマ数</span><input type="number" id="b-forma" min="0" value="0"></label>
+              <label class="field"><span data-i18n="b.f.name">ビルド名</span><input type="text" id="b-name" required autocomplete="off"></label>
+              <label class="field"><span data-i18n="mods.col.type">種別</span><select id="b-type"></select></label>
+              <label class="field"><span data-i18n="b.f.target">対象(フレーム名・武器名)</span><input type="text" id="b-target" autocomplete="off"></label>
+              <label class="field"><span data-i18n="b.f.forma">フォーマ数</span><input type="number" id="b-forma" min="0" value="0"></label>
             </div>
             <div class="formgrid">
-              <label class="field"><span>MOD(1行に1つ)</span><textarea id="b-mods" rows="5"></textarea></label>
-              <div class="field"><span>アルケイン(1行に1つ)</span>
-                <textarea id="b-arcanes" rows="2" aria-label="アルケイン"></textarea>
-                <div class="row"><input type="text" id="b-arc-pick" list="arcane-list" placeholder="候補から追加(例: Arcane Energize)" autocomplete="off" style="flex:1">
-                  <button type="button" class="btn ghost" id="b-arc-add">追加</button></div>
+              <label class="field"><span data-i18n="b.f.mods">MOD(1行に1つ)</span><textarea id="b-mods" rows="5"></textarea></label>
+              <div class="field"><span data-i18n="b.f.arcanes">アルケイン(1行に1つ)</span>
+                <textarea id="b-arcanes" rows="2" data-i18n-aria="b.arcanes" aria-label="アルケイン"></textarea>
+                <div class="row"><input type="text" id="b-arc-pick" list="arcane-list" data-i18n-placeholder="b.arc.pick" placeholder="候補から追加(例: Arcane Energize)" autocomplete="off" style="flex:1">
+                  <button type="button" class="btn ghost" id="b-arc-add" data-i18n="b.arc.add">追加</button></div>
                 <datalist id="arcane-list"></datalist>
                 <span class="mini" id="b-arc-note"></span></div>
-              <div class="field"><label class="field"><span>タグ(カンマ区切り)</span><input type="text" id="b-tags" autocomplete="off"></label>
-                <label class="field"><span>メモ</span><textarea id="b-note" rows="2"></textarea></label></div>
+              <div class="field"><label class="field"><span data-i18n="b.f.tags">タグ(カンマ区切り)</span><input type="text" id="b-tags" autocomplete="off"></label>
+                <label class="field"><span data-i18n="b.f.note">メモ</span><textarea id="b-note" rows="2"></textarea></label></div>
             </div>
-            <div class="field" style="margin-bottom:12px"><span>画像(MOD構成のスクリーンショットなど。PNG / JPEG / GIF / WebP)</span>
-              <div class="dropzone" id="b-drop" tabindex="0" role="button" aria-describedby="b-drop-help">
-                クリックして選ぶ / ここにドラッグ&ドロップ / <b>Ctrl+V</b> で貼り付け</div>
-              <span class="mini" id="b-drop-help">大きい画像(4MB超)は保存前に縮小します。保存ボタンを押すと登録されます。</span>
+            <div class="field" style="margin-bottom:12px"><span data-i18n="b.f.images">画像(MOD構成のスクリーンショットなど。PNG / JPEG / GIF / WebP)</span>
+              <div class="dropzone" id="b-drop" tabindex="0" role="button" aria-describedby="b-drop-help" data-i18n="b.drop">
+                クリックして選ぶ / ここにドラッグ&ドロップ / Ctrl+V で貼り付け</div>
+              <span class="mini" id="b-drop-help" data-i18n="b.drop.help">大きい画像(4MB超)は保存前に縮小します。保存ボタンを押すと登録されます。</span>
               <input type="file" id="b-file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
               <div class="thumbs" id="b-thumbs"></div>
-              <div class="row" style="margin-top:8px"><button type="button" class="btn ghost" id="b-analyze" hidden>画像から読み取る(フレーム・MOD・フォーマ)</button>
+              <div class="row" style="margin-top:8px"><button type="button" class="btn ghost" id="b-analyze" hidden data-i18n="b.analyze">画像から読み取る(フレーム・MOD・フォーマ)</button>
                 <span class="mini" id="b-ocr-note"></span></div>
               <div class="ocr" id="b-ocr" hidden aria-live="polite"></div>
             </div>
-            <div class="row"><button class="btn" type="submit" id="b-save">保存</button>
-              <button class="btn ghost" type="button" id="b-cancel" hidden>編集をやめる</button></div>
+            <div class="row"><button class="btn" type="submit" id="b-save" data-i18n="duviri.adjust.save">保存</button>
+              <button class="btn ghost" type="button" id="b-cancel" hidden data-i18n="b.cancel">編集をやめる</button></div>
             <div class="err" id="b-err" role="alert"></div>
           </form>
         </details>
         <div class="row" style="margin-top:18px">
-          <input type="text" class="search" id="b-filter" placeholder="ビルドを絞り込み(名前・対象・タグ・アルケイン)" autocomplete="off">
+          <input type="text" class="search" id="b-filter" data-i18n-placeholder="b.filter" placeholder="ビルドを絞り込み(名前・対象・タグ・アルケイン)" autocomplete="off">
           <select id="b-filter-type"></select>
         </div>
         <div class="cards" id="build-list"></div>
-        <dialog id="lightbox" aria-label="画像の拡大表示">
+        <dialog id="lightbox" data-i18n-aria="lb.aria" aria-label="画像の拡大表示">
           <img id="lb-img" alt="">
-          <div class="lb-bar"><button class="btn ghost" id="lb-prev" type="button" aria-label="前の画像">◀</button>
+          <div class="lb-bar"><button class="btn ghost" id="lb-prev" type="button" data-i18n-aria="lb.prev" aria-label="前の画像">◀</button>
             <span id="lb-count"></span>
-            <button class="btn ghost" id="lb-next" type="button" aria-label="次の画像">▶</button>
-            <a class="btn ghost" id="lb-open" target="_blank" rel="noopener">原寸で開く</a>
-            <button class="btn ghost" id="lb-close" type="button">閉じる</button></div>
+            <button class="btn ghost" id="lb-next" type="button" data-i18n-aria="lb.next" aria-label="次の画像">▶</button>
+            <a class="btn ghost" id="lb-open" target="_blank" rel="noopener" data-i18n="lb.open">原寸で開く</a>
+            <button class="btn ghost" id="lb-close" type="button" data-i18n="lb.close">閉じる</button></div>
         </dialog>
       </section>
 
       <!-- シミュレータ (web/wfportal_builder.html を中に表示する) -->
       <section id="view-sim" hidden>
-        <h2>シミュレータ</h2>
-        <p class="lead">フレームの耐久・アビリティ性能、武器のダメージと DPS、Riven の効果の振れ幅を計算します。値はすべて参考値です。</p>
-        <iframe id="sim-frame" class="sim-frame" title="シミュレータ"></iframe>
+        <h2 data-i18n="page.sim">シミュレータ</h2>
+        <p class="lead" data-i18n="sim.lead">フレームの耐久・アビリティ性能、武器のダメージと DPS、Riven の効果の振れ幅を計算します。値はすべて参考値です。</p>
+        <iframe id="sim-frame" class="sim-frame" data-i18n-title="page.sim" title="シミュレータ"></iframe>
       </section>
 
       <!-- Tips -->
       <section id="view-tips" hidden>
-        <h2>Tips</h2>
-        <p class="lead">すぐ見たいメモをまとめるページです。メモはこのページで追加・編集できるほか、ツールのフォルダにある <b>tips</b> フォルダのファイルを直接編集しても変わります(メモ帳・Excel などで編集できます)。</p>
+        <!-- 多言語対応は枠の説明文とボタンだけ(メモの中身・編集画面・目次は日本語のまま) -->
+        <h2 data-i18n="page.tips">Tips</h2>
+        <p class="lead" data-i18n="tips.lead">すぐ見たいメモをまとめるページです。メモはこのページで追加・編集できるほか、ツールのフォルダにある tips フォルダのファイルを直接編集しても変わります(メモ帳・Excel などで編集できます)。</p>
+        <p class="note" data-i18n="tips.sample">例文は日本語のみです。</p>
         <div class="row">
-          <button class="btn" type="button" id="tips-new">新規</button>
-          <button class="btn ghost" type="button" id="tips-edit-btn" disabled>編集</button>
-          <button class="btn ghost" type="button" id="tips-del" disabled>削除</button>
-          <button class="btn ghost" type="button" id="tips-group">グループ追加</button>
-          <button class="btn ghost" type="button" id="tips-trash-btn" aria-pressed="false">ゴミ箱</button>
-          <button class="btn ghost" type="button" id="tips-reload">再読み込み</button>
-          <button class="btn ghost" type="button" id="tips-open">tips フォルダを開く</button>
+          <button class="btn" type="button" id="tips-new" data-i18n="tips.new">新規</button>
+          <button class="btn ghost" type="button" id="tips-edit-btn" disabled data-i18n="tips.edit">編集</button>
+          <button class="btn ghost" type="button" id="tips-del" disabled data-i18n="tips.del">削除</button>
+          <button class="btn ghost" type="button" id="tips-group" data-i18n="tips.group">グループ追加</button>
+          <button class="btn ghost" type="button" id="tips-trash-btn" aria-pressed="false" data-i18n="tips.trash">ゴミ箱</button>
+          <button class="btn ghost" type="button" id="tips-reload" data-i18n="tips.reload">再読み込み</button>
+          <button class="btn ghost" type="button" id="tips-open" data-i18n="tips.open">tips フォルダを開く</button>
           <span class="mini" id="tips-dir"></span>
         </div>
         <div class="err" id="tips-err" role="alert"></div>
@@ -794,40 +806,40 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
             <article class="tips-body" id="tips-body" aria-live="polite"></article>
             <form class="tips-edit" id="tips-edit" hidden autocomplete="off">
               <div class="row" id="te-new">
-                <label class="field"><span>タイトル(ファイル名にもなります)</span><input type="text" id="te-title" maxlength="200"></label>
-                <label class="field"><span>保存先</span><select id="te-group"></select></label>
+                <label class="field"><span data-i18n="te.title">タイトル(ファイル名にもなります)</span><input type="text" id="te-title" maxlength="200"></label>
+                <label class="field"><span data-i18n="te.group">保存先</span><select id="te-group"></select></label>
               </div>
               <p class="mini" id="te-path" hidden></p>
-              <div class="te-tools" role="toolbar" aria-label="書き方の挿入">
-                <button class="btn ghost" type="button" data-line="## " title="行頭に入れる">見出し</button>
-                <button class="btn ghost" type="button" data-line="### " title="行頭に入れる">小見出し</button>
-                <button class="btn ghost" type="button" data-line="- " title="行頭に入れる">箇条書き</button>
-                <button class="btn ghost" type="button" data-line="1. " title="行頭に入れる">番号</button>
-                <button class="btn ghost" type="button" data-line="- [ ] " title="行頭に入れる">チェック</button>
-                <button class="btn ghost" type="button" data-line="> " title="行頭に入れる">引用</button>
-                <button class="btn ghost" type="button" data-block="table" title="カーソルの次の行に入れる">表</button>
+              <div class="te-tools" role="toolbar" data-i18n-aria="te.tools" aria-label="書き方の挿入">
+                <button class="btn ghost" type="button" data-line="## " data-i18n-title="te.tip.line" title="行頭に入れる" data-i18n="te.b.h2">見出し</button>
+                <button class="btn ghost" type="button" data-line="### " data-i18n-title="te.tip.line" title="行頭に入れる" data-i18n="te.b.h3">小見出し</button>
+                <button class="btn ghost" type="button" data-line="- " data-i18n-title="te.tip.line" title="行頭に入れる" data-i18n="te.b.ul">箇条書き</button>
+                <button class="btn ghost" type="button" data-line="1. " data-i18n-title="te.tip.line" title="行頭に入れる" data-i18n="te.b.ol">番号</button>
+                <button class="btn ghost" type="button" data-line="- [ ] " data-i18n-title="te.tip.line" title="行頭に入れる" data-i18n="te.b.check">チェック</button>
+                <button class="btn ghost" type="button" data-line="> " data-i18n-title="te.tip.line" title="行頭に入れる" data-i18n="te.b.quote">引用</button>
+                <button class="btn ghost" type="button" data-block="table" data-i18n-title="te.tip.block" title="カーソルの次の行に入れる" data-i18n="te.b.table">表</button>
                 <span class="sep" aria-hidden="true"></span>
-                <button class="btn ghost" type="button" data-ins="|" title="カーソル位置に入れる">|</button>
-                <button class="btn ghost" type="button" data-wrap="**" title="選んだ文字を囲む">太字</button>
-                <button class="btn ghost" type="button" data-wrap="`" title="選んだ文字を囲む">コード</button>
+                <button class="btn ghost" type="button" data-ins="|" data-i18n-title="te.tip.ins" title="カーソル位置に入れる">|</button>
+                <button class="btn ghost" type="button" data-wrap="**" data-i18n-title="te.tip.wrap" title="選んだ文字を囲む" data-i18n="te.b.bold">太字</button>
+                <button class="btn ghost" type="button" data-wrap="`" data-i18n-title="te.tip.wrap" title="選んだ文字を囲む" data-i18n="te.b.code">コード</button>
               </div>
-              <textarea id="te-text" rows="24" spellcheck="false" aria-label="本文"></textarea>
+              <textarea id="te-text" rows="24" spellcheck="false" data-i18n-aria="te.body" aria-label="本文"></textarea>
               <div class="row">
-                <button class="btn" type="submit" id="te-save">保存</button>
-                <button class="btn ghost" type="button" id="te-cancel">キャンセル</button>
-                <span class="mini">Ctrl+S でも保存できます</span>
+                <button class="btn" type="submit" id="te-save" data-i18n="duviri.adjust.save">保存</button>
+                <button class="btn ghost" type="button" id="te-cancel" data-i18n="te.cancel">キャンセル</button>
+                <span class="mini" data-i18n="te.ctrls">Ctrl+S でも保存できます</span>
               </div>
               <div class="err" id="te-err" role="alert"></div>
             </form>
             <div class="tips-trash" id="tips-trash" hidden>
-              <h3>ゴミ箱</h3>
-              <p class="mini">削除したメモの置き場所です(tips フォルダの中の _trash)。「元に戻す」で元の場所に戻ります。</p>
+              <h3 data-i18n="trash.title">ゴミ箱</h3>
+              <p class="mini" data-i18n="trash.lead">削除したメモの置き場所です(tips フォルダの中の _trash)。「元に戻す」で元の場所に戻ります。</p>
               <div id="tips-trash-list"></div>
               <div class="mini" id="tips-trash-msg" aria-live="polite"></div>
             </div>
           </div>
         </div>
-        <dialog class="tips-dlg" id="tips-dlg" aria-label="確認">
+        <dialog class="tips-dlg" id="tips-dlg" data-i18n-aria="dlg.aria" aria-label="確認">
           <form method="dialog"><p id="tips-dlg-msg"></p><div class="row" id="tips-dlg-btns"></div></form>
         </dialog>
         <p class="note">使えるファイル: .md(見出し・表・箇条書き・チェックボックスなどが使える書き方)/ .txt(そのまま表示)/ .csv(表として表示。Excel で編集可)。ファイル名の先頭の数字(例: 10_)は並び順に使われ、目次には表示されません(目次の ▲▼ で並べ替えると、そちらが優先されます)。tips の中にフォルダを作ると、目次の見出しになります(1段まで)。.md の最初の「# 見出し」が目次の名前になります。</p>
@@ -842,11 +854,11 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
 
       <!-- データ更新 -->
       <section id="view-update" hidden>
-        <h2>データ更新</h2>
-        <p class="lead">ドロップ表・敵やバウンティの入手先・Riven 相場・日本語名の辞書(Riven性質・シミュレータ用のデータを含む)を取得します。ゲームのアップデート後にも実行してください。</p>
+        <h2 data-i18n="page.update">データ更新</h2>
+        <p class="lead" data-i18n="upd.lead">ドロップ表・敵やバウンティの入手先・Riven 相場・日本語名の辞書(Riven性質・シミュレータ用のデータを含む)を取得します。ゲームのアップデート後にも実行してください。</p>
         <dl class="kv" id="update-info"></dl>
-        <div class="row"><button class="btn" id="update-btn">公式データを取得</button>
-          <button class="btn ghost" id="update-riv-btn" type="button">Riven相場だけ取得</button></div>
+        <div class="row"><button class="btn" id="update-btn" data-i18n="upd.btn">公式データを取得</button>
+          <button class="btn ghost" id="update-riv-btn" type="button" data-i18n="upd.riv">Riven相場だけ取得</button></div>
         <pre class="log" id="update-log" hidden></pre>
-        <p class="note">取得元: ドロップ表・入手先は WFCD/warframe-drop-data(drops.warframestat.us)、日本語名は calamity-inc/warframe-public-export(取得できなければ公式 Public Export)、Riven 相場は公式の weeklyRivensPC.json(取得できなければ WFCD の api.warframestat.us)です。ロゴ素材が未取得のときは、公式ファンキット(Warframe Fan Kit)の配布元からロゴ素材も取得します。インターネット接続が必要です。</p>
+        <p class="note" data-i18n="upd.note">取得元: ドロップ表・入手先は WFCD/warframe-drop-data(drops.warframestat.us)、日本語名は calamity-inc/warframe-public-export(取得できなければ公式 Public Export)、Riven 相場は公式の weeklyRivensPC.json(取得できなければ WFCD の api.warframestat.us)です。ロゴ素材が未取得のときは、公式ファンキット(Warframe Fan Kit)の配布元からロゴ素材も取得します。インターネット接続が必要です。</p>
       </section>
