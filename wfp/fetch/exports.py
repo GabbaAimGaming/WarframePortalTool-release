@@ -1,9 +1,9 @@
 """公式 Public Export の取得と名前辞書の作成"""
 from __future__ import annotations
 
-from wfp.core.common import (EXPORT_BASE, EXPORT_GITHUB, EXPORT_PREFIXES, EXPORT_SRC_GITHUB, EXPORT_SRC_OFFICIAL, REGIONS_EXPORT,
-                             TextFailure, error_text, name_txt, say, txt)
-from wfp.core.names import names_from_exports
+from wfp.core.common import (EXPORT_BASE, EXPORT_EXTRA_LANGS, EXPORT_GITHUB, EXPORT_PREFIXES, EXPORT_SRC_GITHUB, EXPORT_SRC_OFFICIAL,
+                             REGIONS_EXPORT, TextError, TextFailure, error_text, name_txt, say, txt)
+from wfp.core.names import names_by_lang, names_from_exports
 from wfp.fetch import decode, net
 
 
@@ -43,6 +43,29 @@ def fetch_names(docs_out: dict | None = None) -> dict:
         except Exception as e:  # noqa: BLE001
             say(txt("log.failed", e=error_text(e)), 1)
             errors.append(txt("log.failed.what", what=name_txt("export.src.", label), e=error_text(e)))
+    raise TextFailure(errors)
+
+
+def fetch_lang_names(lang: str, en_docs: list[dict], first_src: str | None = None) -> tuple[dict[str, str], str]:
+    """日英のほかの言語の名前辞書(英名 -> その言語の名前)を (辞書, 取得元) で返す。
+
+    en_docs は fetch_names で取った英語版(docs_out["en"])。first_src(英語版を取れた取得元)を先に試し、だめならもう一方。
+    lang は EXPORT_EXTRA_LANGS にあるものだけ(違えば TextError)。どちらもだめ・1件も突き合わなければ TextFailure
+    """
+    if lang not in EXPORT_EXTRA_LANGS:
+        raise TextError(txt("err.update.lang_unknown", lang=lang))
+    sources = ((EXPORT_SRC_GITHUB, fetch_export_github), (EXPORT_SRC_OFFICIAL, fetch_export))
+    errors = []
+    for label, fetch in sorted(sources, key=lambda src: src[0] != first_src):
+        try:
+            names = names_by_lang(en_docs, fetch(lang))
+            if not names:
+                raise TextFailure(txt("err.notfound", name=f"Export ({lang})"))
+            return names, label
+        except Exception as e:  # noqa: BLE001
+            failed = txt("log.failed.what", what=name_txt("export.src.", label), e=error_text(e))
+            say(failed, 1)
+            errors.append(failed)
     raise TextFailure(errors)
 
 

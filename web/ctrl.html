@@ -291,6 +291,8 @@ function renderAreaChips() {
     `<button class="chip" data-type="${i.type}" data-key="${esc(i.key)}" aria-pressed="${areaSel && areaSel.key === i.key && areaSel.type === i.type}">${esc(renderTxt(i.name))}${i.sub ? `<small>${esc(renderTxt(i.sub))}</small>` : ""}</button>`).join("")
     : `<span class="note">${esc(t("area.nomatch"))}</span>`;
 }
+// 選んでいる種類(AREA_KINDS のキー)
+const areaKinds = () => [...document.querySelectorAll("#area-kinds input[data-kind]")].filter(x => x.checked).map(x => x.dataset.kind);
 async function loadAreaChips() {
   try {
     areaList = await api(`/api/suggest/area?q=${encodeURIComponent($("#area-q").value)}`);
@@ -307,7 +309,7 @@ function renderAreaResult() {
   $("#area-out").innerHTML = `<div class="result-head"><h3>${title}</h3><span class="count">${esc(fmt("area.count", { n: r.nodes.length }))}</span></div>
     <div class="cards">${r.nodes.map(n => {
       const max = Math.max(1, ...n.stages.flatMap(s => s.items.map(i => i.chance)));
-      const rows = n.stages.flatMap(s => s.items.map((i, k) => `<tr><td>${k === 0 ? esc(renderTxt(s.stage)) : ""}</td><td>${esc(areaItem(i))}</td>
+      const rows = n.stages.flatMap(s => s.items.map((i, k) => `<tr><td>${k === 0 ? esc(renderTxt(s.stage)) : ""}</td><td>${esc(areaItem(i))}<span class="tag-mini">${esc(t("area.kind." + i.kind))}</span></td>
         <td><div class="chance" style="min-width:150px"><div class="bar"><i style="--w:${(i.chance / max * 100).toFixed(1)}%"></i></div><b>${pct(i.chance)}</b></div></td>
         <td>${rarity(i.rarity)}</td></tr>`)).join("");
       return `<div class="card"><header><b>${esc(n.node)}</b><span>${esc(renderTxt(n.planet))} / ${esc(renderTxt(n.mode))}${n.event ? `<span class="tag-event">${esc(t("src.event"))}</span>` : ""}</span></header>
@@ -317,8 +319,10 @@ function renderAreaResult() {
 async function loadAreaResult() {
   areaRes = null;
   if (!areaSel) { renderAreaResult(); return; }
+  const kinds = areaKinds();
+  if (!kinds.length) { areaRes = null; $("#area-out").innerHTML = `<div class="empty">${esc(t("area.nokind"))}</div>`; return; }
   try {
-    areaRes = await api(`/api/area?type=${areaSel.type}&key=${encodeURIComponent(areaSel.key)}&all=${$("#area-all").checked ? 1 : 0}&events=${$("#area-ev").checked ? 1 : 0}`);
+    areaRes = await api(`/api/area?type=${areaSel.type}&key=${encodeURIComponent(areaSel.key)}&kinds=${kinds.join(",")}&events=${$("#area-ev").checked ? 1 : 0}`);
     renderAreaResult();
   } catch (e) { $("#area-out").innerHTML = noData(e.message); }
 }
@@ -326,7 +330,7 @@ $("#area-q").addEventListener("input", debounce(async () => {
   const list = await loadAreaChips(); const q = $("#area-q").value.trim();
   if (q && list && list.length === 1) { areaSel = { type: list[0].type, key: list[0].key }; await loadAreaChips(); loadAreaResult(); }
 }));
-$("#area-all").addEventListener("change", loadAreaResult);
+$("#area-kinds").addEventListener("change", e => { if (e.target.dataset.kind) loadAreaResult(); });
 $("#area-ev").addEventListener("change", loadAreaResult);
 $("#area-chips").addEventListener("click", e => {
   const c = e.target.closest(".chip"); if (!c) return;
@@ -1843,7 +1847,8 @@ $("#update-btn").addEventListener("click", async () => {
   const btn = $("#update-btn"), log = $("#update-log");
   btn.disabled = true; btn.textContent = t("upd.fetching"); log.hidden = false; log.textContent = t("upd.fetching.log");
   try {
-    const r = await api("/api/update", { method: "POST", body: {} });
+    // 表示中の言語も送る(日英のほかの言語なら、その言語の名前辞書も取る。ja・en はサーバーが毎回取る)
+    const r = await api("/api/update", { method: "POST", body: { lang } });
     showLog(log, r);
     itemSearch.reset(); partSearch.reset(); mods = null; rivens = null; modOpen = null; mastery = null; arcanes = null;
     simReload();  // シミュレータ用データも「データ更新」で作り直すので、開いていれば読み直す

@@ -5,9 +5,9 @@ import sys
 
 from wfp.cli.common import need_drops
 from wfp.cli.table import print_table
-from wfp.core.common import MODES_JA, PLANETS_JA, RARITY_JA, SOURCE_CATS, norm, pct, rank, render_ja
+from wfp.core.common import AREA_KIND_DEFAULT, AREA_KINDS, MODES_JA, PLANETS_JA, RARITY_JA, SOURCE_CATS, norm, pct, rank, render_ja
 from wfp.core.loader import load_names, load_sources
-from wfp.drops.search import all_item_names, find_sources, group_candidates, pick_candidates
+from wfp.drops.search import all_item_names, area_stages, find_sources, group_candidates, pick_candidates
 from wfp.drops.tables import stage_label
 from wfp.store import datadir
 
@@ -66,7 +66,7 @@ def cmd_area(args):
         exact = [t for t in targets if norm(t[1]) == norm(query)]
         targets = exact or targets
 
-    materials_only = not args.all
+    kinds = set(AREA_KINDS) if args.all else set(args.kind or AREA_KIND_DEFAULT)
     for planet, node in targets:
         rows = [r for r in drops.rows if r[0] == planet and r[1] == node]
         if not rows:
@@ -75,23 +75,17 @@ def cmd_area(args):
         if event and not args.events:
             continue
         out = []
-        by_rot: dict[str, list] = {}
-        for r in rows:
-            if materials_only and not names.is_resource(r[5]):
-                continue
-            by_rot.setdefault(r[4], []).append(r)
-        for rot in sorted(by_rot):
-            first = True
-            for r in sorted(by_rot[rot], key=lambda x: -x[6]):
-                out.append([render_ja(stage_label(rot)) if first else "", names.ja(r[5]), pct(r[6]), RARITY_JA.get(r[7], r[7])])
-                first = False
+        for rot, lst in area_stages(rows, names, kinds).items():
+            for i, (r, item_kind) in enumerate(lst):
+                out.append([render_ja(stage_label(rot)) if i == 0 else "", names.ja(r[5]), AREA_KINDS[item_kind],
+                            pct(r[6]), RARITY_JA.get(r[7], r[7])])
         if not out and len(targets) > 1:
-            continue  # 素材が出ないノードは一覧から省く
+            continue  # 選んだ種類が出ないノードは一覧から省く
         print(f"\n■ {PLANETS_JA.get(planet, planet)} / {node} — {MODES_JA.get(mode, mode)}" + (" [イベント]" if event else ""))
         if out:
-            print_table(["ステージ", "素材", "確率", "レア度"], out, right_cols=(2,))
+            print_table(["ステージ", "アイテム", "種類", "確率", "レア度"], out, right_cols=(3,))
         else:
-            print("  (素材のドロップはありません。--all でMODや設計図も表示)")
+            print("  (選んだ種類のドロップはありません。--kind で種類を足すか、--all ですべての種類を表示)")
 
 
 def add_item(sub) -> None:
@@ -108,7 +102,9 @@ def add_item(sub) -> None:
 def add_area(sub) -> None:
     s = sub.add_parser("area", help="エリア(惑星/ノード) -> ステージごとの素材と確率")
     s.add_argument("query", nargs="+")
-    s.add_argument("--all", action="store_true", help="素材以外も表示")
+    s.add_argument("--kind", action="append", choices=list(AREA_KINDS),
+                   help="出す種類 (複数回指定可。既定は resource=素材だけ。" + " / ".join(f"{k}={v}" for k, v in AREA_KINDS.items()) + ")")
+    s.add_argument("--all", action="store_true", help="すべての種類を表示 (--kind より優先)")
     s.add_argument("--all-nodes", action="store_true", help="部分一致のノードをすべて表示")
     s.add_argument("--events", action="store_true")
     s.set_defaults(fn=cmd_area)

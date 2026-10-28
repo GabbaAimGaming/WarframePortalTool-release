@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 
-from wfp.core.common import BOUNTY_JA, CLAN_LABS, OTHER_SOURCES, RELIC_STATES, TEXT_JA, name_txt, to_float, txt
+from wfp.core.common import BOUNTY_JA, CLAN_LABS, NODE_MODES, OTHER_SOURCES, RELIC_STATES, TEXT_JA, name_txt, to_float, txt
 from wfp.core.names import item_key
 
 
@@ -20,10 +20,17 @@ class Drops:
                 groups = rewards.items() if isinstance(rewards, dict) else [("-", rewards)]
                 for rot, lst in groups:
                     for e in lst:
-                        self.rows.append((planet, node, v["gameMode"], bool(v.get("isEvent")),
+                        self.rows.append((planet, node, node_mode(planet, node, v["gameMode"]), bool(v.get("isEvent")),
                                           rot, e["itemName"], float(e["chance"]), e.get("rarity", "")))
         self.item_names = sorted({r[5] for r in self.rows})
         self.planets = list(dict.fromkeys(p for p, _ in self.node_order))
+
+
+def node_mode(planet: str, node: str, mode: str) -> str:
+    """ノードのミッションの種類。NODE_MODES にあるノード(例: ルアの結合耐久)は付け替える。ノード名の後ろの「 (Extra)」などは外して照合"""
+    base = re.sub(r"\s*\([^)]*\)$", "", node or "")
+    hit = NODE_MODES.get((planet, base))
+    return hit[1] if hit and hit[0] == mode else mode
 
 
 def stage_txt(s: str):

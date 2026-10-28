@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 
 from wfp.core import update
+from wfp.core.common import EXPORT_EXTRA_LANGS
 from wfp.fetch import logos
 from wfp.store import datadir
 
@@ -11,7 +12,7 @@ from wfp.store import datadir
 def cmd_update(args):
     d = datadir.data_dir(args.data_dir)
     try:
-        update.update_all(d)
+        update.update_all(d, (args.lang,) if getattr(args, "lang", None) else ())
     except update.UpdateFailed as e:
         sys.exit(str(e))
 
@@ -41,7 +42,10 @@ def add_serve(sub) -> None:
 
 
 def add_update(sub) -> None:
-    sub.add_parser("update", help="公式データを取得/更新").set_defaults(fn=cmd_update)
+    s = sub.add_parser("update", help="公式データを取得/更新")
+    s.add_argument("--lang", choices=EXPORT_EXTRA_LANGS,
+                   help="日本語・英語のほかに名前辞書を取る言語 (公式 Public Export の言語コード。取得済みの言語は指定しなくても取り直す)")
+    s.set_defaults(fn=cmd_update)
 
 
 def add_logos(sub) -> None:

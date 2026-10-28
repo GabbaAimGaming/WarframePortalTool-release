@@ -33,6 +33,8 @@ _MASTERY_XP_200 = ("warframe", "companion", "archwing", "necramech", "kdrive")
 # パーツ検索の部品名・区分(Names.part_of は小文字で比べる)
 _PART_WORDS = frozenset(w.lower() for w in PART_WORDS)
 _PART_QUALIFIERS = frozenset(w.lower() for w in PART_QUALIFIERS)
+# レリックの名前(例: "Lith A1 Relic")
+_RELIC_NAME = re.compile(rf"^({'|'.join(ERA_JA)}) (\S+) Relic$")
 
 
 # 組み立て式の部品。マスタリー経験値が入る部品(下の mastery_slots)以外は一覧に載せない
@@ -141,24 +143,38 @@ def is_listed_mod(it: dict) -> bool:
         or "/Randomized/" in uid)
 
 
+def _collect_names(docs: list[dict]) -> dict[str, tuple[str, str]]:
+    """Export の各ファイルから uniqueName -> (名前, ファイルの種類 ExportResources など) を集める"""
+    out = {}
+    for doc in docs:
+        for key, val in doc.items():
+            if not isinstance(val, list):
+                continue
+            for it in val:
+                if isinstance(it, dict) and it.get("uniqueName") and it.get("name"):
+                    out[it["uniqueName"]] = (it["name"], key)
+    return out
+
+
+def _pair_names(en: dict[str, tuple[str, str]], other: dict[str, tuple[str, str]]) -> dict[str, str]:
+    """_collect_names の英語版とほかの言語版を uniqueName で突き合わせ、英名 -> その言語の名前にする(同じ英名は最初のもの)"""
+    out: dict[str, str] = {}
+    for uid, (en_name, _kind) in en.items():
+        if uid in other:
+            out.setdefault(en_name, other[uid][0])
+    return out
+
+
+def names_by_lang(en_docs: list[dict], lang_docs: list[dict]) -> dict[str, str]:
+    """Export の英語版とほかの言語版から、英名 -> その言語の名前の辞書を作る(names.json の en2ja と同じ作り方)"""
+    return _pair_names(_collect_names(en_docs), _collect_names(lang_docs))
+
+
 def names_from_exports(en_docs: list[dict], ja_docs: list[dict]) -> dict:
     """Export の英語版・日本語版を uniqueName で突き合わせて辞書化する。"""
-    def collect(docs):
-        out = {}
-        for doc in docs:
-            for key, val in doc.items():
-                if not isinstance(val, list):
-                    continue
-                for it in val:
-                    if isinstance(it, dict) and it.get("uniqueName") and it.get("name"):
-                        out[it["uniqueName"]] = (it["name"], key)
-        return out
-
-    en, ja = collect(en_docs), collect(ja_docs)
-    en2ja, resources = {}, []
-    for uid, (en_name, kind) in en.items():
-        if uid in ja:
-            en2ja.setdefault(en_name, ja[uid][0])
+    en, ja = _collect_names(en_docs), _collect_names(ja_docs)
+    en2ja, resources = _pair_names(en, ja), []
+    for _uid, (en_name, kind) in en.items():
         if kind == "ExportResources":
             resources.append(en_name)
 
@@ -268,6 +284,7 @@ class Names:
         # ドロップ表と公式データで大文字小文字が違うことがある(例: "Bane Of Grineer" / "Bane of Grineer")
         self._lower = {k.lower(): v for k, v in self.en2ja.items()}
         self._res_lower = {r.lower() for r in self.resources}
+        self._mod_lower = {m["en"].lower() for m in self.mods if isinstance(m, dict) and isinstance(m.get("en"), str)}
         self._parts: dict[str, tuple[str, str]] | None = None  # パーツ検索用 {本体の英名(小文字): (英名, カテゴリー)}。初回に作る
 
     @classmethod
@@ -297,7 +314,7 @@ class Names:
             return f"{m.group(1)} クレジット"
         if m := re.match(r"^([\d,]+) Endo$", base):
             return f"{m.group(1)} エンド"
-        if m := re.match(r"^(Lith|Meso|Neo|Axi|Requiem|Vanguard) (\S+) Relic$", base):
+        if m := _RELIC_NAME.match(base):
             return f"{ERA_JA[m.group(1)]} {m.group(2)} レリック"
         if base.endswith(" Blueprint"):
             b = base[:-10]
@@ -310,6 +327,20 @@ class Names:
 
     def is_resource(self, name: str) -> bool:
         return self.split_qty(name)[1].lower() in self._res_lower
+
+    def item_kind(self, name: str) -> str:
+        """エリア検索で分ける種類(AREA_KINDS のキー)。
+        パーツ・設計図(part_of。パーツ検索と同じ判定)→ 素材 → MOD(Riven を含む)→ レリック → その他 の順に見る"""
+        base = self.split_qty(name)[1]
+        if self.part_of(base):
+            return "part"
+        if self.is_resource(base):
+            return "resource"
+        if base.lower() in self._mod_lower or base.endswith(" Riven Mod"):
+            return "mod"
+        if _RELIC_NAME.match(base):
+            return "relic"
+        return "other"
 
     def part_of(self, name: str) -> tuple[str, str] | None:
         """パーツ検索の対象(Warframe・武器などの本体・設計図・パーツ)なら (本体の英名, マスター一覧のカテゴリー)、違えば None。

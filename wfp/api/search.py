@@ -4,7 +4,7 @@ from __future__ import annotations
 from wfp.api.store import ApiError, Store, need_drops
 from wfp.core.common import MASTERY_CATS, PART_SKIP_CATS, PLANETS_JA, SOURCE_CATS, name_txt, norm, rank, txt
 from wfp.core.names import Names, item_key
-from wfp.drops.search import find_sources, group_candidates, pick_candidates
+from wfp.drops.search import area_stages, find_sources, group_candidates, parse_kinds, pick_candidates
 from wfp.drops.tables import mission_place, stage_label
 
 
@@ -101,7 +101,9 @@ def suggest_areas(store: Store, q: str) -> list[dict]:
     return out[:80]
 
 
-def lookup_area(store: Store, kind: str, key: str, all_items: bool, events: bool) -> dict:
+def lookup_area(store: Store, kind: str, key: str, kinds: set[str], events: bool) -> dict:
+    """惑星・ノードのドロップをステージごとに返す。kinds は出す種類(AREA_KINDS のキー)の集まり。
+    各アイテムの kind は種類のキー(画面は I18N の area.kind.<キー>)"""
     drops, names = need_drops(store), store.names()
     if kind == "planet":
         targets = [(p, n) for p, n in drops.node_order if p == key]
@@ -115,13 +117,9 @@ def lookup_area(store: Store, kind: str, key: str, all_items: bool, events: bool
         rows = [r for r in drops.rows if r[0] == planet and r[1] == node]
         if not rows or (rows[0][3] and not events):
             continue
-        by_rot: dict[str, list] = {}
-        for r in rows:
-            if all_items or names.is_resource(r[5]):
-                by_rot.setdefault(r[4], []).append(r)
         stages = [{"stage": stage_label(rot), "items": [{
-            "ja": names.ja(r[5]), "en": r[5], "chance": r[6], "rarity": r[7],
-        } for r in sorted(lst, key=lambda x: -x[6])]} for rot, lst in sorted(by_rot.items())]
+            "ja": names.ja(r[5]), "en": r[5], "chance": r[6], "rarity": r[7], "kind": item_kind,
+        } for r, item_kind in lst]} for rot, lst in area_stages(rows, names, kinds).items()]
         if stages or kind == "node":
             nodes.append({"planet": name_txt("planet.", planet), "node": node,
                           "mode": name_txt("mode.", rows[0][2]), "event": rows[0][3], "stages": stages})
@@ -134,6 +132,6 @@ ROUTES = {
     ("GET", "/api/suggest/part"): lambda c: suggest_parts(c.store, c.q.get("q", ""), c.q.get("cat", ""), c.flag("noprime")),
     ("GET", "/api/item"): lambda c: lookup_item(c.store, c.q.get("key", ""), c.flag("events")),
     ("GET", "/api/suggest/area"): lambda c: suggest_areas(c.store, c.q.get("q", "")),
-    ("GET", "/api/area"): lambda c: lookup_area(c.store, c.q.get("type", "planet"), c.q.get("key", ""), c.flag("all"),
-                                                c.flag("events")),
+    ("GET", "/api/area"): lambda c: lookup_area(c.store, c.q.get("type", "planet"), c.q.get("key", ""),
+                                                parse_kinds(c.q.get("kinds")), c.flag("events")),
 }

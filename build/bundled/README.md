@@ -227,10 +227,11 @@ python wfportal.py mastery done catchmoon        # Kitgun はプライマリ版�
 ```
 python wfportal.py area 地球          # 惑星内の全ノード
 python wfportal.py area Cervantes     # ノード名でも検索可
-python wfportal.py area 地球 --all    # 素材以外も表示
+python wfportal.py area 地球 --kind part --kind mod   # 種類を選んで表示(複数可)
+python wfportal.py area 地球 --all    # すべての種類を表示
 ```
 
-出現ステージ(ローテーション A/B/C)ごとに、素材と確率を表示します。
+出現ステージ(ローテーション A/B/C)ごとに、ドロップと確率を表示します。種類は `resource`(素材・既定)/ `part`(パーツ・設計図)/ `mod`(MOD)/ `relic`(レリック)/ `other`(その他)。画面の「エリアから探す」でもチェックで種類を選べます。
 
 ### 昼夜サイクルとリセット
 

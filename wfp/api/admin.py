@@ -4,9 +4,9 @@ from __future__ import annotations
 import contextlib
 import io
 
-from wfp.api.store import Store, mtime_jst
+from wfp.api.store import ApiError, Store, mtime_jst
 from wfp.core import update
-from wfp.core.common import WFCD_EXTRA, app_version, collect_log, error_text, say
+from wfp.core.common import WFCD_EXTRA, app_version, collect_log, error_text, say, txt
 from wfp.core.riven import update_rivens
 from wfp.fetch import logos
 
@@ -40,13 +40,28 @@ def run_update_rivens(store: Store) -> dict:
     return {"ok": ok, "log": buf.getvalue(), "lines": lines, "status": status(store)}
 
 
-def run_update(store: Store) -> dict:
-    """データ更新。返り値は run_update_rivens と同じ形"""
+def update_langs(body) -> tuple[str, ...]:
+    """データ更新の本文 {"lang": "ko"}(任意)から、日英のほかに名前辞書を取りたい言語を取り出す。
+
+    言語の絞り込み(ja・en・Export に無い言語を外す)は update.lang_targets がする。文字列でなければ 400
+    """
+    if not isinstance(body, dict):
+        raise ApiError(txt("err.req.object"))
+    lang = body.get("lang")
+    if lang is None:
+        return ()
+    if not isinstance(lang, str):
+        raise ApiError(txt("err.update.lang"))
+    return (lang,)
+
+
+def run_update(store: Store, langs: tuple[str, ...] = ()) -> dict:
+    """データ更新。langs は画面で選んでいる言語(update_langs)。返り値は run_update_rivens と同じ形"""
     buf = io.StringIO()
     ok = True
     with contextlib.redirect_stdout(buf), collect_log() as lines:
         try:
-            update.update_all(store.d)
+            update.update_all(store.d, langs)
         except update.UpdateFailed as e:
             ok = False
             say(error_text(e))
@@ -56,6 +71,6 @@ def run_update(store: Store) -> dict:
 # (メソッド, パス) -> 処理。c はリクエスト(wfp/api/server.py の Request)
 ROUTES = {
     ("GET", "/api/status"): lambda c: status(c.store),
-    ("POST", "/api/update"): lambda c: c.empty_body() or run_update(c.store),
+    ("POST", "/api/update"): lambda c: run_update(c.store, update_langs(c.body())),
     ("POST", "/api/update-rivens"): lambda c: c.empty_body() or run_update_rivens(c.store),
 }

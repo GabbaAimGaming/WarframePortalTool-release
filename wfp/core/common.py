@@ -45,6 +45,24 @@ EXPORT_PREFIXES = ("ExportResources", "ExportUpgrades", "ExportGear", "ExportWar
                    # バロの在庫(内部パス)を名前にするため: 外装・グリフ・クエスト・ブースター類(ExportOther)・設計図
                    "ExportCustoms", "ExportFlavour", "ExportKeys", "ExportSortieRewards", "ExportRecipes")
 
+# 日英のほかに名前辞書を取れる言語(公式 Public Export の言語コード。en・ja は毎回取るので入れない)。
+# 取得先の URL と保存するファイル名(LANG_NAMES_FILE)には、ここにある値だけを使う
+EXPORT_EXTRA_LANGS = ("de", "es", "fr", "it", "ko", "pl", "pt", "ru", "tc", "th", "tr", "uk", "zh")
+# 画面の言語コード(web/i18n のファイル名)と Export の言語コードが違うもの。キーは小文字
+EXPORT_LANG_ALIAS = {"zh-cn": "zh", "zh-hans": "zh", "zh-tw": "tc", "zh-hk": "tc", "zh-hant": "tc"}
+# 日英のほかの言語の名前辞書(英名 -> その言語の名前)。データ置き場に言語ごとに置く
+LANG_NAMES_FILE = "names_{lang}.json"
+
+
+def export_lang(code: str) -> str | None:
+    """画面の言語コードを、日英のほかに取る Export の言語コードにする。ja・en・Export に無い言語は None
+
+    別名(EXPORT_LANG_ALIAS)を先に見て、無ければ地域を外したコード(ko-KR → ko)で探す。
+    """
+    low = code.strip().lower()
+    lang = EXPORT_LANG_ALIAS.get(low) or low.split("-")[0]
+    return lang if lang in EXPORT_EXTRA_LANGS else None
+
 
 # Riven 相場: 公式が毎週公開している PC 版の取引統計。取得できなければ WFCD が同じ統計を配信しているものを使う
 RIVENS_URL = "https://www-static.warframe.com/repos/weeklyRivensPC.json"
@@ -87,17 +105,25 @@ PLANETS_JA = {
 
 
 MODES_JA = {
-    "Survival": "生存", "Defense": "防衛", "Capture": "捕獲", "Rescue": "救出", "Spy": "スパイ",
-    "Assassination": "暗殺", "Interception": "傍受", "Exterminate": "殲滅", "Excavation": "発掘",
-    "Disruption": "妨害", "Mobile Defense": "モバイルディフェンス", "Sabotage": "妨害工作",
-    "Defection": "亡命", "Skirmish": "小競り合い", "Caches": "キャッシュ", "Conclave": "コンクラーヴ",
+    "Survival": "耐久", "Defense": "防衛", "Capture": "確保", "Rescue": "救出", "Spy": "潜入",
+    "Assassination": "抹殺", "Interception": "傍受", "Exterminate": "掃滅", "Excavation": "発掘",
+    "Disruption": "分裂", "Mobile Defense": "機動防衛", "Sabotage": "妨害",
+    "Defection": "脱出", "Skirmish": "小競り合い", "Caches": "キャッシュ", "Conclave": "コンクラーヴ",
     "Arena": "アリーナ", "Hard": "ハード", "Normal": "ノーマル", "Rush": "ラッシュ",
     "Pursuit": "追跡", "Ascension": "アセンション", "Alchemy": "錬金",
     "Infested Salvage": "感染サルベージ", "Void Flood": "ヴォイドフラッド",
     "Void Cascade": "ヴォイドカスケード", "Void Armageddon": "ヴォイドアルマゲドン",
     "The Circuit": "サーキット", "Legacyte Harvest": "レガシート収穫",
-    "Sanctuary Onslaught": "サンクチュアリ・オンスロート", "Shrine Defense": "神殿防衛",
+    "Sanctuary Onslaught": "サンクチュアリ", "Elite Sanctuary Onslaught": "エリート・サンクチュアリ", "Shrine Defense": "神殿防衛",
+    "Conjunction Survival": "結合耐久",
     "The Perita Rebellion": "ペリタの反乱", "Follie's Hunt": "フォリーの狩り",
+}
+
+# ドロップ表ではほかと同じ種類で入っているが、ゲーム内では別の名前のノード: (惑星, ノード) -> (元の種類, 付け替える種類)。
+# ノード名の後ろの「 (Extra)」などは外して照合する。元の種類が違うとき(元データの書き方が変わったとき)は付け替えない
+NODE_MODES = {
+    ("Lua", "Yuvarium"): ("Survival", "Conjunction Survival"),
+    ("Lua", "Circulus"): ("Survival", "Conjunction Survival"),
 }
 
 
@@ -122,6 +148,11 @@ BUILD_TYPES = {"frame": "Warframe", "primary": "プライマリ", "secondary": "
 SOURCE_CATS = {"mission": "ミッション", "enemy": "敵", "bounty": "バウンティ", "relic": "レリック",
                "special": "特殊ミッション", "key": "キー・ボス", "sortie": "ソーティー", "clan": "クラン研究",
                "simaris": "Simaris 交換", "quest": "クエスト報酬"}
+
+
+# エリア検索で出すアイテムの種類(Names.item_kind)。並びは画面のチェックと、種類で分けたときの表の並び
+AREA_KINDS = {"resource": "素材", "part": "パーツ・設計図", "mod": "MOD", "relic": "レリック", "other": "その他"}
+AREA_KIND_DEFAULT = ("resource",)  # 種類の指定が無いときに出す種類(これまでの「素材だけ」と同じ)
 
 
 BOUNTY_JA = {"cetusBountyRewards": "平原バウンティ", "solarisBountyRewards": "オーブ峡谷バウンティ",
@@ -479,6 +510,8 @@ TEXT_JA = {
     "err.sim.rank.num": "ランクは数字で入力してください。",
     "err.update.drops": "ドロップ表を取得できませんでした。ネットワーク設定を確認してください。",
     "err.update.names": "名前辞書を取得できませんでした: {e}",
+    "err.update.lang": "言語は文字列で指定してください。",
+    "err.update.lang_unknown": "名前辞書を取れない言語です: {lang}",
     "err.notfound": "{name} が見つかりません",
     "err.regions.none": "ノードが見つかりません",
     "err.sim.empty": "フレームか武器のデータが空でした",
@@ -497,6 +530,9 @@ TEXT_JA = {
     "log.extra.count": "{ok} / {total} ファイル取得",
     "log.fetching.names": "名前辞書(Public Export)を取得中...",
     "log.names.done": "完了: 名前 {names} 件 / 素材 {res} 件 / MOD {mods} 件 -> {dir}",
+    "log.fetching.langs": "ほかの言語の名前辞書を取得中: {langs}",
+    "log.lang.done": "{lang}: 名前 {n} 件(取得元: {src})",
+    "log.lang.failed": "{lang}: 取得できませんでした: {e}  ※前回取得分があればそれを使います",
     "log.sim.done": "シミュレータ用データ: フレーム {f} 件 / 武器 {w} 件",
     "log.sim.failed": "シミュレータ用データを作れませんでした: {e}  ※前回取得分があればそれを使います",
     "log.paths.done": "内部パスの辞書: {n} 件",
@@ -537,7 +573,7 @@ TEXT_JA = {
 }
 # キーの頭 -> {キーの残り: 日本語}。表示名の表をそのまま画面の文字として使う
 JA_TABLES = {
-    "planet.": PLANETS_JA, "mode.": MODES_JA, "rarity.": RARITY_JA, "src.cat.": SOURCE_CATS, "bounty.": BOUNTY_JA,
+    "planet.": PLANETS_JA, "mode.": MODES_JA, "rarity.": RARITY_JA, "src.cat.": SOURCE_CATS, "area.kind.": AREA_KINDS, "bounty.": BOUNTY_JA,
     "relic.era.": ERA_JA, "relic.state.": RELIC_STATE_JA, "clan.lab.": {k: v[1] for k, v in CLAN_LABS.items()},
     "mod.type.": MOD_TYPES, "mod.compat.": COMPAT_JA, "mastery.cat.": MASTERY_CATS, "arcane.cat.": ARCANE_CATS,
     "mastery.variant.": {"primary": "プライマリ", "secondary": "セカンダリ"},

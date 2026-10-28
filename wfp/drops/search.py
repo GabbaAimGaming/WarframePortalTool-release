@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from wfp.core.common import SOURCE_CATS, name_txt, norm, rank, render_ja
+from wfp.core.common import AREA_KIND_DEFAULT, AREA_KINDS, SOURCE_CATS, name_txt, norm, rank, render_ja
 from wfp.core.names import Names, item_key
 from wfp.drops.tables import Drops, Sources, mission_place, stage_label
 
@@ -57,3 +57,26 @@ def group_candidates(cands: list[str], names: Names) -> dict[str, str]:
     for n in cands:
         groups.setdefault(item_key(n), names.split_qty(n)[1])
     return groups
+
+
+def area_stages(rows: list[tuple], names: Names, kinds: set[str]) -> dict[str, list[tuple]]:
+    """エリア検索: 1ノードのドロップ行(Drops.rows)をローテーションごとに分け、{ローテーション: [(行, 種類)]} で返す。
+
+    kinds は出す種類(AREA_KINDS のキー)の集まり。並びは種類の順(AREA_KINDS の順)→ 確率の高い順。知らないキーは無視する
+    """
+    order = list(AREA_KINDS)
+    out: dict[str, list[tuple]] = {}
+    for r in rows:
+        kind = names.item_kind(r[5])
+        if kind in kinds:
+            out.setdefault(r[4], []).append((r, kind))
+    for lst in out.values():
+        lst.sort(key=lambda x: (order.index(x[1]), -x[0][6]))
+    return dict(sorted(out.items()))
+
+
+def parse_kinds(raw: object) -> set[str] | None:
+    """画面から来た種類の指定("resource,part" など)を AREA_KINDS のキーの集まりにする。None(指定なし)なら既定の種類"""
+    if raw is None:
+        return set(AREA_KIND_DEFAULT)
+    return {k for k in str(raw).split(",") if k in AREA_KINDS}

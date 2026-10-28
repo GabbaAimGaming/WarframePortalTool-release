@@ -541,8 +541,15 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
         <p class="lead" data-i18n="area.lead">惑星またはノード名を選ぶと、出現ステージごとに素材と確率を表示します。</p>
         <div class="row">
           <input type="text" class="search" id="area-q" data-i18n-placeholder="area.placeholder" placeholder="例: 地球 / Cervantes" autocomplete="off">
-          <label class="chk"><input type="checkbox" id="area-all"> <span data-i18n="area.all">素材以外(MOD・設計図)も表示</span></label>
           <label class="chk"><input type="checkbox" id="area-ev"> <span data-i18n="src.events">イベント限定を含む</span></label>
+        </div>
+        <!-- 種類のチェック(並び・キーは wfp/core/common.py の AREA_KINDS と同じ。tests/test_area.py が検査) -->
+        <div class="row" id="area-kinds">
+          <label class="chk"><input type="checkbox" data-kind="resource" checked> <span data-i18n="area.kind.resource">素材</span></label>
+          <label class="chk"><input type="checkbox" data-kind="part"> <span data-i18n="area.kind.part">パーツ・設計図</span></label>
+          <label class="chk"><input type="checkbox" data-kind="mod"> <span data-i18n="area.kind.mod">MOD</span></label>
+          <label class="chk"><input type="checkbox" data-kind="relic"> <span data-i18n="area.kind.relic">レリック</span></label>
+          <label class="chk"><input type="checkbox" data-kind="other"> <span data-i18n="area.kind.other">その他</span></label>
         </div>
         <div class="chips" id="area-chips"></div>
         <div id="area-out"></div>
