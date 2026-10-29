@@ -75,8 +75,8 @@ def area_stages(rows: list[tuple], names: Names, kinds: set[str]) -> dict[str, l
     return dict(sorted(out.items()))
 
 
-def parse_kinds(raw: object) -> set[str] | None:
-    """画面から来た種類の指定("resource,part" など)を AREA_KINDS のキーの集まりにする。None(指定なし)なら既定の種類"""
+def parse_kinds(raw: object, default: tuple[str, ...] = AREA_KIND_DEFAULT) -> set[str]:
+    """画面から来た種類の指定("resource,part" など)を AREA_KINDS のキーの集まりにする。None(指定なし)なら default"""
     if raw is None:
-        return set(AREA_KIND_DEFAULT)
+        return set(default)
     return {k for k in str(raw).split(",") if k in AREA_KINDS}

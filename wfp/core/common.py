@@ -150,9 +150,10 @@ SOURCE_CATS = {"mission": "ミッション", "enemy": "敵", "bounty": "バウ�
                "simaris": "Simaris 交換", "quest": "クエスト報酬"}
 
 
-# エリア検索で出すアイテムの種類(Names.item_kind)。並びは画面のチェックと、種類で分けたときの表の並び
+# アイテムの種類(Names.item_kind)。エリア検索・アイテムから探すで共用。並びは画面のチェックと、種類で分けたときの表の並び
 AREA_KINDS = {"resource": "素材", "part": "パーツ・設計図", "mod": "MOD", "relic": "レリック", "other": "その他"}
-AREA_KIND_DEFAULT = ("resource",)  # 種類の指定が無いときに出す種類(これまでの「素材だけ」と同じ)
+AREA_KIND_DEFAULT = ("resource",)  # エリア検索で種類の指定が無いときに出す種類(これまでの「素材だけ」と同じ)
+ITEM_KIND_DEFAULT = ("resource", "part", "mod")  # アイテムから探すで種類の指定が無いときに探す種類(画面の初期のチェック・CLI の既定)
 
 
 BOUNTY_JA = {"cetusBountyRewards": "平原バウンティ", "solarisBountyRewards": "オーブ峡谷バウンティ",

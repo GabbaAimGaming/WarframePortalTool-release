@@ -152,7 +152,8 @@ function sourceTable(rows) {
 /**
  * 名前で候補を出し、選んだ項目の入手先(/api/item)を表にするページを作る。部品は #<id>-q #<id>-chips #<id>-out #<id>-ev
  * o.id: ページの id / o.suggest(q): 候補を取る URL / o.list(res): 応答から候補の配列を取り出す(既定は応答そのもの)
- * o.onSuggest(res): 候補を受け取ったとき(カテゴリーの描画など) / o.more(res, list): 候補の後ろに足す HTML
+ * o.onSuggest(res): 候補を受け取ったとき(カテゴリーの描画など。o.blocked で止めたときは null) / o.more(res, list): 候補の後ろに足す HTML / o.tag(item): 候補の名前の後ろに足す HTML(種類のラベルなど)
+ * o.blocked(): 候補を取らずに止めるときの文字(例: 種類を1つも選んでいない)。止めないときは "" を返す(省略可)
  * o.msg: noMatch(res) 候補なし / pick 候補から選ぶ / empty 何も入っていない / noData データなし(どれも文字を返す関数)
  * 返り値: load(ページを開いたとき) / search(autoPick)(候補を取り直す) / reset(データ更新の後)
  */
@@ -162,8 +163,10 @@ function sourceSearch(o) {
   let key = null, cat = "", data = null;
   // 候補の名前: 日本語の画面は日本語名(下に英名)、ほかの言語は英名(ゲームの名前は Export の英語・日本語の2つだけ)
   const nameOf = i => (lang === "ja" ? i.ja : i.en), subOf = i => (lang === "ja" && i.ja !== i.en ? i.en : "");
-  const chip = i => `<button class="chip" data-key="${esc(i.key)}" aria-pressed="${i.key === key}">${esc(nameOf(i))}${subOf(i) ? `<small>${esc(subOf(i))}</small>` : ""}</button>`;
+  const chip = i => `<button class="chip" data-key="${esc(i.key)}" aria-pressed="${i.key === key}">${esc(nameOf(i))}${subOf(i) ? `<small>${esc(subOf(i))}</small>` : ""}${o.tag ? o.tag(i) : ""}</button>`;
   async function loadChips() {
+    const stop = o.blocked ? o.blocked() : "";
+    if (stop) { el("chips").innerHTML = `<span class="note">${esc(stop)}</span>`; if (o.onSuggest) o.onSuggest(null); return []; }
     try {
       const res = await api(o.suggest(el("q").value)), items = list(res);
       if (o.onSuggest) o.onSuggest(res);
@@ -229,58 +232,72 @@ function sourceSearch(o) {
   };
 }
 
-/* ---------- 素材から探す ---------- */
+/* ---------- アイテムから探す ---------- */
+/* 素材・パーツ/設計図・MOD・レリック・その他(AREA_KINDS)を種類のチェックで選んで探す。エリアから探すの逆向き。
+   種類のチェックは localStorage(wf-item-kinds)に覚える。覚えていなければ ITEM_KIND_DEFAULT と同じ初期値。
+   カテゴリー(マスター一覧と同じ分け方)と「Prime を除外する」はパーツだけに効く(パーツにチェックがあるときだけ出す) */
+const ITEM_KIND_DEFAULT = ["resource", "part", "mod"];  // wfp/core/common.py の ITEM_KIND_DEFAULT と同じ(tests/test_parts.py が検査)
+const itemKindBoxes = () => [...document.querySelectorAll("#item-kinds input[data-kind]")];
+const itemKinds = () => itemKindBoxes().filter(x => x.checked).map(x => x.dataset.kind);
+(() => {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem("wf-item-kinds") || "null"); } catch (e) {}
+  const on = Array.isArray(saved) ? saved : ITEM_KIND_DEFAULT;
+  itemKindBoxes().forEach(x => { x.checked = on.includes(x.dataset.kind); });
+})();
+const itemHasPart = () => itemKinds().includes("part");
+const showItemPartOpt = () => { $("#item-partopt").hidden = !itemHasPart(); };
+showItemPartOpt();
+// パーツのカテゴリーと「Prime を除外する」(以前のパーツ検索で覚えたものを引き継ぐ)
+let itemCat = "";
+try { itemCat = localStorage.getItem("wf-part-cat") || ""; } catch (e) {}
+if (itemCat && !hasText("mastery.cat." + itemCat)) itemCat = "";  // 今は無いカテゴリーが残っていたら外す
+try { $("#item-noprime").checked = localStorage.getItem("wf-part-noprime") === "1"; } catch (e) {}
 const itemSearch = sourceSearch({
   id: "item",
-  suggest: q => `/api/suggest/item?q=${encodeURIComponent(q)}&materials=${$("#item-mat").checked ? 1 : 0}`,
+  suggest: q => {
+    const part = itemHasPart();
+    return `/api/suggest/item?q=${encodeURIComponent(q)}&kinds=${itemKinds().join(",")}`
+      + `&cat=${encodeURIComponent(part ? itemCat : "")}&noprime=${part && $("#item-noprime").checked ? 1 : 0}`;
+  },
+  list: res => res.items,
+  tag: i => `<span class="tag-mini">${esc(t("area.kind." + i.kind))}</span>`,
+  // 種類を1つも選んでいないときは候補を取らない(空の kinds はサーバーで「指定なし = 既定」になるため)
+  blocked: () => (itemKinds().length ? "" : t("item.nokind")),
+  onSuggest: res => {
+    if (!res || !itemHasPart()) { $("#item-cats").innerHTML = ""; return; }
+    const all = res.cats.reduce((n, c) => n + c.n, 0);
+    // 選んでいるカテゴリーに名前の合う候補が無いときも、ボタンは 0 件で残す(押し直して外せるように)
+    const cats = itemCat && !res.cats.some(c => c.key === itemCat) ? [...res.cats, { key: itemCat, n: 0 }] : res.cats;
+    $("#item-cats").innerHTML = `<button class="chip" data-pcat="" aria-pressed="${!itemCat}">${esc(t("part.cat.all"))}<small>${all}</small></button>`
+      + cats.map(c => `<button class="chip" data-pcat="${esc(c.key)}" aria-pressed="${itemCat === c.key}">${esc(tName("mastery.cat.", c.key))}<small>${c.n}</small></button>`).join("");
+  },
+  more: (res, items) => res.total > items.length ? `<span class="note">${esc(fmt("item.more", { n: res.total - items.length }))}</span>` : "",
   msg: {
-    noMatch: () => t($("#item-mat").checked ? "item.nomatch.mat" : "item.nomatch"),
+    noMatch: () => t("item.nomatch"),
     pick: () => t("item.pick"),
     empty: () => t("item.empty"),
     noData: () => t("item.nodata"),
   },
 });
-$("#item-mat").addEventListener("change", () => itemSearch.search(false));
+$("#item-kinds").addEventListener("change", e => {  // 種類を変えたら覚えて、候補を取り直す
+  if (!e.target.dataset.kind) return;
+  try { localStorage.setItem("wf-item-kinds", JSON.stringify(itemKinds())); } catch (err) {}
+  showItemPartOpt();
+  itemSearch.search(false);
+});
+$("#item-cats").addEventListener("click", e => {
+  const c = e.target.closest("[data-pcat]"); if (!c) return;
+  itemCat = c.dataset.pcat;
+  try { localStorage.setItem("wf-part-cat", itemCat); } catch (err) {}
+  itemSearch.search(false);
+});
+$("#item-noprime").addEventListener("change", e => {  // 入手先がレリックのパーツ(Prime)を候補から外す。この PC に覚えさせる
+  try { localStorage.setItem("wf-part-noprime", e.target.checked ? "1" : "0"); } catch (err) {}
+  itemSearch.search(false);
+});
 loaders.item = () => { applyViewText("item"); return itemSearch.load(); };
 relabel.item = itemSearch.relabel;
-
-/* ---------- パーツ検索 ---------- */
-/* Warframe・武器などの本体・設計図・パーツだけを候補に出す。カテゴリーはマスター一覧と同じ(ファウンダー・その他は除く) */
-let partCat = "";
-try { partCat = localStorage.getItem("wf-part-cat") || ""; } catch (e) {}
-if (partCat && !hasText("mastery.cat." + partCat)) partCat = "";  // 今は無いカテゴリーが残っていたら外す
-try { $("#part-noprime").checked = localStorage.getItem("wf-part-noprime") === "1"; } catch (e) {}
-const partSearch = sourceSearch({
-  id: "part",
-  suggest: q => `/api/suggest/part?q=${encodeURIComponent(q)}&cat=${encodeURIComponent(partCat)}&noprime=${$("#part-noprime").checked ? 1 : 0}`,
-  list: res => res.items,
-  onSuggest: res => {
-    const all = res.cats.reduce((n, c) => n + c.n, 0);
-    // 選んでいるカテゴリーに名前の合う候補が無いときも、ボタンは 0 件で残す(押し直して外せるように)
-    const cats = partCat && !res.cats.some(c => c.key === partCat) ? [...res.cats, { key: partCat, n: 0 }] : res.cats;
-    $("#part-cats").innerHTML = `<button class="chip" data-pcat="" aria-pressed="${!partCat}">${esc(t("part.cat.all"))}<small>${all}</small></button>`
-      + cats.map(c => `<button class="chip" data-pcat="${esc(c.key)}" aria-pressed="${partCat === c.key}">${esc(tName("mastery.cat.", c.key))}<small>${c.n}</small></button>`).join("");
-  },
-  more: (res, items) => res.total > items.length ? `<span class="note">${esc(fmt("part.more", { n: res.total - items.length }))}</span>` : "",
-  msg: {
-    noMatch: () => t("part.nomatch"),
-    pick: () => t("part.pick"),
-    empty: () => t("part.empty"),
-    noData: () => t("part.nodata"),
-  },
-});
-$("#part-cats").addEventListener("click", e => {
-  const c = e.target.closest("[data-pcat]"); if (!c) return;
-  partCat = c.dataset.pcat;
-  try { localStorage.setItem("wf-part-cat", partCat); } catch (err) {}
-  partSearch.search(false);
-});
-$("#part-noprime").addEventListener("change", e => {  // 入手先がレリックのもの(Prime)を候補から外す。この PC に覚えさせる
-  try { localStorage.setItem("wf-part-noprime", e.target.checked ? "1" : "0"); } catch (err) {}
-  partSearch.search(false);
-});
-loaders.part = () => { applyViewText("part"); return partSearch.load(); };
-relabel.part = partSearch.relabel;
 
 /* ---------- エリアから探す ---------- */
 let areaSel = null, areaList = null, areaRes = null;  // 候補・結果は言語の切り替えで描き直すため手元に残す
@@ -1899,6 +1916,8 @@ loaders.guide = relabel.guide = renderGuide;
   const s = await refreshStatus();
   let v = "home";  // 初めて開いたとき(前回のページの記録が無いとき)はトップ
   try { v = localStorage.getItem("wf-view") || "home"; } catch (e) {}
+  const MOVED_VIEWS = { part: "item" };  // まとめたページ: 前回の記録が古い id なら移った先を開く(パーツ検索 → アイテムから探す)
+  v = MOVED_VIEWS[v] || v;
   if (!views.includes(v)) v = "home";
   show(s && !s.has_drops ? "update" : v);
 })();

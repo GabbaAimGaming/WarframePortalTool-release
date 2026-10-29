@@ -1,5 +1,5 @@
 {
-  "version": "2.01",
+  "version": "2.02",
   "edition": "with_python",
   "files": {
     "LICENSE": {
@@ -8,8 +8,8 @@
       "src": "build/bundled/LICENSE"
     },
     "README.md": {
-      "sha256": "fd57d10bb79430e604ab944d6db37b560d2bc96a5fab83424f36b90e53d46484",
-      "size": 43175,
+      "sha256": "24e3a065d941cdf7ea0f95b0f785f0742b220bd850f4a45579d0718de4613e7e",
+      "size": 43654,
       "src": "build/bundled/README.md"
     },
     "data/baro_rules.json": {
@@ -93,8 +93,8 @@
       "src": "tips/30_Rivenスプライサーの合成表.md"
     },
     "web/ctrl.html": {
-      "sha256": "ee46aeac6295efdd05f790c67c79a9e0b70567326daf736b3cacbb6ace9bb85d",
-      "size": 129365,
+      "sha256": "0ad44285f0780a683eeeb689c08efad46ab5655c1ebfae39a2c19d8cc5ea6753",
+      "size": 131371,
       "src": "web/ctrl.html"
     },
     "web/i18n.html": {
@@ -103,23 +103,23 @@
       "src": "web/i18n.html"
     },
     "web/i18n/en.json": {
-      "sha256": "df782b288873e063d290430d9192d962797f579845e6e2a073498f00715d88fa",
-      "size": 52786,
+      "sha256": "b164d6954dc2ae62a3f66d4187381f4b436dbfd10e97533f6bdac7bebaebfb7d",
+      "size": 52265,
       "src": "web/i18n/en.json"
     },
     "web/i18n/ja.json": {
-      "sha256": "1e17860edf0dd4b48c93ecdf5ff20d22b2a6da5c7e8e12c7b01839faed105d2b",
-      "size": 64634,
+      "sha256": "924c9f27198b91ea6345ecc72f5638c05611a08b0abdda3f6bb85085aa057848",
+      "size": 64043,
       "src": "web/i18n/ja.json"
     },
     "web/menu.html": {
-      "sha256": "77e04d93a98108d9a7343ffd3801a9f75898fd0fe1b9a2cce0052a678189f7df",
-      "size": 6976,
+      "sha256": "db5ff6d735cce8230b11bade1ea0b22459ec4e78f47d6bc42e364a13d154ee2f",
+      "size": 6968,
       "src": "web/menu.html"
     },
     "web/view.html": {
-      "sha256": "1c3c486a72a06ceb984d4e3b60e5f4e5694c6fbf22f0d439abf3c4d74c639d6c",
-      "size": 66115,
+      "sha256": "6fee7bd8ce63a2ad66aa6bbb3b29c37699d2dad8f2388bc1ba46b407bdcc3f3e",
+      "size": 66392,
       "src": "web/view.html"
     },
     "web/wfportal_builder.html": {
@@ -158,8 +158,8 @@
       "src": "wfp/api/personal.py"
     },
     "wfp/api/search.py": {
-      "sha256": "c02d9c20236baf7b5591e0d20587226cc262f07bf56c93b7d704180bb2b426bb",
-      "size": 7144,
+      "sha256": "44ae35784ccc5b27af883ce02b39062d66ead9040b1cf810b0edbd841840c11c",
+      "size": 6529,
       "src": "wfp/api/search.py"
     },
     "wfp/api/server.py": {
@@ -213,8 +213,8 @@
       "src": "wfp/cli/personal.py"
     },
     "wfp/cli/search.py": {
-      "sha256": "819cec842d4b938b363d5c03c70b783110f9534528d5a9489f0891e7d2afdf93",
-      "size": 6431,
+      "sha256": "254bf3c6b6a99b1ab43a46fedec19b3aa73ef004f612ad60a6416b4501dc30fa",
+      "size": 6899,
       "src": "wfp/cli/search.py"
     },
     "wfp/cli/table.py": {
@@ -238,8 +238,8 @@
       "src": "wfp/core/build.py"
     },
     "wfp/core/common.py": {
-      "sha256": "1f8a3166494b2d53fae337b235dd6aa324b3f19b695256ae59d85a6aa417001c",
-      "size": 43776,
+      "sha256": "404cae2a950deb86d369c847b92a7a7f71d8e6790903816d9658cca1249c565d",
+      "size": 43996,
       "src": "wfp/core/common.py"
     },
     "wfp/core/cycle.py": {
@@ -273,8 +273,8 @@
       "src": "wfp/core/mods.py"
     },
     "wfp/core/names.py": {
-      "sha256": "505c09415b5b6be99be8e9ce3833259520bea91f78550e638ba96ab834572a77",
-      "size": 20896,
+      "sha256": "d733c147e2f07a2c6836530f1f8021d82eecf8495485cd992a5564ecac33d8a3",
+      "size": 21516,
       "src": "wfp/core/names.py"
     },
     "wfp/core/riven.py": {
@@ -298,8 +298,8 @@
       "src": "wfp/drops/__init__.py"
     },
     "wfp/drops/search.py": {
-      "sha256": "73f9f193848716ebcc9a503857381fd6460cf562fbd4bb2addadbae07cafe727",
-      "size": 4457,
+      "sha256": "882c8c2957ef4e659b7701972de69e96cbb2a18a5bfc7eecc23aaf2e19c6cf21",
+      "size": 4479,
       "src": "wfp/drops/search.py"
     },
     "wfp/drops/tables.py": {

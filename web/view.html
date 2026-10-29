@@ -508,31 +508,31 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
         <div class="cards" id="home-cards"></div>
       </section>
 
-      <!-- 素材から探す -->
+      <!-- アイテムから探す(素材・パーツ・MOD などをまとめて探す。エリアから探すの逆向き) -->
       <section id="view-item" hidden>
-        <h2 data-i18n="page.item">素材から探す</h2>
-        <p class="lead" data-i18n="item.lead">素材名(日本語・英語・ひらがな)を入力すると、ミッション・敵・バウンティ・レリックなどの入手先と確率を一覧にします。</p>
+        <h2 data-i18n="page.item">アイテムから探す</h2>
+        <p class="lead" data-i18n="item.lead">アイテム名(日本語・英語・ひらがな)を入力すると、ミッション・敵・バウンティ・レリックなどの入手先と確率を一覧にします。</p>
         <div class="row">
-          <input type="text" class="search" id="item-q" data-i18n-placeholder="item.placeholder" placeholder="例: ニューロード / neurodes" autocomplete="off">
-          <label class="chk"><input type="checkbox" id="item-mat" checked> <span data-i18n="item.materials">素材のみ</span></label>
+          <input type="text" class="search" id="item-q" data-i18n-placeholder="item.placeholder" placeholder="例: ニューロード / Rhino / Vitality" autocomplete="off">
           <label class="chk"><input type="checkbox" id="item-ev"> <span data-i18n="src.events">イベント限定を含む</span></label>
+        </div>
+        <!-- 種類のチェック(並び・キーは wfp/core/common.py の AREA_KINDS と同じ。初期のチェックは ITEM_KIND_DEFAULT。tests/test_parts.py が検査) -->
+        <div class="row" id="item-kinds">
+          <label class="chk"><input type="checkbox" data-kind="resource"> <span data-i18n="area.kind.resource">素材</span></label>
+          <label class="chk"><input type="checkbox" data-kind="part"> <span data-i18n="area.kind.part">パーツ・設計図</span></label>
+          <label class="chk"><input type="checkbox" data-kind="mod"> <span data-i18n="area.kind.mod">MOD</span></label>
+          <label class="chk"><input type="checkbox" data-kind="relic"> <span data-i18n="area.kind.relic">レリック</span></label>
+          <label class="chk"><input type="checkbox" data-kind="other"> <span data-i18n="area.kind.other">その他</span></label>
+        </div>
+        <!-- パーツ・設計図だけに効く絞り込み(パーツにチェックがあるときだけ出す) -->
+        <div id="item-partopt" hidden>
+          <div class="row">
+            <label class="chk"><input type="checkbox" id="item-noprime"> <span data-i18n="part.noprime">Prime を除外する</span></label>
+          </div>
+          <div class="seg" id="item-cats" role="group" data-i18n-aria="part.cats" aria-label="パーツのカテゴリー"></div>
         </div>
         <div class="chips" id="item-chips"></div>
         <div id="item-out"></div>
-      </section>
-
-      <!-- パーツ検索(入手先の表・注記は素材から探すと共用) -->
-      <section id="view-part" hidden>
-        <h2 data-i18n="page.part">パーツ検索</h2>
-        <p class="lead" data-i18n="part.lead">Warframe・武器などの本体・設計図・パーツの名前(日本語・英語・ひらがな)を入力すると、入手先と確率を一覧にします。</p>
-        <div class="row">
-          <input type="text" class="search" id="part-q" data-i18n-placeholder="part.placeholder" placeholder="例: Rhino / Lex Prime" autocomplete="off">
-          <label class="chk"><input type="checkbox" id="part-ev"> <span data-i18n="part.events">イベント限定を含む</span></label>
-          <label class="chk"><input type="checkbox" id="part-noprime"> <span data-i18n="part.noprime">Prime を除外する</span></label>
-        </div>
-        <div class="seg" id="part-cats" role="group" data-i18n-aria="part.cats" aria-label="カテゴリー"></div>
-        <div class="chips" id="part-chips"></div>
-        <div id="part-out"></div>
       </section>
 
       <!-- エリアから探す -->

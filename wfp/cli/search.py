@@ -5,7 +5,7 @@ import sys
 
 from wfp.cli.common import need_drops
 from wfp.cli.table import print_table
-from wfp.core.common import AREA_KIND_DEFAULT, AREA_KINDS, MODES_JA, PLANETS_JA, RARITY_JA, SOURCE_CATS, norm, pct, rank, render_ja
+from wfp.core.common import AREA_KIND_DEFAULT, AREA_KINDS, ITEM_KIND_DEFAULT, MODES_JA, PLANETS_JA, RARITY_JA, SOURCE_CATS, norm, pct, rank, render_ja
 from wfp.core.loader import load_names, load_sources
 from wfp.drops.search import all_item_names, area_stages, find_sources, group_candidates, pick_candidates
 from wfp.drops.tables import stage_label
@@ -16,9 +16,11 @@ def cmd_item(args):
     d = datadir.data_dir(args.data_dir)
     drops, names, sources = need_drops(d), load_names(d), load_sources(d)
     query = " ".join(args.query)
-    cands = pick_candidates(query, all_item_names(drops, sources), names, materials_only=not args.all)
+    kinds = set(AREA_KINDS) if args.all else set(args.kind or ITEM_KIND_DEFAULT)
+    owners = sources.part_owner if sources else {}
+    cands = pick_candidates(query, all_item_names(drops, sources), names, keep=lambda n: names.item_kind(n, owners) in kinds)
     if not cands:
-        hint = "" if args.all else " (素材以外も探すには --all)"
+        hint = "" if args.all else " (ほかの種類も探すには --kind か --all)"
         sys.exit(f"「{query}」に一致する項目がありません。{hint}")
     groups = group_candidates(cands, names)
     keys = list(groups.values())
@@ -89,9 +91,12 @@ def cmd_area(args):
 
 
 def add_item(sub) -> None:
-    s = sub.add_parser("item", help="素材名 -> 入手場所・ステージ・確率 (ミッション・敵・バウンティ・レリック等)")
+    s = sub.add_parser("item", help="アイテム名 -> 入手場所・ステージ・確率 (ミッション・敵・バウンティ・レリック等)")
     s.add_argument("query", nargs="+")
-    s.add_argument("--all", action="store_true", help="素材以外(MOD・設計図など)も対象にする")
+    s.add_argument("--kind", action="append", choices=list(AREA_KINDS),
+                   help="探す種類 (複数回指定可。既定は " + ",".join(ITEM_KIND_DEFAULT) + "。"
+                        + " / ".join(f"{k}={v}" for k, v in AREA_KINDS.items()) + ")")
+    s.add_argument("--all", action="store_true", help="すべての種類を対象にする (--kind より優先)")
     s.add_argument("--pick", type=int, help="候補が複数のとき番号で選ぶ")
     s.add_argument("--limit", type=int, default=50)
     s.add_argument("--events", action="store_true", help="イベント限定ノードも含める")

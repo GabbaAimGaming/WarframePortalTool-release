@@ -328,11 +328,11 @@ class Names:
     def is_resource(self, name: str) -> bool:
         return self.split_qty(name)[1].lower() in self._res_lower
 
-    def item_kind(self, name: str) -> str:
-        """エリア検索で分ける種類(AREA_KINDS のキー)。
-        パーツ・設計図(part_of。パーツ検索と同じ判定)→ 素材 → MOD(Riven を含む)→ レリック → その他 の順に見る"""
+    def item_kind(self, name: str, owners: dict[str, str] | None = None) -> str:
+        """アイテムの種類(AREA_KINDS のキー)。エリア検索・アイテムから探すで共用。
+        パーツ・設計図(part_of。owners は part_of と同じ)→ 素材 → MOD(Riven を含む)→ レリック → その他 の順に見る"""
         base = self.split_qty(name)[1]
-        if self.part_of(base):
+        if self.part_of(base, owners):
             return "part"
         if self.is_resource(base):
             return "resource"
@@ -342,12 +342,21 @@ class Names:
             return "relic"
         return "other"
 
-    def part_of(self, name: str) -> tuple[str, str] | None:
-        """パーツ検索の対象(Warframe・武器などの本体・設計図・パーツ)なら (本体の英名, マスター一覧のカテゴリー)、違えば None。
+    def part_of(self, name: str, owners: dict[str, str] | None = None) -> tuple[str, str] | None:
+        """パーツ(Warframe・武器などの本体・設計図・パーツ)なら (本体の英名, マスター一覧のカテゴリー)、違えば None。
 
         「本体名 + 部品名(PART_WORDS。前に PART_QUALIFIERS が付くことがある)+ Blueprint」の形だけを拾う。
         本体名は一番長く一致するもの(例: "Lato Prime Barrel" は Lato ではなく Lato Prime)。
+        owners({item_key: 本体の英名}。同梱データの extras = Sources.part_owner)を渡すと、
+        設計図ではない作成素材(例: Mandachord)も本体(Octavia)のパーツとして扱う
         """
+        hit = self._part_by_name(name)
+        if hit is None and owners and (owner := owners.get(item_key(name))):
+            hit = self._part_by_name(owner)
+        return hit
+
+    def _part_by_name(self, name: str) -> tuple[str, str] | None:
+        """part_of の名前だけで見る部分"""
         if self._parts is None:
             self._parts = {}
             for m in sorted(self.mastery, key=lambda m: list(MASTERY_CATS).index(m["cat"]) if m["cat"] in MASTERY_CATS else 99):
