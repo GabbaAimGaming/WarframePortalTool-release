@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from wfp.core.common import EXPORT_EXTRA_LANGS, LANG_NAMES_FILE, REGIONS_FILE, WFCD_EXTRA, TextError, txt
+from wfp.core.common import EXPORT_EXTRA_LANGS, LANG_NAMES_FILE, MOD_STATS_FILE, REGIONS_FILE, WFCD_EXTRA, TextError, txt
 
 
 def read_names(d: Path) -> dict | None:
@@ -59,6 +59,19 @@ def read_regions(d: Path) -> dict:
 
 def save_regions(d: Path, regions: dict) -> None:
     (d / REGIONS_FILE).write_text(json.dumps(regions, ensure_ascii=False), encoding="utf-8")
+
+
+def read_mod_stats(d: Path) -> dict | None:
+    """mod_stats.json(MOD 効果検索用。データ更新で Export から作る)。無い・読めなければ None(形の検査は core.modstats で行う)"""
+    try:
+        j = json.loads((d / MOD_STATS_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return j if isinstance(j, dict) else None
+
+
+def save_mod_stats(d: Path, data: dict) -> None:
+    (d / MOD_STATS_FILE).write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
 
 def _lang_names_path(d: Path, lang: str) -> Path:

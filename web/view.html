@@ -322,6 +322,19 @@ dl.kv dt { color: var(--mute); } dl.kv dd { margin: 0; font-variant-numeric: tab
 .dv-h .note { margin: 0 0 0 8px; font-weight: 400; }
 .sub-en { color: var(--mute); font-size: 12px; margin-left: 6px; }
 td.wrap { white-space: normal; min-width: 180px; }
+/* MOD 効果検索: MOD ごとのカード。効果の表は列 = 効果の行、行 = ランク。選んだ影響先の列を強調する */
+.mfx-card { border: 1px solid var(--line); margin: 12px 0; }
+.mfx-card .mfx-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 8px 12px; background: var(--panel-2); }
+.mfx-card .mfx-head b { font-size: 15px; }
+.mfx-card .mfx-head .en { color: var(--mute); font-size: 12px; }
+/* 区分・対象のタグ: 見出しの帯(panel-2)と近い色で読みにくかったので、帯と見出しの文字(ink)の間の ink 寄りで塗り、枠はさらに濃く、文字は panel(2026-11-01 にユーザーが選んだ B 案) */
+.mfx-card .mfx-head .tag-mini { background: color-mix(in srgb, var(--panel-2) 45%, var(--ink)); border-color: color-mix(in srgb, var(--panel-2) 25%, var(--ink)); color: var(--panel); }
+.mfx-card .tablewrap { border: 0; }
+.mfx-card td { white-space: pre-line; min-width: 140px; }
+.mfx-card th.rk, .mfx-card td.rk { width: 1%; min-width: 0; text-align: right; }
+.mfx-card .hit { background: var(--accent-bg); }
+.mfx-card .mfx-desc { margin: 0; padding: 8px 12px; white-space: pre-line; }
+.tag-cond { font-size: 11px; color: var(--accent); border: 1px solid var(--accent); padding: 0 5px; margin-left: 6px; white-space: nowrap; letter-spacing: 0; }
 
 /* 表: 並べ替えできる見出し */
 th.sort { cursor: pointer; user-select: none; }
@@ -727,6 +740,40 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
           <div class="err" id="dv-err" role="alert"></div>
           <p class="note" data-i18n="duviri.adjust.help">ゲーム内の今週の報酬に合う ID を選んで保存すると、以降はそこから毎週進めて表示します。調整はモードごとで、ツールの更新では消えません。「同梱の設定に戻す」で調整を消せます。</p>
         </details>
+      </section>
+
+      <!-- MOD 効果検索 -->
+      <section id="view-modstats" hidden>
+        <h2 data-i18n="page.modstats">MOD 効果検索</h2>
+        <p class="lead" data-i18n="modstats.lead">影響先(例: 威力・効率)を入力すると、その数値を変える MOD をランク0〜最大の効果つきで一覧にします。候補を選ばずに Enter で、効果テキストの全文検索になります。</p>
+        <div class="row">
+          <input type="text" class="search" id="mfx-q" data-i18n-placeholder="modstats.placeholder" placeholder="例: 威力 / 効率 / Multishot" autocomplete="off">
+        </div>
+        <!-- 区分のチェック(並び・キーは wfp/core/common.py の MOD_GROUPS と同じ。tests/test_modstats.py が検査) -->
+        <div class="row" id="mfx-groups" role="group" data-i18n-aria="modstats.groups" aria-label="区分">
+          <label class="chk"><input type="checkbox" data-group="warframe" checked> <span data-i18n="mod.group.warframe">Warframe</span></label>
+          <label class="chk"><input type="checkbox" data-group="primary" checked> <span data-i18n="mod.group.primary">プライマリ</span></label>
+          <label class="chk"><input type="checkbox" data-group="secondary" checked> <span data-i18n="mod.group.secondary">セカンダリ</span></label>
+          <label class="chk"><input type="checkbox" data-group="melee" checked> <span data-i18n="mod.group.melee">近接</span></label>
+          <label class="chk"><input type="checkbox" data-group="necramech" checked> <span data-i18n="mod.group.necramech">ネクロメカ</span></label>
+          <label class="chk"><input type="checkbox" data-group="archwing" checked> <span data-i18n="mod.group.archwing">アークウイング</span></label>
+          <label class="chk"><input type="checkbox" data-group="archgun" checked> <span data-i18n="mod.group.archgun">アークウイングガン</span></label>
+          <label class="chk"><input type="checkbox" data-group="archmelee" checked> <span data-i18n="mod.group.archmelee">アークウイング近接</span></label>
+          <label class="chk"><input type="checkbox" data-group="kdrive" checked> <span data-i18n="mod.group.kdrive">K-ドライブ</span></label>
+          <label class="chk"><input type="checkbox" data-group="robotic" checked> <span data-i18n="mod.group.robotic">ロボティック</span></label>
+          <label class="chk"><input type="checkbox" data-group="beast" checked> <span data-i18n="mod.group.beast">ビースト</span></label>
+          <label class="chk"><input type="checkbox" data-group="comp_weapon" checked> <span data-i18n="mod.group.comp_weapon">コンパニオン武器</span></label>
+          <label class="chk"><input type="checkbox" data-group="parazon" checked> <span data-i18n="mod.group.parazon">パラゾン</span></label>
+          <label class="chk"><input type="checkbox" data-group="amp" checked> <span data-i18n="mod.group.amp">オペレーター/アンプ</span></label>
+          <label class="chk"><input type="checkbox" data-group="railjack" checked> <span data-i18n="mod.group.railjack">レールジャック</span></label>
+          <label class="chk"><input type="checkbox" data-group="other" checked> <span data-i18n="mod.group.other">その他</span></label>
+        </div>
+        <div class="row">
+          <button type="button" class="btn ghost" id="mfx-all" data-i18n="modstats.all">すべて選ぶ</button>
+          <button type="button" class="btn ghost" id="mfx-none" data-i18n="modstats.clear">すべて外す</button>
+        </div>
+        <div class="chips" id="mfx-chips"></div>
+        <div id="mfx-out"></div>
       </section>
 
       <!-- ビルド -->

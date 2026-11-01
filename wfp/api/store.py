@@ -6,8 +6,9 @@ import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from wfp.core.common import CLAN_FILE, OTHER_FILE, render_ja, txt
+from wfp.core.common import CLAN_FILE, MOD_STATS_FILE, MOD_TARGETS_FILE, OTHER_FILE, render_ja, txt
 from wfp.core.loader import load_drops, load_names, load_rivens, load_sources
+from wfp.core.modstats import ModStats, load_mod_stats
 from wfp.core.names import Names
 from wfp.drops.search import all_item_names
 from wfp.drops.tables import Drops, Sources
@@ -62,6 +63,19 @@ class Store:
         obj = load_sources(self.d) if files_all else None
         with self._lock:
             self._cache["@sources"] = (stamp, obj)
+        return obj
+
+    def mod_stats(self) -> ModStats | None:
+        """MOD 効果検索のデータ。mod_stats.json か影響先の辞書(同梱の targets.json)が変われば読み直す"""
+        files = (self.d / MOD_STATS_FILE, appdata.mod_stats_dir() / MOD_TARGETS_FILE)
+        stamp = tuple(f.stat().st_mtime_ns if f.exists() else -1 for f in files)
+        with self._lock:
+            hit = self._cache.get("@mod_stats")
+            if hit and hit[0] == stamp:
+                return hit[1]
+        obj = load_mod_stats(self.d)
+        with self._lock:
+            self._cache["@mod_stats"] = (stamp, obj)
         return obj
 
     def rivens(self) -> list | None:

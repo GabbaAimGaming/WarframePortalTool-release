@@ -1,4 +1,4 @@
-"""画面向け API: 情報(サイクル・侵略サイクル・バロ吉・Riven 相場・デュヴィリ)"""
+"""画面向け API: 情報(サイクル・侵略サイクル・バロ吉・Riven 相場・デュヴィリ・MOD 効果検索)"""
 from __future__ import annotations
 
 from datetime import datetime
@@ -6,10 +6,11 @@ from datetime import datetime
 import wfportal_baro as wbaro
 import wfportal_worldstate as ws
 from wfp.api.store import ApiError, JST, Store, mtime_jst
-from wfp.core.common import CYCLES, PHASE_ALIASES, error_text, parse_remaining, txt
+from wfp.core.common import CYCLES, MOD_STATS_FILE, PHASE_ALIASES, error_text, parse_remaining, txt
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
 from wfp.core.duviri import clear_duviri_adjust, duviri_view, set_duviri_adjust
 from wfp.core.invasion import invasion_view, set_invasion_part
+from wfp.core.modstats import parse_groups
 from wfp.core.riven import riven_table
 from wfp.core.spexchange import spex_view
 
@@ -131,6 +132,23 @@ def set_invasion_parts(store: Store, body: dict) -> dict:
     return invasions(store)
 
 
+def mod_suggest(store: Store, query: str) -> dict:
+    """MOD 効果検索: 影響先の候補(表示名に部分一致)。データが無ければ空で has_data が false(画面は案内を出す)"""
+    data = store.mod_stats()
+    return {"items": data.suggest(query) if data else [], "has_data": data is not None}
+
+
+def mod_effects(store: Store, target: str, query: str, groups: str) -> dict:
+    """MOD 効果検索: 影響先キー(target)か全文(q)で探す。groups は区分キーのカンマ区切り(空は全部)"""
+    data = store.mod_stats()
+    if data is None:
+        raise ApiError(txt("err.nodata"), 409)
+    try:
+        return {**data.find(target, query, parse_groups(groups)), "updated": mtime_jst(store.d / MOD_STATS_FILE)}
+    except ValueError as e:
+        raise ApiError(error_text(e))
+
+
 ROUTES = {
     ("GET", "/api/cycles"): lambda c: cycles(c.store),
     ("POST", "/api/cycles"): lambda c: set_cycle(c.store, c.body()),
@@ -145,4 +163,6 @@ ROUTES = {
     ("GET", "/api/duviri"): lambda c: duviri(c.store),
     ("POST", "/api/duviri/adjust"): lambda c: set_duviri(c.store, c.body()),
     ("POST", "/api/duviri/reset"): lambda c: reset_duviri(c.store, c.body()),
+    ("GET", "/api/modstats/suggest"): lambda c: mod_suggest(c.store, c.q.get("q", "")),
+    ("GET", "/api/modstats"): lambda c: mod_effects(c.store, c.q.get("target", ""), c.q.get("q", ""), c.q.get("groups", "")),
 }

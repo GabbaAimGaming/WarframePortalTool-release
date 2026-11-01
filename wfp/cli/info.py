@@ -1,13 +1,15 @@
-"""CLI: 情報(cycle・baro・riven)"""
+"""CLI: 情報(cycle・baro・riven・modstats)"""
 from __future__ import annotations
 
 import sys
 from datetime import datetime, timedelta, timezone
 
 from wfp.cli.table import print_table
-from wfp.core.common import BARO_KINDS, CAMBION, CYCLE_SOURCES, CYCLES, PHASE_ALIASES, RIVEN_TYPES_JA, fmt_dur, norm, parse_remaining, rank, render_ja
+from wfp.core.common import (BARO_KINDS, CAMBION, CYCLE_SOURCES, CYCLES, MOD_GROUPS, PHASE_ALIASES, RIVEN_TYPES_JA, fmt_dur, norm,
+                             parse_remaining, rank, render_ja, txt)
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
 from wfp.core.loader import load_names, load_rivens
+from wfp.core.modstats import fold, load_mod_stats, parse_groups
 from wfp.core.riven import riven_table, update_rivens
 from wfp.store import datadir
 
@@ -122,6 +124,60 @@ def cmd_riven(args):
           "極端な出品価格が混ざるため、平均より中央値が目安になります。")
 
 
+def _pick_target(data, args) -> str | None:
+    """影響先キーを決める。--target はキーか表示名。指定が無ければ入力が影響先の名前に当たるか見る(当たらなければ全文検索)"""
+    word = (args.target or "").strip()
+    if word:
+        hits = [k for k, ent in data.targets.items() if fold(word) in (fold(k), fold(ent["ja"]), fold(ent["en"]))]
+        if not hits:
+            sys.exit(f"影響先が見つかりません: {word}(--targets で一覧)")
+        return hits[0]
+    query = " ".join(args.query)
+    if args.text or not query:
+        return None
+    cands = data.suggest(query)
+    exact = [c["key"] for c in cands if fold(query) in (fold(c["ja"]), fold(c["en"]))]
+    if exact or len(cands) == 1:
+        return exact[0] if exact else cands[0]["key"]
+    if cands:
+        print("影響先の候補: " + " / ".join(f"{c['ja']}({c['key']})" for c in cands))
+        sys.exit("--target で選ぶか、--text で効果テキストを全文検索してください。")
+    return None
+
+
+def cmd_modstats(args):
+    d = datadir.data_dir(args.data_dir)
+    data = load_mod_stats(d)
+    if data is None:
+        sys.exit(render_ja(txt("err.nodata")))
+    if args.targets:
+        for key, ent in data.targets.items():
+            print(f"{key:<20} {ent['ja']} / {ent['en']}")
+        return
+    try:
+        groups = parse_groups(args.group or "")
+    except ValueError as e:
+        sys.exit(str(e))
+    target = _pick_target(data, args)
+    res = data.find(target or "", "" if target else " ".join(args.query), groups, args.limit)
+    if res["target"]:
+        print(f"影響先: {res['target']['ja']}\n")
+    names = {k: ent["ja"] for k, ent in data.targets.items()}
+    for row in res["rows"]:
+        compat = f"  対象: {row['compat']}" if row["compat"] and row["compat"].upper() != row["compat"] else ""
+        print(f"■ {row['ja']}  [{' / '.join(MOD_GROUPS[g] for g in row['groups'])}]{compat}")
+        if row["targets"]:
+            cond = "(条件付きあり)" if any(ln["cond"] for ln in row["lines"]) else ""
+            print(f"  影響先: {'、'.join(names[k] for k in row['targets'])}{cond}")
+        ranks = row["stats_ja"] or row["stats_en"]
+        picks = range(len(ranks)) if args.ranks else sorted({0, len(ranks) - 1}) if ranks else []
+        for idx in picks:
+            print(f"  R{idx:<2}: " + " / ".join(ln.replace("\n", " ") for ln in ranks[idx]))
+        if not ranks:
+            print("  " + (row["desc_ja"] or row["desc_en"]).replace("\n", " "))
+    print(f"\n{res['total']} 件" + (f"(先頭 {len(res['rows'])} 件を表示)" if res["total"] > len(res["rows"]) else ""))
+
+
 def add_cycle(sub) -> None:
     s = sub.add_parser("cycle", help="昼夜サイクルとリセット時刻")
     s.add_argument("action", nargs="?", default="show", choices=["show", "set", "sync"],
@@ -151,5 +207,17 @@ def add_baro(sub) -> None:
     s.set_defaults(fn=cmd_baro)
 
 
+def add_modstats(sub) -> None:
+    s = sub.add_parser("modstats", help="MOD 効果検索 (影響先・効果テキストで探す)")
+    s.add_argument("query", nargs="*", help="影響先の名前(例: 威力)か、効果テキストの一部")
+    s.add_argument("--target", help="影響先のキーか名前 (ability_strength / アビリティ威力 など)")
+    s.add_argument("--text", action="store_true", help="影響先の名前と見なさず、効果テキストを全文検索する")
+    s.add_argument("--group", help="区分で絞り込み (カンマ区切り: " + ",".join(MOD_GROUPS) + ")")
+    s.add_argument("--ranks", action="store_true", help="全ランクの効果を出す (既定はランク0と最大)")
+    s.add_argument("--targets", action="store_true", help="影響先の一覧を出す")
+    s.add_argument("--limit", type=int, default=30)
+    s.set_defaults(fn=cmd_modstats)
+
+
 # このグループのコマンド: 名前 -> parser に登録する関数(並び順は wfp/cli/main.py の ORDER)
-COMMANDS = {"cycle": add_cycle, "riven": add_riven, "baro": add_baro}
+COMMANDS = {"cycle": add_cycle, "riven": add_riven, "baro": add_baro, "modstats": add_modstats}

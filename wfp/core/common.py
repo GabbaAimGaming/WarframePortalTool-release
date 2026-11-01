@@ -207,6 +207,18 @@ COMPAT_JA = {"Rifle": "ライフル", "Shotgun": "ショットガン", "Pistol":
              "Bow": "弓", "Assault Rifle": "アサルトライフル", "Throwing": "投擲", "Kitgun": "Kitgun", "Zaw": "Zaw"}
 
 
+# MOD 効果検索の区分(MOD 入手一覧の MOD_TYPES とは別。1つの MOD が複数の区分を持てる。判定は core/modstats の MOD_GROUP_RULES)
+MOD_GROUPS = {"warframe": "Warframe", "primary": "プライマリ", "secondary": "セカンダリ", "melee": "近接",
+              "necramech": "ネクロメカ", "archwing": "アークウイング", "archgun": "アークウイングガン", "archmelee": "アークウイング近接",
+              "kdrive": "K-ドライブ", "robotic": "ロボティック", "beast": "ビースト", "comp_weapon": "コンパニオン武器",
+              "parazon": "パラゾン", "amp": "オペレーター/アンプ", "railjack": "レールジャック", "other": "その他"}
+# MOD 効果検索のデータ: データ更新で Export から作るファイル(~/.wfportal)と、影響先の辞書(data/mod_stats/ の中。開発側が手で編集)
+MOD_STATS_FILE = "mod_stats.json"
+MOD_TARGETS_FILE = "targets.json"
+# 検索結果の件数の上限(全文検索で広い語を打ったときに画面が重くならないように)
+MOD_STATS_LIMIT = 200
+
+
 # マスター一覧のカテゴリー
 MASTERY_CATS = {"warframe": "Warframe", "primary": "プライマリ", "secondary": "セカンダリ", "melee": "近接",
                 "kitgun": "Kitgun", "zaw": "Zaw", "robotic": "ロボティック", "companion": "コンパニオン",
@@ -515,6 +527,9 @@ TEXT_JA = {
     "err.update.lang_unknown": "名前辞書を取れない言語です: {lang}",
     "err.notfound": "{name} が見つかりません",
     "err.regions.none": "ノードが見つかりません",
+    "err.modstats.none": "MOD の効果が見つかりません",
+    "err.modstats.target": "不明な影響先です: {name}",
+    "err.modstats.group": "不明な区分です: {name}",
     "err.sim.empty": "フレームか武器のデータが空でした",
     "err.riven.empty": "Riven 相場のデータが空でした",
     "err.logo.notzip": "ダウンロードした内容が zip ではありませんでした(配布元の仕様が変わった可能性があります)",
@@ -538,6 +553,8 @@ TEXT_JA = {
     "log.sim.failed": "シミュレータ用データを作れませんでした: {e}  ※前回取得分があればそれを使います",
     "log.paths.done": "内部パスの辞書: {n} 件",
     "log.paths.failed": "内部パスの辞書を作れませんでした: {e}  ※前回取得分があればそれを使います",
+    "log.modstats.done": "MOD 効果検索のデータ: {n} 件",
+    "log.modstats.failed": "MOD 効果検索のデータを作れませんでした: {e}  ※前回取得分があればそれを使います",
     "log.fetching.regions": "ノード名(ExportRegions)を取得中...",
     "log.regions.done": "ノード名: {n} 件(取得元: {src})",
     "log.regions.failed": "ノード名を取得できませんでした: {e}  ※前回取得分があればそれを使います(無ければ内部名で表示)",
@@ -576,7 +593,7 @@ TEXT_JA = {
 JA_TABLES = {
     "planet.": PLANETS_JA, "mode.": MODES_JA, "rarity.": RARITY_JA, "src.cat.": SOURCE_CATS, "area.kind.": AREA_KINDS, "bounty.": BOUNTY_JA,
     "relic.era.": ERA_JA, "relic.state.": RELIC_STATE_JA, "clan.lab.": {k: v[1] for k, v in CLAN_LABS.items()},
-    "mod.type.": MOD_TYPES, "mod.compat.": COMPAT_JA, "mastery.cat.": MASTERY_CATS, "arcane.cat.": ARCANE_CATS,
+    "mod.type.": MOD_TYPES, "mod.compat.": COMPAT_JA, "mod.group.": MOD_GROUPS, "mastery.cat.": MASTERY_CATS, "arcane.cat.": ARCANE_CATS,
     "mastery.variant.": {"primary": "プライマリ", "secondary": "セカンダリ"},
     "baro.kind.": BARO_KINDS, "baro.check.": BARO_CHECK_BY,
     "riven.type.": RIVEN_TYPES_JA, "build.type.": BUILD_TYPES,

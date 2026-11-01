@@ -1,4 +1,4 @@
-"""データ更新: ドロップ表・入手先・Riven 相場・名前辞書と、同じ Export から作るシミュレータ用データ・バロ用の辞書、侵略用のノード名
+"""データ更新: ドロップ表・入手先・Riven 相場・名前辞書と、同じ Export から作るシミュレータ用データ・バロ用の辞書・MOD 効果検索のデータ、侵略用のノード名
 
 層のルールの例外: このモジュールだけは wfportal_builder / wfportal_baro を import してよい
 (2つを wfp へ移すまでの一時的な扱い。tests/test_layers.py に同じ例外を書いてある)。
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import wfportal_baro as wbaro
 import wfportal_builder as wb
-from wfp.core import invasion, riven
+from wfp.core import invasion, modstats, riven
 from wfp.core.common import (DROPS_URLS, WFCD_BASES, WFCD_EXTRA, TextError, TextFailure, error_text, export_lang, name_txt, say,
                              txt)
 from wfp.fetch import exports, logos, net
@@ -108,6 +108,16 @@ def update_all(d: Path, langs: tuple[str, ...] = ()) -> None:
         say(txt("log.paths.done", n=str(len(paths))))
     except Exception as e:  # noqa: BLE001
         say(txt("log.paths.failed", e=error_text(e)), 1)
+
+    # MOD 効果検索のデータ(ランクごとの効果テキスト)も、同じ Export から作る
+    try:
+        mod_data = modstats.make_mod_stats(docs["en"], docs["ja"], docs["source"], names["updated"])
+        if not mod_data["mods"]:
+            raise TextFailure(txt("err.modstats.none"))
+        gamedata.save_mod_stats(d, mod_data)
+        say(txt("log.modstats.done", n=str(len(mod_data["mods"]))))
+    except Exception as e:  # noqa: BLE001
+        say(txt("log.modstats.failed", e=error_text(e)), 1)
 
     # 侵略サイクルのノード名(SolNode… → ノード名・惑星名)。名前辞書とは別に取る(names.json に混ぜないため)
     say(txt("log.fetching.regions"))
