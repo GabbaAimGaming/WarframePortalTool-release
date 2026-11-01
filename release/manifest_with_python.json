@@ -1,5 +1,5 @@
 {
-  "version": "2.03",
+  "version": "2.04",
   "edition": "with_python",
   "files": {
     "LICENSE": {
@@ -8,8 +8,8 @@
       "src": "build/bundled/LICENSE"
     },
     "README.md": {
-      "sha256": "8d8f38ff43c3528b6704955c6b7acca04af92d17b59a4ffb7c5bb381d26487b8",
-      "size": 45689,
+      "sha256": "ccb5e8c1acea9bcba0e7f24a1380df2e2bdfdc4573b3cc91fe29247abc4101c5",
+      "size": 46898,
       "src": "build/bundled/README.md"
     },
     "data/baro_rules.json": {
@@ -98,8 +98,8 @@
       "src": "tips/30_Rivenスプライサーの合成表.md"
     },
     "web/ctrl.html": {
-      "sha256": "48c55154f9c8d024f14cf8de7985402c859dac7ed0f2d991a940685c1d6bdad6",
-      "size": 138566,
+      "sha256": "b4f65cee67fbe25e16589716286a68a1a976f3a6aeed244b5fff795819fbb90b",
+      "size": 144773,
       "src": "web/ctrl.html"
     },
     "web/i18n.html": {
@@ -108,23 +108,23 @@
       "src": "web/i18n.html"
     },
     "web/i18n/en.json": {
-      "sha256": "c275e7fb37cc8d9d4dbf0f9833bd1b58c55b72e103ac0b29afbad4155fe8d026",
-      "size": 54520,
+      "sha256": "acaf66e4dbdb09f73093531eb4545bf007037273aff2e3b994e5333f2a7e6caa",
+      "size": 56017,
       "src": "web/i18n/en.json"
     },
     "web/i18n/ja.json": {
-      "sha256": "84a00f59ad021f14842e5d3bd0dce697e68db66a2b14defd740826cbb9e3aee9",
-      "size": 66825,
+      "sha256": "455d43ce2c3fe52f249d6c5fe159a28dcf701b69d92b01376a3981f654890d00",
+      "size": 68841,
       "src": "web/i18n/ja.json"
     },
     "web/menu.html": {
-      "sha256": "cc78496e0ef661099edeb1e86863d9899c3100b89699538f6a222f530912a47f",
-      "size": 6980,
+      "sha256": "984ec2c63f450b52ca69e0025fdeb05e815cc294ef7b1f7341f451c35b5db91e",
+      "size": 6989,
       "src": "web/menu.html"
     },
     "web/view.html": {
-      "sha256": "2efa3bd67df7165426ad9ad9d1246f629a738669dc9dfe96ae2f66eb70b875e4",
-      "size": 71409,
+      "sha256": "36362d4fe40233c888dd7942095226963d8d467c2e6f10f56beec3ffd23477a8",
+      "size": 73327,
       "src": "web/view.html"
     },
     "web/wfportal_builder.html": {
@@ -163,8 +163,8 @@
       "src": "wfp/api/personal.py"
     },
     "wfp/api/search.py": {
-      "sha256": "44ae35784ccc5b27af883ce02b39062d66ead9040b1cf810b0edbd841840c11c",
-      "size": 6529,
+      "sha256": "858482fd981ca62f66124fff73d87cd560b6af4bff266232517094b9ef930521",
+      "size": 8443,
       "src": "wfp/api/search.py"
     },
     "wfp/api/server.py": {
@@ -208,8 +208,8 @@
       "src": "wfp/cli/info.py"
     },
     "wfp/cli/main.py": {
-      "sha256": "1807bc48279ca323d6cd82dce9f62fee00a1f476f7770b1662e5122d5b76f9ce",
-      "size": 1851,
+      "sha256": "ee61c22db1b68b852dc1c402ee900154ac261a8b674b3444c9c5d2c4d694d425",
+      "size": 1860,
       "src": "wfp/cli/main.py"
     },
     "wfp/cli/personal.py": {
@@ -218,8 +218,8 @@
       "src": "wfp/cli/personal.py"
     },
     "wfp/cli/search.py": {
-      "sha256": "254bf3c6b6a99b1ab43a46fedec19b3aa73ef004f612ad60a6416b4501dc30fa",
-      "size": 6899,
+      "sha256": "5d1e6368806d56f35995162ee29b8ee1869f2454e5d33b8c2103ecf2495989a5",
+      "size": 9187,
       "src": "wfp/cli/search.py"
     },
     "wfp/cli/table.py": {
@@ -243,8 +243,8 @@
       "src": "wfp/core/build.py"
     },
     "wfp/core/common.py": {
-      "sha256": "cf686129a19c27cb8f853fd5d8449cae4b077aff0889b9e51727750c3da615fd",
-      "size": 45529,
+      "sha256": "71b09432d5114b63aad2d26ab872abba21c6a04b6eafac32d20a02bf6a929410",
+      "size": 45745,
       "src": "wfp/core/common.py"
     },
     "wfp/core/cycle.py": {
@@ -308,13 +308,13 @@
       "src": "wfp/drops/__init__.py"
     },
     "wfp/drops/search.py": {
-      "sha256": "882c8c2957ef4e659b7701972de69e96cbb2a18a5bfc7eecc23aaf2e19c6cf21",
-      "size": 4479,
+      "sha256": "6f02935644b20da140d9c81fe5a9e241579a5a2bb16094d9bf1b5bb7d67ddacd",
+      "size": 6362,
       "src": "wfp/drops/search.py"
     },
     "wfp/drops/tables.py": {
-      "sha256": "9b96f78d3f8fdfbab18d4646413b2ef3ee6030e4a7ca7c513343c962e9f75c80",
-      "size": 13710,
+      "sha256": "903634b653ab6f8e2a6ddb5b97860b65765fc41c401e54ca4e4975bfd870436f",
+      "size": 14017,
       "src": "wfp/drops/tables.py"
     },
     "wfp/fetch/__init__.py": {

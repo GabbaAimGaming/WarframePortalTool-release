@@ -197,6 +197,10 @@ label.chk { display: inline-flex; gap: 6px; align-items: center; color: var(--mu
 .result-head h3 { margin: 0; font-size: 17px; }
 .result-head .en { color: var(--mute); }
 .count { color: var(--accent); font-variant-numeric: tabular-nums; }
+/* 入手先の表の敵の名前(押すと敵から探すへ) */
+.go-enemy { padding: 0; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  text-decoration: underline dotted; text-underline-offset: 3px; }
+.go-enemy:hover { color: var(--accent); }
 
 .tablewrap { overflow-x: auto; border: 1px solid var(--line); }
 table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
@@ -566,6 +570,25 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
         </div>
         <div class="chips" id="area-chips"></div>
         <div id="area-out"></div>
+      </section>
+
+      <!-- 敵から探す(敵の名前は WFCD の英名のまま。和名の出どころが無いため) -->
+      <section id="view-enemy" hidden>
+        <h2 data-i18n="page.enemy">敵から探す</h2>
+        <p class="lead" data-i18n="enemy.lead">敵の名前(英語)を入力すると、その敵を1体倒したときに落とすアイテムと確率を表示します。</p>
+        <div class="row">
+          <input type="text" class="search" id="enemy-q" data-i18n-placeholder="enemy.placeholder" placeholder="例: Heavy Gunner / Corrupted" autocomplete="off">
+        </div>
+        <!-- 種類のチェック(並び・キーは wfp/core/common.py の AREA_KINDS と同じ。初期は ENEMY_KIND_DEFAULT = すべて。tests/test_enemy.py が検査) -->
+        <div class="row" id="enemy-kinds">
+          <label class="chk"><input type="checkbox" data-kind="resource" checked> <span data-i18n="area.kind.resource">素材</span></label>
+          <label class="chk"><input type="checkbox" data-kind="part" checked> <span data-i18n="area.kind.part">パーツ・設計図</span></label>
+          <label class="chk"><input type="checkbox" data-kind="mod" checked> <span data-i18n="area.kind.mod">MOD</span></label>
+          <label class="chk"><input type="checkbox" data-kind="relic" checked> <span data-i18n="area.kind.relic">レリック</span></label>
+          <label class="chk"><input type="checkbox" data-kind="other" checked> <span data-i18n="area.kind.other">その他</span></label>
+        </div>
+        <div class="chips" id="enemy-chips"></div>
+        <div id="enemy-out"></div>
       </section>
 
       <!-- MOD 入手一覧 -->

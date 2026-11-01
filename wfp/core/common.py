@@ -154,6 +154,7 @@ SOURCE_CATS = {"mission": "ミッション", "enemy": "敵", "bounty": "バウ�
 AREA_KINDS = {"resource": "素材", "part": "パーツ・設計図", "mod": "MOD", "relic": "レリック", "other": "その他"}
 AREA_KIND_DEFAULT = ("resource",)  # エリア検索で種類の指定が無いときに出す種類(これまでの「素材だけ」と同じ)
 ITEM_KIND_DEFAULT = ("resource", "part", "mod")  # アイテムから探すで種類の指定が無いときに探す種類(画面の初期のチェック・CLI の既定)
+ENEMY_KIND_DEFAULT = tuple(AREA_KINDS)  # 敵から探すで種類の指定が無いときに出す種類(1体の敵の表は短いので全部)
 
 
 BOUNTY_JA = {"cetusBountyRewards": "平原バウンティ", "solarisBountyRewards": "オーブ峡谷バウンティ",
@@ -465,6 +466,7 @@ TEXT_JA = {
     "err.nodata": "データがありません。メニューの「データ更新」から取得してください。",
     "err.part.cat": "不明なカテゴリーです。",
     "err.item.none": "該当する入手先がありません。",
+    "err.enemy.none": "その敵のドロップはありません。",
     "err.req.json_type": "Content-Type は application/json にしてください。",
     "err.req.too_large": "リクエストが大きすぎます。",
     "err.req.bad_json": "JSON を読み取れません。",

@@ -1,13 +1,13 @@
-"""CLI: 検索(item・area)"""
+"""CLI: 検索(item・area・enemy)"""
 from __future__ import annotations
 
 import sys
 
 from wfp.cli.common import need_drops
 from wfp.cli.table import print_table
-from wfp.core.common import AREA_KIND_DEFAULT, AREA_KINDS, ITEM_KIND_DEFAULT, MODES_JA, PLANETS_JA, RARITY_JA, SOURCE_CATS, norm, pct, rank, render_ja
+from wfp.core.common import AREA_KIND_DEFAULT, AREA_KINDS, ENEMY_KIND_DEFAULT, ITEM_KIND_DEFAULT, MODES_JA, PLANETS_JA, RARITY_JA, SOURCE_CATS, norm, pct, rank, render_ja
 from wfp.core.loader import load_names, load_sources
-from wfp.drops.search import all_item_names, area_stages, find_sources, group_candidates, pick_candidates
+from wfp.drops.search import all_item_names, area_stages, enemy_drops, find_sources, group_candidates, pick_candidates, pick_enemies
 from wfp.drops.tables import stage_label
 from wfp.store import datadir
 
@@ -90,6 +90,40 @@ def cmd_area(args):
             print("  (選んだ種類のドロップはありません。--kind で種類を足すか、--all ですべての種類を表示)")
 
 
+def cmd_enemy(args):
+    d = datadir.data_dir(args.data_dir)
+    need_drops(d)
+    names, sources = load_names(d), load_sources(d)
+    query = " ".join(args.query)
+    cands = pick_enemies(query, sources.enemies if sources else [])
+    if not cands:
+        sys.exit(f"「{query}」に一致する敵がありません(敵の名前は英語です)。")
+    exact = [n for n in cands if norm(n) == norm(query)]
+    if exact:
+        cands = exact[:1]
+    elif len(cands) > 1 and not args.pick:
+        print(f"「{query}」の候補が {len(cands)} 件あります。--pick 番号 で選ぶか、もう少し具体的に入力してください。")
+        for i, n in enumerate(cands[:30], 1):
+            print(f"  {i:>2}. {n}")
+        return
+    if args.pick:
+        if not 1 <= args.pick <= len(cands):
+            sys.exit("--pick の番号が範囲外です。")
+        cands = [cands[args.pick - 1]]
+
+    enemy = cands[0]
+    kinds = set(args.kind) if args.kind else set(ENEMY_KIND_DEFAULT)
+    rows = enemy_drops(enemy, sources, names, kinds)
+    print(f"■ {enemy}  — {len(rows)} 件\n")
+    if not rows:
+        print("  (選んだ種類のドロップはありません。--kind を外すとすべての種類を表示)")
+        return
+    out = [[names.ja(r["en"]), AREA_KINDS[r["kind"]], render_ja(r["detail"]), (f"{r['qty']}個 " if r["qty"] else "") + pct(r["chance"]),
+            RARITY_JA.get(r["rarity"], r["rarity"])] for r in rows]
+    print_table(["アイテム", "種類", "区分", "確率", "レア度"], out, right_cols=(3,))
+    print("\n確率: 1体倒したときに落とす割合です(区分の % はその表を引く割合で、確率にはかけ合わせ済み)。")
+
+
 def add_item(sub) -> None:
     s = sub.add_parser("item", help="アイテム名 -> 入手場所・ステージ・確率 (ミッション・敵・バウンティ・レリック等)")
     s.add_argument("query", nargs="+")
@@ -115,5 +149,14 @@ def add_area(sub) -> None:
     s.set_defaults(fn=cmd_area)
 
 
+def add_enemy(sub) -> None:
+    s = sub.add_parser("enemy", help="敵の名前(英語) -> 落とすアイテムと確率")
+    s.add_argument("query", nargs="+")
+    s.add_argument("--kind", action="append", choices=list(AREA_KINDS),
+                   help="出す種類 (複数回指定可。既定はすべて。" + " / ".join(f"{k}={v}" for k, v in AREA_KINDS.items()) + ")")
+    s.add_argument("--pick", type=int, help="候補が複数のとき番号で選ぶ")
+    s.set_defaults(fn=cmd_enemy)
+
+
 # このグループのコマンド: 名前 -> parser に登録する関数(並び順は wfp/cli/main.py の ORDER)
-COMMANDS = {"item": add_item, "area": add_area}
+COMMANDS = {"item": add_item, "area": add_area, "enemy": add_enemy}

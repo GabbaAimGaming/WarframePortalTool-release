@@ -72,6 +72,7 @@ class Sources:
     clan / other(同梱の data/parts/clan.json / other.json の中身)を渡すと、クラン研究・Simaris 交換などの行も足す(確率は None)。
     part_owner は extras(設計図ではない作成素材)の {名前(小文字): 本体の英名}。パーツ検索のカテゴリー分けに使う
     relic_items はレリックから出る項目のキー(item_key。数量違い・大文字小文字をそろえる)。パーツ検索の「Prime を除外する」に使う
+    enemies は敵の名前(入手先の種類が enemy の行の入手先。英名のみ。和名の出どころが無いため)。敵から探すの候補に使う
     """
 
     def __init__(self, files: dict[str, dict], clan: object = None, other: object = None):
@@ -138,6 +139,7 @@ class Sources:
         self.rows = [r for r in self.rows if r[4]]
         self.item_names = sorted({r[4] for r in self.rows})
         self.relic_items = {item_key(r[4]) for r in self.rows if r[0] == "relic"}
+        self.enemies = sorted({r[1] for r in self.rows if r[0] == "enemy" and r[1]})  # 敵から探すの候補(WFCD の英名そのまま)
 
 
 def _manual_rows(raw: object, field: str, labels: dict, cat: str | None, prefix: str,

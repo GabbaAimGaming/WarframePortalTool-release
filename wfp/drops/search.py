@@ -11,7 +11,7 @@ from wfp.drops.tables import Drops, Sources, mission_place, stage_label
 def find_sources(key: str, drops: "Drops", sources: Sources | None, names: Names, events: bool = False) -> list[dict]:
     """項目(英名)の入手先を、ミッション・敵・バウンティ・レリック・クラン研究等すべてから集めて確率の高い順に返す(確率の無いクラン研究は最後)。
 
-    cat は入手先の種類のキー(SOURCE_CATS)、rarity はレア度のキー(Common など)、place・detail・stage はテキスト指定
+    cat は入手先の種類のキー(SOURCE_CATS)、敵の行だけ enemy に敵の英名(敵から探すへのリンク用)、rarity はレア度のキー(Common など)、place・detail・stage はテキスト指定
     (wfp/core/common.py の txt。画面は web/i18n の表で、CLI は render_ja で文にする)。並びは日本語の入手先名で決める
     """
     k = item_key(key)
@@ -22,8 +22,11 @@ def find_sources(key: str, drops: "Drops", sources: Sources | None, names: Names
                         "stage": stage_label(rot), "qty": names.split_qty(item)[0], "chance": chance, "rarity": rarity})
     for cat, place, detail, rot, item, chance, rarity in (sources.rows if sources else []):
         if item_key(item) == k:
-            out.append({"cat": cat, "place": place, "detail": detail, "event": False,
-                        "stage": stage_label(rot), "qty": names.split_qty(item)[0], "chance": chance, "rarity": rarity})
+            row = {"cat": cat, "place": place, "detail": detail, "event": False,
+                   "stage": stage_label(rot), "qty": names.split_qty(item)[0], "chance": chance, "rarity": rarity}
+            if cat == "enemy":
+                row["enemy"] = place  # 敵の英名(画面はここから敵から探すへ移る)
+            out.append(row)
     order = {c: i for i, c in enumerate(SOURCE_CATS)}
     # 確率の無い入手先(クラン研究)は確率のある行のあと
     out.sort(key=lambda r: (r["chance"] is None, -(r["chance"] or 0), order.get(r["cat"], 99), render_ja(r["place"])))
@@ -80,3 +83,33 @@ def parse_kinds(raw: object, default: tuple[str, ...] = AREA_KIND_DEFAULT) -> se
     if raw is None:
         return set(default)
     return {k for k in str(raw).split(",") if k in AREA_KINDS}
+
+
+def pick_enemies(query: str, enemies: list[str]) -> list[str]:
+    """敵の名前(英名)が query に合うものを、合い方の良い順(同じなら名前順)に返す。query が空なら何も返さない(敵は千件以上あるため)"""
+    scored = [(r, norm(n), n) for n in enemies if (r := rank(query, [n])) is not None]
+    scored.sort()
+    return [n for _, _, n in scored]
+
+
+def enemy_drops(enemy: str, sources: Sources | None, names: Names, kinds: set[str]) -> list[dict]:
+    """敵から探す: 1体の敵が落とすアイテム(Sources の enemy の行)を返す。
+
+    kinds は出す種類(AREA_KINDS のキー)の集まり。並びは種類の順(AREA_KINDS の順)→ 確率の高い順 → 英名。
+    同じアイテムでも表(素材・MOD・設計図など)が違えば別の行。detail は表のテキスト指定、chance は1体倒したときに落とす割合(%)、
+    kind は種類のキー、qty は数量(無ければ "")、rarity はレア度のキー
+    """
+    order = list(AREA_KINDS)
+    owners = sources.part_owner if sources else {}
+    out = []
+    for cat, place, detail, _rot, item, chance, rarity in (sources.rows if sources else []):
+        if cat != "enemy" or place != enemy:
+            continue
+        kind = names.item_kind(item, owners)
+        if kind not in kinds:
+            continue
+        qty, base = names.split_qty(item)
+        out.append({"en": base, "ja": names.ja(base), "kind": kind, "detail": detail, "qty": qty,
+                    "chance": chance, "rarity": rarity})
+    out.sort(key=lambda r: (order.index(r["kind"]), -(r["chance"] or 0), r["en"].lower()))
+    return out

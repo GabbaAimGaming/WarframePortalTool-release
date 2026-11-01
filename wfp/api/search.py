@@ -1,14 +1,16 @@
-"""画面向け API: 検索(アイテムから探す・エリア検索)"""
+"""画面向け API: 検索(アイテムから探す・エリア検索・敵から探す)"""
 from __future__ import annotations
 
 from wfp.api.store import ApiError, Store, need_drops
-from wfp.core.common import ITEM_KIND_DEFAULT, MASTERY_CATS, PART_SKIP_CATS, PLANETS_JA, SOURCE_CATS, name_txt, norm, rank, txt
+from wfp.core.common import (AREA_KINDS, ENEMY_KIND_DEFAULT, ITEM_KIND_DEFAULT, MASTERY_CATS, PART_SKIP_CATS, PLANETS_JA, SOURCE_CATS,
+                             name_txt, norm, rank, txt)
 from wfp.core.names import item_key
-from wfp.drops.search import area_stages, find_sources, group_candidates, parse_kinds, pick_candidates
+from wfp.drops.search import area_stages, enemy_drops, find_sources, group_candidates, parse_kinds, pick_candidates, pick_enemies
 from wfp.drops.tables import mission_place, stage_label
 
 
 SUGGEST_LIMIT = 10  # 候補として返す最大件数(数量違いを束ねた後)
+ENEMY_SUGGEST_LIMIT = 20  # 敵から探すの候補の最大件数(同じ敵の勢力・強化版の違いが多いので、アイテムより多め)
 
 
 def suggest_items(store: Store, q: str, kinds: set[str], cat: str = "", no_prime: bool = False) -> dict:
@@ -109,6 +111,33 @@ def lookup_area(store: Store, kind: str, key: str, kinds: set[str], events: bool
     return {"title": title, "nodes": nodes}
 
 
+def suggest_enemies(store: Store, q: str) -> dict:
+    """敵から探すの候補。敵の名前は英名だけ(和名の出どころが無い)。q が空なら候補は出さない(千件以上あるため)。
+    items は候補(最大 ENEMY_SUGGEST_LIMIT 件)、total は q に合う全件数"""
+    need_drops(store)
+    src = store.sources()
+    cands = pick_enemies(q, src.enemies if src else [])
+    return {"total": len(cands), "items": [{"key": n, "name": n} for n in cands[:ENEMY_SUGGEST_LIMIT]]}
+
+
+def lookup_enemy(store: Store, name: str, kinds: set[str]) -> dict:
+    """1体の敵が落とすアイテム(drops/search の enemy_drops)。kinds は出す種類(AREA_KINDS のキー)の集まり。
+    知らない敵は 404。total は種類で絞る前の件数、kinds_n は種類ごとの件数(並びは AREA_KINDS)"""
+    need_drops(store)
+    src, names = store.sources(), store.names()
+    if not src or name not in src.enemies:
+        raise ApiError(txt("err.enemy.none"), 404)
+    every = enemy_drops(name, src, names, set(AREA_KINDS))
+    counts: dict[str, int] = {}
+    for r in every:
+        counts[r["kind"]] = counts.get(r["kind"], 0) + 1
+    return {
+        "name": name, "total": len(every),
+        "kinds_n": [{"key": k, "n": counts[k]} for k in AREA_KINDS if k in counts],
+        "items": [r for r in every if r["kind"] in kinds],  # detail はテキスト指定、kind・rarity はキー
+    }
+
+
 # (メソッド, パス) -> 処理。c はリクエスト(wfp/api/server.py の Request)
 ROUTES = {
     ("GET", "/api/suggest/item"): lambda c: suggest_items(c.store, c.q.get("q", ""), parse_kinds(c.q.get("kinds"), ITEM_KIND_DEFAULT),
@@ -117,4 +146,6 @@ ROUTES = {
     ("GET", "/api/suggest/area"): lambda c: suggest_areas(c.store, c.q.get("q", "")),
     ("GET", "/api/area"): lambda c: lookup_area(c.store, c.q.get("type", "planet"), c.q.get("key", ""),
                                                 parse_kinds(c.q.get("kinds")), c.flag("events")),
+    ("GET", "/api/suggest/enemy"): lambda c: suggest_enemies(c.store, c.q.get("q", "")),
+    ("GET", "/api/enemy"): lambda c: lookup_enemy(c.store, c.q.get("name", ""), parse_kinds(c.q.get("kinds"), ENEMY_KIND_DEFAULT)),
 }
