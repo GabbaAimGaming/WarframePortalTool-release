@@ -517,6 +517,20 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
 .guide-h + .cards { margin-top: 8px; }
 .card .guide-text { padding: 12px 14px; margin: 0; white-space: pre-line; }
 .card .guide-go { margin-left: auto; padding: 2px 12px; }
+/* クエスト一覧: 前提の札(完了は薄く、未完了は枠を強く)。札を押すとその行へ移る */
+.qs-req { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.qs-chip { font: inherit; font-size: 12px; padding: 0 6px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; white-space: nowrap; }
+.qs-chip.ok { color: var(--mute); text-decoration: line-through; }
+.qs-chip.ng { border-color: var(--accent); }
+.qs-info { font-size: 12px; color: var(--mute); }
+.qs-state { font-size: 12px; white-space: nowrap; }
+.qs-state.ready { color: var(--accent); font-weight: 700; }
+.qs-state.locked { color: var(--mute); }
+.qs-route { margin-top: 4px; padding: 0; border: 0; background: none; font-size: 12px; color: var(--mute); }  /* 共通の details の枠は付けない */
+.qs-route summary { cursor: pointer; }
+.qs-route ol { margin: 4px 0 6px; padding-left: 20px; }
+tr.qs-flash td { outline: 2px solid var(--accent); outline-offset: -2px; }
+input.own:disabled { cursor: not-allowed; opacity: .35; }
 </style>
 <!-- PART:sections -->
       <!-- トップ(カードの中身は MENU から作る: ctrl.html の renderHome) -->
@@ -709,6 +723,21 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
         <div class="summary" id="ms-summary"></div>
         <div id="ms-out"></div>
         <p class="note" data-i18n="ms.note">Kitgun はチェンバー(プライマリ版とセカンダリ版は別々)、Zaw はストライク、アンプはプリズムと Sirocco、MOA・ハウンドは頭(モデル)、K-ドライブはボードの単位で数えます。Excalibur Prime・Skana Prime・Lato Prime は「ファウンダー」にチェックを入れたときだけ、「ファウンダー」の項目に表示して集計します。プレクサスとアンプ本体は「その他」に入ります。マスタリー経験値はランク最大までの値です(Warframe・コンパニオン・センチネル・MOA/ハウンド・アークウイング・ネクラメカ・K-ドライブ・プレクサスは 1 ランク 200、武器は 100。Kuva・Tenet・Coda などとネクラメカはランク 40)。</p>
+      </section>
+
+      <!-- クエスト一覧(文字は I18N の data-i18n で差し替え。中の日本語は読み込み前の表示) -->
+      <section id="view-quests" hidden>
+        <h2 data-i18n="page.quests">クエスト一覧</h2>
+        <p class="lead" data-i18n="quest.lead">クエストとジャンクションの完了状況です。前提が完了していないものはチェックできません(この PC に保存)。</p>
+        <div class="seg" id="qs-cats" role="group" data-i18n-aria="quest.cats" aria-label="種類"></div>
+        <div class="row">
+          <input type="text" class="search" id="qs-q" data-i18n-placeholder="quest.placeholder" placeholder="名前で絞り込み(例: Natah / 二番目の夢)" autocomplete="off">
+          <select id="qs-state" data-i18n-aria="common.state" aria-label="状態"><option value="" data-i18n="quest.filter.all">すべての状態</option><option value="ready" selected data-i18n="quest.filter.ready">受けられるもののみ</option><option value="locked" data-i18n="quest.filter.locked">前提が未完了のもののみ</option><option value="todo" data-i18n="quest.filter.todo">未完了すべて</option><option value="done" data-i18n="quest.filter.done">完了のみ</option></select>
+        </div>
+        <div class="summary" id="qs-summary"></div>
+        <div class="err" id="qs-err" role="alert"></div>
+        <div id="qs-out"></div>
+        <p class="note" data-i18n="quest.note">前提の札を押すと、その行へ移ります。「導線」には、完了までに必要な未完了のものを前提から順に並べています。MR(マスタリーランク)とそのほかの条件は案内だけで、チェックには使いません。※ の付いた行は、前提がまだ確かめきれていないものです。</p>
       </section>
 
       <!-- 侵略サイクル(文字は I18N の data-i18n で差し替え。中の日本語は読み込み前の表示) -->

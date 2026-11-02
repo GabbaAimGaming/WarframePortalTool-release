@@ -233,6 +233,16 @@ MASTERY_FOUNDER = frozenset({"warframe:excalibur prime", "melee:skana prime", "s
 # Public Export に無い項目を手で足すファイル(data/mastery/ の中)。データ更新・照合で無くても消さない
 MASTERY_EXTRA_FILE = "extra.json"
 
+# クエスト一覧: 種類(キー -> 日本語)。並びは画面・CLI の表示順。ジャンクションもチェックの対象として同じ一覧に入る
+QUEST_CATS = {"main": "メインクエスト", "side": "サイドクエスト", "warframe": "Warframe クエスト",
+              "junction": "ジャンクション", "other": "その他"}
+# 状態: 完了 / 今すぐ受けられる(前提が全部完了) / 前提が足りない
+QUEST_STATES = {"done": "完了", "ready": "受けられる", "locked": "前提が未完了"}
+# 前提条件を手で書くファイル(data/quests/ の中)。Export に無いクエスト(Prelude to War など)もここに書く。データ更新で無くても消さない
+QUEST_FLOW_FILE = "flow.json"
+# ジャンクションの id(完了の記録・前提の参照)は「junction:<flow.json のキー>」。クエストは内部パス(Export に無いものは extra:<名前>)
+QUEST_JUNCTION_PREFIX = "junction:"
+
 
 # パーツ検索: ドロップ表の英名が「マスター一覧の項目名 + 部品名(+ Blueprint)」ならパーツとして扱う。
 # 部品名はこの一覧にあるものだけ(スキン・ヘルメット・コンクラーヴ用などを拾わないため。新しい部品名が出たら足す)
@@ -485,6 +495,10 @@ TEXT_JA = {
     "err.ocr.failed": "文字認識に失敗しました: {msg}",
     "err.mastery.nodata": "マスター一覧のデータがありません。「データ更新」で取得してください。",
     "err.mastery.unknown": "見つかりません: {id}",
+    "err.quest.unknown": "見つかりません: {id}",
+    "err.quest.locked": "前提が完了していないため、完了にできません: {name}(未完了: {need})",
+    "err.quest.needed": "ほかの完了済みの前提になっているため、外せません: {name}(先に外すもの: {by})",
+    "quest.junction": "{to}ジャンクション",
     "err.msscan.png": "PNG の画像(8bit の RGB / RGBA)を送ってください。",
     "err.arcane.nodata": "アルケインのデータがありません。「データ更新」で取得し直してください(このページを追加する前に取得したデータには含まれていません)。",
     "err.arcane.rank": "ランクが正しくありません: {rank}",
@@ -597,6 +611,7 @@ JA_TABLES = {
     "planet.": PLANETS_JA, "mode.": MODES_JA, "rarity.": RARITY_JA, "src.cat.": SOURCE_CATS, "area.kind.": AREA_KINDS, "bounty.": BOUNTY_JA,
     "relic.era.": ERA_JA, "relic.state.": RELIC_STATE_JA, "clan.lab.": {k: v[1] for k, v in CLAN_LABS.items()},
     "mod.type.": MOD_TYPES, "mod.compat.": COMPAT_JA, "mod.group.": MOD_GROUPS, "mastery.cat.": MASTERY_CATS, "arcane.cat.": ARCANE_CATS,
+    "quest.cat.": QUEST_CATS, "quest.state.": QUEST_STATES,
     "mastery.variant.": {"primary": "プライマリ", "secondary": "セカンダリ"},
     "baro.kind.": BARO_KINDS, "baro.check.": BARO_CHECK_BY,
     "riven.type.": RIVEN_TYPES_JA, "build.type.": BUILD_TYPES,

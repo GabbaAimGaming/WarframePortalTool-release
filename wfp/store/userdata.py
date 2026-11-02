@@ -57,6 +57,20 @@ def save_mastered(d: Path, done: set[str]) -> None:
     (d / "mastered.json").write_text(json.dumps(sorted(done), ensure_ascii=False, indent=0), encoding="utf-8")
 
 
+# quests_done.json: 完了にしたクエスト・ジャンクションの id のリスト(クエストは内部パス、ジャンクションは junction:<キー>)
+def load_quests_done(d: Path) -> set[str]:
+    f = d / "quests_done.json"
+    try:
+        raw = json.loads(f.read_text(encoding="utf-8-sig")) if f.exists() else []
+    except ValueError:
+        return set()
+    return {x for x in raw if isinstance(x, str)} if isinstance(raw, list) else set()
+
+
+def save_quests_done(d: Path, done: set[str]) -> None:
+    (d / "quests_done.json").write_text(json.dumps(sorted(done), ensure_ascii=False, indent=0), encoding="utf-8")
+
+
 # arcanes_owned.json: {"英語名(小文字)": ランク}。キーがあれば所持、値が今のランク(0〜最大ランク)
 def load_arcanes_owned(d: Path) -> dict[str, int]:
     f = d / "arcanes_owned.json"

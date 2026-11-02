@@ -1,4 +1,4 @@
-"""CLI: 個人データ(mods・mastery・arcane・build)"""
+"""CLI: 個人データ(mods・mastery・quest・arcane・build)"""
 from __future__ import annotations
 
 import json
@@ -8,10 +8,12 @@ from pathlib import Path
 from wfp.cli.table import pad, print_table
 from wfp.core.arcane import arcane_summary, arcane_table, set_arcanes_owned
 from wfp.core.build import find_build
-from wfp.core.common import ARCANE_CATS, BUILD_TYPES, MASTERY_CATS, MOD_TYPES, RARITY_JA, SOURCE_CATS, norm, pct, rank, render_ja
+from wfp.core.common import (ARCANE_CATS, BUILD_TYPES, MASTERY_CATS, MOD_TYPES, QUEST_CATS, QUEST_STATES, RARITY_JA, SOURCE_CATS, norm, pct,
+                             rank, render_ja)
 from wfp.core.loader import load_drops, load_names, load_sources
 from wfp.core.mastery import mastery_label, mastery_summary, mastery_table
 from wfp.core.mods import mod_table
+from wfp.core.quests import item_name, quest_items, quest_summary, quest_table, set_quests_done
 from wfp.drops.search import all_item_names
 from wfp.store import build_images, datadir, userdata
 
@@ -104,6 +106,58 @@ def cmd_mastery(args):
         print(f"  {pad(label, 18)} {v['done']:>4} / {v['total']:<4}")
     a = summ["all"]
     print(f"  {pad('全体', 18)} {a['done']:>4} / {a['total']:<4}  マスタリー経験値 {a['xp_done']:,} / {a['xp']:,}")
+
+
+def cmd_quest(args):
+    d = datadir.data_dir(args.data_dir)
+    names = load_names(d)
+    done = userdata.load_quests_done(d)
+    rows = quest_table(names, done)
+    if not rows:
+        sys.exit("クエストのデータがありません。")
+    label = {r["id"]: render_ja(item_name(r)) for r in rows}
+    action, query = "list", list(args.query)
+    if query and query[0] in ("list", "done", "undo"):
+        action, query = query[0], query[1:]
+    q = " ".join(query)
+    if args.cat:
+        rows = [r for r in rows if r["cat"] == args.cat]
+    if action in ("done", "undo"):
+        keys = lambda r: [r.get("en") or r.get("to", ""), r.get("ja", ""), label[r["id"]]]
+        hits = [r for r in rows if norm(q) in [norm(k) for k in keys(r)]] or \
+               [r for r in rows if rank(q, keys(r)) is not None]
+        if len(hits) != 1:
+            sys.exit(f"「{q}」に一致するものがありません。" if not hits else
+                     f"「{q}」に一致するものが {len(hits)} 件あります。名前を正確に入力してください。"
+                     + "".join(f"\n  {label[r['id']]} [{QUEST_CATS[r['cat']]}]" for r in hits[:15]))
+        hit = hits[0]
+        ids = (hit["route"] if action == "done" and args.route else []) + [hit["id"]]
+        try:
+            done = set_quests_done(quest_items(names), done, ids, action == "done")
+        except ValueError as e:
+            route = "" if action == "undo" or not hit["route"] else \
+                "\n先に必要な順: " + " → ".join(label[i] for i in hit["route"]) + "\n(--route を付けると、これらもまとめて完了にします)"
+            sys.exit(str(e) + route)
+        userdata.save_quests_done(d, done)
+        print("、".join(label[i] for i in ids) + f" を{'完了' if action == 'done' else '未完了'}にしました。")
+        return
+    if q:
+        rows = [r for r in rows if rank(q, [r.get("en") or r.get("to", ""), r.get("ja", ""), label[r["id"]]]) is not None]
+    if args.state == "todo":
+        rows = [r for r in rows if not r["done"]]
+    elif args.state:
+        rows = [r for r in rows if r["state"] == args.state]
+    if not rows:
+        sys.exit("条件に合うものがありません。")
+    print_table(["済", "状態", "名前", "種類", "未完了の前提"],
+                [["✓" if r["done"] else "", QUEST_STATES[r["state"]], label[r["id"]], QUEST_CATS[r["cat"]],
+                  "、".join(label[i] for i in r["missing"])] for r in rows[: args.limit]])
+    summ = quest_summary(quest_table(names, done))
+    print(f"\n{len(rows)} 件中 {min(len(rows), args.limit)} 件を表示")
+    for c, name in list(QUEST_CATS.items()) + [("all", "全体")]:
+        v = summ[c]
+        if v["total"]:
+            print(f"  {pad(name, 18)} {v['done']:>4} / {v['total']:<4}  受けられる {v['ready']}")
 
 
 def cmd_arcane(args):
@@ -269,6 +323,17 @@ def add_mastery(sub) -> None:
     s.set_defaults(fn=cmd_mastery)
 
 
+def add_quest(sub) -> None:
+    s = sub.add_parser("quest", help="クエスト一覧 (クエスト・ジャンクションの完了チェックと前提条件)")
+    s.add_argument("query", nargs="*", metavar="[done|undo] 名前",
+                   help="名前で絞り込み。先頭に done / undo を付けると完了にする / 外す(前提が未完了なら完了にできない)")
+    s.add_argument("--cat", choices=list(QUEST_CATS), help="種類で絞り込み")
+    s.add_argument("--state", choices=list(QUEST_STATES) + ["todo"], help="状態で絞り込み (todo は未完了すべて)")
+    s.add_argument("--route", action="store_true", help="done のとき、未完了の前提もまとめて完了にする")
+    s.add_argument("--limit", type=int, default=80)
+    s.set_defaults(fn=cmd_quest)
+
+
 def add_arcane(sub) -> None:
     s = sub.add_parser("arcane", help="アルケイン所持一覧 (所持チェックとランク)")
     s.add_argument("query", nargs="*", metavar="[own|unown] 名前",
@@ -281,4 +346,4 @@ def add_arcane(sub) -> None:
 
 
 # このグループのコマンド: 名前 -> parser に登録する関数(並び順は wfp/cli/main.py の ORDER)
-COMMANDS = {"build": add_build, "mods": add_mods, "mastery": add_mastery, "arcane": add_arcane}
+COMMANDS = {"build": add_build, "mods": add_mods, "mastery": add_mastery, "quest": add_quest, "arcane": add_arcane}

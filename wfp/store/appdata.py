@@ -31,6 +31,15 @@ def parts_dir() -> Path:
     return common.APP_DIR / "data" / "parts"
 
 
+def quests_dir() -> Path:
+    return common.APP_DIR / "data" / "quests"
+
+
+def read_quests(name: str = common.QUEST_FLOW_FILE, src: Path | None = None) -> object | None:
+    """data/quests/<name> の JSON(クエスト・ジャンクションの前提条件)。無い・読めなければ None(形の検査は core.quests で行う)"""
+    return _read_json((quests_dir() if src is None else src) / name)
+
+
 def mod_stats_dir() -> Path:
     return common.APP_DIR / "data" / "mod_stats"
 

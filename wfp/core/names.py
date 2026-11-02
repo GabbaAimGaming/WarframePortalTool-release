@@ -44,6 +44,9 @@ _MODULAR_PARTS = re.compile(r"/(OperatorAmplifiers|ModularMelee[^/]*|SUModular[^
 _COMPANION_HEAD = re.compile(r"/(MoaPets/MoaPetParts/MoaPetHead[^/]+|ZanukaPets/ZanukaPetParts/ZanukaPetPartHead[A-Z])$")
 # 図鑑に載らない印(excludeFromCodex)が付いているが、マスタリー経験値が入るもの。
 # ハウンドの武器 Akaten / Batoten / Lacerten(SentinelWeapons。内部名は ZanukaPetMeleeWeapon PS / IP / IS)
+# クエスト: ExportKeys のうち内部パスが「…KeyChain」「…KeyChainItem」「…KeyChainA」などのもの。
+# parentName があるもの(暗殺キーなど)とクランキー(DojoKey)は入らない
+_QUEST_KEY = re.compile(r"KeyChain(Item|[A-Z])?$")
 _MASTERY_CODEX_EXEMPT = re.compile(r"/ZanukaPets/ZanukaPetMeleeWeapon[^/]+$")
 
 
@@ -170,6 +173,22 @@ def names_by_lang(en_docs: list[dict], lang_docs: list[dict]) -> dict[str, str]:
     return _pair_names(_collect_names(en_docs), _collect_names(lang_docs))
 
 
+def is_quest_key(it: dict) -> bool:
+    """ExportKeys の項目がクエストか(内部パスの形と、parentName が空であること)"""
+    return bool(_QUEST_KEY.search(it.get("uniqueName") or "")) and not it.get("parentName")
+
+
+def quest_names(en_docs: list[dict], ja: dict[str, tuple[str, str]]) -> list[dict]:
+    """クエストの名前 [{id: 内部パス, en, ja}](英名順)。前提条件は同梱の data/quests/flow.json(core.quests)"""
+    out: dict[str, dict] = {}
+    for doc in en_docs:
+        for it in doc.get("ExportKeys", []):
+            if isinstance(it, dict) and isinstance(it.get("name"), str) and it["name"].strip() and is_quest_key(it):
+                uid = it["uniqueName"]
+                out.setdefault(uid, {"id": uid, "en": it["name"].strip(), "ja": ja.get(uid, (it["name"],))[0].strip()})
+    return sorted(out.values(), key=lambda q: q["en"].lower())
+
+
 def names_from_exports(en_docs: list[dict], ja_docs: list[dict]) -> dict:
     """Export の英語版・日本語版を uniqueName で突き合わせて辞書化する。"""
     en, ja = _collect_names(en_docs), _collect_names(ja_docs)
@@ -260,7 +279,7 @@ def names_from_exports(en_docs: list[dict], ja_docs: list[dict]) -> dict:
                               "type": dispo_type(cat, it.get("uniqueName", ""), name),
                               "ja": re.sub(r"^<[^>]+>\s*", "", ja.get(it["uniqueName"], (name,))[0]).strip()}
     order = {c: i for i, c in enumerate(MASTERY_CATS)}
-    return {"en2ja": en2ja, "resources": sorted(set(resources)),
+    return {"quests": quest_names(en_docs, ja), "en2ja": en2ja, "resources": sorted(set(resources)),
             "mods": sorted(mods.values(), key=lambda m: m["en"].lower()),
             "items": sorted(items.values(), key=lambda m: m["en"].lower()),
             "arcanes": sorted(arcanes.values(), key=str.lower),
@@ -272,8 +291,9 @@ def names_from_exports(en_docs: list[dict], ja_docs: list[dict]) -> dict:
 class Names:
     def __init__(self, en2ja: dict | None = None, resources: list | None = None, mods: list | None = None,
                  items: list | None = None, arcanes: list | None = None, mastery: list | None = None,
-                 dispo: list | None = None, arcane_list: list | None = None):
+                 dispo: list | None = None, arcane_list: list | None = None, quests: list | None = None):
         self.en2ja = en2ja or {}
+        self.quests = quests or []    # クエスト [{id, en, ja}](Export の分。前提条件は core.quests)
         self.resources = set(resources or [])
         self.mods = mods or []
         self.items = items or []      # 装備名 [{en, ja, type}] (画像解析用)
@@ -293,7 +313,7 @@ class Names:
         if j is None:
             return cls()
         return cls(j.get("en2ja"), j.get("resources"), j.get("mods"), j.get("items"), j.get("arcanes"), j.get("mastery"),
-                   j.get("dispo"), j.get("arcane_list"))
+                   j.get("dispo"), j.get("arcane_list"), j.get("quests"))
 
     @staticmethod
     def split_qty(name: str) -> tuple[str, str]:

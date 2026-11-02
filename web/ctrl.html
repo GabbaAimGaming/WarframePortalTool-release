@@ -1639,6 +1639,94 @@ $("#ms-scan-panel").addEventListener("click", async ev => {
   } catch (err) { msScanRender(err.message); }
 });
 
+/* ---------- クエスト一覧 ---------- */
+/* 前提(requires)は API がそろえた形: node {id} / any {of: [id]} / mr {n} / note {text}。チェックできるかは state(locked は付けられない)。
+   付ける・外すの最終判断はサーバー(POST /api/quests が 409 で断る)。状態は前提の完了で変わるので、返ってきた一覧ごと置き換える */
+let quests = null, qsCat = "", qsArmed = null;
+const qsOpen = new Set();  // 導線を開いている行の id(描き直しても開いたままにする)
+const qsLabel = r => r.kind === "junction" ? fmt("quest.junction", { to: tName("planet.", r.to) }) : (lang === "ja" ? r.ja : r.en);
+function qsFilter() {
+  const q = $("#qs-q").value.trim().toLowerCase(), st = $("#qs-state").value;
+  return quests.rows.filter(r => (!qsCat || r.cat === qsCat) && (!st || (st === "todo" ? !r.done : r.state === st)) &&
+    (!q || [r.en, r.ja, r.to, qsLabel(r)].some(x => (x || "").toLowerCase().includes(q))));
+}
+function qsReqs(r, by) {
+  const chip = id => by[id] ? `<button type="button" class="qs-chip ${by[id].done ? "ok" : "ng"}" data-goto="${esc(id)}">${esc(qsLabel(by[id]))}</button>` : "";
+  const parts = r.requires.map(q => q.type === "node" ? chip(q.id)
+    : q.type === "any" ? `<span class="qs-info">${esc(t("quest.req.any"))}</span>${q.of.map(chip).join("")}`
+    : q.type === "mr" ? `<span class="qs-info">${esc(fmt("quest.req.mr", { n: q.n }))}</span>`
+    : `<span class="qs-info">${esc(renderTxt(q.text))}</span>`);
+  let html = `<div class="qs-req">${parts.join("") || `<span class="none">${esc(t("quest.req.none"))}</span>`}</div>`;
+  if (r.route.length) {
+    const n = r.route.length;
+    html += `<details class="qs-route" data-id="${esc(r.id)}"${qsOpen.has(r.id) ? " open" : ""}><summary>${esc(fmt("quest.route", { n }))}</summary>
+      <ol>${r.route.map(id => `<li>${by[id] ? esc(qsLabel(by[id])) : ""}</li>`).join("")}</ol>
+      <button type="button" class="btn ghost${qsArmed === r.id ? " danger armed" : ""}" data-route="${esc(r.id)}">${esc(qsArmed === r.id ? fmt("quest.route.confirm", { n: n + 1 }) : t("quest.route.do"))}</button></details>`;
+  }
+  return html;
+}
+function renderQuests() {
+  if (!quests) return;
+  const by = Object.fromEntries(quests.rows.map(r => [r.id, r])), sm = quests.summary;
+  $("#qs-cats").innerHTML = [["", t("src.all"), sm.all], ...quests.cats.filter(k => sm[k] && sm[k].total).map(k => [k, tName("quest.cat.", k), sm[k]])]
+    .map(([k, v, o]) => `<button class="chip" data-qcat="${k}" aria-pressed="${qsCat === k}">${esc(v)}<small>${o.done} / ${o.total}</small></button>`).join("");
+  const list = qsFilter(), cur = (qsCat ? sm[qsCat] : sm.all) || sm.all, pctDone = cur.total ? cur.done / cur.total * 100 : 0;
+  $("#qs-summary").innerHTML = `<span><b class="count">${esc(qsCat ? tName("quest.cat.", qsCat) : t("quest.all"))}</b> ${esc(fmt("quest.summary", { done: cur.done, total: cur.total, pct: pctDone.toFixed(1) }))}</span>
+    <span class="progress" aria-hidden="true"><i style="--w:${pctDone.toFixed(1)}%"></i></span>
+    <span>${esc(fmt("quest.summary.ready", { n: cur.ready }))}</span><span>${esc(fmt("common.shown", { n: list.length }))}</span>
+    ${quests.export ? "" : `<span class="note">${esc(t("quest.noexport"))}</span>`}`;
+  const mark = r => !r.flow ? `<span class="tag-mini" title="${esc(t("quest.noflow"))}">※</span>`
+    : !r.verified ? `<span class="tag-mini" title="${esc(t("quest.unverified"))}">※</span>` : "";
+  $("#qs-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
+    <thead><tr><th class="chk">${esc(t("quest.col.done"))}</th><th>${esc(t("quest.col.name"))}</th><th>${esc(t("quest.col.cat"))}</th><th>${esc(t("quest.col.state"))}</th><th>${esc(t("quest.col.req"))}</th></tr></thead>
+    <tbody>${list.map(r => `<tr class="${r.done ? "owned" : ""}" data-id="${esc(r.id)}">
+      <td class="chk"><input type="checkbox" class="own" ${r.done ? "checked" : ""} ${r.state === "locked" ? `disabled title="${esc(t("quest.locked.title"))}"` : ""} aria-label="${esc(fmt("quest.done.aria", { name: qsLabel(r) }))}"></td>
+      <td>${esc(qsLabel(r))}${mark(r)}${r.kind === "junction" ? `<span class="sub-en">${esc(fmt("quest.junction.from", { from: tName("planet.", r.from) }))}</span>`
+        : lang === "ja" && r.ja !== r.en ? `<span class="sub-en">${esc(r.en)}</span>` : ""}</td>
+      <td>${esc(tName("quest.cat.", r.cat))}</td>
+      <td><span class="qs-state ${r.state}">${esc(tName("quest.state.", r.state))}</span>${r.done && r.missing.length ? `<span class="tag-cond" title="${esc(t("quest.broken"))}">!</span>` : ""}</td>
+      <td>${qsReqs(r, by)}</td></tr>`).join("")}</tbody></table></div>`
+    : noData(t("common.none"));
+}
+async function setQuests(ids, done) {
+  $("#qs-err").textContent = "";
+  try { const res = await api("/api/quests", { method: "POST", body: { ids, done } }); quests.rows = res.rows; quests.summary = res.summary; }
+  catch (e) { $("#qs-err").textContent = e.message; }
+  renderQuests();  // 断られたときもチェックの見た目を元に戻す
+}
+function qsGoto(id) {
+  let tr = $(`#qs-out tr[data-id="${CSS.escape(id)}"]`);
+  if (!tr) { qsCat = ""; $("#qs-q").value = ""; $("#qs-state").value = ""; renderQuests(); tr = $(`#qs-out tr[data-id="${CSS.escape(id)}"]`); }
+  if (!tr) return;
+  tr.scrollIntoView({ block: "center", behavior: "smooth" });
+  tr.classList.add("qs-flash"); setTimeout(() => tr.classList.remove("qs-flash"), 1600);
+}
+$("#qs-cats").addEventListener("click", e => { const c = e.target.closest("[data-qcat]"); if (!c) return; qsCat = c.dataset.qcat; qsArmed = null; $("#qs-err").textContent = ""; renderQuests(); });
+$("#qs-out").addEventListener("change", e => { const cb = e.target.closest("input.own"); if (cb) setQuests([cb.closest("tr").dataset.id], cb.checked); });
+$("#qs-out").addEventListener("click", e => {
+  const go = e.target.closest("[data-goto]");
+  if (go) { qsGoto(go.dataset.goto); return; }
+  const b = e.target.closest("[data-route]");
+  if (!b || !quests) return;
+  const id = b.dataset.route, r = quests.rows.find(x => x.id === id);
+  if (!r) return;
+  if (qsArmed !== id) { qsArmed = id; renderQuests(); setTimeout(() => { if (qsArmed === id) { qsArmed = null; renderQuests(); } }, 4000); return; }
+  qsArmed = null; qsOpen.delete(id);
+  setQuests([...r.route, id], true);  // 前提から順に。サーバーは一緒に付けるものも前提として数える
+});
+// 導線の開け閉めを覚える(toggle は泡立たないので捕捉で受ける)
+$("#qs-out").addEventListener("toggle", e => { const d = e.target.closest && e.target.closest("details.qs-route"); if (d) (d.open ? qsOpen.add(d.dataset.id) : qsOpen.delete(d.dataset.id)); }, true);
+$("#qs-q").addEventListener("input", debounce(() => { qsArmed = null; $("#qs-err").textContent = ""; renderQuests(); }, 150));
+$("#qs-state").addEventListener("change", () => { qsArmed = null; $("#qs-err").textContent = ""; renderQuests(); });
+loaders.quests = async () => {
+  applyViewText("quests");
+  if (quests) { renderQuests(); return; }
+  $("#qs-out").innerHTML = `<div class="empty">${esc(t("common.loading"))}</div>`;
+  try { quests = await api("/api/quests"); renderQuests(); }
+  catch (e) { $("#qs-cats").innerHTML = ""; $("#qs-summary").innerHTML = ""; $("#qs-out").innerHTML = noData(e.message); }
+};
+relabel.quests = () => { applyViewText("quests"); $("#qs-err").textContent = ""; renderQuests(); };  // エラー文は前の言語のままになるので消す
+
 /* ---------- アルケイン所持 ---------- */
 let arcanes = null, acCat = "warframe";
 const acSort = { key: "name", dir: "asc" };
@@ -2217,7 +2305,7 @@ $("#update-btn").addEventListener("click", async () => {
     // 表示中の言語も送る(日英のほかの言語なら、その言語の名前辞書も取る。ja・en はサーバーが毎回取る)
     const r = await api("/api/update", { method: "POST", body: { lang } });
     showLog(log, r);
-    itemSearch.reset(); mods = null; rivens = null; modOpen = null; mastery = null; arcanes = null;
+    itemSearch.reset(); mods = null; rivens = null; modOpen = null; mastery = null; quests = null; arcanes = null;
     simReload();  // シミュレータ用データも「データ更新」で作り直すので、開いていれば読み直す
   } catch (e) { log.textContent = e.message; }
   btn.disabled = false; btn.textContent = t("upd.btn"); refreshStatus();

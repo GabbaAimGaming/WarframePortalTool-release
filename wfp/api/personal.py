@@ -1,4 +1,4 @@
-"""画面向け API: 個人データ(MOD 所持・マスター(ゲーム画面からの読み取りを含む)・アルケイン・ビルド・画像の文字認識)"""
+"""画面向け API: 個人データ(MOD 所持・マスター(ゲーム画面からの読み取りを含む)・クエスト・アルケイン・ビルド・画像の文字認識)"""
 from __future__ import annotations
 
 import re
@@ -8,9 +8,10 @@ import wfportal_msscan as msscan
 import wfportal_ocr as ocr
 from wfp.api.store import ApiError, Raw, Store
 from wfp.core.arcane import ArcaneNotFound, arcane_summary, arcane_table, set_arcanes_owned
-from wfp.core.common import ARCANE_CATS, BUILD_TYPES, MASTERY_CATS, MOD_TYPES, POLARITY_EN, SOURCE_CATS, error_text, norm, txt
+from wfp.core.common import ARCANE_CATS, BUILD_TYPES, MASTERY_CATS, MOD_TYPES, POLARITY_EN, QUEST_CATS, SOURCE_CATS, error_text, norm, txt
 from wfp.core.mastery import mastery_items, mastery_summary, mastery_table
 from wfp.core.mods import mod_table
+from wfp.core.quests import QuestNotFound, quest_items, quest_summary, quest_table, set_quests_done
 from wfp.store import build_images, userdata
 
 
@@ -60,6 +61,27 @@ def set_mastered(store: Store, body: dict) -> dict:
     userdata.save_mastered(store.d, done)
     rows = mastery_table(store.names(), done)
     return {"summary": mastery_summary(rows)}
+
+
+def quests_list(store: Store) -> dict:
+    """クエスト・ジャンクションの一覧。前提は同梱の flow.json なので、データ更新の前でも出る(名前は flow.json のもの)"""
+    rows = quest_table(store.names(), userdata.load_quests_done(store.d))
+    # 種類・状態はキーのまま(表示名は画面の I18N の quest.cat.<キー> / quest.state.<キー>)。export は Export の名前を使えているか
+    return {"rows": rows, "cats": list(QUEST_CATS), "summary": quest_summary(rows), "export": bool(store.names().quests)}
+
+
+def set_quests(store: Store, body: dict) -> dict:
+    """body: {"ids": id or [id], "done": bool}。前提が足りない・ほかの完了済みの前提になっているときは 409 で何も変えない"""
+    ids = body.get("ids")
+    ids = [ids] if isinstance(ids, str) else list(ids or [])
+    names = store.names()
+    try:
+        done = set_quests_done(quest_items(names), userdata.load_quests_done(store.d), [str(i) for i in ids], bool(body.get("done")))
+    except ValueError as e:
+        raise ApiError(error_text(e), 404 if isinstance(e, QuestNotFound) else 409)
+    userdata.save_quests_done(store.d, done)
+    rows = quest_table(names, done)  # 状態は前提の完了で変わるので、一覧ごと返す
+    return {"rows": rows, "summary": quest_summary(rows)}
 
 
 def arcanes_list(store: Store) -> dict:
@@ -299,6 +321,8 @@ ROUTES = {
     ("GET", "/api/mastery"): lambda c: mastery_list(c.store),
     ("POST", "/api/mastery"): lambda c: set_mastered(c.store, c.body()),
     ("POST", "/api/mastery/scan"): lambda c: scan_mastery(c.store, c.image()),
+    ("GET", "/api/quests"): lambda c: quests_list(c.store),
+    ("POST", "/api/quests"): lambda c: set_quests(c.store, c.body()),
     ("GET", "/api/arcanes"): lambda c: arcanes_list(c.store),
     ("POST", "/api/arcanes/owned"): lambda c: set_arcanes(c.store, c.body()),
     ("GET", "/api/builds"): lambda c: builds_list(c.store),
