@@ -383,6 +383,7 @@ select.arc-rank { padding: 2px 6px; }
 .scan video { width: 220px; max-width: 100%; aspect-ratio: 16 / 9; background: var(--panel-2); border: 1px solid var(--line); object-fit: contain; }
 .scan .chips { margin: 4px 0 0; }
 .scan .chip .x { margin-left: 6px; color: var(--danger); }
+.scan .chip-label { align-self: center; color: var(--mute); font-size: 12px; }
 
 /* Riven */
 td.med { font-weight: 700; }
@@ -689,6 +690,21 @@ dialog#lightbox img { display: block; max-width: 96vw; max-height: calc(96vh - 4
           <button class="btn ghost" type="button" id="ms-bulk-on" data-i18n="ms.bulk.on">表示中をすべてマスター済みに</button>
           <button class="btn ghost" type="button" id="ms-bulk-off" data-i18n="ms.bulk.off">表示中のチェックを外す</button>
           <button class="btn ghost" type="button" id="ms-csv" data-i18n="common.csv">CSVで保存</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn ghost live" id="ms-scan-toggle" type="button" aria-pressed="false">ゲーム画面の読み取り: OFF</button>
+          <button class="btn ghost" id="ms-scan-file-btn" type="button" data-i18n="scan.file">スクリーンショットから読み取る</button>
+          <input type="file" id="ms-scan-files" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
+          <label class="chk"><input type="checkbox" id="ms-scan-confirm"> <span data-i18n="scan.confirm">自動でチェックせず、確認してから付ける</span></label>
+        </div>
+        <div class="scan" id="ms-scan-panel" hidden aria-live="polite">
+          <div class="scan-head"><video id="ms-scan-video" muted playsinline></video>
+            <div><b id="ms-scan-state"></b><div class="mini" id="ms-scan-stats"></div></div></div>
+          <div id="ms-scan-new"></div>
+          <div id="ms-scan-maybe"></div>
+          <div id="ms-scan-unknown"></div>
+          <p class="note" id="ms-scan-hint" data-i18n="msscan.noenglish" hidden>英語の文字認識が入っていないため、英字の名前を日本語の文字認識で読んでいます(I まわりを読み違えやすくなります)。Windows の設定 → 時刻と言語 → 言語と地域 で「English」を追加すると、名前の読み取りが正確になります。</p>
+          <p class="note" data-i18n="msscan.note">ゲームのプロフィール →「エクストラ」の装備一覧を開いてスクロールしていくと、マスター済み(最大ランク・青いバー・右上の月桂冠)のものを読み取ってチェックします(数秒ごと・画面が変わったときだけ)。見た目と表記が食い違うものや、候補が複数あるもの(「すべて」タブの Kitgun など)は「要確認」に出るので、正しければクリックしてください。自動でチェックを外すことはありません。いまは日本語表示のゲーム画面だけに対応しています。</p>
         </div>
         <div class="summary" id="ms-summary"></div>
         <div id="ms-out"></div>

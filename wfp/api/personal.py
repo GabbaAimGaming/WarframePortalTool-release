@@ -1,9 +1,10 @@
-"""画面向け API: 個人データ(MOD 所持・マスター・アルケイン・ビルド・画像の文字認識)"""
+"""画面向け API: 個人データ(MOD 所持・マスター(ゲーム画面からの読み取りを含む)・アルケイン・ビルド・画像の文字認識)"""
 from __future__ import annotations
 
 import re
 import threading
 
+import wfportal_msscan as msscan
 import wfportal_ocr as ocr
 from wfp.api.store import ApiError, Raw, Store
 from wfp.core.arcane import ArcaneNotFound, arcane_summary, arcane_table, set_arcanes_owned
@@ -244,6 +245,44 @@ def scan_mods(store: Store, data: bytes) -> dict:
     return {"found": found, "lines": len(result["lines"])}
 
 
+def scan_mastery(store: Store, data: bytes) -> dict:
+    """ゲームの「プロフィール → エクストラ」の装備一覧(の画像)からマスター済みを読み取る。印を付けるかは画面側で決める
+    (付けるときは POST /api/mastery)。ここは何も書き込まない"""
+    info = ocr_info()
+    if not info["available"]:
+        raise ApiError(info["reason"] or txt("err.ocr.none"), 501)
+    names = store.names()
+    if not names.mastery:
+        raise ApiError(txt("err.mastery.nodata"), 409)
+    if not data or build_images.image_ext(data) != "png":
+        raise ApiError(txt("err.msscan.png"), 415)
+    # PNG の展開(大きい画像で1〜2秒)は、文字認識(別のプロセス)を待つあいだに並べて行う
+    decoded: dict = {}
+
+    def decode() -> None:
+        try:
+            decoded["png"] = msscan.read_png(data)
+        except ValueError as err:
+            decoded["error"] = err
+    worker = threading.Thread(target=decode, daemon=True)
+    worker.start()
+    try:
+        # 日本語の小さい文字(ランク表記)を読むので、拡大は既定のまま。結果は保存しない
+        raw = ocr.run_ocr_bytes(data, cache_dir=None, langs=ocr.DEFAULT_LANGS)
+    except ocr.OcrUnavailable as err:
+        raise ApiError(error_text(err), 502)
+    finally:
+        worker.join()
+    if "error" in decoded:
+        raise ApiError(error_text(decoded["error"]), 415)
+    with store._lock:
+        cached = store._cache.get("@msindex")
+        if not cached or cached[0] is not names:
+            cached = (names, msscan.build_index(mastery_items(names)))
+            store._cache["@msindex"] = cached
+    return msscan.analyze_mastery(raw, decoded["png"], cached[1], userdata.load_mastered(store.d))
+
+
 def build_image(store: Store, name: str) -> Raw:
     """ビルドの画像。ファイル名は毎回ちがう乱数なので、長くキャッシュしてよい"""
     p = build_images.build_image_path(store.d, name)
@@ -259,6 +298,7 @@ ROUTES = {
     ("POST", "/api/mods/scan"): lambda c: scan_mods(c.store, c.image()),
     ("GET", "/api/mastery"): lambda c: mastery_list(c.store),
     ("POST", "/api/mastery"): lambda c: set_mastered(c.store, c.body()),
+    ("POST", "/api/mastery/scan"): lambda c: scan_mastery(c.store, c.image()),
     ("GET", "/api/arcanes"): lambda c: arcanes_list(c.store),
     ("POST", "/api/arcanes/owned"): lambda c: set_arcanes(c.store, c.body()),
     ("GET", "/api/builds"): lambda c: builds_list(c.store),

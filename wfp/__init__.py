@@ -12,7 +12,7 @@
   - drops / fetch / store が import してよいのは core.common・core.names と自分のパッケージ内だけ
   - core の機能ロジックは cli / api を import しない。cli と api はお互いを import しない
   - wfp の中から入口(wfportal.py / wfportal_ui.py / wfportal_update.py)は import しない
-  - まだ wfp の外にある機能(wfportal_baro / builder / ocr / worldstate)を import してよいのは cli / api だけ。
+  - まだ wfp の外にある機能(wfportal_baro / builder / msscan / ocr / worldstate)を import してよいのは cli / api だけ。
     例外: core.update は baro / builder を import してよい(wfp へ移すまでの一時的な扱い)
   - ネット・ファイルに触る関数(fetch/・store/ の関数)は、モジュールごと import して呼ぶ
     (例: from wfp.fetch import net → net.http_get(...))。テストの差し替え先を1か所にするため

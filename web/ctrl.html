@@ -1493,7 +1493,151 @@ loaders.mastery = async () => {
   try { mastery = await api("/api/mastery"); renderMastery(); }
   catch (e) { $("#ms-cats").innerHTML = ""; $("#ms-summary").innerHTML = ""; $("#ms-out").innerHTML = noData(e.message); }
 };
-relabel.mastery = () => { applyViewText("mastery"); renderMastery(); };
+relabel.mastery = () => { applyViewText("mastery"); renderMastery(); msScanLabel(); if (msScan.reads || msScan.on) msScanRender(); };
+
+/* ---------- マスター一覧: ゲーム画面からの読み取り(MOD 側の scan* とは別に持つ) ----------
+   API(POST /api/mastery/scan)は読み取って判定するだけ。印は POST /api/mastery で付ける。自動では外さない */
+const msScan = { on: false, stream: null, timer: null, busy: false, last: null, reads: 0, tab: null, english: true,
+                 added: [], maybe: new Map(), seen: new Set(), unknown: new Set() };
+/* 要確認の理由とランクの読み取りを1行に(チップの title) */
+function msScanTitle(row) {
+  const sig = row.signals || {}, mark = flag => (flag ? "○" : "×");
+  const rank = sig.rank_read === "max" ? t("msscan.rank.max") : sig.rank_read == null ? "?" : String(sig.rank_read);
+  return fmt("msscan.signal", { text: row.read, laurel: mark(sig.laurel), bar: mark(sig.bar), rank });
+}
+function msScanRender(state) {
+  $("#ms-scan-panel").hidden = false;
+  if (state !== undefined) $("#ms-scan-state").textContent = state;
+  const tabName = msScan.tab ? t("msscan.tab." + msScan.tab) : t("msscan.tab.none");
+  $("#ms-scan-stats").textContent = fmt("msscan.stats", { reads: msScan.reads, seen: msScan.seen.size, added: msScan.added.length, tab: tabName });
+  $("#ms-scan-new").innerHTML = msScan.added.length ? `<span class="mini">${esc(t("msscan.added"))}</span><div class="chips">${msScan.added.slice(-60).reverse()
+    .map(row => `<button class="chip" data-ms-undo="${esc(row.id)}">${esc(msLabel(row))}<span class="x" aria-hidden="true">×</span></button>`).join("")}</div>` : "";
+  const groups = [...msScan.maybe.entries()].map(([key, row]) => {
+    const why = `<small>${esc(t("msscan.reason." + (row.reason || "confirm")))}</small>`;
+    const cands = row.ids && row.ids.length > 1 ? row.ids : [row];
+    const head = cands.length > 1 ? `<span class="chip-label">${esc(row.read)}:</span>` : "";
+    return head + cands.map(cand => `<button class="chip" data-ms-own="${esc(cand.id)}" data-ms-key="${esc(key)}" title="${esc(msScanTitle(row))}">${esc(msLabel(cand))}${why}</button>`).join("");
+  });
+  $("#ms-scan-maybe").innerHTML = groups.length ? `<span class="mini">${esc(t("msscan.maybe"))}</span><div class="chips">${groups.join("")}</div>` : "";
+  $("#ms-scan-hint").hidden = msScan.english;
+  $("#ms-scan-unknown").innerHTML = msScan.unknown.size ? `<span class="mini">${esc(t("msscan.unknown"))}</span> <span class="mini">${esc([...msScan.unknown].join(" / "))}</span>` : "";
+}
+async function msMark(ids, done) {
+  if (!ids.length) return;
+  await api("/api/mastery", { method: "POST", body: { ids, done } });
+  if (mastery) { const set = new Set(ids); mastery.rows.forEach(row => { if (set.has(row.id)) row.done = done; }); renderMastery(); }
+}
+/* 画像(ファイル・動画の1コマ)を PNG にする。JPEG・WebP や、16bit・パレットの PNG もサーバーが読める形にそろえる */
+async function msToPng(source) {
+  const canvas = document.createElement("canvas");
+  if (source instanceof Blob) {
+    const bitmap = await createImageBitmap(source);
+    canvas.width = bitmap.width; canvas.height = bitmap.height; canvas.getContext("2d").drawImage(bitmap, 0, 0); bitmap.close();
+  } else { canvas.width = source.videoWidth; canvas.height = source.videoHeight; canvas.getContext("2d").drawImage(source, 0, 0); }
+  return await new Promise(done => canvas.toBlob(done, "image/png"));
+}
+async function msScanImage(blob) {
+  const res = await fetch("/api/mastery/scan", { method: "POST", headers: { "Content-Type": "image/png" }, body: blob });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.text ? renderTxt(body.text) : (body.error || fmt("err.http", { status: res.status })));
+  msScan.reads++;
+  if (body.tab) msScan.tab = body.tab;
+  msScan.english = body.english !== false;  // 英語の文字認識が無いときは、追加をすすめる注意を出す
+  const confirm = $("#ms-scan-confirm").checked, add = [];
+  const addedIds = new Set(msScan.added.map(row => row.id));
+  body.tiles.forEach(row => {
+    msScan.seen.add(row.id);
+    const multi = row.ids && row.ids.length > 1;
+    if (!multi && (row.done || addedIds.has(row.id))) return;
+    if (multi && row.ids.some(cand => cand.done || addedIds.has(cand.id))) return;  // 候補のどれかが済みなら聞かない
+    if (row.state === "done" && !confirm) add.push(row);
+    else msScan.maybe.set(multi ? row.ids.map(cand => cand.id).join("|") : row.id, row);
+  });
+  (body.unknown || []).forEach(text => msScan.unknown.add(text));
+  if (add.length) {
+    await msMark(add.map(row => row.id), true);
+    msScan.added.push(...add); add.forEach(row => msScan.maybe.delete(row.id));
+  }
+  return body.tiles.length;
+}
+/** 画面が前回の読み取りから変わったか(小さく縮めた白黒画像の差で判断。MOD 側の frameChanged と同じ考え方) */
+function msFrameChanged(video) {
+  const canvas = document.createElement("canvas"); canvas.width = 64; canvas.height = 36;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true }); ctx.drawImage(video, 0, 0, 64, 36);
+  const px = ctx.getImageData(0, 0, 64, 36).data, cur = new Uint8Array(64 * 36);
+  for (let i = 0; i < cur.length; i++) cur[i] = (px[i * 4] + px[i * 4 + 1] + px[i * 4 + 2]) / 3;
+  const prev = msScan.last; msScan.last = cur;
+  if (!prev) return true;
+  let diff = 0; for (let i = 0; i < cur.length; i++) diff += Math.abs(cur[i] - prev[i]);
+  return diff / cur.length > 1.5;
+}
+async function msScanTick() {
+  const video = $("#ms-scan-video");
+  if (!msScan.on || msScan.busy || !video.videoWidth) return;
+  if (!msFrameChanged(video)) { msScanRender(t("scan.waiting")); return; }
+  msScan.busy = true;
+  try {
+    const blob = await msToPng(video);
+    msScanRender(t("scan.reading"));
+    const count = await msScanImage(blob);
+    msScanRender(fmt("msscan.found", { n: count }));
+  } catch (err) { msScanRender(fmt("scan.failed", { msg: err.message })); msScan.last = null; }
+  msScan.busy = false;
+}
+async function msScanStart() {
+  const info = await loadOcrInfo();
+  if (!info.available) { msScanRender(fmt("scan.unavailable", { reason: ocrReason(info) })); return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { msScanRender(t("scan.nobrowser")); return; }
+  try {
+    msScan.stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 2 }, audio: false });
+  } catch (err) { msScanRender(t("scan.cancel")); return; }
+  const video = $("#ms-scan-video"); video.srcObject = msScan.stream; await video.play().catch(() => {});
+  msScan.stream.getVideoTracks()[0].addEventListener("ended", msScanStop);  // ブラウザ側で「共有を停止」したとき
+  msScan.on = true; msScan.last = null;
+  msScanLabel();
+  msScanRender(t("scan.reading"));
+  msScan.timer = setInterval(msScanTick, 2500); msScanTick();
+}
+function msScanStop() {
+  msScan.on = false; clearInterval(msScan.timer); msScan.timer = null;
+  if (msScan.stream) msScan.stream.getTracks().forEach(track => track.stop());
+  msScan.stream = null; $("#ms-scan-video").srcObject = null;
+  msScanLabel();
+  if (!$("#ms-scan-panel").hidden) msScanRender(t("scan.stopped"));
+}
+function msScanLabel() {
+  $("#ms-scan-toggle").setAttribute("aria-pressed", String(msScan.on)); $("#ms-scan-toggle").textContent = t(msScan.on ? "scan.on" : "scan.off");
+}
+msScanLabel();
+$("#ms-scan-toggle").addEventListener("click", () => msScan.on ? msScanStop() : msScanStart());
+$("#ms-scan-file-btn").addEventListener("click", () => $("#ms-scan-files").click());
+$("#ms-scan-files").addEventListener("change", async ev => {
+  const files = [...ev.target.files]; ev.target.value = "";
+  const info = await loadOcrInfo();
+  if (!info.available) { msScanRender(fmt("scan.unavailable", { reason: ocrReason(info) })); return; }
+  for (let i = 0; i < files.length; i++) {
+    msScanRender(fmt("scan.files", { i: i + 1, n: files.length }));
+    try { await msScanImage(await msToPng(files[i])); }
+    catch (err) { msScanRender(fmt("scan.file.failed", { file: files[i].name, msg: err.message })); return; }
+  }
+  msScanRender(fmt("scan.files.done", { n: files.length }));
+});
+$("#ms-scan-panel").addEventListener("click", async ev => {
+  const undo = ev.target.closest("[data-ms-undo]"), own = ev.target.closest("[data-ms-own]");
+  try {
+    if (undo) {
+      const id = undo.dataset.msUndo;
+      await msMark([id], false); msScan.added = msScan.added.filter(row => row.id !== id); msScanRender();
+    }
+    if (own) {
+      const id = own.dataset.msOwn, row = msScan.maybe.get(own.dataset.msKey);
+      const picked = row && row.ids ? row.ids.find(cand => cand.id === id) : row;
+      await msMark([id], true); msScan.maybe.delete(own.dataset.msKey);
+      if (picked) msScan.added.push(picked);
+      msScanRender();
+    }
+  } catch (err) { msScanRender(err.message); }
+});
 
 /* ---------- アルケイン所持 ---------- */
 let arcanes = null, acCat = "warframe";

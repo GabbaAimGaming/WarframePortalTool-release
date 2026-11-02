@@ -485,6 +485,7 @@ TEXT_JA = {
     "err.ocr.failed": "文字認識に失敗しました: {msg}",
     "err.mastery.nodata": "マスター一覧のデータがありません。「データ更新」で取得してください。",
     "err.mastery.unknown": "見つかりません: {id}",
+    "err.msscan.png": "PNG の画像(8bit の RGB / RGBA)を送ってください。",
     "err.arcane.nodata": "アルケインのデータがありません。「データ更新」で取得し直してください(このページを追加する前に取得したデータには含まれていません)。",
     "err.arcane.rank": "ランクが正しくありません: {rank}",
     "err.arcane.unknown": "アルケインが見つかりません: {name}",
