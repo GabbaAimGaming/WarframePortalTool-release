@@ -9,10 +9,14 @@ import wfportal_ocr as ocr
 from wfp.api.store import ApiError, Raw, Store
 from wfp.core.arcane import ArcaneNotFound, arcane_summary, arcane_table, set_arcanes_owned
 from wfp.core.common import ARCANE_CATS, BUILD_TYPES, MASTERY_CATS, MOD_TYPES, POLARITY_EN, QUEST_CATS, SOURCE_CATS, error_text, norm, txt
+from wfp.core.archon import clean_shards, shard_list
+from wfp.core.build import arcane_pairs, canon_arcanes
+from wfp.core.devbuilds import adopt_entry, dev_build_list, find_dev_build
+from wfp.core.helminth import clean_helminth, subsume_list
 from wfp.core.mastery import mastery_items, mastery_summary, mastery_table
 from wfp.core.mods import mod_table
 from wfp.core.quests import QuestNotFound, quest_items, quest_summary, quest_table, set_quests_done
-from wfp.store import build_images, userdata
+from wfp.store import appdata, build_images, userdata
 
 
 def mods_list(store: Store) -> dict:
@@ -110,12 +114,28 @@ def set_arcanes(store: Store, body: dict) -> dict:
     return {"summary": arcane_summary(arcane_table(names, owned, store.all_items()))}
 
 
+def mod_effects_of(store: Store, builds: list[dict]) -> dict:
+    """ビルドの MOD の効果(最大ランク)。{英名(小文字): {ja, en}}。mod_stats.json が無い・一覧に無い MOD は入れない(画面は名前だけ出す)"""
+    stats = store.mod_stats()
+    return stats.effects([m for b in builds for m in b.get("mods") or []]) if stats else {}
+
+
+def with_effects(store: Store, builds: list[dict], **extra) -> dict:
+    """ビルドの一覧を返す応答(保存・追加のあとも MOD の効果を付ける)"""
+    return {"builds": builds, "mod_effects": mod_effects_of(store, builds), **extra}
+
+
 def builds_list(store: Store) -> dict:
-    # 種別は並び(キー)だけ。表示名は画面の I18N の build.type.<キー>
-    return {"builds": userdata.load_builds(store.d), "types": list(BUILD_TYPES), "arcanes": store.names().arcanes}
+    # 種別は並び(キー)だけ。表示名は画面の I18N の build.type.<キー>。helminth は入力欄の候補({frame, ability}。英名)
+    # archon はアルコンの欠片の色と効果の一覧({tauforged_rate, colors}。名前と文は ja・en の両方)
+    # arcanes はアルケイン欄の候補([{en, ja}]。保存は英名、表示は画面が言語で選ぶ)
+    builds = userdata.load_builds(store.d)
+    return {"builds": builds, "mod_effects": mod_effects_of(store, builds), "types": list(BUILD_TYPES), "arcanes": arcane_pairs(store.names()),
+            "helminth": subsume_list(appdata.read_helminth()), "archon": shard_list(appdata.read_archon())}
 
 
-def clean_build(body: dict) -> dict:
+def clean_build(body: dict, names) -> dict:
+    """names: アルケインを英名にそろえるための名前辞書(和名で書いても英名で保存する)"""
     name = str(body.get("name", "")).strip()
     if not name:
         raise ApiError(txt("err.build.name"))
@@ -124,16 +144,25 @@ def clean_build(body: dict) -> dict:
         forma = max(0, int(body.get("forma") or 0))
     except (TypeError, ValueError):
         raise ApiError(txt("err.build.forma"))
+    try:
+        helminth = clean_helminth(btype, body.get("helminth"))
+        shards = clean_shards(btype, body.get("shards"), shard_list(appdata.read_archon()))
+    except ValueError as e:
+        raise ApiError(error_text(e))
     split = lambda v: [x.strip() for x in re.split(r"[\n,、]", "\n".join(v) if isinstance(v, list) else str(v or "")) if x.strip()]
     images = body.get("images") or []
     return {"name": name, "type": btype, "target": str(body.get("target", "")).strip(), "forma": forma,
-            "mods": split(body.get("mods")), "arcanes": split(body.get("arcanes")),
+            "mods": split(body.get("mods")), "arcanes": canon_arcanes(names, split(body.get("arcanes"))),
             "tags": split(body.get("tags")), "note": str(body.get("note", "")).strip(),
-            "images": [str(x) for x in images if isinstance(x, str) and build_images.IMAGE_NAME_RE.match(x)] if isinstance(images, list) else []}
+            "images": [str(x) for x in images if isinstance(x, str) and build_images.IMAGE_NAME_RE.match(x)] if isinstance(images, list) else [],
+            # Helminth は Warframe のビルドで入力したときだけ付ける(無ければ項目ごと無い)
+            **({"helminth": helminth} if helminth else {}),
+            # アルコンの欠片も同じ(5枠の一覧。空の枠は null)
+            **({"shards": shards} if shards else {})}
 
 
 def save_build(store: Store, body: dict) -> list[dict]:
-    entry = clean_build(body)
+    entry = clean_build(body, store.names())
     builds = userdata.load_builds(store.d)
     original = str(body.get("original_name") or "")
     same = lambda b, n: norm(b["name"]) == norm(n)
@@ -172,6 +201,20 @@ def add_build_image(store: Store, name: str, data: bytes) -> list[dict]:
     b.setdefault("images", []).append(fname)
     userdata.save_builds(store.d, builds)
     return builds
+
+
+def adopt_dev_build(store: Store, body: dict) -> dict:
+    """POST /api/builds/adopt: 開発者のビルド(同梱の dev_builds.json)をビルド管理に追加する。本文 {build: 開発者のビルド名, name: 保存する名前}。
+    画面はビルド名だけを送り、中身はここで読み直す。同じ名前のビルドがあれば 409(上書きしない。画面で名前を入れ直してもらう)"""
+    src = find_dev_build(dev_build_list(appdata.read_dev_builds()), str(body.get("build") or ""))
+    if src is None:
+        raise ApiError(txt("err.qa.build.none"), 404)
+    name = str(body.get("name") or "").strip()
+    if not name:
+        raise ApiError(txt("err.build.name"))
+    if any(norm(b["name"]) == norm(name) for b in userdata.load_builds(store.d)):
+        raise ApiError(txt("err.build.dup"), 409)
+    return with_effects(store, save_build(store, adopt_entry(src, name)), name=name)
 
 
 def delete_build(store: Store, name: str) -> list[dict]:
@@ -326,8 +369,9 @@ ROUTES = {
     ("GET", "/api/arcanes"): lambda c: arcanes_list(c.store),
     ("POST", "/api/arcanes/owned"): lambda c: set_arcanes(c.store, c.body()),
     ("GET", "/api/builds"): lambda c: builds_list(c.store),
-    ("POST", "/api/builds"): lambda c: {"builds": save_build(c.store, c.body())},
+    ("POST", "/api/builds"): lambda c: with_effects(c.store, save_build(c.store, c.body())),
     ("DELETE", "/api/builds"): lambda c: {"builds": delete_build(c.store, c.q.get("name", ""))},
+    ("POST", "/api/builds/adopt"): lambda c: adopt_dev_build(c.store, c.body()),
     ("POST", "/api/build-image"): lambda c: {"builds": add_build_image(c.store, c.q.get("name", ""), c.image())},
     ("GET", "/api/build-image/"): lambda c: build_image(c.store, c.path.rsplit("/", 1)[1]),
     ("POST", "/api/build-analyze"): lambda c: analyze_build_image(

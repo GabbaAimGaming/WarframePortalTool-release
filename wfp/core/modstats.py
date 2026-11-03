@@ -173,6 +173,13 @@ def check_mods(raw: object) -> list[dict]:
     return out
 
 
+def mod_effect(row: dict, lang: str = "ja") -> str:
+    """MOD の最大ランクの効果の文(行は「 / 」でつなぐ)。ランクごとの値が無ければ説明文。lang の文が無ければ英語"""
+    ranks = row.get(f"stats_{lang}") or row.get("stats_en") or []
+    lines = ranks[-1] if ranks else [row.get(f"desc_{lang}") or row.get("desc_en") or ""]
+    return " / ".join(" ".join(ln.split("\n")).strip() for ln in lines if ln and ln.strip())
+
+
 class ModStats:
     """MOD 効果検索のデータ(読み込み時に影響先・条件付きを判定しておく)"""
 
@@ -182,6 +189,23 @@ class ModStats:
         terms = sorted(((w, key) for key, ent in targets.items() for w in ent["match"]), key=lambda p: -len(p[0]))
         self._terms = [(re.compile(r"(?<![A-Za-z])" + re.escape(w) + r"(?![A-Za-z])", re.I), key) for w, key in terms]
         self.mods = [self._analyze(row) for row in mods]
+        self._by_en = {}
+        for row in self.mods:
+            self._by_en.setdefault(row["en"].lower(), row)
+
+    def effect(self, name: str, lang: str = "ja") -> str:
+        """MOD(英名。大文字小文字は区別しない)の最大ランクの効果の文(lang が無ければ英語)。無い MOD は空"""
+        row = self._by_en.get(name.strip().lower())
+        return mod_effect(row, lang) if row else ""
+
+    def effects(self, names: list[str]) -> dict[str, dict]:
+        """名前の一覧(英名)の効果 {英名(小文字): {ja, en}}。無い MOD は入れない(ビルド管理の一覧用)"""
+        out: dict[str, dict] = {}
+        for name in names:
+            row = self._by_en.get(name.strip().lower())
+            if row and row["en"].lower() not in out:
+                out[row["en"].lower()] = {"ja": mod_effect(row, "ja"), "en": mod_effect(row, "en")}
+        return out
 
     def line_targets(self, line_en: str) -> list[str]:
         """en の1行に当たる影響先キー(辞書の並び順)"""

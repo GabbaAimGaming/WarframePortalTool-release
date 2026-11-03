@@ -1,17 +1,23 @@
-"""CLI: 情報(cycle・baro・riven・modstats)"""
+"""CLI: 情報(cycle・baro・riven・modstats・ask)"""
 from __future__ import annotations
 
 import sys
 from datetime import datetime, timedelta, timezone
 
 from wfp.cli.table import print_table
-from wfp.core.common import (BARO_KINDS, CAMBION, CYCLE_SOURCES, CYCLES, MOD_GROUPS, PHASE_ALIASES, RIVEN_TYPES_JA, fmt_dur, norm,
-                             parse_remaining, rank, render_ja, txt)
+from wfp.core.archon import shard_list
+from wfp.core.common import (BARO_KINDS, CAMBION, CYCLE_SOURCES, CYCLES, MOD_GROUPS, PHASE_ALIASES, QA_ANSWERS_FILE, QA_INTENTS_FILE,
+                             QA_MISS_FILE, RIVEN_TYPES_JA, fmt_dur, norm, parse_remaining, rank, render_ja, txt)
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
-from wfp.core.loader import load_names, load_rivens
+from wfp.core.devbuilds import dev_build_list
+from wfp.core.helminth import subsume_list
+from wfp.core.loader import DropsMissing, load_drops, load_names, load_rivens, load_sources
 from wfp.core.modstats import fold, load_mod_stats, parse_groups
+from wfp.core.qa import QaContext, QaIndex, answer, load_qa_data, stop_words
 from wfp.core.riven import riven_table, update_rivens
-from wfp.store import datadir
+from wfp.core.summons import summon_list
+from wfp.drops.search import all_item_names
+from wfp.store import appdata, datadir
 
 
 def cmd_cycle(args):
@@ -178,6 +184,62 @@ def cmd_modstats(args):
     print(f"\n{res['total']} 件" + (f"(先頭 {len(res['rows'])} 件を表示)" if res["total"] > len(res["rows"]) else ""))
 
 
+def cmd_ask(args):
+    """Q&A(日本語のみ)。データ置き場の builder.json・ドロップ表・名前辞書と同梱データから答える"""
+    import wfportal_builder as wb
+    question = " ".join(args.question).strip()
+    if not question:
+        sys.exit(render_ja(txt("err.qa.empty")))
+    d = datadir.data_dir(args.data_dir)
+    names = load_names(d)
+    try:
+        drops = load_drops(d)
+    except DropsMissing:
+        drops = None
+    sources = load_sources(d)
+    items = all_item_names(drops, sources) if drops else []
+    data = load_qa_data(appdata.read_qa(QA_INTENTS_FILE), appdata.read_qa(QA_ANSWERS_FILE), appdata.read_qa(QA_MISS_FILE))
+    builder, subsume = wb.load_builder_data(d), subsume_list(appdata.read_helminth())
+    dev = dev_build_list(appdata.read_dev_builds())
+    index = QaIndex(builder, names, items, subsume, dev, stop_words(data), summon_list(appdata.read_summons()))
+    res = answer(QaContext(data, index, builder=builder, drops=drops, sources=sources, items=items, subsume=subsume,
+                           archon=shard_list(appdata.read_archon()), dev=dev, mod_stats=load_mod_stats(d)), question)
+    print_qa(res)
+
+
+def print_qa(res: dict) -> None:
+    """Q&A の答えを標準出力に出す"""
+    for line in (res["miss"]["text"] if res["miss"] else "", res["text"]):
+        if line:
+            print(line)
+    for f in res["facts"]:
+        value = f["value"].replace("\n", "\n    ")  # 複数行の値(呼び出しのアビリティの数値など)は字下げしてそろえる
+        print(f"  {f['label']}: {value}" if f["label"] and value else f"  {f['label'] or value}")
+    for group in res["sources"]:
+        if group["title"]:
+            print(f"■ {group['title']}")
+        for r in group["rows"]:
+            print(f"  {r['chance']:>7}  {r['where']}" + (f"  ×{r['qty']}" if r["qty"] else ""))
+    for b in res["builds"]:
+        print(f"■ {b['name']}({b['type_ja']}・{b['target_ja']}・フォーマ {b['forma']})")
+        for m in b["mods"]:
+            print(f"  MOD: {m['name']}" + (f"  … {m['effect']}" if m["effect"] else ""))
+        if b["arcanes"]:
+            print(f"  アルケイン: {'、'.join(b['arcanes'])}")
+        if b["helminth"]:
+            print(f"  Helminth: {b['helminth']}")
+        for sh in b["shards"]:
+            print(f"  欠片: {sh}")
+        if b["note"]:
+            print(f"  メモ: {b['note']}")
+    if res["candidates"]:
+        print("もしかして: " + "、".join(c["ja"] for c in res["candidates"]))
+    if res["options"]:
+        print((res["options_title"] or "聞けること") + ": " + "、".join(o["label"] for o in res["options"]))
+    if res["basis"]:
+        print(f"({res['basis']})")
+
+
 def add_cycle(sub) -> None:
     s = sub.add_parser("cycle", help="昼夜サイクルとリセット時刻")
     s.add_argument("action", nargs="?", default="show", choices=["show", "set", "sync"],
@@ -219,5 +281,11 @@ def add_modstats(sub) -> None:
     s.set_defaults(fn=cmd_modstats)
 
 
+def add_ask(sub) -> None:
+    s = sub.add_parser("ask", help="Q&A(β) (フレーム・武器の数値・入手先・開発者のビルド・Helminth を質問の文で聞く。日本語のみ)")
+    s.add_argument("question", nargs="*", help="質問の文(例: Rhino のアーマーは?)")
+    s.set_defaults(fn=cmd_ask)
+
+
 # このグループのコマンド: 名前 -> parser に登録する関数(並び順は wfp/cli/main.py の ORDER)
-COMMANDS = {"cycle": add_cycle, "riven": add_riven, "baro": add_baro, "modstats": add_modstats}
+COMMANDS = {"cycle": add_cycle, "riven": add_riven, "baro": add_baro, "modstats": add_modstats, "ask": add_ask}

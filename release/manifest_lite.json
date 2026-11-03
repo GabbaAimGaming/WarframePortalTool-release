@@ -1,5 +1,5 @@
 {
-  "version": "2.10",
+  "version": "2.11",
   "edition": "lite",
   "files": {
     "INSTALL_PYTHON.md": {
@@ -13,14 +13,24 @@
       "src": "LICENSE"
     },
     "README.md": {
-      "sha256": "4963c41f724af0c6ec0b6e65f7b540b6a87e70958445519c659a4731372b5d33",
-      "size": 48212,
+      "sha256": "0ed0873642fb9715110184726916ef0b7efea4f7dd47ac09d88b5831089f4397",
+      "size": 52668,
       "src": "build/lite/README.md"
+    },
+    "data/archon/shards.json": {
+      "sha256": "a1f8f60df906c949afc7cd753382353a7002a9dc54b8ac151da36d8bffc35042",
+      "size": 6331,
+      "src": "data/archon/shards.json"
     },
     "data/baro_rules.json": {
       "sha256": "18f34a082433d48792254824c5dfc7bc5efa95c602f21a4acda09ff1dafef7b1",
       "size": 656,
       "src": "data/baro_rules.json"
+    },
+    "data/builds/dev_builds.json": {
+      "sha256": "f3bf9f440d23c6c4c3e7013b9819015facfaf05a676c5519238c127c2e1e7b98",
+      "size": 19645,
+      "src": "data/builds/dev_builds.json"
     },
     "data/duviri/normal.json": {
       "sha256": "65bd0eab6eb60110c4364177e8f6ccd6b552d5837675d6efd4d36417f3a4086b",
@@ -36,6 +46,11 @@
       "sha256": "5e2f22305be9157cd0b54b0f9cbf3327f046e2efa76a3daa98fab00649e31885",
       "size": 715,
       "src": "data/duviri/steelpath.json"
+    },
+    "data/helminth/subsume.json": {
+      "sha256": "552f0204b3852cb51a0844834bc5f71116f19ee8f2f7619c3176a0a158e86186",
+      "size": 4238,
+      "src": "data/helminth/subsume.json"
     },
     "data/invasion/parts.json": {
       "sha256": "4c6bef65164cf4ebd13774ea63eb6a935d7364e803dae85e2668359317d5cabc",
@@ -62,6 +77,21 @@
       "size": 8026,
       "src": "data/parts/other.json"
     },
+    "data/qa/answers.json": {
+      "sha256": "d6a0d9abf0e2766dc8668e75730fb006d0b736b507e4dfee2fda72c2c319f9ad",
+      "size": 2915,
+      "src": "data/qa/answers.json"
+    },
+    "data/qa/intents.json": {
+      "sha256": "8048de7517e8e925f6663a695f0085c5bb5e97fb430bf2a0239f0a6e23db8ade",
+      "size": 3295,
+      "src": "data/qa/intents.json"
+    },
+    "data/qa/miss.json": {
+      "sha256": "a7c0dbfaf57cb024ac7c905b2666b97aa86a65bfda88f813f159d3de247075fd",
+      "size": 2613,
+      "src": "data/qa/miss.json"
+    },
     "data/quests/flow.json": {
       "sha256": "752b882ead81b92c5204b8838146e5d1e7999cbeb4dacae6e56529177e6fe455",
       "size": 13077,
@@ -76,6 +106,11 @@
       "sha256": "dd7b4926965e5fcf1fabd819671f05b5fb92ece4d995cc8442fd8740f0928797",
       "size": 359,
       "src": "data/spexchange/steelpath_exchange.json"
+    },
+    "data/summons/summons.json": {
+      "sha256": "38fc8ab83b8e67c718e32172c2134106fae20822d3a3b35e5c19aebe884cf1f8",
+      "size": 5396,
+      "src": "data/summons/summons.json"
     },
     "ocr/winocr.ps1": {
       "sha256": "9842e4bb17216e9cbeeaaded6338bd78f1ad0ba03cfee4c626f74c068522f79d",
@@ -108,8 +143,8 @@
       "src": "tips/30_Rivenスプライサーの合成表.md"
     },
     "web/ctrl.html": {
-      "sha256": "3d39eb0c861ced418a8fb4c37c58d9931477201096c393c0ddee62bfbc2e289c",
-      "size": 161234,
+      "sha256": "1e934cad529486e990853f8955cc1767974ecdcc110e70e1dc7aa4f2a6133d93",
+      "size": 176877,
       "src": "web/ctrl.html"
     },
     "web/i18n.html": {
@@ -118,28 +153,28 @@
       "src": "web/i18n.html"
     },
     "web/i18n/en.json": {
-      "sha256": "541f40688437e21e3be3b4f4bc01043d2a8f823dc3f7dceef5bc582f9a50ebb9",
-      "size": 60536,
+      "sha256": "bbb1f4efbc6d42c7c28b31977f4f1c55bce1711f4e0599c72241b66adde95e5a",
+      "size": 64525,
       "src": "web/i18n/en.json"
     },
     "web/i18n/ja.json": {
-      "sha256": "7ecfcbec91e7aca873409341fde61dd45846c12f5d2d2d9843a42871b6ae1db0",
-      "size": 74282,
+      "sha256": "a0f0272a7bf99ec3fe21ef57a1dc48b63eacb858b3501c437bee7600882ef47a",
+      "size": 79004,
       "src": "web/i18n/ja.json"
     },
     "web/menu.html": {
-      "sha256": "1aae6873e463a98c656247c9cb27b0c016bd876279f2700896c59c7e66e52e8c",
-      "size": 6999,
+      "sha256": "3be0ba252ffbe1246e07b7d8a7449746e6cf5910d09a53ea23d6cef85b935503",
+      "size": 8322,
       "src": "web/menu.html"
     },
     "web/view.html": {
-      "sha256": "904119ede6671f5d8eeb77a8028f64d206d57e81142e8f50591870b7884e5d23",
-      "size": 78407,
+      "sha256": "c8e9d4736e896d56131d1cea637b2229c90ed9225e6af4decd24cf368fa43d5a",
+      "size": 84287,
       "src": "web/view.html"
     },
     "web/wfportal_builder.html": {
-      "sha256": "eb34827115082a6291bb1be785f56d48b9da166553e71612c7f485d0ade04b62",
-      "size": 47560,
+      "sha256": "00481bca19490ff8204d88275dcf0a48f5f62f7a0e78d72499ff6dc09c86d0a0",
+      "size": 48059,
       "src": "web/wfportal_builder.html"
     },
     "wfp/__init__.py": {
@@ -168,9 +203,14 @@
       "src": "wfp/api/pages.py"
     },
     "wfp/api/personal.py": {
-      "sha256": "05804faf862e051a80f5da59af65481abfbd160e0aea96cd4551e4632aa28d22",
-      "size": 16009,
+      "sha256": "a26c1be57b606a085e22d8b6f38942dd2d3a3aacecdfe7d69111462224254536",
+      "size": 19081,
       "src": "wfp/api/personal.py"
+    },
+    "wfp/api/qa.py": {
+      "sha256": "650407efe6a91a0213aeb91a08d61288f80fbda8cd06078a4baac7020da4a334",
+      "size": 2747,
+      "src": "wfp/api/qa.py"
     },
     "wfp/api/search.py": {
       "sha256": "858482fd981ca62f66124fff73d87cd560b6af4bff266232517094b9ef930521",
@@ -178,8 +218,8 @@
       "src": "wfp/api/search.py"
     },
     "wfp/api/server.py": {
-      "sha256": "577f5800421310cf3732332babb969d21351dc6edac90710114b5df664086ad0",
-      "size": 8353,
+      "sha256": "100cb99842fbbacabde33e4ec0b570dd6a406f7573758b793a2afe52a653e134",
+      "size": 8361,
       "src": "wfp/api/server.py"
     },
     "wfp/api/sim.py": {
@@ -213,18 +253,18 @@
       "src": "wfp/cli/common.py"
     },
     "wfp/cli/info.py": {
-      "sha256": "a880fd6c166e14e0cfaea1d9a182459cc3d58c25c9f29a74318dd889f7078d37",
-      "size": 12589,
+      "sha256": "2ff23e36fd8acaad95855663b5ee8be1fb5a841d7c609293f084324754ea583d",
+      "size": 16048,
       "src": "wfp/cli/info.py"
     },
     "wfp/cli/main.py": {
-      "sha256": "f3bf03cb8c59bcc2bb55f7e79bfebd96f6e4f94b5dcf05ffe8ad74c2189fcf35",
-      "size": 1869,
+      "sha256": "9c9fe86214381b4cb2eb190475b4d2cf0cbd3e6addb56111e4c744626eca5c5b",
+      "size": 1876,
       "src": "wfp/cli/main.py"
     },
     "wfp/cli/personal.py": {
-      "sha256": "ebd19f0f9c527d6c1c3df96ebe585433b743c2928218ccc823aa90ca2691e63e",
-      "size": 20223,
+      "sha256": "d448c37e4c1093f7833b136f660e90e40182c5c1d8773221f14e9ed4e1f5aa3a",
+      "size": 22317,
       "src": "wfp/cli/personal.py"
     },
     "wfp/cli/search.py": {
@@ -247,14 +287,19 @@
       "size": 3839,
       "src": "wfp/core/arcane.py"
     },
+    "wfp/core/archon.py": {
+      "sha256": "1b97568401e4c6d07d74a1a314dd2ceda8674bc8a01799def57cf6cc273e2804",
+      "size": 8454,
+      "src": "wfp/core/archon.py"
+    },
     "wfp/core/build.py": {
-      "sha256": "f9d9c82eabeb19b1d9d4f3ab2ca70f079ef809d69b1083b7f5f5da045743cf7b",
-      "size": 322,
+      "sha256": "6f8253de9dabb320eeb3619e07957bb156d1d66f68ba1a19b8c5a13f5e341e53",
+      "size": 1249,
       "src": "wfp/core/build.py"
     },
     "wfp/core/common.py": {
-      "sha256": "fe83bd702c4682b659453585c4bf97ecdaf3759d474c14fbce4f33d7f67fce85",
-      "size": 47214,
+      "sha256": "482ee9cf5ce8d1524cbf5f2ab5595a33bfc7097d2e801b858391d63b272bfc9a",
+      "size": 53161,
       "src": "wfp/core/common.py"
     },
     "wfp/core/cycle.py": {
@@ -262,10 +307,20 @@
       "size": 5815,
       "src": "wfp/core/cycle.py"
     },
+    "wfp/core/devbuilds.py": {
+      "sha256": "736299c81d681a288abaede8fa1c55e4b79c329597ca9099cfeba55318dc8757",
+      "size": 10927,
+      "src": "wfp/core/devbuilds.py"
+    },
     "wfp/core/duviri.py": {
       "sha256": "b316097dde94aa7d5c7c8069efcb615d4eefb13bdb5ed34904e704c6aa2a0fa5",
       "size": 7087,
       "src": "wfp/core/duviri.py"
+    },
+    "wfp/core/helminth.py": {
+      "sha256": "93846710ce6b0b546ba7b49cb764a28915eedfda73c3d152a44829527ef52a59",
+      "size": 2871,
+      "src": "wfp/core/helminth.py"
     },
     "wfp/core/invasion.py": {
       "sha256": "c2ad721114676930c929725abb50b896669fadc26b4fe99152bf6fdc84b115c0",
@@ -288,14 +343,19 @@
       "src": "wfp/core/mods.py"
     },
     "wfp/core/modstats.py": {
-      "sha256": "e65d340b00403eba076b42dc3ae842effbc9cba540e22e7e31d3e18745d85846",
-      "size": 13734,
+      "sha256": "2f3f6578aae7e4852dbb0351792be147d60c22b2d866e835bcb1fc04ee0f1c26",
+      "size": 15105,
       "src": "wfp/core/modstats.py"
     },
     "wfp/core/names.py": {
-      "sha256": "8dd9a173afd7c87607ff4e7279591e1260e02792486e39063e7b5791fac4a7bb",
-      "size": 22873,
+      "sha256": "400cc4df86167650542491b5ffeebc3e55c4aff1e1243039a1ddda2a4a2f3dfe",
+      "size": 23303,
       "src": "wfp/core/names.py"
+    },
+    "wfp/core/qa.py": {
+      "sha256": "071d23a11a47e829f6c6bc6ccf64adb67a8fe784355e6933600b2aa87fc7b278",
+      "size": 29366,
+      "src": "wfp/core/qa.py"
     },
     "wfp/core/quests.py": {
       "sha256": "2ac1f0475038cf0b99a473822a4025a5f600a8bda64f885c3deba698bfe8f02f",
@@ -311,6 +371,11 @@
       "sha256": "451701929b56ac5cc16e01442bef8e151beef1bf98c7e15c094d04c9968c95bc",
       "size": 2890,
       "src": "wfp/core/spexchange.py"
+    },
+    "wfp/core/summons.py": {
+      "sha256": "931b2ed51f56b07403a9d1fab4861f927192ac5256a787689692d7194ecf0846",
+      "size": 5002,
+      "src": "wfp/core/summons.py"
     },
     "wfp/core/update.py": {
       "sha256": "7be05f028147e32ea29bd2bcb4198eca64c46117efe8c755fee6a988212e3aa9",
@@ -368,8 +433,8 @@
       "src": "wfp/store/__init__.py"
     },
     "wfp/store/appdata.py": {
-      "sha256": "2bd72a94ab358fc080411a0f1cd6402a99bb69dcf1d35ca11fd877d6bb7db818",
-      "size": 3083,
+      "sha256": "e1762e53e052d922984c3ec34e816c80f7768b73f15fe1de1f2899c7d29565e5",
+      "size": 5061,
       "src": "wfp/store/appdata.py"
     },
     "wfp/store/build_images.py": {
@@ -403,8 +468,8 @@
       "src": "wfportal_baro.py"
     },
     "wfportal_builder.py": {
-      "sha256": "f73f6e6a6645b082f1dd9187ac337245061a390389eb2e105c6248478de36c73",
-      "size": 32609,
+      "sha256": "2c5416af9063fd4345ff126cd2786b5b1e2ccaa51cafe35c4e84037d18c10806",
+      "size": 36529,
       "src": "wfportal_builder.py"
     },
     "wfportal_msscan.py": {

@@ -306,6 +306,16 @@ details form { margin-top: 12px; }
 .build .acts { display: flex; gap: 8px; margin-top: 10px; }
 .build .tags span { color: var(--accent); margin-right: 8px; }
 .build .arcs { margin: 6px 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+#b-helm[hidden] { display: none; }
+.build .helm { margin: 6px 0; }
+#b-shard { grid-column: 1 / -1; }
+#b-shard[hidden] { display: none; }
+#b-shard-slots { display: grid; gap: 6px; }
+.shard-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.shard-row .no { min-width: 4em; font-size: 12px; color: var(--mute); }
+.shard-row select.eff { flex: 1; min-width: 12em; }
+.build .shards { margin: 6px 0; }
+.build .shards ol { margin: 2px 0 0; }
 .mini.err { color: var(--danger); }
 .arc { font-size: 12px; padding: 1px 8px; border: 1px solid var(--rar-legendary); color: var(--rar-legendary); }
 
@@ -328,6 +338,34 @@ dl.kv dt { color: var(--mute); } dl.kv dd { margin: 0; font-variant-numeric: tab
 td.wrap { white-space: normal; min-width: 180px; }
 /* MOD 効果検索: MOD ごとのカード。効果の表は列 = 効果の行、行 = ランク。選んだ影響先の列を強調する */
 .mfx-card { border: 1px solid var(--line); margin: 12px 0; }
+/* MOD の効果(ビルド管理・Q&A のビルドのカード。名前の下に小さく) */
+ol.mods .mod-eff { display: block; font-size: 12px; color: var(--mute); white-space: normal; }
+.qa-build ol.mods { margin: 0; padding-left: 1.4em; }
+/* β版の札・トップのチェック */
+.beta-tag { display: inline-block; font-size: 10px; font-weight: 700; line-height: 1; padding: 2px 5px; margin-left: 4px; border: 1px solid var(--accent); color: var(--accent); vertical-align: middle; }
+.home-beta { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 0 0 6px; }
+/* Q&A */
+.qa-lead { white-space: pre-line; }
+.qa-item { border: 1px solid var(--line); margin: 12px 0; padding: 10px 14px; }
+.qa-item .qa-q { color: var(--mute); font-size: 13px; margin-bottom: 6px; overflow-wrap: anywhere; }
+.qa-item .qa-a { margin: 4px 0; white-space: pre-line; overflow-wrap: anywhere; }
+.qa-item .qa-miss { color: var(--accent); }
+.qa-item .qa-basis { color: var(--mute); font-size: 12px; margin-top: 8px; }
+.qa-item .qa-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+.qa-item .qa-chips > span { color: var(--mute); font-size: 13px; }
+.qa-item table { width: 100%; }
+.qa-item .qa-facts td:first-child { white-space: nowrap; color: var(--accent); width: 1%; padding-right: 12px; vertical-align: top; }
+.qa-item .qa-facts td { white-space: pre-line; }
+.qa-item .qa-group { margin: 8px 0 2px; font-weight: 700; }
+.qa-build { border: 1px solid var(--line); margin: 10px 0; }
+.qa-build > header { padding: 7px 12px; background: var(--panel-2); border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.qa-build > header b { color: var(--ink); font-size: 15px; }
+.qa-build > header span { color: var(--mute); }
+.qa-build dl { margin: 8px 12px; display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; }
+.qa-build dt { color: var(--accent); }
+.qa-build dd { margin: 0; overflow-wrap: anywhere; white-space: pre-line; }
+.qa-build .row { margin: 0 12px 10px; }
+#qa-dlg .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
 .mfx-card .mfx-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 8px 12px; background: var(--panel-2); }
 .mfx-card .mfx-head b { font-size: 15px; }
 .mfx-card .mfx-head .en { color: var(--mute); font-size: 12px; }
@@ -537,6 +575,8 @@ input.own:disabled { cursor: not-allowed; opacity: .35; }
       <section id="view-home" hidden>
         <h2 data-i18n="page.home">トップ</h2>
         <p class="lead" data-i18n="home.lead">見たいページへ、ここから移動できます。</p>
+        <div class="home-beta"><label class="chk"><input type="checkbox" id="home-beta"> <span data-i18n="home.beta">β版の機能を使う</span></label>
+          <span class="mini" data-i18n="home.beta.note">試しに使える機能です。答えや動きが変わることがあります。β版のページはメニューに「β」と付きます。</span></div>
         <div class="cards" id="home-cards"></div>
       </section>
 
@@ -844,6 +884,29 @@ input.own:disabled { cursor: not-allowed; opacity: .35; }
         <div id="mfx-out"></div>
       </section>
 
+      <!-- Q&A(答えは日本語のみ。ページの枠・ボタンは I18N。答えの中身は ctrl.html の renderQa が API の文をそのまま出す) -->
+      <section id="view-qa" hidden>
+        <h2 data-i18n="page.qa">Q&amp;A</h2>
+        <p class="lead qa-lead" data-i18n="qa.lead">あーしに聞いてもらえれば、答えられる範囲で答えるよ。全部は無理だけどね
+※日本語版のみの機能だよ</p>
+        <p class="note qa-jaonly" id="qa-jaonly" hidden data-i18n="qa.jaonly">Q&amp;A の答えは日本語のみです。</p>
+        <form class="row" id="qa-form">
+          <input type="text" class="search" id="qa-q" maxlength="200" data-i18n-placeholder="qa.placeholder" placeholder="例: Rhino のアーマーは? / Jade のおすすめビルドは?" autocomplete="off">
+          <button class="btn" type="submit" data-i18n="qa.ask">聞く</button>
+          <button class="btn ghost" type="button" id="qa-clear" data-i18n="qa.clear">履歴を消す</button>
+        </form>
+        <div id="qa-log" aria-live="polite"></div>
+        <dialog class="tips-dlg" id="qa-dlg" data-i18n-aria="qa.adopt.title" aria-label="ビルド管理に追加">
+          <form id="qa-dlg-form">
+            <p id="qa-dlg-msg"></p>
+            <label class="field"><span data-i18n="b.f.name">ビルド名</span><input type="text" id="qa-dlg-name" required autocomplete="off"></label>
+            <div class="err" id="qa-dlg-err" role="alert"></div>
+            <div class="row"><button class="btn" type="submit" data-i18n="qa.adopt.ok">追加する</button>
+              <button class="btn ghost" type="button" id="qa-dlg-cancel" data-i18n="dlg.cancel">キャンセル</button></div>
+          </form>
+        </dialog>
+      </section>
+
       <!-- ビルド -->
       <section id="view-build" hidden>
         <h2 data-i18n="b.title">ビルド</h2>
@@ -856,12 +919,22 @@ input.own:disabled { cursor: not-allowed; opacity: .35; }
               <label class="field"><span data-i18n="mods.col.type">種別</span><select id="b-type"></select></label>
               <label class="field"><span data-i18n="b.f.target">対象(フレーム名・武器名)</span><input type="text" id="b-target" autocomplete="off"></label>
               <label class="field"><span data-i18n="b.f.forma">フォーマ数</span><input type="number" id="b-forma" min="0" value="0"></label>
+              <!-- Helminth: 種別が Warframe のときだけ出す(ctrl.html の helmToggle) -->
+              <div class="field" id="b-helm"><span data-i18n="b.f.helminth">Helminth(置き換えるアビリティ)</span>
+                <div class="row"><select id="b-helm-slot" data-i18n-aria="b.helm.slot" aria-label="置き換える番号"></select>
+                  <input type="text" id="b-helm-ability" list="helminth-list" data-i18n-placeholder="b.helm.pick" placeholder="例: Roar" data-i18n-aria="b.helm.ability" aria-label="入れるアビリティ" autocomplete="off" style="flex:1"></div>
+                <datalist id="helminth-list"></datalist>
+                <span class="mini" id="b-helm-note"></span></div>
+              <!-- アルコンの欠片: 種別が Warframe のときだけ出す(ctrl.html の shardToggle)。5枠の中身は renderShardSlots が作る -->
+              <div class="field" id="b-shard"><span data-i18n="b.f.shards">アルコンの欠片</span>
+                <div id="b-shard-slots"></div>
+                <span class="mini" id="b-shard-note"></span></div>
             </div>
             <div class="formgrid">
               <label class="field"><span data-i18n="b.f.mods">MOD(1行に1つ)</span><textarea id="b-mods" rows="5"></textarea></label>
               <div class="field"><span data-i18n="b.f.arcanes">アルケイン(1行に1つ)</span>
                 <textarea id="b-arcanes" rows="2" data-i18n-aria="b.arcanes" aria-label="アルケイン"></textarea>
-                <div class="row"><input type="text" id="b-arc-pick" list="arcane-list" data-i18n-placeholder="b.arc.pick" placeholder="候補から追加(例: Arcane Energize)" autocomplete="off" style="flex:1">
+                <div class="row"><input type="text" id="b-arc-pick" list="arcane-list" data-i18n-placeholder="b.arc.pick" placeholder="候補から追加(日本語名・英名のどちらでも)" autocomplete="off" style="flex:1">
                   <button type="button" class="btn ghost" id="b-arc-add" data-i18n="b.arc.add">追加</button></div>
                 <datalist id="arcane-list"></datalist>
                 <span class="mini" id="b-arc-note"></span></div>

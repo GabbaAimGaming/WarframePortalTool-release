@@ -1,0 +1,195 @@
+{
+  "_note": "呼び出し(Warframe の中から呼び出す、Warframe のような存在。マスター一覧には出ない)。公式データ(Public Export)に本体の数値・アビリティが無いので、ゲーム画面の値を手で書く(as_of 時点)。数値は基礎値。アビリティの数値は最大ランク(Reunite はランク0)の表示のまま(label・value は日本語の文字)。weapon は近接武器の内部パス(Export の ExportWeapons。図鑑に載らない印が付いている)。Export に無くても消さない。tests/test_summons.py が検査",
+  "summons": [
+    {
+      "en": "Sevagoth's Shadow",
+      "ja": "Sevagoth's Shadow",
+      "owner": "Sevagoth",
+      "weapon": "/Lotus/Powersuits/Wraith/ReaperMeleeWeapon",
+      "as_of": "2026-11-03",
+      "stats": {
+        "health": 320,
+        "shield": 160,
+        "armor": 475,
+        "energy": 125,
+        "sprint": 1.1
+      },
+      "abilities": [
+        {
+          "slot": 1,
+          "en": "Embrace",
+          "ja": "Embrace",
+          "desc": "霊の手が敵を引き寄せて蠢く塊としてまとめる。",
+          "values": [
+            {
+              "label": "ドレイン",
+              "value": "25"
+            },
+            {
+              "label": "効果範囲",
+              "value": "20m"
+            },
+            {
+              "label": "角度",
+              "value": "80°"
+            },
+            {
+              "label": "効果時間",
+              "value": "8秒"
+            }
+          ]
+        },
+        {
+          "slot": 2,
+          "en": "Consume",
+          "ja": "Consume",
+          "desc": "敵に突撃し貫き魂を引き裂き、Shadowを回復させる。",
+          "values": [
+            {
+              "label": "ドレイン",
+              "value": "25"
+            },
+            {
+              "label": "効果範囲",
+              "value": "14m"
+            },
+            {
+              "label": "ダメージ",
+              "value": "2,500(放射線)"
+            },
+            {
+              "label": "ヘルス吸収",
+              "value": "25%"
+            }
+          ]
+        },
+        {
+          "slot": 3,
+          "en": "Death's Harvest",
+          "ja": "Death's Harvest",
+          "desc": "付近の敵を悲惨な状態にする。",
+          "values": [
+            {
+              "label": "ドレイン",
+              "value": "75"
+            },
+            {
+              "label": "効果範囲",
+              "value": "12m"
+            },
+            {
+              "label": "弱化時間",
+              "value": "10秒"
+            },
+            {
+              "label": "ダメージの脆弱性",
+              "value": "50%"
+            }
+          ]
+        },
+        {
+          "slot": 4,
+          "en": "Reunite",
+          "ja": "Reunite",
+          "desc": "SevagothとShadowが一つになる。",
+          "values": []
+        }
+      ]
+    },
+    {
+      "en": "Sevagoth Prime's Shadow",
+      "ja": "Sevagoth Prime's Shadow",
+      "owner": "Sevagoth Prime",
+      "weapon": "/Lotus/Powersuits/Wraith/SevagothShadowPrimeClawsWeapon",
+      "as_of": "2026-11-03",
+      "stats": {
+        "health": 370,
+        "shield": 185,
+        "armor": 475,
+        "energy": 150,
+        "sprint": 1.1
+      },
+      "abilities": [
+        {
+          "slot": 1,
+          "en": "Embrace",
+          "ja": "Embrace",
+          "desc": "霊の手が敵を引き寄せて蠢く塊としてまとめる。",
+          "values": [
+            {
+              "label": "ドレイン",
+              "value": "25"
+            },
+            {
+              "label": "効果範囲",
+              "value": "20m"
+            },
+            {
+              "label": "角度",
+              "value": "80°"
+            },
+            {
+              "label": "効果時間",
+              "value": "8秒"
+            }
+          ]
+        },
+        {
+          "slot": 2,
+          "en": "Consume",
+          "ja": "Consume",
+          "desc": "敵に突撃し貫き魂を引き裂き、Shadowを回復させる。",
+          "values": [
+            {
+              "label": "ドレイン",
+              "value": "25"
+            },
+            {
+              "label": "効果範囲",
+              "value": "14m"
+            },
+            {
+              "label": "ダメージ",
+              "value": "2,500(放射線)"
+            },
+            {
+              "label": "ヘルス吸収",
+              "value": "25%"
+            }
+          ]
+        },
+        {
+          "slot": 3,
+          "en": "Death's Harvest",
+          "ja": "Death's Harvest",
+          "desc": "付近の敵を悲惨な状態にする。",
+          "values": [
+            {
+              "label": "ドレイン",
+              "value": "75"
+            },
+            {
+              "label": "効果範囲",
+              "value": "12m"
+            },
+            {
+              "label": "弱化時間",
+              "value": "10秒"
+            },
+            {
+              "label": "ダメージの脆弱性",
+              "value": "50%"
+            }
+          ]
+        },
+        {
+          "slot": 4,
+          "en": "Reunite",
+          "ja": "Reunite",
+          "desc": "SevagothとShadowが一つになる。",
+          "values": []
+        }
+      ]
+    }
+  ]
+}

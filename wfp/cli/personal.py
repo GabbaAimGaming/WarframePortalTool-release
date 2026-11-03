@@ -7,15 +7,17 @@ from pathlib import Path
 
 from wfp.cli.table import pad, print_table
 from wfp.core.arcane import arcane_summary, arcane_table, set_arcanes_owned
-from wfp.core.build import find_build
+from wfp.core.build import canon_arcanes, find_build
 from wfp.core.common import (ARCANE_CATS, BUILD_TYPES, MASTERY_CATS, MOD_TYPES, QUEST_CATS, QUEST_STATES, RARITY_JA, SOURCE_CATS, norm, pct,
                              rank, render_ja)
+from wfp.core.archon import clean_shards, find_effect, parse_shard_args, shard_list, shard_text
+from wfp.core.helminth import clean_helminth, parse_helminth_arg, subsume_frame, subsume_list
 from wfp.core.loader import load_drops, load_names, load_sources
 from wfp.core.mastery import mastery_label, mastery_summary, mastery_table
 from wfp.core.mods import mod_table
 from wfp.core.quests import item_name, quest_items, quest_summary, quest_table, set_quests_done
 from wfp.drops.search import all_item_names
-from wfp.store import build_images, datadir, userdata
+from wfp.store import appdata, build_images, datadir, userdata
 
 
 def cmd_mods(args):
@@ -235,7 +237,24 @@ def cmd_build(args):
         for i, m in enumerate(b.get("mods", []), 1):
             print(f"  {i:>2}. {m}")
         if b.get("arcanes"):
-            print("アルケイン: " + ", ".join(b["arcanes"]))
+            names = load_names(d)  # 保存は英名。CLI は日本語なので和名で出す(和名が無ければ英名)
+            print("アルケイン: " + ", ".join(names.ja(a) for a in b["arcanes"]))
+        if b.get("helminth"):
+            h = b["helminth"]
+            frame = subsume_frame(subsume_list(appdata.read_helminth()), h["ability"])
+            print(f"Helminth: {h['slot']}番 → {h['ability']}" + (f"({frame})" if frame else ""))
+        if b.get("shards"):
+            print("アルコンの欠片:")
+            data = shard_list(appdata.read_archon())
+            for i, sh in enumerate(b["shards"], 1):
+                hit = find_effect(data, sh["color"], sh["effect"]) if sh else None
+                if not sh:
+                    print(f"  {i}. -")
+                elif hit:
+                    head = ("Tauforged " if sh["tauforged"] else "") + hit[0]["ja"]
+                    print(f"  {i}. {head}: {shard_text(hit[1], 'ja', sh['tauforged'], data['tauforged_rate'])}")
+                else:
+                    print(f"  {i}. {sh['color']}: {sh['effect']}(一覧にありません)")
         if b.get("note"):
             print(f"\nメモ: {b['note']}")
         if b.get("tags"):
@@ -249,9 +268,18 @@ def cmd_build(args):
         old = find_build(builds, name)
         entry = {"name": name, "type": args.type or "frame", "target": args.target or "",
                  "forma": args.forma or 0, "mods": [m.strip() for m in (args.mods or "").split(",") if m.strip()],
-                 "arcanes": [a.strip() for a in (args.arcanes or "").split(",") if a.strip()],
+                 "arcanes": canon_arcanes(load_names(d), [a.strip() for a in (args.arcanes or "").split(",") if a.strip()]),
                  "tags": [t.strip() for t in (args.tags or "").split(",") if t.strip()], "note": args.note or "",
                  "images": []}
+        try:
+            helminth = clean_helminth(entry["type"], parse_helminth_arg(args.helminth) if args.helminth else None)
+            shards = clean_shards(entry["type"], parse_shard_args(args.shard), shard_list(appdata.read_archon()))
+        except ValueError as e:
+            sys.exit(str(e))
+        if helminth:
+            entry["helminth"] = helminth
+        if shards:
+            entry["shards"] = shards
         same = old is not None and norm(old["name"]) == norm(name)
         if same and not args.update:
             sys.exit("同名のビルドがあります。上書きするには --update を付けてください。")
@@ -295,6 +323,9 @@ def add_build(sub) -> None:
     s.add_argument("--arcanes", help="アルケイン (カンマ区切り)")
     s.add_argument("--tags", help="カンマ区切り")
     s.add_argument("--note")
+    s.add_argument("--helminth", metavar="番号:アビリティ", help="Helminth で置き換えるアビリティ (例: 3:Roar。Warframe のみ)")
+    s.add_argument("--shard", action="append", metavar="枠:色:効果[:t]",
+                   help="アルコンの欠片 (例: 1:red:MeleeCritDamage。Tauforged は末尾に :t。複数回指定可。Warframe のみ)")
     s.add_argument("--update", action="store_true", help="同名ビルドを上書き")
     s.add_argument("--image", action="append", metavar="画像ファイル", help="画像を添付 (複数回指定可)")
     s.add_argument("--raw", action="store_true", help="analyze: 読み取った文字をそのまま表示")

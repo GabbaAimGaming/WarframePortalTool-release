@@ -323,6 +323,14 @@ class Names:
     def _get(self, en: str) -> str | None:
         return self.en2ja.get(en) or self._lower.get(en.lower())
 
+    def is_mod(self, name: str) -> bool:
+        """MOD の英名か(大文字小文字は区別しない完全一致。Riven は含めない)"""
+        return name.strip().lower() in self._mod_lower
+
+    def has(self, name: str) -> bool:
+        """名前辞書に載っている英名か(大文字小文字は区別しない完全一致。個数の付いた名前・和名は見ない)"""
+        return self._get(name.strip()) is not None
+
     def ja(self, name: str) -> str:
         qty, base = self.split_qty(name)
         pre = f"{qty}個 " if qty else ""
@@ -356,7 +364,7 @@ class Names:
             return "part"
         if self.is_resource(base):
             return "resource"
-        if base.lower() in self._mod_lower or base.endswith(" Riven Mod"):
+        if self.is_mod(base) or base.endswith(" Riven Mod"):
             return "mod"
         if _RELIC_NAME.match(base):
             return "relic"

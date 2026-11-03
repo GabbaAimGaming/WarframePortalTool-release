@@ -900,6 +900,94 @@ loaders.modstats = async () => {
 };
 relabel.modstats = () => { applyViewText("modstats"); renderMfxChips(); if (mfxRes) renderMfxResult(); else mfxNote(mfxMsg); };
 
+/* ---------- Q&A ---------- */
+/* 答えの文は API(Python)が日本語で作る(Q&A は日本語のみ)。ここは表示とボタンだけ。枠の文字(ボタン・見出し)は I18N(t)から。
+   履歴は新しいものを上に QA_LOG_MAX 件まで(ページを離れても残す。データは取り直さない) */
+const QA_LOG_MAX = 20;
+let qaLog = [];  // [{res, done}] done = ビルド管理に追加した名前 {ビルド名: 保存した名前}
+async function qaAsk(params) {
+  const qs = new URLSearchParams(params).toString();
+  try {
+    const res = await api(`/api/qa?${qs}`);
+    qaLog.unshift({ res, done: {} }); qaLog = qaLog.slice(0, QA_LOG_MAX);
+  } catch (e) { qaLog.unshift({ err: e.message, q: params.q || "" }); }
+  renderQa();
+}
+const qaChip = (label, name, intent) =>
+  `<button type="button" class="chip" data-qaname="${esc(name)}"${intent ? ` data-qaintent="${esc(intent)}"` : ""}>${esc(label)}</button>`;
+function qaBuildCard(b, done) {
+  const row = (key, val) => val ? `<dt>${esc(t(key))}</dt><dd>${esc(val)}</dd>` : "";
+  return `<div class="qa-build"><header><b>${esc(b.name)}</b><span>${esc(b.type_ja)} / ${esc(b.target_ja)} / ${esc(fmt("qa.b.forma", { n: b.forma }))}</span></header>
+    <dl>${b.mods.length ? `<dt>${esc(t("qa.b.mods"))}</dt><dd><ol class="mods">${b.mods.map(m =>
+      `<li>${esc(m.name)}${m.effect ? `<span class="mod-eff">${esc(m.effect)}</span>` : ""}</li>`).join("")}</ol></dd>` : ""}${row("qa.b.arcanes", b.arcanes.join("、"))}${row("qa.b.helminth", b.helminth)}${
+      row("qa.b.shards", b.shards.join("\n"))}${row("qa.b.note", b.note)}</dl>
+    <div class="row">${done
+      ? `<span class="mini">${esc(fmt("qa.adopt.done", { name: done }))}</span> <button type="button" class="btn ghost" data-qaopen="${esc(done)}">${esc(t("qa.adopt.open"))}</button>`
+      : `<button type="button" class="btn ghost" data-qaadopt="${esc(b.name)}" data-qaadoptname="${esc(b.adopt_name)}">${esc(t("qa.adopt"))}</button>`}</div></div>`;
+}
+function qaItem(entry, idx) {
+  if (entry.err) return `<div class="qa-item"><div class="qa-q">${esc(entry.q)}</div><div class="err">${esc(entry.err)}</div></div>`;
+  const r = entry.res;
+  const q = r.q || (r.name ? r.name.ja : "");
+  let h = `<div class="qa-item" data-qaidx="${idx}"><div class="qa-q">${esc(t("qa.you"))} ${esc(q)}</div>`;
+  if (r.miss && r.miss.text) h += `<p class="qa-a qa-miss">${esc(r.miss.text)}</p>`;
+  if (r.text) h += `<p class="qa-a"><b>${esc(r.text)}</b></p>`;
+  if (r.facts.length) h += `<div class="tablewrap"><table class="qa-facts"><tbody>${r.facts.map(f =>
+    `<tr><td>${esc(f.label)}</td><td>${esc(f.value)}</td></tr>`).join("")}</tbody></table></div>`;
+  for (const g of r.sources) {
+    if (g.title) h += `<div class="qa-group">${esc(g.title)}</div>`;
+    h += `<div class="tablewrap"><table><thead><tr><th>${esc(t("qa.col.chance"))}</th><th>${esc(t("qa.col.where"))}</th></tr></thead><tbody>${
+      g.rows.map(x => `<tr><td>${esc(x.chance || "-")}</td><td>${catTag(x.cat)} ${esc(x.where)}${x.qty ? ` ×${esc(x.qty)}` : ""}</td></tr>`).join("")}</tbody></table></div>`;
+  }
+  h += r.builds.map(b => qaBuildCard(b, entry.done[b.name])).join("");
+  if (r.candidates.length) h += `<div class="qa-chips"><span>${esc(t("qa.maybe"))}</span>${r.candidates.map(c => qaChip(c.ja, c.key, r.intent)).join("")}</div>`;
+  if (r.options.length) h += `<div class="qa-chips"><span>${esc(r.options_title)}</span>${r.options.map(o => qaChip(o.label, o.name, o.intent)).join("")}</div>`;
+  if (r.basis) h += `<div class="qa-basis">${esc(r.basis)}</div>`;
+  return h + `</div>`;
+}
+function renderQa() {
+  $("#qa-jaonly").hidden = lang === "ja";
+  $("#qa-log").innerHTML = qaLog.length ? qaLog.map(qaItem).join("") : `<div class="empty">${esc(t("qa.empty"))}</div>`;
+}
+$("#qa-form").addEventListener("submit", e => {
+  e.preventDefault();
+  const q = $("#qa-q").value.trim();
+  if (!q) return;
+  $("#qa-q").value = "";
+  qaAsk({ q });
+});
+$("#qa-clear").addEventListener("click", () => { qaLog = []; renderQa(); });
+/* ビルド管理に追加: 名前を入れる小窓(初期値は「名前_dev」)。同じ名前があれば小窓のまま入れ直してもらう(上書きしない) */
+let qaAdopt = null;  // {idx, build}
+$("#qa-log").addEventListener("click", e => {
+  const chip = e.target.closest("[data-qaname]");
+  if (chip) { qaAsk({ name: chip.dataset.qaname, ...(chip.dataset.qaintent ? { intent: chip.dataset.qaintent } : {}) }); return; }
+  const open = e.target.closest("[data-qaopen]");
+  if (open) { $("#b-filter").value = open.dataset.qaopen; show("build"); return; }
+  const add = e.target.closest("[data-qaadopt]");
+  if (!add) return;
+  qaAdopt = { idx: +add.closest("[data-qaidx]").dataset.qaidx, build: add.dataset.qaadopt };
+  $("#qa-dlg-msg").textContent = fmt("qa.adopt.msg", { name: qaAdopt.build });
+  $("#qa-dlg-name").value = add.dataset.qaadoptname;
+  $("#qa-dlg-err").textContent = "";
+  $("#qa-dlg").showModal();
+});
+$("#qa-dlg-cancel").addEventListener("click", () => $("#qa-dlg").close());
+$("#qa-dlg-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = $("#qa-dlg-name").value.trim();
+  if (!qaAdopt || !name) return;
+  try {
+    const res = await api("/api/builds/adopt", { method: "POST", body: { build: qaAdopt.build, name } });
+    const entry = qaLog[qaAdopt.idx];
+    if (entry && entry.done) entry.done[qaAdopt.build] = res.name;
+    builds = res.builds; modEffects = res.mod_effects || modEffects;  // ビルド管理の一覧(開いたときにも読み直す)
+    $("#qa-dlg").close(); renderQa();
+  } catch (err) { $("#qa-dlg-err").textContent = err.message; }
+});
+loaders.qa = () => { applyViewText("qa"); renderQa(); };
+relabel.qa = () => { applyViewText("qa"); renderQa(); };
+
 /* ---------- 侵略サイクル ---------- */
 /* 一覧・照合は API(Python)側で作る。ここは表示とチェックの送信だけ。文字はすべて I18N(t)から。
    侵略の一覧を取り直すのは「公式データで更新」を押したときだけ(開いたときは保存済みの結果を出す) */
@@ -2004,6 +2092,10 @@ setInterval(() => { if (!$("#view-cycle").hidden) renderCycles(); }, 1000);
 
 /* ---------- ビルド ---------- */
 let builds = [], btypes = [], editing = null, armed = null;
+/* MOD の効果(最大ランク): {英名(小文字): {ja, en}}。名前は英名のまま出し、効果は表示中の言語(ja が無ければ en)。無い MOD は名前だけ */
+let modEffects = {};
+const modEffect = name => { const e = modEffects[String(name || "").trim().toLowerCase()]; return e ? (lang === "ja" ? e.ja || e.en : e.en || e.ja) : ""; };
+const modItem = name => { const eff = modEffect(name); return `<li>${esc(name)}${eff ? `<span class="mod-eff">${esc(eff)}</span>` : ""}</li>`; };
 /* フォームで編集中の画像: {saved: ファイル名} か {blob, url} (まだ保存していない新しい画像) */
 let formImages = [];
 const imgUrl = name => `/api/build-image/${encodeURIComponent(name)}`;
@@ -2060,7 +2152,7 @@ function renderOcr(r, msg = "") {
         : esc(fmt("ocr.forma.est", { n: f.value }))}</dd>
       ${f.polarized && f.polarized.length ? `<dt>${esc(t("ocr.pol"))}</dt><dd>${esc(polSummary(f.polarized))}</dd>` : ""}
       <dt>MOD</dt><dd>${esc(fmt("ocr.mods.n", { n: r.mods.filter(m => m.kind !== "arcane").length }))}</dd>
-      ${r.mods.some(m => m.kind === "arcane") ? `<dt>${esc(t("b.arcanes"))}</dt><dd>${r.mods.filter(m => m.kind === "arcane").map(m => esc(m.en)).join(", ")}</dd>` : ""}
+      ${r.mods.some(m => m.kind === "arcane") ? `<dt>${esc(t("b.arcanes"))}</dt><dd>${r.mods.filter(m => m.kind === "arcane").map(m => esc(arcLabel(m.en))).join(", ")}</dd>` : ""}
     </dl>
     ${r.mods.some(m => m.kind !== "arcane") ? `<ol>${r.mods.filter(m => m.kind !== "arcane").map(m => `<li>${esc(nm(m))}${m.polarity ? `<span class="pol">${esc(m.polarity)}</span>` : ""}
       ${m.slot ? `<span class="slot ${m.slot}" title="${esc(fmt("ocr.drain", { n: m.drain }))}">${esc(t("ocr.slot." + m.slot))}</span>` : ""}
@@ -2079,7 +2171,7 @@ function applyOcr(r, onlyEmpty) {
   }
   const modList = r.mods.filter(m => m.kind !== "arcane"), arcList = r.mods.filter(m => m.kind === "arcane");
   if (modList.length) set("#b-mods", modList.map(m => m.en).join("\n"), t("b.lbl.mods"), !$("#b-mods").value.trim());
-  if (arcList.length) set("#b-arcanes", arcList.map(m => m.en).join("\n"), t("b.arcanes"), !$("#b-arcanes").value.trim());
+  if (arcList.length) set("#b-arcanes", arcList.map(m => arcLabel(m.en)).join("\n"), t("b.arcanes"), !$("#b-arcanes").value.trim());
   // ゲーム内の表示から読めたフォーマ数はそのまま登録する。推定値は空欄(0)のときだけ入れる
   if (r.forma.value !== null) set("#b-forma", r.forma.value, t("b.lbl.forma"), r.forma.source === "display" || !(+$("#b-forma").value));
   if (r.forma.polarized && r.forma.polarized.length) {
@@ -2089,6 +2181,7 @@ function applyOcr(r, onlyEmpty) {
     const note = $("#b-note").value.split("\n").filter(l => !heads.some(h => l.startsWith(h)));
     $("#b-note").value = [...note.filter(Boolean), line].join("\n"); filled.push(t("b.lbl.memo"));
   }
+  helmToggle();  // 種別を入れ替えたときに Helminth の欄の出し入れを合わせる
   return filled;
 }
 async function analyzeImages(list, auto) {
@@ -2146,20 +2239,23 @@ function addImageFiles(files) {
   analyzeImages(added, true);  // 追加した画像を自動で読み取り、空欄に入力する
 }
 function resetBuildForm() {
-  editing = null; $("#build-form").reset(); $("#b-forma").value = 0; clearFormImages(); $("#b-arc-note").textContent = "";
+  editing = null; $("#build-form").reset(); $("#b-forma").value = 0; clearFormImages(); $("#b-arc-note").textContent = ""; helmToggle();
+  renderShardSlots([]); shardToggle();
   $("#b-cancel").hidden = true; $("#b-err").textContent = ""; renderBuildFormTitle();
 }
 function renderBuildFormTitle() { $("#build-form-title").textContent = editing ? fmt("b.edit", { name: editing }) : t("b.add"); }
 function renderBuilds() {
   const q = $("#b-filter").value.trim().toLowerCase(), ft = $("#b-filter-type").value;
   const list = builds.filter(b => (!ft || b.type === ft) &&
-    (!q || [b.name, b.target, ...(b.tags || []), ...(b.arcanes || [])].some(x => (x || "").toLowerCase().includes(q))));
+    (!q || [b.name, b.target, ...(b.tags || []), ...(b.arcanes || []).flatMap(arcLabels)].some(x => (x || "").toLowerCase().includes(q))));
   $("#build-list").innerHTML = list.length ? list.map(b => `
     <div class="card build"><header><b>${esc(b.name)}</b><span>${esc(tName("build.type.", b.type))}${b.target ? " / " + esc(b.target) : ""}</span></header>
     <div class="pad"><div class="meta">${esc([fmt("b.meta.forma", { n: b.forma || 0 }), fmt("b.meta.mods", { n: (b.mods || []).length }),
       ...((b.arcanes || []).length ? [fmt("b.meta.arcanes", { n: b.arcanes.length })] : []), ...((b.images || []).length ? [fmt("b.meta.images", { n: b.images.length })] : [])].join(" / "))}</div>
-      ${(b.mods || []).length ? `<ol>${b.mods.map(m => `<li>${esc(m)}</li>`).join("")}</ol>` : ""}
-      ${(b.arcanes || []).length ? `<div class="arcs"><span class="mini">${esc(t("b.arcanes"))}</span> ${b.arcanes.map(a => `<span class="arc">${esc(a)}</span>`).join("")}</div>` : ""}
+      ${(b.mods || []).length ? `<ol class="mods">${b.mods.map(modItem).join("")}</ol>` : ""}
+      ${(b.arcanes || []).length ? `<div class="arcs"><span class="mini">${esc(t("b.arcanes"))}</span> ${b.arcanes.map(a => `<span class="arc">${esc(arcLabel(a))}</span>`).join("")}</div>` : ""}
+      ${b.helminth ? `<div class="helm"><span class="mini">${esc(t("b.helm"))}</span> ${esc(helmText(b.helminth))}</div>` : ""}
+      ${(b.shards || []).some(Boolean) ? `<div class="shards"><span class="mini">${esc(t("b.shard"))}</span><ol>${b.shards.map(sh => `<li>${esc(shardCard(sh))}</li>`).join("")}</ol></div>` : ""}
       ${b.note ? `<div>${esc(b.note)}</div>` : ""}
       ${(b.tags || []).length ? `<div class="tags">${b.tags.map(x => `<span>#${esc(x)}</span>`).join("")}</div>` : ""}
       ${(b.images || []).length ? `<div class="thumbs">${b.images.map((n, i) => `<button type="button" class="thumb" data-view-img="${esc(b.name)}" data-i="${i}" aria-label="${esc(fmt("b.image.enlarge", { name: b.name, n: i + 1 }))}"><img src="${imgUrl(n)}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
@@ -2167,12 +2263,23 @@ function renderBuilds() {
         <button class="btn danger${armed === b.name ? " armed" : ""}" data-del="${esc(b.name)}">${esc(t(armed === b.name ? "b.del.confirm" : "b.del"))}</button></div></div></div>`).join("")
     : `<div class="empty">${esc(t(builds.length ? "b.none" : "b.empty"))}</div>`;
 }
+/* アルケイン: 候補は [{en, ja}]。保存は英名(サーバーが英名にそろえる)、入力欄・候補・一覧は表示中の言語で出す */
 let arcaneNames = [];
 const ARC_LIMIT = { frame: 2, primary: 1, secondary: 1, melee: 1 };  // ゲーム内で装備できる数
+// 照合の鍵: 全角半角・大文字小文字・ひらがな/カタカナ・空白と区切りを無視(サーバーの norm に合わせる)
+const arcKey = s => (s || "").normalize("NFKC").toLowerCase().replace(/[\u3041-\u3096]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60)).replace(/[\s・･\-_'’,()（）]/g, "");
+const arcHit = name => { const k = arcKey(name); return k ? arcaneNames.find(a => arcKey(a.en) === k || arcKey(a.ja) === k) || null : null; };
+const arcLabel = name => { const a = arcHit(name); return a ? (lang === "ja" ? a.ja || a.en : a.en) : name; };  // 一覧に無い名前は書いたまま
+const arcLabels = name => { const a = arcHit(name); return a ? [a.en, a.ja] : [name]; };  // 絞り込み用(英名・和名の両方)
+const arcLines = () => $("#b-arcanes").value.split("\n").map(x => x.trim()).filter(Boolean);
+function renderArcList() {
+  $("#arcane-list").innerHTML = arcaneNames.map(a => lang === "ja" && a.ja !== a.en
+    ? `<option value="${esc(a.ja)}" label="${esc(a.en)}">` : `<option value="${esc(a.en)}">`).join("");
+}
 function arcNote() {
-  const lines = $("#b-arcanes").value.split("\n").map(x => x.trim()).filter(Boolean);
-  const limit = ARC_LIMIT[$("#b-type").value], known = new Set(arcaneNames.map(a => a.toLowerCase()));
-  const unknown = lines.filter(a => known.size && !known.has(a.toLowerCase()));
+  const lines = arcLines();
+  const limit = ARC_LIMIT[$("#b-type").value];
+  const unknown = lines.filter(a => arcaneNames.length && !arcHit(a));
   const msgs = [];
   if (limit && lines.length > limit) msgs.push(fmt("b.arc.limit", { type: tName("build.type.", $("#b-type").value), limit, n: lines.length }));
   if (unknown.length) msgs.push(fmt("b.arc.unknown", { list: unknown.join(", ") }));
@@ -2181,20 +2288,123 @@ function arcNote() {
 }
 function addArcane() {
   const v = $("#b-arc-pick").value.trim(); if (!v) return;
-  const hit = arcaneNames.find(a => a.toLowerCase() === v.toLowerCase()) || v;
-  const lines = $("#b-arcanes").value.split("\n").map(x => x.trim()).filter(Boolean);
-  if (!lines.some(x => x.toLowerCase() === hit.toLowerCase())) lines.push(hit);
+  const hit = arcHit(v), label = arcLabel(v), lines = arcLines();
+  if (!lines.some(x => hit ? arcHit(x) === hit : arcKey(x) === arcKey(v))) lines.push(label);
   $("#b-arcanes").value = lines.join("\n"); $("#b-arc-pick").value = ""; arcNote();
 }
 $("#b-arc-add").addEventListener("click", addArcane);
 $("#b-arc-pick").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addArcane(); } });
 $("#b-arcanes").addEventListener("input", arcNote);
 $("#b-type").addEventListener("change", arcNote);
+/* Helminth: 候補は同梱の一覧({frame, ability}。英名)。一覧に無い名前でも保存はできる(注意だけ出す) */
+let helmList = [];
+const helmFrame = ability => (helmList.find(h => h.ability.toLowerCase() === (ability || "").trim().toLowerCase()) || {}).frame;
+function helmText(h) {
+  const frame = helmFrame(h.ability);
+  return fmt("b.helm.card", { slot: h.slot, ability: h.ability }) + (frame ? fmt("b.helm.from", { frame }) : "");
+}
+/* 番号の選択肢(言語を切り替えたら作り直す。選んでいる値は残す) */
+function renderHelmSlots() {
+  const cur = $("#b-helm-slot").value;
+  $("#b-helm-slot").innerHTML = `<option value="">${esc(t("b.helm.none"))}</option>` +
+    [1, 2, 3, 4].map(n => `<option value="${n}">${esc(fmt("b.helm.slot.n", { n }))}</option>`).join("");
+  $("#b-helm-slot").value = cur;
+}
+function helmNote() {
+  const slot = $("#b-helm-slot").value, ability = $("#b-helm-ability").value.trim(), msgs = [];
+  if (!!slot !== !!ability) msgs.push(t("b.helm.pair"));
+  if (ability && helmList.length && !helmFrame(ability)) msgs.push(fmt("b.helm.unknown", { name: ability }));
+  $("#b-helm-note").textContent = msgs.join(" ");
+  $("#b-helm-note").classList.toggle("err", msgs.length > 0);
+}
+/* Warframe のビルドだけに出す(ほかの種別では保存しない) */
+function helmToggle() { $("#b-helm").hidden = $("#b-type").value !== "frame"; helmNote(); }
+const helmValue = () => $("#b-type").value === "frame" && ($("#b-helm-slot").value || $("#b-helm-ability").value.trim())
+  ? { slot: $("#b-helm-slot").value, ability: $("#b-helm-ability").value.trim() } : null;
+$("#b-type").addEventListener("change", helmToggle);
+$("#b-helm-slot").addEventListener("change", helmNote);
+$("#b-helm-ability").addEventListener("input", helmNote);
+/* アルコンの欠片: 色と効果は同梱の一覧({tauforged_rate, colors})。5枠それぞれに 色 → 効果(その色のもの)と Tauforged。
+   Tauforged の値は保存せず、文に埋めるときに tauforged_rate を掛ける(効果の tauforged があればその値) */
+let archon = { tauforged_rate: 1.5, colors: [] };
+const shardName = c => (lang === "ja" ? c.ja : c.en);
+const shardColor = key => archon.colors.find(c => c.key === key);
+const shardEffect = (key, id) => ((shardColor(key) || {}).effects || []).find(e => e.id === id);
+const shardNum = x => Number(x).toLocaleString(locale(), { maximumFractionDigits: 2, useGrouping: false });
+function shardText(e, tau) {
+  const over = (tau && e.tauforged) || {};
+  return (lang === "ja" ? e.ja : e.en).replace(/\{(v|max|per)\}/g, (m, k) => {
+    const key = k === "v" ? "value" : k;
+    if (e[key] === undefined) return m;
+    return shardNum(over[key] !== undefined ? over[key] : tau ? Math.round(e[key] * archon.tauforged_rate * 100) / 100 : e[key]);
+  });
+}
+function shardCard(sh) {
+  if (!sh) return t("b.shard.empty");
+  const c = shardColor(sh.color), e = shardEffect(sh.color, sh.effect);
+  if (!e) return fmt("b.shard.unknown", { name: `${sh.color}: ${sh.effect}` });
+  const name = shardName(c);
+  return `${sh.tauforged ? fmt("b.shard.tau.name", { name }) : name}: ${shardText(e, sh.tauforged)}`;
+}
+/* 入力中の5枠({color, effect, tauforged}。空の枠は null) */
+const shardRows = () => [...$("#b-shard-slots").querySelectorAll(".shard-row")].map(row => {
+  const color = row.querySelector(".col").value, effect = row.querySelector(".eff").value;
+  return color || effect ? { color, effect, tauforged: row.querySelector(".tau").checked } : null;
+});
+/* 効果の選択肢(その色の効果。一覧に無い値で保存されていたら、その値も残して選べるようにする) */
+function fillShardEffect(row, effect) {
+  const color = row.querySelector(".col").value, tau = row.querySelector(".tau").checked, sel = row.querySelector(".eff");
+  const list = (shardColor(color) || {}).effects || [];
+  const stale = effect && !list.some(e => e.id === effect) ? `<option value="${esc(effect)}">${esc(effect)}</option>` : "";
+  sel.innerHTML = `<option value="">${esc(t("b.shard.pick"))}</option>` + stale +
+    list.map(e => `<option value="${esc(e.id)}">${esc(shardText(e, tau))}</option>`).join("");
+  sel.value = effect || ""; sel.disabled = !color;
+}
+/* 5枠を作り直す(言語の切り替え・読み込み・編集。値を渡さなければ入力中の値を保つ) */
+function renderShardSlots(vals = shardRows()) {
+  const colorOpts = archon.colors.map(c => `<option value="${esc(c.key)}">${esc(shardName(c))}</option>`).join("");
+  $("#b-shard-slots").innerHTML = Array.from({ length: 5 }, (_, i) => `<div class="shard-row" data-i="${i}">
+      <span class="no">${esc(fmt("b.shard.slot.n", { n: i + 1 }))}</span>
+      <select class="col" aria-label="${esc(fmt("b.shard.slot.n", { n: i + 1 }) + " " + t("b.shard.color"))}"><option value="">${esc(t("b.shard.none"))}</option>${colorOpts}</select>
+      <select class="eff" aria-label="${esc(fmt("b.shard.slot.n", { n: i + 1 }) + " " + t("b.shard.effect"))}"></select>
+      <label class="mini"><input type="checkbox" class="tau"> ${esc(t("b.shard.tau"))}</label></div>`).join("");
+  $("#b-shard-slots").querySelectorAll(".shard-row").forEach((row, i) => {
+    const v = vals[i];
+    if (v && v.color && !shardColor(v.color)) row.querySelector(".col").insertAdjacentHTML("beforeend", `<option value="${esc(v.color)}">${esc(v.color)}</option>`);
+    row.querySelector(".col").value = v ? v.color : ""; row.querySelector(".tau").checked = !!(v && v.tauforged);
+    fillShardEffect(row, v ? v.effect : "");
+  });
+  shardNote();
+}
+function shardNote() {
+  const rows = shardRows(), msgs = [];
+  if (rows.some(r => r && (!r.color || !r.effect))) msgs.push(t("b.shard.pair"));
+  const unknown = rows.filter(r => r && r.color && r.effect && archon.colors.length && !shardEffect(r.color, r.effect));
+  if (unknown.length) msgs.push(fmt("b.shard.unknown", { name: unknown.map(r => `${r.color}: ${r.effect}`).join(", ") }));
+  $("#b-shard-note").textContent = msgs.join(" ");
+  $("#b-shard-note").classList.toggle("err", msgs.length > 0);
+}
+function shardToggle() { $("#b-shard").hidden = $("#b-type").value !== "frame"; }
+const shardValue = () => {
+  if ($("#b-type").value !== "frame") return null;
+  const rows = shardRows();
+  return rows.some(Boolean) ? rows : null;
+};
+$("#b-type").addEventListener("change", shardToggle);
+$("#b-shard-slots").addEventListener("change", e => {
+  const row = e.target.closest(".shard-row"); if (!row) return;
+  // 色を変えたら効果を選び直す。Tauforged を変えたら効果の文の値を出し直す(選んでいる効果は保つ)
+  if (e.target.classList.contains("col")) fillShardEffect(row, "");
+  if (e.target.classList.contains("tau")) fillShardEffect(row, row.querySelector(".eff").value);
+  shardNote();
+});
 async function loadBuilds() {
-  const r = await api("/api/builds"); builds = r.builds; btypes = r.types;
-  arcaneNames = r.arcanes || [];
-  $("#arcane-list").innerHTML = arcaneNames.map(a => `<option value="${esc(a)}">`).join("");
-  renderBuildTypes(); renderBuilds();
+  const r = await api("/api/builds"); builds = r.builds; modEffects = r.mod_effects || {}; btypes = r.types;
+  arcaneNames = r.arcanes || []; renderArcList();
+  helmList = r.helminth || [];
+  $("#helminth-list").innerHTML = helmList.map(h => `<option value="${esc(h.ability)}" label="${esc(h.frame)}">`).join("");
+  archon = r.archon || archon;
+  renderBuildTypes(); renderHelmSlots(); helmToggle(); renderShardSlots(); shardToggle(); renderBuilds();
 }
 /* 種別の選択肢(言語を切り替えたら作り直す。選んでいる値は残す) */
 function renderBuildTypes() {
@@ -2210,9 +2420,9 @@ $("#build-form").addEventListener("submit", async e => {
   try {
     const r = await api("/api/builds", { method: "POST", body: {
       original_name: editing, name, type: $("#b-type").value, target: $("#b-target").value,
-      forma: $("#b-forma").value, mods: $("#b-mods").value, arcanes: $("#b-arcanes").value, tags: $("#b-tags").value, note: $("#b-note").value,
+      forma: $("#b-forma").value, mods: $("#b-mods").value, arcanes: $("#b-arcanes").value, tags: $("#b-tags").value, note: $("#b-note").value, helminth: helmValue(), shards: shardValue(),
       images: formImages.filter(i => i.saved).map(i => i.saved) } });
-    builds = r.builds;
+    builds = r.builds; modEffects = r.mod_effects || modEffects;
     // ビルドを保存してから、新しい画像を1枚ずつ送る
     editing = name;
     const pending = formImages.filter(i => !i.saved);
@@ -2275,8 +2485,10 @@ $("#build-list").addEventListener("click", async e => {
   if (ed) {
     const b = builds.find(x => x.name === ed.dataset.edit); if (!b) return;
     editing = b.name; $("#b-name").value = b.name; $("#b-type").value = b.type; $("#b-target").value = b.target || "";
-    $("#b-forma").value = b.forma || 0; $("#b-mods").value = (b.mods || []).join("\n"); $("#b-arcanes").value = (b.arcanes || []).join("\n"); $("#b-tags").value = (b.tags || []).join(",");
+    $("#b-forma").value = b.forma || 0; $("#b-mods").value = (b.mods || []).join("\n"); $("#b-arcanes").value = (b.arcanes || []).map(arcLabel).join("\n"); $("#b-tags").value = (b.tags || []).join(",");
     $("#b-note").value = b.note || ""; renderBuildFormTitle(); $("#b-cancel").hidden = false;
+    $("#b-helm-slot").value = b.helminth ? String(b.helminth.slot) : ""; $("#b-helm-ability").value = b.helminth ? b.helminth.ability : ""; helmToggle();
+    renderShardSlots(b.shards || []); shardToggle();
     clearFormImages(); formImages = (b.images || []).map(n => ({ saved: n })); renderFormImages();
     $("#build-form-wrap").open = true; $("#b-name").focus(); window.scrollTo({ top: 0, behavior: "smooth" });
   } else if (del) {
@@ -2292,8 +2504,10 @@ loaders.build = () => {
   return loadBuilds().catch(e => { $("#build-list").innerHTML = noData(e.message); });
 };
 relabel.build = () => {
+  // 入力欄のアルケインは、一覧にある名前だけ新しい言語に置き換える(書きかけの名前はそのまま)
+  if (arcaneNames.length) { $("#b-arcanes").value = arcLines().map(arcLabel).join("\n"); renderArcList(); }
   applyViewText("build"); renderBuildFormTitle(); renderOcrNote(); renderFormImages(); arcNote();
-  if (btypes.length) { renderBuildTypes(); renderBuilds(); }
+  if (btypes.length) { renderBuildTypes(); renderHelmSlots(); helmNote(); renderShardSlots(); renderBuilds(); }
   if (ocrResult && !$("#b-ocr").hidden) renderOcr(ocrResult);
 };
 
@@ -2323,9 +2537,9 @@ function menuSections() {
   const out = [], other = [];
   MENU.forEach(e => {
     if (e.group) {
-      const items = e.items.filter(pageExists);
+      const items = e.items.filter(pageVisible);
       if (items.length) out.push({ label: t("group." + e.group), items });
-    } else if (e.page !== "home" && pageExists(e.page)) other.push(e.page);
+    } else if (e.page !== "home" && pageVisible(e.page)) other.push(e.page);
   });
   if (other.length) out.push({ label: t("group.other"), items: other });
   return out;
@@ -2334,13 +2548,15 @@ function menuSections() {
 function applyViewText(id) { const root = $(`#view-${id}`); if (root) applyText(root); }
 function renderHome() {
   applyViewText("home");
+  $("#home-beta").checked = betaOn;
   $("#home-cards").innerHTML = menuSections().map(s => `<div class="card"><header><b>${esc(s.label)}</b></header>${
-    s.items.map(v => `<button type="button" class="go" data-go="${esc(v)}"><b>${esc(t("page." + v))}</b><span>${esc(t("page." + v + ".sub"))}</span></button>`).join("")}</div>`).join("");
+    s.items.map(v => `<button type="button" class="go" data-go="${esc(v)}"><b>${esc(t("page." + v))}${betaTag(v) ? " " + betaTag(v) : ""}</b><span>${esc(t("page." + v + ".sub"))}</span></button>`).join("")}</div>`).join("");
 }
+$("#home-beta").addEventListener("change", e => { setBeta(e.target.checked); renderHome(); });
 function renderGuide() {
   applyViewText("guide");
   $("#guide-list").innerHTML = menuSections().map(s => `<h3 class="guide-h">${esc(s.label)}</h3><div class="cards">${
-    s.items.filter(v => v !== "guide").map(v => `<div class="card"><header><b>${esc(t("page." + v))}</b><button type="button" class="btn ghost guide-go" data-go="${esc(v)}">${esc(t("guide.open"))}</button></header><p class="guide-text">${esc(t("guide." + v))}</p></div>`).join("")}</div>`).join("");
+    s.items.filter(v => v !== "guide").map(v => `<div class="card"><header><b>${esc(t("page." + v))}</b>${betaTag(v)}<button type="button" class="btn ghost guide-go" data-go="${esc(v)}">${esc(t("guide.open"))}</button></header><p class="guide-text">${esc(t("guide." + v))}</p></div>`).join("")}</div>`).join("");
 }
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-go]");

@@ -14,14 +14,14 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import wfportal_builder as wb
-from wfp.api import admin, info, pages, personal, search, sim, tips
+from wfp.api import admin, info, pages, personal, qa, search, sim, tips
 from wfp.api.store import ApiError, Raw, Store
 from wfp.core import common
 from wfp.core.common import txt
 from wfp.fetch import logos
 from wfp.store import build_images, datadir
 
-GROUPS = (search, personal, info, admin, tips, sim)
+GROUPS = (search, personal, info, admin, tips, sim, qa)
 
 
 def collect_routes(groups=GROUPS) -> tuple[dict, dict]:

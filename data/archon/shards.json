@@ -1,0 +1,117 @@
+{
+  "tauforged_rate": 1.5,
+  "colors": {
+    "red": {
+      "ja": "真紅", "en": "Crimson", "export": "ArchonCrystalAmar",
+      "effects": [
+        {"id": "MeleeCritDamage", "value": 25,
+         "ja": "+{v}% 近接クリティカルダメージ",
+         "en": "+{v}% Melee Critical Damage"},
+        {"id": "PrimaryStatusChance", "value": 25,
+         "ja": "+{v}% プライマリ武器状態異常率",
+         "en": "+{v}% Primary Status Chance"},
+        {"id": "SecondaryCritChance", "value": 25,
+         "ja": "+{v}% セカンダリ武器クリティカル率",
+         "en": "+{v}% Secondary Critical Chance"},
+        {"id": "WarframeAbilityStrength", "value": 10,
+         "ja": "+{v}% アビリティ威力",
+         "en": "+{v}% Ability Strength"},
+        {"id": "WarframeAbilityDuration", "value": 10,
+         "ja": "+{v}% アビリティ時間",
+         "en": "+{v}% Ability Duration"}
+      ]
+    },
+    "blue": {
+      "ja": "蒼天", "en": "Azure", "export": "ArchonCrystalBoreal",
+      "effects": [
+        {"id": "WarframeHealthMax", "value": 150,
+         "ja": "+{v} ヘルス",
+         "en": "+{v} Health"},
+        {"id": "WarframeShieldMax", "value": 150,
+         "ja": "+{v} シールド容量",
+         "en": "+{v} Shield Capacity"},
+        {"id": "WarframeEnergyMax", "value": 50,
+         "ja": "+{v} 最大エネルギー",
+         "en": "+{v} Energy Max"},
+        {"id": "WarframeArmourMax", "value": 150,
+         "ja": "+{v} 装甲値",
+         "en": "+{v} Armor"},
+        {"id": "WarframeRegen", "value": 5,
+         "ja": "+{v} 毎秒のヘルス回復",
+         "en": "+{v} Health Regen/s"}
+      ]
+    },
+    "yellow": {
+      "ja": "琥珀", "en": "Amber", "export": "ArchonCrystalNira",
+      "effects": [
+        {"id": "WarframeStartingEnergy", "value": 30,
+         "ja": "スポーン時に最大エネルギーの+{v}%を回復",
+         "en": "+{v}% Maximum Energy is filled on spawn"},
+        {"id": "WarframeGlobeEffectHealth", "value": 100,
+         "ja": "+{v}% ヘルスオーブ効果",
+         "en": "+{v}% Health Orb Effectiveness"},
+        {"id": "WarframeGlobeEffectEnergy", "value": 50,
+         "ja": "+{v}% エネルギーオーブ効果",
+         "en": "+{v}% Energy Orb Effectiveness"},
+        {"id": "WarframeCastingSpeed", "value": 25,
+         "ja": "+{v}% 発動速度",
+         "en": "+{v}% Casting Speed"},
+        {"id": "WarframeParkourVelocity", "value": 15,
+         "ja": "+{v}% パルクール速度",
+         "en": "+{v}% Parkour Velocity"}
+      ]
+    },
+    "orange": {
+      "ja": "黄玉", "en": "Topaz", "export": "ArchonCrystalOrange",
+      "effects": [
+        {"id": "WarframeHPBoostFromImpact", "value": 1, "max": 300,
+         "tauforged": {"value": 2},
+         "ja": "爆発ダメージで倒した敵につきヘルスを{v}増加する。最大{max}ヘルス。",
+         "en": "Gain {v} Health per enemy killed with Blast Damage. Max {max} Health."},
+        {"id": "WarframeBlastProc", "value": 5,
+         "ja": "爆発ダメージで敵を倒すとシールドを+{v}回復する。",
+         "en": "Regenerate +{v} Shields when you kill an enemy with Blast Damage."},
+        {"id": "WeaponCritBoostFromHeat", "value": 1, "max": 50,
+         "ja": "火炎状態異常の影響を受けた敵を倒す度にセカンダリ武器のクリティカル率を{v}%上昇する。最大{max}%。",
+         "en": "Increase Secondary Critical Chance by {v}% every time you kill an enemy affected by Heat Status. Max {max}%."},
+        {"id": "WarframeRadiationDamageBoost", "value": 10,
+         "ja": "放射線状態異常が付与された敵に対しアビリティダメージが+{v}%追加される",
+         "en": "Gain +{v}% Ability Damage on enemies affected by Radiation Status."}
+      ]
+    },
+    "violet": {
+      "ja": "紫紺", "en": "Violet", "export": "ArchonCrystalViolet",
+      "effects": [
+        {"id": "WarframeElectricDamageBoost", "value": 10,
+         "ja": "電気状態異常が付与された敵に対しアビリティダメージが+{v}%追加される",
+         "en": "Gain +{v}% Ability Damage on enemies affected by Electricity Status."},
+        {"id": "WarframeElectricDamage", "value": 30, "per": 10,
+         "ja": "プライマリ武器の電気ダメージを+{v}%追加する。装着されている真紅、蒼天、紫紺のアルコンの欠片の数に応じて追加で+{per}%を得る。電気ダメージはMODと組み合わせが可能。",
+         "en": "Gain +{v}% Primary Electricity Damage. Gain an additional +{per}% per Crimson, Azure, or Violet Archon Shard equipped. Electricity Damage can be combined with mods."},
+        {"id": "WarframeCritDamageBoost", "value": 25,
+         "ja": "近接クリティカルダメージが+{v}%上昇する。最大エネルギーが500を上回るとダメージブーストが倍になる。",
+         "en": "Gain +{v}% Melee Critical Damage. When max Energy is over 500, the damage boost doubles."},
+        {"id": "Equilibrium", "value": 20,
+         "ja": "ヘルスオーブはエネルギーを+{v}%回復する。エネルギーオーブはヘルスを+{v}%回復する。",
+         "en": "Health pickups give +{v}% Energy. Energy pickups give +{v}% Health."}
+      ]
+    },
+    "green": {
+      "ja": "翠玉", "en": "Emerald", "export": "ArchonCrystalGreen",
+      "effects": [
+        {"id": "WarframeToxinDamage", "value": 30,
+         "ja": "毒状態異常は追加で+{v}%のダメージを与える",
+         "en": "Toxin Status Effects deal +{v}% more damage."},
+        {"id": "WarframeToxinHeal", "value": 2,
+         "ja": "敵が毒状態異常効果からダメージを受ける度にヘルスを+{v}回復する",
+         "en": "Recover +{v} Health each time enemies are damaged by a Toxin Status Effect."},
+        {"id": "WarframeCorrosiveDamageBoost", "value": 10,
+         "ja": "腐食状態異常が付与された敵に対しアビリティダメージが+{v}%追加される",
+         "en": "Gain +{v}% Ability Damage on enemies affected by Corrosion Status."},
+        {"id": "WarframeCorrosiveStack", "value": 2,
+         "ja": "腐食状態異常の最大スタックを+{v}上昇する",
+         "en": "Increase max stacks of Corrosion Status by +{v}."}
+      ]
+    }
+  }
+}

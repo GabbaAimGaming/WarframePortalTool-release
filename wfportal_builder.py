@@ -128,11 +128,14 @@ WEAPON_PRESETS["robotic"] = WEAPON_PRESETS["primary"]
 # --------------------------------------------------------------------------
 # Riven (WARFRAME Wiki 掲載の基準値。性質 1.0・最大ランク(8)・効果 2つ/マイナス無しの補正前の値)
 #   値 = 基準値 × 性質値(RIVEN_DISPO = 1.2 固定)× 効果数による補正 × 乱数(0.9〜1.1)   ランク r では × (r + 1) / 9
+#   取得元: https://wiki.warframe.com/w/Riven_Mods の「Base Values」「Spliced Values」と Overview Table
+#   (2026-11-03 確認。Hotfix 44.1.3(2026-10-22)の性質値 1.2 固定・ショットガンのズーム追加の後)
 # --------------------------------------------------------------------------
 
 RIVEN_GROUPS = ("rifle", "shotgun", "pistol", "melee", "archgun")
 RIVEN_GROUP_JA = SIM_RIVEN_GROUPS  # 表示名(画面は I18N の sim.group.<キー>)
-# Riven の種類 (wfportal の RIVEN_TYPES_JA のキー) -> 基準値の列。Kitgun・コンパニオン武器は推定
+# Riven の種類 (wfportal の RIVEN_TYPES_JA のキー) -> 基準値の列。Kitgun はピストル(Wiki の Pistol / Kitgun)、
+# Zaw は近接(Wiki の Melee / Zaw)、コンパニオン武器はライフルで代用(Wiki では武器ごとに対応する列。推定)
 RIVEN_TYPE_GROUP = {"Rifle Riven Mod": "rifle", "Shotgun Riven Mod": "shotgun", "Pistol Riven Mod": "pistol",
                     "Melee Riven Mod": "melee", "Zaw Riven Mod": "melee", "Kitgun Riven Mod": "pistol",
                     "Archgun Riven Mod": "archgun", "Companion Weapon Riven Mod": "rifle"}
@@ -141,39 +144,70 @@ RIVEN_MODIFIERS = {(2, False): (0.99, 0.0), (2, True): (1.2375, -0.495),
                    (3, False): (0.75, 0.0), (3, True): (0.9375, -0.75)}
 # 性質値(Riven の効果量にかかる倍率)。全武器が 1.2 に固定されたため、武器ごとの値は持たずこの1か所で決める
 RIVEN_DISPO = 1.2
+# スプライス効果は1枚に1つまで(Riven Splicer で2つの効果を1つにまとめたもの。常にプラス)
+RIVEN_SPLICED_MAX = 1
 _G = lambda rifle=None, shotgun=None, pistol=None, melee=None, archgun=None: {  # noqa: E731
     k: v for k, v in (("rifle", rifle), ("shotgun", shotgun), ("pistol", pistol), ("melee", melee), ("archgun", archgun)) if v is not None}
 _GUNS = lambda v: _G(v, v, v, None, v)  # noqa: E731
+_ALL = lambda v: _G(v, v, v, v, v)  # noqa: E731
+# 1行 = 1つの効果:
+#   base       プラス効果の基準値(列 = Riven の種類。無い列の種類には付かない)
+#   curse_base マイナス効果のときだけ使う基準値(無ければ base と同じ)
+#   no_curse   マイナス効果にならない種類(Wiki の Overview Table でマイナスの欄が「—」のもの)
+#   spliced    スプライス効果(常にプラス。1枚に RIVEN_SPLICED_MAX まで)
 RIVEN_STATS = [
     {"key": "cc", "unit": "%", "base": _G(149.99, 90, 149.99, 180, 99.9)},
-    {"key": "cd", "unit": "%", "base": _G(120, 90, 90, 90, 80.1)},
-    {"key": "damage", "unit": "%", "base": _G(165, 164.7, 219.6, 164.7, 99.9)},
+    {"key": "cd", "unit": "%", "base": _G(119.997, 90, 90, 90, 80.1)},
+    {"key": "damage", "unit": "%", "base": _G(165, 164.7, 219.6, 164.7, 99.9), "no_curse": ["melee"]},
     {"key": "multishot", "unit": "%", "base": _G(90, 119.7, 119.7, None, 60.3)},
-    {"key": "fire_rate", "unit": "%", "base": _G(60.03, 89.1, 74.7, 54.9, 60.03)},
+    {"key": "fire_rate", "unit": "%", "base": _G(60.03, 90, 74.7, 54.9, 60.03)},
     {"key": "status", "unit": "%", "base": _G(90, 90, 90, 90, 60.3)},
-    {"key": "status_duration", "unit": "%", "base": _G(99.99, 99, 99.99, 99, 99.99)},
-    {"key": "heat", "unit": "%", "base": _G(90, 90, 90, 90, 119.7)},
-    {"key": "cold", "unit": "%", "base": _G(90, 90, 90, 90, 119.7)},
-    {"key": "electricity", "unit": "%", "base": _G(90, 90, 90, 90, 119.7)},
-    {"key": "toxin", "unit": "%", "base": _G(90, 90, 90, 90, 119.7)},
+    {"key": "status_duration", "unit": "%", "base": _ALL(99.99)},
+    {"key": "heat", "unit": "%", "base": _G(90, 90, 90, 90, 119.7), "no_curse": list(RIVEN_GROUPS)},
+    {"key": "cold", "unit": "%", "base": _G(90, 90, 90, 90, 119.7), "no_curse": list(RIVEN_GROUPS)},
+    {"key": "electricity", "unit": "%", "base": _G(90, 90, 90, 90, 119.7), "no_curse": list(RIVEN_GROUPS)},
+    {"key": "toxin", "unit": "%", "base": _G(90, 90, 90, 90, 119.7), "no_curse": list(RIVEN_GROUPS)},
     {"key": "impact", "unit": "%", "base": _G(119.97, 119.97, 119.97, 119.7, 90)},
-    {"key": "puncture", "unit": "%", "base": _G(119.97, 119.97, 119.97, 119.7, 90)},
+    {"key": "puncture", "unit": "%", "base": _G(119.997, 119.997, 119.997, 119.997, 90)},
     {"key": "slash", "unit": "%", "base": _G(119.97, 119.97, 119.97, 119.7, 90)},
-    {"key": "faction", "unit": "%", "base": _G(45, 45, 45, 45, 45)},
-    {"key": "magazine", "unit": "%", "base": _G(50, 50, 50, None, 60.3)},
-    {"key": "reload", "unit": "%", "base": _G(50, 49.45, 50, None, 99.9)},
+    {"key": "faction", "unit": "%", "base": _ALL(45)},
+    {"key": "magazine", "unit": "%", "base": _G(49.995, 49.995, 49.995, None, 60.3)},
+    {"key": "reload", "unit": "%", "base": _G(49.995, 49.995, 49.995, None, 99.9)},
     {"key": "ammo", "unit": "%", "base": _G(49.95, 90, 90, None, 99.9)},
-    {"key": "projectile_speed", "unit": "%", "base": _G(90, 89.1, 90)},
-    {"key": "recoil", "unit": "%", "base": _GUNS(90)},
-    {"key": "zoom", "unit": "%", "base": _G(59.99, None, 80.1, None, 59.99)},
-    {"key": "punch_through", "unit": "m", "base": _GUNS(2.7)},
+    {"key": "projectile_speed", "unit": "%", "base": _G(90, 90, 90)},
+    # 反動は Wiki の係数が負(-0.01)なので基準値も負にする。プラス効果はマイナスの値(反動が減る)、マイナス効果はプラスの値になる
+    {"key": "recoil", "unit": "%", "base": _GUNS(-90)},
+    {"key": "zoom", "unit": "%", "base": _G(59.99, 41.994, 80.1, None, 59.99)},
+    {"key": "punch_through", "unit": "m", "base": _GUNS(2.7), "no_curse": list(RIVEN_GROUPS)},
     {"key": "range", "unit": "m", "base": _G(melee=1.94)},
     {"key": "combo_duration", "unit": "s", "base": _G(melee=8.1)},
     {"key": "initial_combo", "unit": "", "base": _G(melee=24.5)},
     {"key": "slide_cc", "unit": "%", "base": _G(melee=120)},
     {"key": "finisher", "unit": "%", "base": _G(melee=119.7)},
     {"key": "heavy_efficiency", "unit": "%", "base": _G(melee=73.44)},
+    # Wiki ではプラスが Additional Combo Count Chance、マイナスが Chance to Gain Combo Count(基準値が違う)。1つの効果として扱う
+    {"key": "combo_chance", "unit": "%", "base": _G(melee=58.77), "curse_base": _G(melee=104.85)},
+    # スプライス効果
+    {"key": "ammo_efficiency", "unit": "%", "base": _GUNS(45), "spliced": True},
+    {"key": "blast", "unit": "%", "base": _ALL(90), "spliced": True},
+    {"key": "corrosive", "unit": "%", "base": _ALL(90), "spliced": True},
+    {"key": "gas", "unit": "%", "base": _ALL(90), "spliced": True},
+    {"key": "magnetic", "unit": "%", "base": _ALL(90), "spliced": True},
+    {"key": "radiation", "unit": "%", "base": _ALL(90), "spliced": True},
+    {"key": "viral", "unit": "%", "base": _ALL(90), "spliced": True},
+    {"key": "faction_spliced", "unit": "%", "base": _ALL(45), "spliced": True},  # Orokin・Scaldra・Techrot
+    {"key": "status_damage", "unit": "%", "base": _ALL(90), "spliced": True},
+    {"key": "reload_holstered", "unit": "%", "base": _G(90, 90, 90), "spliced": True},
+    {"key": "weakpoint_damage", "unit": "%", "base": _GUNS(225), "spliced": True},
+    {"key": "weakpoint_cc", "unit": "%", "base": _GUNS(247.5), "spliced": True},
+    {"key": "heavy_windup", "unit": "%", "base": _G(melee=119.7), "spliced": True},
+    {"key": "heavy_damage", "unit": "%", "base": _G(melee=119.7), "spliced": True},
+    {"key": "slam_damage", "unit": "%", "base": _G(melee=119.7), "spliced": True},
+    {"key": "parry_angle", "unit": "%", "base": _G(melee=81), "spliced": True},
 ]
+for _st in RIVEN_STATS:  # スプライス効果はマイナスにならない
+    if _st.get("spliced"):
+        _st["no_curse"] = list(RIVEN_GROUPS)
 RIVEN_STAT_INDEX = {s["key"]: s for s in RIVEN_STATS}
 
 
@@ -475,6 +509,18 @@ def weapon_riven_type(weapon: dict, dispo_rows: list[dict] | None = None) -> str
             "robotic": "Companion Weapon Riven Mod"}.get(weapon.get("cat"), "Rifle Riven Mod")
 
 
+def riven_can_curse(st: dict, group: str) -> bool:
+    """その種類の Riven で、この効果がマイナス効果になれるか"""
+    return group in st["base"] and group not in st.get("no_curse", ())
+
+
+def riven_base(st: dict, group: str, negative: bool = False) -> float:
+    """効果の基準値。マイナス効果で curse_base があればそちら"""
+    if negative and group in st.get("curse_base", {}):
+        return st["curse_base"][group]
+    return st["base"][group]
+
+
 def riven_range(base: float, dispo: float, buffs: int, curse: bool, negative: bool = False, rank: int = 8) -> tuple[float, float]:
     """1つの効果の振れ幅 (最小, 最大)。マイナス効果は負の値で返す"""
     if (buffs, curse) not in RIVEN_MODIFIERS:
@@ -506,10 +552,15 @@ def riven_calc(group: str, buffs: list[str], curse: str | None, rank: int = 8, d
         if st is None or group not in st["base"]:
             raise BuilderError(txt("err.sim.stat", group=txt("sim.group." + group), stat=txt("sim.stat." + k, k)))
         neg = i >= len(buffs)
-        lo, hi = riven_range(st["base"][group], dispo, len(buffs), bool(curse), negative=neg, rank=rank)
-        lo0, hi0 = riven_range(st["base"][group], dispo, len(buffs), bool(curse), negative=neg, rank=0)
-        rows.append({"key": k, "unit": st["unit"], "negative": neg, "base": st["base"][group],
+        if neg and not riven_can_curse(st, group):
+            raise BuilderError(txt("err.sim.curse.stat", stat=txt("sim.stat." + k, k)))
+        base = riven_base(st, group, neg)
+        lo, hi = riven_range(base, dispo, len(buffs), bool(curse), negative=neg, rank=rank)
+        lo0, hi0 = riven_range(base, dispo, len(buffs), bool(curse), negative=neg, rank=0)
+        rows.append({"key": k, "unit": st["unit"], "negative": neg, "spliced": bool(st.get("spliced")), "base": base,
                      "min": lo, "max": hi, "min_r0": lo0, "max_r0": hi0})
+    if sum(r["spliced"] for r in rows) > RIVEN_SPLICED_MAX:
+        raise BuilderError(txt("err.sim.spliced", n=RIVEN_SPLICED_MAX))
     return {"group": group, "dispo": dispo, "rank": rank, "rows": rows}
 
 
@@ -535,7 +586,7 @@ def _find(items: list[dict], name: str, cat: str | None = None) -> dict:
 def api_data(d: Path, dispo_rows: list[dict] | None = None) -> dict:
     data = load_builder_data(d)
     # 種類・効果・ダメージの種類・カテゴリーはキーだけ(表示名は画面の I18N の sim.group / sim.stat / sim.dmg / sim.cat)
-    riven = {"groups": list(RIVEN_GROUPS), "stats": RIVEN_STATS,
+    riven = {"groups": list(RIVEN_GROUPS), "stats": RIVEN_STATS, "spliced_max": RIVEN_SPLICED_MAX,
              "modifiers": [{"buffs": b, "curse": c, "buff": m[0], "curse_m": m[1]} for (b, c), m in RIVEN_MODIFIERS.items()]}
     meta = {"cats": list(CAT_JA), "damage_types": list(DAMAGE_KEYS), "elements": list(PRIMARY_ELEMENTS),
             "frame_presets": FRAME_PRESETS, "weapon_presets": WEAPON_PRESETS, "rank30_bonus": RANK30_BONUS,

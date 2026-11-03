@@ -1,0 +1,566 @@
+"""Q&A(LLM なし版): 質問の文から名前と聞きたいことを拾い、ポータルのデータから決まった文の型で答える。**日本語のみ**。
+
+- 名前の索引(QaIndex): フレーム・武器・アビリティ(builder.json)、アイテム(ドロップ表)、吸収一覧のアビリティとフレーム、
+  開発者のビルドの名前と対象。英名・和名のどちらでも拾う(norm で比べる。英字は単語の途中では当てない)。長い名前を優先
+- 聞きたいこと: data/qa/intents.json のキーワード。名前の部分を除いた文から探す(「Helminth Charger」の helminth を拾わない)
+- 答え: data/qa/answers.json の文の型に値を埋める。推測はしない。拾えなかったときは data/qa/miss.json の文をランダムに1つ
+- 入手先は drops の find_sources、開発者のビルドは core.devbuilds、Helminth は core.helminth を使う
+"""
+from __future__ import annotations
+
+import difflib
+import random
+import re
+import unicodedata
+from dataclasses import dataclass, field
+
+from wfp.core.common import (QA_CANDIDATE_LIMIT, QA_FORMATS, QA_KINDS, QA_MIN_ASCII, QA_MIN_LABEL, QA_MISS_KINDS,
+                             QA_PART_SOURCE_LIMIT, QA_SOURCE_LIMIT, HELMINTH_FRAME, norm, render_ja)
+from wfp.core.devbuilds import build_view, builds_for
+from wfp.core.helminth import subsume_frame
+from wfp.drops.search import find_sources
+
+_ASCII_ALNUM = re.compile(r"[a-z0-9]")
+# 拾えなかったときの候補探し: 英字の語・カタカナの語
+_ASCII_WORD_RE = re.compile(r"[a-z][a-z0-9]*")
+_KANA_RE = re.compile(r"[ァ-ヶー]{2,}")
+# Prime・Umbra は Helminth に食べさせられない(吸収一覧は基本のフレームの名前)
+_VARIANT_RE = re.compile(r"\s+(Prime|Umbra)$", re.I)
+# 名前の種類の優先(候補の並び)
+_KIND_ORDER = {k: i for i, k in enumerate(("frame", "summon", "weapon", "hframe", "ability", "devbuild", "item"))}
+# 名前だけで聞きたいことが無いとき、その種類しか無ければこれに答える
+_DEFAULT_INTENT = {"ability": "helminth", "hframe": "helminth", "devbuild": "build"}
+
+
+# --------------------------------------------------------------------------
+# 同梱データ(data/qa/)
+# --------------------------------------------------------------------------
+
+@dataclass
+class QaData:
+    intents: list[dict] = field(default_factory=list)  # [{id, kinds, label, words, priority}]
+    fields: dict = field(default_factory=dict)          # 数値の項目 {key: {label, label_melee?, fmt}}
+    order: dict = field(default_factory=dict)           # {"frame": [...], "weapon": [...]} 基本の数値で出す並び
+    text: dict = field(default_factory=dict)            # 文の型
+    miss: dict = field(default_factory=dict)            # {場面: [{id, ja}]}
+
+    def intent(self, iid: str) -> dict | None:
+        return next((i for i in self.intents if i["id"] == iid), None)
+
+    def say(self, key: str, **values) -> str:
+        """文の型に値を埋める(無い型は空。知らない差し込みはそのまま残す)"""
+        return _fill(self.text.get(key, ""), values)
+
+
+def _fill(template: str, values: dict) -> str:
+    return re.sub(r"\{(\w+)\}", lambda m: str(values[m.group(1)]) if m.group(1) in values else m.group(0), template)
+
+
+def load_qa_data(intents_raw: object, answers_raw: object, miss_raw: object) -> QaData:
+    """data/qa/ の3つの JSON から QaData を作る。形の崩れた行は飛ばす(読めなければ空)"""
+    intents: list[dict] = []
+    for row in (intents_raw.get("intents") if isinstance(intents_raw, dict) else None) or []:
+        if not isinstance(row, dict) or not isinstance(row.get("id"), str):
+            continue
+        words = [w for w in row.get("words") or [] if isinstance(w, str) and w.strip()]
+        kinds = [k for k in row.get("kinds") or [] if k in QA_KINDS]
+        if words and kinds:
+            prio = row.get("priority", 0)
+            intents.append({"id": row["id"], "kinds": kinds, "words": words, "label": str(row.get("label") or row["id"]),
+                            "priority": prio if isinstance(prio, int) and not isinstance(prio, bool) else 0})
+    ans = answers_raw if isinstance(answers_raw, dict) else {}
+    fields = {k: v for k, v in (ans.get("fields") or {}).items()
+              if isinstance(v, dict) and isinstance(v.get("label"), str) and v.get("fmt") in QA_FORMATS}
+    order = {kind: [k for k in ans.get(kind) or [] if k in fields] for kind in ("frame", "weapon")}
+    text = {k: v for k, v in (ans.get("text") or {}).items() if isinstance(v, str)}
+    miss_src = (miss_raw.get("miss") if isinstance(miss_raw, dict) else None) or {}
+    miss = {kind: [m for m in miss_src.get(kind) or [] if isinstance(m, dict) and isinstance(m.get("ja"), str) and m["ja"].strip()]
+            for kind in QA_MISS_KINDS}
+    return QaData(intents, fields, order, text, miss)
+
+
+# 答えで使う文の型(check_qa_data が有無を検査する)
+TEXT_KEYS = ("field.frame", "field.weapon", "field.summon", "field.none", "stats.frame", "stats.weapon", "stats.summon", "abilities",
+             "passive", "sources",
+             "sources.parts", "build", "helminth.frame", "helminth.prime", "helminth.self", "helminth.ability", "helminth.not",
+             "basis.builder", "basis.drops", "basis.dev", "basis.helminth", "basis.summon", "options")
+
+
+def check_qa_data(intents_raw: object, answers_raw: object, miss_raw: object) -> list[str]:
+    """同梱データの検査(テスト用)。見つかった問題の一覧(無ければ空)"""
+    problems: list[str] = []
+    data = load_qa_data(intents_raw, answers_raw, miss_raw)
+    raw_intents = (intents_raw.get("intents") if isinstance(intents_raw, dict) else None) or []
+    if len(data.intents) != len(raw_intents):
+        problems.append("intents に形の崩れた行がある(id・kinds・words を確かめる)")
+    ids = [i["id"] for i in data.intents]
+    problems += [f"intents: id {i} が重複" for i in sorted({i for i in ids if ids.count(i) > 1})]
+    seen: dict[str, str] = {}
+    for it in data.intents:
+        for w in it["words"]:
+            key = norm(w)
+            if key in seen and seen[key] != it["id"]:
+                problems.append(f"intents: 語 {w} が {seen[key]} と {it['id']} の両方にある")
+            seen[key] = it["id"]
+        if it["id"] in data.fields and not set(it["kinds"]) <= {"frame", "weapon", "summon"}:
+            problems.append(f"intents: 数値の項目 {it['id']} の kinds は frame / weapon / summon だけ")
+    for kind in ("frame", "weapon"):
+        problems += [f"answers: {kind} の {k} が fields に無い"
+                     for k in ((answers_raw or {}).get(kind) or []) if k not in data.fields] if isinstance(answers_raw, dict) else []
+    problems += [f"answers: 数値の項目 {k} の質問が intents に無い" for k in data.fields if k not in ids]
+    problems += [f"answers: 文の型 {k} が無い" for k in TEXT_KEYS if k not in data.text]
+    for kind in QA_MISS_KINDS:
+        rows = data.miss.get(kind) or []
+        if not rows:
+            problems.append(f"miss: {kind} の文が無い")
+        mids = [m.get("id") for m in rows]
+        if any(not isinstance(i, int) or isinstance(i, bool) for i in mids):
+            problems.append(f"miss: {kind} に id が整数でない行がある")
+        elif len(mids) != len(set(mids)):
+            problems.append(f"miss: {kind} の id が重複")
+    return problems
+
+
+def pick_miss(data: QaData, kind: str, name: str = "", rng: random.Random | None = None) -> dict:
+    """ヒットしなかったときの文を場面の一覧からランダムに1つ。{kind, id, text}(一覧が空なら id は None・文は空)"""
+    rows = data.miss.get(kind) or []
+    if not rows:
+        return {"kind": kind, "id": None, "text": ""}
+    m = (rng or random).choice(rows)
+    return {"kind": kind, "id": m.get("id"), "text": _fill(m["ja"], {"name": name})}
+
+
+# --------------------------------------------------------------------------
+# 名前の索引
+# --------------------------------------------------------------------------
+
+def _is_ascii(s: str) -> bool:
+    return s.isascii()
+
+
+def spaced(s: str) -> str:
+    """英字の照合用: norm と同じく小文字にして記号を除くが、空白(と - _)は1つの空白で残す(「rhino prime armor」の区切りを見るため)"""
+    s = unicodedata.normalize("NFKC", s).lower()
+    s = re.sub(r"['’,()（）・･]", "", s)
+    return re.sub(r"[\s\-_]+", " ", s).strip()
+
+
+def _key(label: str) -> str:
+    """ラベルの照合の形: 英字だけなら spaced、ほかは norm"""
+    return spaced(label) if _is_ascii(norm(label)) else norm(label)
+
+
+def _cut(text: str, needle: str, ascii_word: bool) -> str:
+    """text から needle(当たった名前)を1か所だけ「|」に置き換える(聞きたいことを名前の中から拾わないため)"""
+    pos = _bounded(text, needle, ascii_word)
+    return text if pos < 0 else text[:pos] + "|" + text[pos + len(needle):]
+
+
+def _bounded(hay: str, needle: str, ascii_word: bool) -> int:
+    """hay(norm 済み)の中の needle の位置(英字の語なら前後が英数字でないところだけ)。無ければ -1"""
+    start = hay.find(needle)
+    while start != -1:
+        end = start + len(needle)
+        if not ascii_word or ((start == 0 or not _ASCII_ALNUM.match(hay[start - 1]))
+                              and (end == len(hay) or not _ASCII_ALNUM.match(hay[end]))):
+            return start
+        start = hay.find(needle, start + 1)
+    return -1
+
+
+class QaIndex:
+    """名前の索引。entities = {キー(norm した英名): {key, en, ja, frame, weapon, summon, item, abilities, hframe, devbuild}}
+
+    frame・weapon は builder.json の行、summon は呼び出しの行(core.summons。フレームと同じ項目名)、
+    abilities は [(持ち主の英名, アビリティの行)]、item・hframe・devbuild は真偽。
+    stop_words(聞きたいことの語)と同じ名前は拾わない(例: Helminth は「Helminth」の質問として扱う)
+    """
+
+    def __init__(self, builder: dict | None, names, items: list[str], subsume: list[dict], dev: list[dict],
+                 stop_words: set[str] | None = None, summons: list[dict] | None = None):
+        self.names = names
+        self.entities: dict[str, dict] = {}
+        self._labels: dict[str, set[str]] = {}  # norm したラベル -> キー
+        builder = builder or {}
+        for f in builder.get("frames") or []:
+            e = self._entity(f["en"], f.get("ja"))
+            e["frame"] = f
+            for a in f.get("abilities") or []:
+                ab = self._entity(a["en"], a.get("ja"))
+                ab["abilities"].append((f["en"], a))
+        for w in builder.get("weapons") or []:
+            e = self._entity(w["en"], w.get("ja"))
+            if e["weapon"] is None:
+                e["weapon"] = w
+        for sm in summons or []:
+            self._entity(sm["en"], sm["ja"])["summon"] = sm
+            for a in sm["abilities"]:
+                self._entity(a["en"], a["ja"])["abilities"].append((sm["en"], a))
+        for row in subsume:
+            self._entity(row["ability"], None)["subsume"] = True
+            fe = self._entity(row["frame"], None)
+            if not fe["frame"]:
+                fe["hframe"] = True
+        for n in items:
+            base = names.split_qty(n)[1]
+            self._entity(base, names.ja(base))["item"] = True
+        for b in dev:
+            self._entity(b["name"], None)["devbuild"] = True
+            self._entity(b["target"], names.ja(b["target"]))["devbuild"] = True
+        stop = {norm(w) for w in stop_words or ()}
+        for key, e in self.entities.items():
+            for label in {e["en"], e["ja"]}:
+                ln = norm(label)
+                if len(ln) < (QA_MIN_ASCII if _is_ascii(ln) else QA_MIN_LABEL) or ln in stop:
+                    continue
+                self._labels.setdefault(_key(label), set()).add(key)
+
+    def _entity(self, en: str, ja: str | None) -> dict:
+        key = norm(en)
+        ja = ja if ja and ja != en else self.names.ja(en)  # 和名が無ければ名前辞書から(それも無ければ英名)
+        e = self.entities.get(key)
+        if e is None:
+            e = self.entities[key] = {"key": key, "en": en, "ja": ja, "frame": None, "weapon": None, "summon": None,
+                                      "item": False, "abilities": [], "subsume": False, "hframe": False, "devbuild": False}
+        elif e["ja"] == e["en"] and ja != en:
+            e["ja"] = ja
+        return e
+
+    @staticmethod
+    def kinds(e: dict) -> set[str]:
+        """名前の種類(QA_KINDS のうち当てはまるもの)"""
+        out = {k for k in ("frame", "weapon", "summon", "item", "hframe", "devbuild") if e[k]}
+        if e["abilities"] or e["subsume"]:
+            out.add("ability")
+        return out
+
+    def find(self, question: str) -> tuple[dict | None, dict]:
+        """質問の文から名前を1つ(一番長く当たったもの。同じ長さなら種類の優先順・前にあるもの)。
+        (名前, 名前の部分を除いた文 {"norm", "spaced"})。英字の名前は spaced の文で、ほかは norm の文で探す"""
+        forms = {"norm": norm(question), "spaced": spaced(question)}
+        best: tuple | None = None
+        for ln, keys in self._labels.items():
+            ascii_label = _is_ascii(ln)
+            hay = forms["spaced" if ascii_label else "norm"]
+            if len(ln) > len(hay) or (best and len(ln) < best[0]):
+                continue
+            pos = _bounded(hay, ln, ascii_label)
+            if pos < 0:
+                continue
+            for key in keys:
+                rank = min((_KIND_ORDER[k] for k in self.kinds(self.entities[key])), default=99)
+                cand = (len(ln), -rank, -pos, key, ln)
+                if best is None or cand[:4] > best[:4]:
+                    best = cand
+        if best is None:
+            return None, forms
+        e, ln = self.entities[best[3]], best[4]
+        # 名前の部分を両方の形から除く(英字の名前は norm の形でも除く)
+        rest = {"spaced": _cut(forms["spaced"], spaced(e["en"]) if _is_ascii(ln) else ln, _is_ascii(ln)),
+                "norm": _cut(forms["norm"], norm(ln), _is_ascii(ln))}
+        return e, rest
+
+    def candidates(self, question: str, stop_words: set[str] | None = None) -> list[dict]:
+        """拾えなかったときの候補(英字の語は近い綴り、カタカナの語は前方一致・部分一致)。種類の優先順・短い名前順"""
+        stop = {_key(w) for w in stop_words or ()}
+        words = [w for w in _ASCII_WORD_RE.findall(spaced(question)) if w not in stop]
+        ascii_tokens = [w for w in words if len(w) >= QA_MIN_ASCII] + [f"{a} {b}" for a, b in zip(words, words[1:])]
+        kana_tokens = [t for t in (norm(x) for x in _KANA_RE.findall(norm(question))) if t not in stop]
+        hits: set[str] = set()
+        ascii_labels = [ln for ln in self._labels if _is_ascii(ln)]
+        for tok in ascii_tokens:
+            for ln in difflib.get_close_matches(tok, ascii_labels, n=QA_CANDIDATE_LIMIT, cutoff=0.75):
+                hits |= self._labels[ln]
+        for tok in kana_tokens:
+            hits |= {k for ln, keys in self._labels.items() if not _is_ascii(ln) and tok in ln for k in keys}
+        ents = [self.entities[k] for k in hits]
+        ents.sort(key=lambda e: (min((_KIND_ORDER[k] for k in self.kinds(e)), default=99), len(e["en"]), e["en"]))
+        return [{"key": e["key"], "en": e["en"], "ja": e["ja"]} for e in ents[:QA_CANDIDATE_LIMIT]]
+
+
+# --------------------------------------------------------------------------
+# 聞きたいことの判定
+# --------------------------------------------------------------------------
+
+def find_intents(data: QaData, forms: dict) -> list[dict]:
+    """文(QaIndex.find の残り {norm, spaced})に語が当たった質問を、priority の大きい順・語の長い順に返す。
+    英字の語は spaced の文で単語として、ほかは norm の文で探す"""
+    hits: list[tuple] = []
+    for it in data.intents:
+        best = max((len(_key(w)) for w in it["words"]
+                    if _bounded(forms["spaced" if _is_ascii(norm(w)) else "norm"], _key(w), _is_ascii(norm(w))) >= 0), default=0)
+        if best:
+            hits.append((it["priority"], best, it))
+    hits.sort(key=lambda h: (h[0], h[1]), reverse=True)
+    return [h[2] for h in hits]
+
+
+def options(data: QaData, e: dict) -> list[dict]:
+    """その名前について聞けること(ボタン)。開発者のビルドは、ある名前だけ"""
+    kinds = QaIndex.kinds(e)
+    out = []
+    for it in data.intents:
+        if not kinds & set(it["kinds"]):
+            continue
+        if it["id"] == "build" and not e["devbuild"]:
+            continue
+        if it["id"] == "sources" and not (e["item"] or e["frame"] or e["weapon"]):
+            continue
+        out.append({"label": it["label"], "name": e["key"], "intent": it["id"]})
+    return out
+
+
+# --------------------------------------------------------------------------
+# 答えの組み立て
+# --------------------------------------------------------------------------
+
+@dataclass
+class QaContext:
+    """答えに使うデータ(API・CLI が読んで渡す。builder.json は wfp の外の機能なので core では読まない)"""
+    data: QaData
+    index: QaIndex
+    builder: dict | None = None
+    drops: object = None              # drops.tables.Drops(無ければ None)
+    sources: object = None            # drops.tables.Sources
+    items: list[str] = field(default_factory=list)
+    subsume: list[dict] = field(default_factory=list)
+    archon: dict = field(default_factory=lambda: {"tauforged_rate": 1.5, "colors": []})
+    dev: list[dict] = field(default_factory=list)
+    mod_stats: object = None          # core.modstats.ModStats(ビルドの MOD の効果。無ければ名前だけ)
+    rng: random.Random | None = None
+
+
+def format_value(value: float, fmt: str) -> str:
+    """数値の表示(QA_FORMATS)。整数なら小数点を付けない"""
+    trim = lambda x: f"{round(x, 2):g}"
+    if fmt == "pct":
+        return f"{trim(value * 100)}%"
+    if fmt == "mult":
+        return f"x{trim(value)}"
+    if fmt == "sec":
+        return f"{trim(value)}秒"
+    return trim(value)
+
+
+def _result(question: str, e: dict | None = None, intent: str | None = None) -> dict:
+    return {"q": question, "type": "answer", "name": {"key": e["key"], "en": e["en"], "ja": e["ja"]} if e else None,
+            "intent": intent, "text": "", "facts": [], "sources": [], "builds": [], "options": [], "candidates": [],
+            "options_title": "", "basis": "", "miss": None}
+
+
+def _miss(ctx: QaContext, res: dict, kind: str, name: str = "") -> dict:
+    res.update(type="miss", miss=pick_miss(ctx.data, kind, name, ctx.rng))
+    return res
+
+
+def answer(ctx: QaContext, question: str = "", name: str | None = None, intent: str | None = None) -> dict:
+    """質問に答える。name(索引のキー)・intent(質問の id)を渡すと、文から拾わずにそれで答える(ボタンから)。
+
+    返り値: {q, type: answer|miss, name, intent, text, facts: [{label, value}], sources: [{title, rows}],
+            builds: [build_view], options: [{label, name, intent}], candidates: [{key, en, ja}], basis, miss: {kind, id, text}}
+    """
+    data = ctx.data
+    stop = {w for it in data.intents for w in it["words"]}
+    if name is not None:
+        e, rest = ctx.index.entities.get(norm(name)), {"norm": "", "spaced": ""}
+    else:
+        e, rest = ctx.index.find(question)
+    picked = [data.intent(intent)] if intent and data.intent(intent) else find_intents(data, rest)
+    res = _result(question, e, None)
+    if e is None:
+        if any(it["id"] == "helminth" for it in picked):  # 「Helminth のアビリティは?」(Helminth は名前として拾わない)
+            return _helminth_self(ctx, res)
+        res["candidates"] = ctx.index.candidates(question, stop)
+        if picked:
+            res["intent"] = picked[0]["id"]
+        return _miss(ctx, res, "no_name")
+    kinds = QaIndex.kinds(e)
+    usable = [it for it in picked if kinds & set(it["kinds"])]
+    if not usable and not picked and len(kinds - {"item"}) == 1 and (only := next(iter(kinds - {"item"}))) in _DEFAULT_INTENT:
+        usable = [data.intent(_DEFAULT_INTENT[only])]
+    if not usable or usable[0] is None:
+        res["options"] = options(data, e)
+        res["options_title"] = data.say("options", name=e["ja"])
+        return _miss(ctx, res, "no_intent", e["ja"])
+    it = usable[0]
+    res["intent"] = it["id"]
+    handler = _HANDLERS.get(it["id"])
+    if handler is None:
+        handler = _field_answer
+    out = handler(ctx, res, e, it)
+    out["options"] = [o for o in options(data, e) if o["intent"] != it["id"]]
+    if out["options"]:
+        out["options_title"] = data.say("options", name=e["ja"])
+    return out
+
+
+def _builder_basis(ctx: QaContext) -> str:
+    return ctx.data.say("basis.builder", updated=str((ctx.builder or {}).get("updated") or "?")[:10])
+
+
+def _stat_kind(e: dict, it: dict) -> str | None:
+    """数値を引く行の種類: フレーム → 呼び出し → 武器 の順で、その質問が答えられるもの。無ければ None"""
+    return next((k for k in ("frame", "summon", "weapon") if e[k] and k in it["kinds"]), None)
+
+
+def _basis_of(ctx: QaContext, kind: str, rec: dict) -> str:
+    """出典の文(呼び出しは同梱データの日付、ほかは builder.json の取得日)"""
+    return ctx.data.say("basis.summon", as_of=rec.get("as_of") or "?") if kind == "summon" else _builder_basis(ctx)
+
+
+def _field_answer(ctx: QaContext, res: dict, e: dict, it: dict) -> dict:
+    """数値の項目1つ(フレームならフレームの値、無ければ武器の値)"""
+    spec = ctx.data.fields.get(it["id"])
+    if spec is None:
+        return _miss(ctx, res, "no_hit", e["ja"])
+    kind = _stat_kind(e, it)
+    rec = e[kind] if kind else None
+    if rec is None:
+        return _miss(ctx, res, "no_data" if not ctx.builder else "no_hit", e["ja"])
+    label = spec.get("label_melee", spec["label"]) if rec.get("cat") == "melee" else spec["label"]
+    value = rec.get(it["id"])
+    if not isinstance(value, (int, float)) or (kind == "weapon" and it["id"] in ("magazine", "reload") and not value):
+        res["text"] = ctx.data.say("field.none", name=e["ja"], label=label)  # 無いことが答え(例: 近接の装填数)
+        res["basis"] = _basis_of(ctx, kind, rec)
+        return res
+    res["text"] = ctx.data.say(f"field.{kind}", name=e["ja"], label=label, value=format_value(value, spec["fmt"]))
+    res["basis"] = _basis_of(ctx, kind, rec)
+    return res
+
+
+def _stats(ctx: QaContext, res: dict, e: dict, it: dict) -> dict:
+    kind = _stat_kind(e, it)
+    if kind is None:
+        return _miss(ctx, res, "no_data" if not ctx.builder else "no_hit", e["ja"])
+    rec = e[kind]
+    for k in ctx.data.order.get("weapon" if kind == "weapon" else "frame", []):  # 呼び出しはフレームと同じ項目
+        spec, value = ctx.data.fields[k], rec.get(k)
+        if isinstance(value, (int, float)) and (kind == "frame" or k not in ("magazine", "reload") or value):
+            label = spec.get("label_melee", spec["label"]) if rec.get("cat") == "melee" else spec["label"]
+            res["facts"].append({"label": label, "value": format_value(value, spec["fmt"])})
+    res["text"] = ctx.data.say(f"stats.{kind}", name=e["ja"])
+    res["basis"] = _basis_of(ctx, kind, rec)
+    return res
+
+
+def _abilities(ctx: QaContext, res: dict, e: dict, it: dict) -> dict:
+    """アビリティの一覧。呼び出しは説明文の後ろに数値の行(「ドレイン: 25」など)を付ける"""
+    kind = "frame" if e["frame"] else "summon" if e["summon"] else None
+    if kind is None:
+        return _miss(ctx, res, "no_data" if not ctx.builder else "no_hit", e["ja"])
+    rec = e[kind]
+    for a in rec.get("abilities") or []:
+        label = a["ja"] if a["ja"] == a["en"] else f"{a['ja']}({a['en']})"
+        lines = [a.get("desc") or ""] + [f"{v['label']}: {v['value']}" for v in a.get("values") or []]
+        res["facts"].append({"label": label, "value": "\n".join(x for x in lines if x)})
+    res["text"] = ctx.data.say("abilities", name=e["ja"])
+    res["basis"] = _basis_of(ctx, kind, rec)
+    return res
+
+
+def _passive(ctx: QaContext, res: dict, e: dict, it: dict) -> dict:
+    text = (e["frame"] or {}).get("passive")
+    if not text:
+        return _miss(ctx, res, "no_data" if not ctx.builder else "no_hit", e["ja"])
+    res["facts"].append({"label": "", "value": text})
+    res["text"] = ctx.data.say("passive", name=e["ja"])
+    res["basis"] = _builder_basis(ctx)
+    return res
+
+
+def chance_text(chance: float) -> str:
+    """入手先の確率(ドロップ表の値は % の単位)。画面の fmtPct と同じ桁: 1% 以上は小数2桁、0.01% 以上は3桁、それ未満は有効数字2桁"""
+    if chance >= 1:
+        return f"{chance:.2f}%"
+    if chance >= 0.01:
+        return f"{chance:.3f}%"
+    return f"{chance:.2g}%"
+
+
+def _source_rows(rows: list[dict], limit: int) -> list[dict]:
+    out = []
+    for r in rows[:limit]:
+        where = " ".join(x for x in (render_ja(r["place"]), render_ja(r["detail"]) if r.get("detail") else "",
+                                     render_ja(r["stage"]) if r.get("stage") else "") if x)
+        chance = r.get("chance")
+        out.append({"cat": r["cat"], "where": where, "qty": r.get("qty") or "",
+                    "chance": "" if chance is None else chance_text(chance)})
+    return out
+
+
+def _sources(ctx: QaContext, res: dict, e: dict, it: dict) -> dict:
+    if ctx.drops is None:
+        return _miss(ctx, res, "no_data", e["ja"])
+    names = ctx.index.names
+    rows = find_sources(e["en"], ctx.drops, ctx.sources, names) if e["item"] else []
+    if rows:
+        res["sources"].append({"title": "", "rows": _source_rows(rows, QA_SOURCE_LIMIT)})
+        res["text"] = ctx.data.say("sources", name=e["ja"], n=QA_SOURCE_LIMIT)
+    else:
+        owners = getattr(ctx.sources, "part_owner", None)
+        parts = sorted({names.split_qty(n)[1] for n in ctx.items
+                        if (hit := names.part_of(n, owners)) and norm(hit[0]) == e["key"] and norm(names.split_qty(n)[1]) != e["key"]})
+        for part in parts:
+            prow = find_sources(part, ctx.drops, ctx.sources, names)
+            if prow:
+                res["sources"].append({"title": names.ja(part), "rows": _source_rows(prow, QA_PART_SOURCE_LIMIT)})
+        if not res["sources"]:
+            return _miss(ctx, res, "no_hit", e["ja"])
+        res["text"] = ctx.data.say("sources.parts", name=e["ja"], n=QA_PART_SOURCE_LIMIT)
+    res["basis"] = ctx.data.say("basis.drops")
+    return res
+
+
+def _build(ctx: QaContext, res: dict, e: dict, it: dict) -> dict:
+    hits = builds_for(ctx.dev, e["en"])
+    if not hits:
+        return _miss(ctx, res, "no_build", e["ja"])
+    res["builds"] = [build_view(b, ctx.index.names, ctx.subsume, ctx.archon, ctx.mod_stats) for b in hits]
+    as_of = max((b["as_of"] for b in hits if b.get("as_of")), default="?")
+    res["text"] = ctx.data.say("build", as_of=as_of)
+    res["basis"] = ctx.data.say("basis.dev", as_of=as_of)
+    return res
+
+
+def _helminth_self(ctx: QaContext, res: dict) -> dict:
+    own = [r["ability"] for r in ctx.subsume if r["frame"] == HELMINTH_FRAME]
+    if not own:
+        return _miss(ctx, res, "no_hit", HELMINTH_FRAME)
+    res.update(intent="helminth", text=ctx.data.say("helminth.self"), basis=ctx.data.say("basis.helminth"),
+               facts=[{"label": a, "value": ""} for a in own])
+    return res
+
+
+def _helminth(ctx: QaContext, res: dict, e: dict, it: dict) -> dict:
+    data = ctx.data
+    res["basis"] = data.say("basis.helminth")
+    if e["en"] == HELMINTH_FRAME:
+        return _helminth_self(ctx, res)
+    if e["frame"] or e["hframe"]:
+        own = next((r["ability"] for r in ctx.subsume if norm(r["frame"]) == e["key"]), None)
+        if own:
+            res["text"] = data.say("helminth.frame", name=e["ja"], ability=own)
+            return res
+        base = _VARIANT_RE.sub("", e["en"])
+        own = next((r["ability"] for r in ctx.subsume if norm(r["frame"]) == norm(base)), None) if base != e["en"] else None
+        if own:
+            res["text"] = data.say("helminth.prime", name=e["ja"], base=ctx.index.names.ja(base), ability=own)
+            return res
+    if e["subsume"] or e["abilities"]:
+        owner = subsume_frame(ctx.subsume, e["en"])
+        if owner:
+            res["text"] = data.say("helminth.ability", ability=e["en"], frame=owner)
+            return res
+        frame = e["abilities"][0][0] if e["abilities"] else "?"
+        res["text"] = data.say("helminth.not", ability=e["en"], frame=frame)
+        return res
+    return _miss(ctx, res, "no_hit", e["ja"])
+
+
+_HANDLERS = {"stats": _stats, "abilities": _abilities, "passive": _passive, "sources": _sources, "build": _build,
+             "helminth": _helminth}
+
+
+def stop_words(data: QaData) -> set[str]:
+    """名前として拾わない語(聞きたいことの語)"""
+    return {w for it in data.intents for w in it["words"]}

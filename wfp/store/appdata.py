@@ -44,6 +44,51 @@ def mod_stats_dir() -> Path:
     return common.APP_DIR / "data" / "mod_stats"
 
 
+def helminth_dir() -> Path:
+    return common.APP_DIR / "data" / "helminth"
+
+
+def read_helminth(name: str = common.HELMINTH_SUBSUME_FILE, src: Path | None = None) -> object | None:
+    """data/helminth/<name> の JSON(Helminth で吸収できるアビリティの一覧)。無い・読めなければ None(形の検査は core.helminth で行う)"""
+    return _read_json((helminth_dir() if src is None else src) / name)
+
+
+def archon_dir() -> Path:
+    return common.APP_DIR / "data" / "archon"
+
+
+def read_archon(name: str = common.ARCHON_SHARDS_FILE, src: Path | None = None) -> object | None:
+    """data/archon/<name> の JSON(アルコンの欠片の色と効果の一覧)。無い・読めなければ None(形の検査は core.archon で行う)"""
+    return _read_json((archon_dir() if src is None else src) / name)
+
+
+def builds_dir() -> Path:
+    return common.APP_DIR / "data" / "builds"
+
+
+def read_dev_builds(name: str = common.DEV_BUILDS_FILE, src: Path | None = None) -> object | None:
+    """data/builds/<name> の JSON(開発者のビルド)。無い・読めなければ None(形の検査は core.devbuilds で行う)"""
+    return _read_json((builds_dir() if src is None else src) / name)
+
+
+def summons_dir() -> Path:
+    return common.APP_DIR / "data" / "summons"
+
+
+def read_summons(name: str = common.SUMMONS_FILE, src: Path | None = None) -> object | None:
+    """data/summons/<name> の JSON(呼び出しの一覧)。無い・読めなければ None(形の検査は core.summons で行う)"""
+    return _read_json((summons_dir() if src is None else src) / name)
+
+
+def qa_dir() -> Path:
+    return common.APP_DIR / "data" / "qa"
+
+
+def read_qa(name: str, src: Path | None = None) -> object | None:
+    """data/qa/<name> の JSON(Q&A のキーワードの表・答えの文の型・ヒットしなかったときの文)。無い・読めなければ None(形の検査は core.qa で行う)"""
+    return _read_json((qa_dir() if src is None else src) / name)
+
+
 def read_duviri(name: str, src: Path | None = None) -> object | None:
     """data/duviri/<name> の JSON。無い・読めなければ None(形の検査は core.duviri で行う)"""
     return _read_json((duviri_dir() if src is None else src) / name)

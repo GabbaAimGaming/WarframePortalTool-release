@@ -141,7 +141,7 @@ PART_JA = {"Blueprint": "設計図", "Neuroptics": "ニューロオプティク�
 
 # ビルドの種別(表示名はマスター一覧・アルケイン所持一覧のカテゴリーと同じ書き方。保存はキーなので表示名は変えてよい)
 BUILD_TYPES = {"frame": "Warframe", "primary": "プライマリ", "secondary": "セカンダリ",
-               "melee": "近接", "companion": "コンパニオン", "archwing": "アークウイング", "other": "その他"}
+               "melee": "近接", "companion": "コンパニオン", "archwing": "アークウイング", "summon": "呼び出し", "other": "その他"}
 
 
 # 入手先の種類
@@ -194,6 +194,24 @@ SIM_STATS = {
     "projectile_speed": "弾速", "recoil": "反動(マイナスが有利)", "zoom": "ズーム", "punch_through": "貫通力",
     "range": "射程(近接)", "combo_duration": "コンボ持続時間", "initial_combo": "初期コンボ",
     "slide_cc": "スライド攻撃のクリティカル率", "finisher": "フィニッシャーダメージ", "heavy_efficiency": "ヘビーアタック効率",
+    # コンボカウント追加確率と、スプライス効果(Riven Splicer)
+    "combo_chance": "コンボカウント追加確率",
+    "ammo_efficiency": "弾薬効率",
+    "blast": "爆発",
+    "corrosive": "腐食",
+    "gas": "ガス",
+    "magnetic": "磁気",
+    "radiation": "放射線",
+    "viral": "感染",
+    "faction_spliced": "勢力ダメージ(Orokin・Scaldra・Techrot)",
+    "status_damage": "状態異常ダメージ",
+    "reload_holstered": "非装備中のリロード",
+    "weakpoint_damage": "弱点ダメージ",
+    "weakpoint_cc": "弱点へのクリティカル率",
+    "heavy_windup": "ヘビーアタックの溜め速度",
+    "heavy_damage": "ヘビーアタックの近接ダメージ",
+    "slam_damage": "スラム攻撃ダメージ",
+    "parry_angle": "パリィ角度",
 }
 
 
@@ -242,6 +260,61 @@ QUEST_STATES = {"done": "完了", "ready": "受けられる", "locked": "前提�
 QUEST_FLOW_FILE = "flow.json"
 # ジャンクションの id(完了の記録・前提の参照)は「junction:<flow.json のキー>」。クエストは内部パス(Export に無いものは extra:<名前>)
 QUEST_JUNCTION_PREFIX = "junction:"
+
+# Helminth: 吸収できるアビリティの一覧(data/helminth/ の中。どのフレームから何を吸収できるかは Export に無いので手で書く)。
+# Helminth 自身のアビリティ(Export の ExportAbilities)は frame を HELMINTH_FRAME にして同じ一覧に書く。Export に無くても消さない
+HELMINTH_SUBSUME_FILE = "subsume.json"
+HELMINTH_FRAME = "Helminth"
+# ビルド管理で置き換えられるアビリティの番号(1〜4)
+HELMINTH_SLOTS = (1, 2, 3, 4)
+
+# アルコンの欠片: 色ごとの効果の一覧(data/archon/ の中)。効果の種類と値は Export に無いので、ゲーム画面を見て手で書く。
+# 文の {v} {max} {per} に値を埋める。Tauforged は値に tauforged_rate を掛ける(効果ごとの "tauforged" で上書きできる)
+ARCHON_SHARDS_FILE = "shards.json"
+# ビルドに付けられる欠片の数(Warframe の枠の数)
+ARCHON_SLOTS = 5
+# 効果の値の項目(文の {v} = value)
+ARCHON_VALUE_KEYS = ("value", "max", "per")
+
+# 開発者のビルド(data/builds/ の中)。ビルド管理の builds.json と同じ形のビルドを並べ、外側に as_of(いつ時点か)を付ける。
+# 作るのは tools/dev_builds.py(タグ DEV_BUILDS_TAG のビルドを選ぶ)。ツールから書き込まない。Q&A が読む
+DEV_BUILDS_FILE = "dev_builds.json"
+DEV_BUILDS_TAG = "Developer"
+# ビルドに書ける項目(この順で書き出す)。images は配らない。as_of はビルドごとに外側の値を上書きしたいときだけ
+DEV_BUILD_KEYS = ("name", "type", "target", "forma", "mods", "arcanes", "tags", "note", "helminth", "shards", "as_of")
+# 言語ごとに書ける項目(文字列か {"ja", "en"})
+DEV_BUILD_LANGS = ("ja", "en")
+# 呼び出し(Warframe の中から呼び出す、Warframe のような存在。例: Sevagoth's Shadow)。data/summons/ の中。
+# 公式データに本体の数値・アビリティが無いので手で書く(ゲーム画面の値)。Export に無くても消さない。ビルド管理の種別は BUILD_TYPES の summon
+SUMMONS_FILE = "summons.json"
+# 数値の項目(frame の builder.json と同じ名前)とアビリティの番号
+SUMMON_STATS = ("health", "shield", "armor", "energy", "sprint")
+SUMMON_SLOTS = (1, 2, 3, 4)
+# Q&A からビルド管理に追加するときの名前の初期値の末尾(例: Jade_dev)
+DEV_BUILD_SUFFIX = "_dev"
+# Q&A からビルド管理に追加したビルドのメモの末尾(利用者のデータに入る文。日本語のみ)
+DEV_BUILD_NOTE = "(開発者のビルド・{as_of}時点)"
+
+# Q&A(LLM なし版): 質問から名前と聞きたいことを拾い、データから決まった文の型で答える。**日本語のみ**(答えの文は I18N に入れない)。
+# 同梱データは data/qa/ の中: キーワードの表・答えの文の型・ヒットしなかったときの文
+QA_INTENTS_FILE = "intents.json"
+QA_ANSWERS_FILE = "answers.json"
+QA_MISS_FILE = "miss.json"
+# 名前の種類: フレーム・武器(builder.json)/ アイテム(ドロップ表)/ アビリティ(builder.json と吸収一覧)/
+# 吸収一覧のフレーム(Helminth 自身・Orion & Sirius など builder.json に無いもの)/ 開発者のビルドの名前・対象 /
+# 呼び出し(data/summons/。Sevagoth's Shadow など)
+QA_KINDS = ("frame", "weapon", "item", "ability", "hframe", "devbuild", "summon")
+# ヒットしなかったときの場面: 名前が拾えない / 聞きたいことが分からない / 開発者のビルドが無い / データが無い(データ更新の前)/ データに答えが無い
+QA_MISS_KINDS = ("no_name", "no_intent", "no_build", "no_data", "no_hit")
+# 文の形式: 数値 / 割合(0.25 → 25%)/ 倍率(x2)/ 秒
+QA_FORMATS = ("num", "pct", "mult", "sec")
+# 入手先の答えに出す件数(本体 / パーツごと)と、拾えなかったときの候補の数
+QA_SOURCE_LIMIT = 8
+QA_PART_SOURCE_LIMIT = 2
+QA_CANDIDATE_LIMIT = 6
+# 英字の名前はこれより短いと拾わない(「Ash」などが単語の中で当たらないよう、英字は単語の区切りも見る)
+QA_MIN_ASCII = 3
+QA_MIN_LABEL = 2
 
 
 # パーツ検索: ドロップ表の英名が「マスター一覧の項目名 + 部品名(+ Blueprint)」ならパーツとして扱う。
@@ -526,6 +599,12 @@ TEXT_JA = {
     "err.build.dup": "同じ名前のビルドがあります。",
     "err.build.none": "ビルドが見つかりません。",
     "err.build.images": "画像は1つのビルドに{n}枚までです。",
+    "err.build.helminth.slot": "Helminth で置き換える番号は 1〜4 です。",
+    "err.build.helminth.pair": "Helminth は番号とアビリティの両方を入力してください。",
+    "err.build.shards.form": "アルコンの欠片は5枠の一覧で指定してください。",
+    "err.build.shards.slot": "アルコンの欠片の枠の番号は 1〜5 です。",
+    "err.build.shards.pair": "アルコンの欠片は色と効果の両方を選んでください。",
+    "err.build.shards.unknown": "アルコンの欠片の色・効果が一覧にありません: {name}",
     "err.image.none": "画像が見つかりません。",
     "err.sim.buffs.n": "プラス効果の数は 2 か 3 です。",
     "err.sim.nocurse": "マイナス効果が無い構成です。",
@@ -534,6 +613,8 @@ TEXT_JA = {
     "err.sim.dispo": "性質値は 0.5〜1.55 程度の数字で入力してください。",
     "err.sim.buffs": "プラス効果は 2 つか 3 つ選んでください。",
     "err.sim.dup": "同じ効果は2回選べません。",
+    "err.sim.curse.stat": "マイナス効果にならない効果です: {stat}",
+    "err.sim.spliced": "スプライス効果は {n} つまでです。",
     "err.sim.stat": "{group}の Riven には付かない効果です: {stat}",
     "err.sim.nodata": "シミュレータ用のデータがありません。メニューの「データ更新」か、画面上部の「シミュレータ用データを取得」で取得してください。",
     "err.sim.unknown": "見つかりません: {name}",
@@ -547,6 +628,9 @@ TEXT_JA = {
     "err.modstats.none": "MOD の効果が見つかりません",
     "err.modstats.target": "不明な影響先です: {name}",
     "err.modstats.group": "不明な区分です: {name}",
+    "err.qa.empty": "質問を入力してください。",
+    "err.qa.long": "質問が長すぎます({max}文字まで)。",
+    "err.qa.build.none": "開発者のビルドが見つかりません。",
     "err.sim.empty": "フレームか武器のデータが空でした",
     "err.riven.empty": "Riven 相場のデータが空でした",
     "err.logo.notzip": "ダウンロードした内容が zip ではありませんでした(配布元の仕様が変わった可能性があります)",

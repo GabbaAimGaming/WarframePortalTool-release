@@ -11,7 +11,7 @@ from wfp.core.common import app_version
 GROUPS = (search, personal, info, admin)
 # --help に出るコマンドの並び順。コマンドを足したらここにも足す(tests/test_cli.py が漏れ・重複を検査する)
 ORDER = ("serve", "update", "logos", "item", "area", "enemy", "cycle", "build", "mods", "riven", "mastery", "quest", "arcane",
-         "baro", "modstats")
+         "baro", "modstats", "ask")
 
 
 def make_parser() -> argparse.ArgumentParser:

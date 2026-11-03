@@ -51,11 +51,20 @@ const MENU = [
   { group: "info", items: ["riven", "invasion", "cycle", "duviri", "modstats"] },
   { group: "simulation", items: ["build", "sim"] },
   { page: "tips" },
+  { page: "qa" },
   { page: "guide" },
   { page: "update" },
 ];
+/* β版のページ: トップの「β版の機能を使う」がオンのときだけ、メニュー・トップ・ページ説明に出す(メニューの名前に β の札)。
+   チェックはこのブラウザに覚える(localStorage の wf-beta。初期値はオフ)。β版の機能を足すときは id をここに足すだけ */
+const BETA_PAGES = ["qa"];
+let betaOn = false;
+try { betaOn = localStorage.getItem("wf-beta") === "1"; } catch (e) {}
+const isBeta = id => BETA_PAGES.includes(id);
 const pageExists = id => !!document.getElementById("view-" + id);
-const menuGroups = () => MENU.filter(e => e.group).map(e => ({ ...e, items: e.items.filter(pageExists) })).filter(e => e.items.length);
+const pageVisible = id => pageExists(id) && (betaOn || !isBeta(id));  // メニューに出すページ
+const betaTag = id => isBeta(id) ? `<span class="beta-tag">${esc(t("beta.tag"))}</span>` : "";
+const menuGroups = () => MENU.filter(e => e.group).map(e => ({ ...e, items: e.items.filter(pageVisible) })).filter(e => e.items.length);
 const groupOf = view => (menuGroups().find(e => e.items.includes(view)) || {}).group || null;
 let views = [];          // 表示できるページの一覧(メニューの並び順)
 let currentView = null;  // 表示中のページ
@@ -64,6 +73,7 @@ let openGroup = null;    // 開いているカテゴリー(同時に1つだけ)
 function navButton(view) {
   const b = document.createElement("button");
   b.type = "button"; b.dataset.view = view; b.textContent = t("page." + view);
+  if (isBeta(view)) b.insertAdjacentHTML("beforeend", " " + betaTag(view));
   const sub = document.createElement("span");
   sub.className = "sub"; sub.textContent = t("page." + view + ".sub");
   b.append(sub);
@@ -79,7 +89,7 @@ function renderMenu() {
   const groups = menuGroups();
   MENU.forEach(e => {
     if (e.page) {
-      if (!pageExists(e.page)) return;
+      if (!pageVisible(e.page)) return;
       views.push(e.page);
       parts.push(navButton(e.page));
       return;
@@ -120,6 +130,15 @@ $("#nav").addEventListener("click", e => {
   if (page) show(page.dataset.view);
   else if (cat) { openGroup = openGroup === cat.dataset.group ? null : cat.dataset.group; applyMenuState(); }
 });
+
+/* β版の機能を使うかどうかを切り替える。オフにしたとき β版のページを開いていればトップに戻す */
+function setBeta(on) {
+  const leave = !on && isBeta(currentView);
+  betaOn = on;  // 先に変える(トップに戻ったときのカードに β版のページを出さない)
+  try { localStorage.setItem("wf-beta", on ? "1" : "0"); } catch (e) {}
+  if (leave) show("home");  // views はまだ β版のページを含むので、そのページも隠れる
+  renderMenu();
+}
 
 /* ---------- ビュー切り替え ---------- */
 const loaders = {};

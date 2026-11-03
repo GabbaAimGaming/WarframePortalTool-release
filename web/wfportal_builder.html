@@ -596,14 +596,18 @@ function renderRivenOptions() {
   keep.forEach(([id, v]) => { if (v && [...$(id).options].some(o => o.value === v)) $(id).value = v; });
   if ($("#r-q").value) filterSelect($("#r-q"), $("#r-weapon"));
 }
-function rivenStatOptions(selected, allowNone) {
+// Riven の効果の選択肢。プラス効果の欄はスプライス効果を別の見出しにまとめ、マイナス効果の欄はマイナスになれる効果だけ出す
+function rivenStatOptions(selected, allowNone, isCurse) {
   const g = $("#r-group").value;
-  return (allowNone ? `<option value="">${allowNone}</option>` : "") + META.riven.stats.filter(st => st.base[g] !== undefined)
-    .map(st => `<option value="${st.key}"${st.key === selected ? " selected" : ""}>${esc(tName("sim.stat.", st.key))}</option>`).join("");
+  const opt = st => `<option value="${st.key}"${st.key === selected ? " selected" : ""}>${esc(tName("sim.stat.", st.key))}</option>`;
+  const stats = META.riven.stats.filter(st => st.base[g] !== undefined && !(isCurse && (st.no_curse || []).includes(g)));
+  const normal = stats.filter(st => !st.spliced), spliced = stats.filter(st => st.spliced);
+  return (allowNone ? `<option value="">${allowNone}</option>` : "") + normal.map(opt).join("")
+    + (spliced.length ? `<optgroup label="${esc(t("sim.r.spliced"))}">${spliced.map(opt).join("")}</optgroup>` : "");
 }
 function renderRivenSelects(buffs, curse) {
-  $("#r-buffs").innerHTML = [0, 1, 2].map(i => `<label>${esc(fmt("sim.r.buff", { n: i + 1 }))}<select data-rb-i="${i}">${rivenStatOptions(buffs[i] || "", esc(t(i === 2 ? "sim.r.none2" : "sim.r.choose")))}</select></label>`).join("");
-  $("#r-curse").innerHTML = rivenStatOptions(curse, esc(t("sim.r.none")));
+  $("#r-buffs").innerHTML = [0, 1, 2].map(i => `<label>${esc(fmt("sim.r.buff", { n: i + 1 }))}<select data-rb-i="${i}">${rivenStatOptions(buffs[i] || "", esc(t(i === 2 ? "sim.r.none2" : "sim.r.choose")), false)}</select></label>`).join("");
+  $("#r-curse").innerHTML = rivenStatOptions(curse, esc(t("sim.r.none")), true);
 }
 function applyRivenWeapon() {
   const v = $("#r-weapon").value; if (!v) return;

@@ -1,0 +1,26 @@
+{
+  "_note": "Q&A のキーワードの表。質問の文に words のどれかがあれば、その id の質問として答える(大文字小文字は区別しない。長い語・priority の大きいものを優先)。kinds は答えられる名前の種類(QA_KINDS)。label は「聞けること」のボタンの文字。同じ語を2つの id に書かない(tests/test_qa.py が検査)",
+  "intents": [
+    {"id": "health", "kinds": ["frame", "summon"], "label": "ヘルス", "words": ["ヘルス", "体力", "health", "hp"]},
+    {"id": "shield", "kinds": ["frame", "summon"], "label": "シールド", "words": ["シールド", "shield"]},
+    {"id": "armor", "kinds": ["frame", "summon"], "label": "アーマー", "words": ["アーマー", "装甲", "armor", "armour"]},
+    {"id": "energy", "kinds": ["frame", "summon"], "label": "エネルギー", "words": ["エネルギー", "energy"]},
+    {"id": "sprint", "kinds": ["frame", "summon"], "label": "スプリント速度", "words": ["スプリント", "移動速度", "足の速さ", "sprint"]},
+    {"id": "cc", "kinds": ["weapon"], "label": "クリティカル率", "words": ["クリティカル率", "クリティカル確率", "クリ率", "会心率", "crit chance", "critical chance"]},
+    {"id": "cd", "kinds": ["weapon"], "label": "クリティカル倍率", "words": ["クリティカル倍率", "クリティカルダメージ", "クリ倍", "クリダメ", "会心倍率", "crit damage", "crit multiplier", "critical damage"]},
+    {"id": "sc", "kinds": ["weapon"], "label": "状態異常確率", "words": ["状態異常", "異常率", "status"]},
+    {"id": "fire_rate", "kinds": ["weapon"], "label": "発射速度・攻撃速度", "words": ["発射速度", "連射", "攻撃速度", "fire rate", "attack speed"]},
+    {"id": "magazine", "kinds": ["weapon"], "label": "装填数", "words": ["装填数", "マガジン", "弾数", "magazine"]},
+    {"id": "reload", "kinds": ["weapon"], "label": "リロード時間", "words": ["リロード", "reload"]},
+    {"id": "multishot", "kinds": ["weapon"], "label": "マルチショット", "words": ["マルチショット", "multishot"]},
+    {"id": "stats", "kinds": ["frame", "summon", "weapon"], "label": "基本の数値", "words": ["ステータス", "性能", "基本値", "数値", "スペック", "stats"]},
+    {"id": "abilities", "kinds": ["frame", "summon"], "label": "アビリティ", "words": ["アビリティ", "スキル", "能力", "ability", "abilities"]},
+    {"id": "passive", "kinds": ["frame"], "label": "パッシブ", "words": ["パッシブ", "passive"]},
+    {"id": "sources", "kinds": ["frame", "weapon", "item"], "label": "入手先", "priority": 1,
+     "words": ["どこ", "入手", "手に入", "ドロップ", "落とす", "落ちる", "掘", "取れ", "とれる", "集め", "ファーム", "where", "drop", "farm"]},
+    {"id": "build", "kinds": ["frame", "summon", "weapon", "devbuild"], "label": "開発者のビルド", "priority": 2,
+     "words": ["ビルド", "おすすめ", "オススメ", "お勧め", "構成", "build", "loadout"]},
+    {"id": "helminth", "kinds": ["frame", "ability", "hframe"], "label": "Helminth", "priority": 2,
+     "words": ["ヘルミンス", "吸収", "食べ", "食わ", "helminth", "subsume"]}
+  ]
+}
