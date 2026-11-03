@@ -104,6 +104,16 @@ tr:last-child td { border-bottom: 0; }
 .note { color: var(--mute); font-size: 12px; margin: 10px 0 0; }
 .err { color: var(--danger); margin: 8px 0 0; }
 .empty { padding: 24px 8px; color: var(--mute); }
+/* Riven グレード */
+.drop { border: 2px dashed var(--line); padding: 12px; display: grid; gap: 6px; }
+.drop.over { border-color: var(--accent); background: var(--accent-bg); }
+.gstat { display: grid; grid-template-columns: minmax(150px, 1fr) 110px; gap: 8px; align-items: end; }
+.gstat + .gstat { margin-top: 6px; }
+.grade { font-weight: 700; font-variant-numeric: tabular-nums; }
+.grade.g-s, .grade.g-a { color: var(--up); }
+.grade.g-c, .grade.g-f { color: var(--down); }
+.grade.g-out { color: var(--warn); }
+.grade-big { font-size: 34px; line-height: 1.1; margin: 4px 0 8px; }
 pre.log { background: var(--bg); border: 1px solid var(--line); padding: 10px; max-height: 240px; overflow: auto; white-space: pre-wrap; font: 12px/1.5 var(--mono); }
 details { margin-top: 10px; }
 summary { cursor: pointer; color: var(--mute); font-size: 13px; }
@@ -147,6 +157,7 @@ summary { cursor: pointer; color: var(--mute); font-size: 13px; }
     <button role="tab" data-tab="frame" aria-selected="true" data-i18n="sim.tab.frame">フレーム</button>
     <button role="tab" data-tab="weapon" aria-selected="false" data-i18n="sim.tab.weapon">武器</button>
     <button role="tab" data-tab="riven" aria-selected="false" data-i18n="sim.tab.riven">Riven 振れ幅</button>
+    <button role="tab" data-tab="grade" aria-selected="false" data-i18n="sim.tab.grade">Riven グレード</button>
   </div>
 
   <!-- フレーム -->
@@ -247,6 +258,35 @@ summary { cursor: pointer; color: var(--mute); font-size: 13px; }
     </div>
   </section>
 
+  <!-- Riven グレード -->
+  <section id="tab-grade" hidden>
+    <div class="grid">
+      <div class="panel">
+        <h3 data-i18n="sim.g.head">Riven の効果</h3>
+        <div class="drop" id="g-drop">
+          <div class="row"><button class="btn ghost small" id="g-pick" type="button" data-i18n="sim.g.pick">画像を選ぶ</button>
+            <input type="file" id="g-file" accept="image/png,image/jpeg" hidden></div>
+          <div class="note" style="margin:0" data-i18n="sim.g.paste">ゲームの MOD 画面・ロール直後の画面のスクリーンショットを選ぶか、貼り付け(Ctrl+V)・ドロップしてください。</div>
+          <div class="note" style="margin:0" id="g-status" aria-live="polite"></div>
+        </div>
+        <div class="row" style="margin-top:10px"><input type="search" class="find" id="g-q" data-i18n-placeholder="sim.w.q" placeholder="武器名で検索" autocomplete="off" data-i18n-aria="sim.w.q.aria" aria-label="武器を名前で検索">
+          <select class="wide" id="g-weapon" data-i18n-aria="sim.tab.weapon" aria-label="武器"></select></div>
+        <div class="find-note" id="g-q-note" aria-live="polite"></div>
+        <div class="fields" style="margin-top:8px">
+          <label><span data-i18n="sim.r.group">Riven の種類</span><select id="g-group"></select></label>
+          <label><span data-i18n="ac.col.rank">ランク</span><select id="g-rank"></select></label>
+        </div>
+        <h4 data-i18n="sim.g.stats">効果と値</h4>
+        <div id="g-stats"></div>
+        <p class="note" data-i18n="sim.g.hint">値はゲームの表示のまま入れてください。マイナス効果は -、反動はプラス効果が - です。</p>
+      </div>
+      <div class="panel" aria-live="polite">
+        <h3 id="g-title" data-i18n="sim.g.title0">グレード</h3>
+        <div id="g-out"><div class="empty" data-i18n="sim.g.need">効果を2つ以上入力してください。</div></div>
+      </div>
+    </div>
+  </section>
+
   <p class="note" data-i18n="sim.note">参考値です。フレームと武器の基礎値は公式 Public Export(ExportWarframes / ExportWeapons)から、MOD の効果量・Riven の基準値・アビリティの数値は WARFRAME Wiki などの公開情報をもとにしています。ゲームのアップデートで変わることがあるので、入力欄で直しながら使ってください。DPS は敵のアーマー・シールド・弱点、状態異常のダメージ、コンボ倍率、チャージ/バースト武器の特殊な撃ち方を含みません。</p>
 </div>
 <div class="unofficial" role="note">非公式ファンツール / Unofficial fan tool</div>
@@ -313,7 +353,7 @@ let META = null, simLog = null;  // simLog: 最後の取得ログ(言語を切�
 /* ---------- タブ ---------- */
 function showTab(tab) {
   $$(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
-  ["frame", "weapon", "riven"].forEach(k => { $("#tab-" + k).hidden = k !== tab; });
+  ["frame", "weapon", "riven", "grade"].forEach(k => { $("#tab-" + k).hidden = k !== tab; });
   store.set("tab", tab);
 }
 $$(".tabs button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
@@ -322,7 +362,7 @@ $$(".tabs button").forEach(b => b.addEventListener("click", () => showTab(b.data
 async function loadMeta() {
   META = await api("/api/builder/data");
   renderDataInfo();
-  setupFrame(); setupWeapon(); setupRiven();
+  setupFrame(); setupWeapon(); setupRiven(); setupGrade();
 }
 function renderDataInfo() {
   $("#data-info").innerHTML = META.has_data
@@ -646,6 +686,144 @@ $("#r-weapon").addEventListener("change", () => { applyRivenWeapon(); renderRive
 $("#r-group").addEventListener("change", () => { renderRivenSelects($$("[data-rb-i]").map(s => s.value), $("#r-curse").value); calcRiven(); });
 ["#r-rank", "#r-buffs", "#r-curse"].forEach(id => { $(id).addEventListener("input", calcRiven); $(id).addEventListener("change", calcRiven); });
 
+/* ---------- Riven グレード ---------- */
+const G_ROWS = 4;  // 効果の欄の数(プラス 3 + マイナス 1)
+let gLast = null, gScan = null;  // gLast: 最後の結果 / gScan: 最後の読み取り(言語を切り替えたら案内を描き直す)
+function setupGrade() {
+  renderGradeOptions();
+  const s = store.get("grade", {});
+  if (s.weapon && [...$("#g-weapon").options].some(o => o.value === s.weapon)) $("#g-weapon").value = s.weapon;
+  if (s.group) $("#g-group").value = s.group;
+  if (s.rank !== undefined) $("#g-rank").value = s.rank;
+  renderGradeRows(s.stats || []);
+  calcGrade();
+}
+/* 種類・ランク・武器の選択肢(Riven 振れ幅と同じ並び。選んでいる値は残す) */
+function renderGradeOptions() {
+  const keep = ["#g-group", "#g-rank", "#g-weapon"].map(id => [id, $(id).value]);
+  $("#g-group").innerHTML = $("#r-group").innerHTML;
+  $("#g-rank").innerHTML = $("#r-rank").innerHTML;
+  $("#g-weapon").innerHTML = $("#r-weapon").innerHTML;
+  $$("option, optgroup", $("#g-weapon")).forEach(o => { o.hidden = false; o.disabled = false; });  // Riven 振れ幅の絞り込みは持ち込まない
+  keep.forEach(([id, v]) => { if (v && [...$(id).options].some(o => o.value === v)) $(id).value = v; });
+  if ($("#g-q").value) filterSelect($("#g-q"), $("#g-weapon"));
+}
+/* 効果の欄。rows = [{key, value, tol}]。その種類に付く効果だけ出す(スプライス効果は別の見出し) */
+function gradeStatOptions(selected) {
+  const g = $("#g-group").value;
+  const opt = st => `<option value="${st.key}"${st.key === selected ? " selected" : ""}>${esc(tName("sim.stat.", st.key))}</option>`;
+  const stats = META.riven.stats.filter(st => st.base[g] !== undefined);
+  const spliced = stats.filter(st => st.spliced);
+  return `<option value="">${esc(t("sim.r.none"))}</option>` + stats.filter(st => !st.spliced).map(opt).join("")
+    + (spliced.length ? `<optgroup label="${esc(t("sim.r.spliced"))}">${spliced.map(opt).join("")}</optgroup>` : "");
+}
+function renderGradeRows(rows) {
+  $("#g-stats").innerHTML = Array.from({ length: G_ROWS }, (_, i) => {
+    const r = rows[i] || {};
+    const val = r.value === undefined || r.value === null || r.value === "" ? "" : String(r.value);
+    return `<div class="gstat"><label style="display:grid;gap:2px;font-size:12px;color:var(--mute)">${esc(fmt("sim.r.buff", { n: i + 1 }))}
+        <select data-gs-key="${i}">${gradeStatOptions(r.key || "")}</select></label>
+      <label style="display:grid;gap:2px;font-size:12px;color:var(--mute)">${esc(t("sim.g.value"))}
+        <input type="text" inputmode="decimal" data-gs-val="${i}" value="${esc(val)}" data-tol="${r.tol ?? ""}" aria-label="${esc(fmt("sim.g.value.aria", { n: i + 1 }))}"></label></div>`;
+  }).join("");
+}
+function gradeRows() {
+  return Array.from({ length: G_ROWS }, (_, i) => {
+    const key = $(`[data-gs-key="${i}"]`).value, inp = $(`[data-gs-val="${i}"]`);
+    const raw = inp.value.normalize("NFKC").replace(/[−–—‐]/g, "-").replace(/[%\s]/g, "").replace(",", ".");
+    return { key, value: raw, tol: inp.dataset.tol === "" ? undefined : +inp.dataset.tol };
+  });
+}
+function applyGradeWeapon() {
+  const v = $("#g-weapon").value; if (!v) return;
+  const [cat, en] = v.split("|"), w = META.weapons.find(x => x.cat === cat && x.en === en); if (!w) return;
+  $("#g-group").value = META.riven_type_group[w.riven_type] || "rifle";
+}
+const calcGrade = debounce(async () => {
+  const rows = gradeRows();
+  store.set("grade", { weapon: $("#g-weapon").value, group: $("#g-group").value, rank: $("#g-rank").value, stats: rows });
+  const stats = rows.filter(r => r.key && r.value !== "").map(r => {
+    const x = { key: r.key, value: r.value }; if (r.tol !== undefined) x.tol = r.tol; return x;
+  });
+  if (stats.length < 2) { gLast = null; $("#g-title").textContent = t("sim.g.title0"); $("#g-out").innerHTML = `<div class="empty">${esc(t("sim.g.need"))}</div>`; return; }
+  try {
+    gLast = await api("/api/builder/riven/grade", { group: $("#g-group").value, rank: +$("#g-rank").value, stats });
+    renderGrade(gLast);
+  } catch (e) { gLast = null; $("#g-out").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+});
+const gradeClass = g => !g ? "" : g === "?" ? "g-out" : "g-" + g[0].toLowerCase();
+function renderGrade(r) {
+  const unit = u => (u === "s" ? t("sim.unit.s") : u);
+  const val = (x, u) => `${x > 0 ? "+" : ""}${num(x, u === "%" ? 1 : 2)}${unit(u)}`;
+  const grades = META.riven.grades.map(([low, g]) => `${g} ≥ ${sign(low, 1)}`).join(" / ") + ` / ${META.riven.grade_low}`;
+  $("#g-title").textContent = fmt("sim.g.title", { group: tName("sim.group.", r.group), rank: r.rank });
+  $("#g-out").innerHTML = `
+    <div>${esc(t("sim.g.total"))}${r.complete ? "" : `<span class="mini" style="color:var(--mute)"> ${esc(t("sim.g.total.part"))}</span>`}</div>
+    <div class="grade grade-big ${gradeClass(r.grade)}">${esc(r.grade || "?")}${r.score === null ? "" : ` <span class="mini" style="font-size:14px;color:var(--mute)">${esc(sign(r.score, 2))}%</span>`}</div>
+    <div class="tablewrap"><table><thead><tr><th>${esc(t("sim.r.stat"))}</th><th class="num">${esc(t("sim.g.col.grade"))}</th><th class="num">${esc(t("sim.g.col.value"))}</th>
+      <th class="num">${esc(t("sim.g.col.dev"))}</th></tr></thead><tbody>
+      ${r.rows.map(x => `<tr><td class="${x.negative ? "neg" : "pos"}">${x.negative ? "−" : "+"} ${esc(tName("sim.stat.", x.key))}</td>
+        <td class="num"><span class="grade ${gradeClass(x.grade)}">${esc(x.grade)}</span></td>
+        <td class="num">${val(x.value, x.unit)}<div class="mini" style="color:var(--mute);font-size:11px" title="${esc(t("sim.g.col.range"))}">${esc(fmt("common.range", { a: val(x.min, x.unit), b: val(x.max, x.unit) }))}</div></td>
+        <td class="num">${esc(sign(x.dev, 2))}%</td></tr>`).join("")}
+    </tbody></table></div>
+    ${r.complete ? "" : `<p class="note" style="color:var(--warn)">${esc(t("sim.g.out"))}</p>`}
+    <p class="note">${esc(fmt("sim.g.note", { grades }))}</p>`;
+}
+/* 画像の読み取り: 結果を入力欄に入れて計算する(違っていたら利用者が直す) */
+async function scanGrade(file) {
+  if (!file) return;
+  const btn = $("#g-pick"); btn.disabled = true;
+  gScan = { busy: true }; renderGradeStatus();
+  try {
+    const res = await fetch("/api/builder/riven/scan", { method: "POST", headers: { "Content-Type": file.type || "image/png" }, body: file });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.text ? renderTxt(data.text) : (data.error || fmt("err.http", { status: res.status })));
+    if (data.weapon) {
+      const v = data.weapon.cat + "|" + data.weapon.en;
+      $("#g-q").value = ""; filterSelect($("#g-q"), $("#g-weapon")); findNote("#g-q-note", { q: "" }, 0);
+      if ([...$("#g-weapon").options].some(o => o.value === v)) { $("#g-weapon").value = v; applyGradeWeapon(); }
+    }
+    if (data.group) $("#g-group").value = data.group;
+    if (data.rank !== null && data.rank !== undefined) $("#g-rank").value = data.rank;
+    renderGradeRows(data.stats || []);
+    gScan = data; renderGradeStatus(); calcGrade();
+  } catch (e) { gScan = { error: e.message }; renderGradeStatus(); }
+  finally { btn.disabled = false; }
+}
+function renderGradeStatus() {
+  const s = gScan, el = $("#g-status");
+  if (!s) { el.textContent = ""; return; }
+  if (s.busy) { el.textContent = t("sim.g.reading"); return; }
+  if (s.error) { el.innerHTML = `<span class="err" style="margin:0">${esc(s.error)}</span>`; return; }
+  const msg = [(s.stats || []).length ? fmt("sim.g.read", { n: s.stats.length }) : t("sim.g.read.none")];
+  if (!s.weapon) msg.push(t("sim.g.weapon.none"));
+  if (s.drain) msg.push(fmt("sim.g.rank.guess", { drain: s.drain, rank: s.rank }));
+  if ((s.unknown || []).length) msg.push(fmt("sim.g.unknown", { list: s.unknown.join(" / ") }));
+  el.textContent = msg.join(" ");
+}
+$("#g-pick").addEventListener("click", () => $("#g-file").click());
+$("#g-file").addEventListener("change", e => { scanGrade(e.target.files[0]); e.target.value = ""; });
+const gDrop = $("#g-drop");
+gDrop.addEventListener("dragover", e => { e.preventDefault(); gDrop.classList.add("over"); });
+gDrop.addEventListener("dragleave", () => gDrop.classList.remove("over"));
+gDrop.addEventListener("drop", e => { e.preventDefault(); gDrop.classList.remove("over"); scanGrade([...e.dataTransfer.files].find(f => f.type.startsWith("image/"))); });
+document.addEventListener("paste", e => {
+  if ($("#tab-grade").hidden) return;
+  const item = [...(e.clipboardData?.items || [])].find(x => x.type.startsWith("image/"));
+  if (item) { e.preventDefault(); scanGrade(item.getAsFile()); }
+});
+$("#g-q").addEventListener("input", () => {
+  if (!META) return;
+  const r = filterSelect($("#g-q"), $("#g-weapon")); findNote("#g-q-note", r, META.has_data ? META.weapons.length : 0);
+  if (r.changed) $("#g-weapon").dispatchEvent(new Event("change"));
+});
+$("#g-weapon").addEventListener("change", () => { applyGradeWeapon(); renderGradeRows(gradeRows()); calcGrade(); });
+$("#g-group").addEventListener("change", () => { renderGradeRows(gradeRows()); calcGrade(); });
+$("#g-rank").addEventListener("change", calcGrade);
+$("#g-stats").addEventListener("change", calcGrade);
+$("#g-stats").addEventListener("input", e => { if (e.target.dataset.gsVal !== undefined) e.target.dataset.tol = ""; calcGrade(); });
+
 /* ---------- 言語 ---------- */
 /* 最初は URL の ?lang= かこの PC に覚えた言語(ポータルと同じ)。ポータルで切り替えたときは wfSetLang が呼ばれる */
 function applySimText() {
@@ -659,9 +837,11 @@ function applySimText() {
     renderWeaponCats(); fillWeaponsKeep(); $$("[data-wf-label]").forEach(el => { el.textContent = `${wfLabel(el.dataset.wfLabel)} %`; });
   }
   renderRivenOptions(); renderRivenSelects($$("[data-rb-i]").map(s => s.value), $("#r-curse").value);
+  renderGradeOptions(); renderGradeRows(gradeRows()); renderGradeStatus();
   if (fLast) renderFrame(fLast);
   if (wLast) renderWeapon(wLast);
   if (rLast) renderRiven(...rLast);
+  if (gLast) renderGrade(gLast);
 }
 /* 武器の選択肢だけ作り直す(選んでいる武器と結果はそのまま) */
 function fillWeaponsKeep() {

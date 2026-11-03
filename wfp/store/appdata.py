@@ -119,6 +119,15 @@ def read_mod_targets(name: str = common.MOD_TARGETS_FILE, src: Path | None = Non
     return _read_json((mod_stats_dir() if src is None else src) / name)
 
 
+def riven_dir() -> Path:
+    return common.APP_DIR / "data" / "riven"
+
+
+def read_riven_words(name: str = common.RIVEN_WORDS_FILE, src: Path | None = None) -> object | None:
+    """data/riven/<name> の JSON(Riven の画像の読み取りで使う効果名の辞書)。無い・読めなければ None(形の検査は wfportal_rivenscan で行う)"""
+    return _read_json((riven_dir() if src is None else src) / name)
+
+
 def _read_json(f: Path) -> object | None:
     try:
         return json.loads(f.read_text(encoding="utf-8-sig"))

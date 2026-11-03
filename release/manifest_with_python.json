@@ -1,5 +1,5 @@
 {
-  "version": "2.11",
+  "version": "2.12",
   "edition": "with_python",
   "files": {
     "LICENSE": {
@@ -8,8 +8,8 @@
       "src": "build/bundled/LICENSE"
     },
     "README.md": {
-      "sha256": "08667826876905baf989f9b532fbe5a99550f3121c0659404f42903075ece634",
-      "size": 54980,
+      "sha256": "b8cde8da7a5393e8097d86c61ec419d4d2d3baa5438e2c01d6a009ee0c4907fd",
+      "size": 55799,
       "src": "build/bundled/README.md"
     },
     "data/archon/shards.json": {
@@ -92,6 +92,11 @@
       "size": 13077,
       "src": "data/quests/flow.json"
     },
+    "data/riven/stat_words.json": {
+      "sha256": "50a41683a3f9369ce692533514df88a8d23c210d5f77e52544b8948071d7f6b2",
+      "size": 5299,
+      "src": "data/riven/stat_words.json"
+    },
     "data/spexchange/spex_rotate.json": {
       "sha256": "da746a7d5fb562085f7746244dfb8e9fc53e93ebf8bb3241eb60e2c4ff5325b1",
       "size": 53,
@@ -148,13 +153,13 @@
       "src": "web/i18n.html"
     },
     "web/i18n/en.json": {
-      "sha256": "bbb1f4efbc6d42c7c28b31977f4f1c55bce1711f4e0599c72241b66adde95e5a",
-      "size": 64525,
+      "sha256": "ed6a12f7bc39ed8320ffef8c8ba607b31d45961cc96c9f441764702b7f676520",
+      "size": 66546,
       "src": "web/i18n/en.json"
     },
     "web/i18n/ja.json": {
-      "sha256": "a0f0272a7bf99ec3fe21ef57a1dc48b63eacb858b3501c437bee7600882ef47a",
-      "size": 79004,
+      "sha256": "39078a9c6bad6fb679a17ab55b97957dde3b00db9f47695c84706522a4bb71b1",
+      "size": 81460,
       "src": "web/i18n/ja.json"
     },
     "web/menu.html": {
@@ -168,13 +173,13 @@
       "src": "web/view.html"
     },
     "web/wfportal_builder.html": {
-      "sha256": "00481bca19490ff8204d88275dcf0a48f5f62f7a0e78d72499ff6dc09c86d0a0",
-      "size": 48059,
+      "sha256": "597879cb8d2bae44ba6dea3a59948d8874c40b70fc4c3635485d6fc7f2241603",
+      "size": 60299,
       "src": "web/wfportal_builder.html"
     },
     "wfp/__init__.py": {
-      "sha256": "a00be24f3b98eb7ca03e498e73a026a6440e4dc83935902531f9ede1447173d5",
-      "size": 1279,
+      "sha256": "376a8db78e69e2d356723e3d55cecca1c581ba6246f32653b539c1cfc60c142d",
+      "size": 1291,
       "src": "wfp/__init__.py"
     },
     "wfp/api/__init__.py": {
@@ -218,8 +223,8 @@
       "src": "wfp/api/server.py"
     },
     "wfp/api/sim.py": {
-      "sha256": "195406a391ef091f291de8e95b251a2de85b168391e12956210eee9bebf4b707",
-      "size": 1585,
+      "sha256": "ef46aa2a3d51785a6d9a75d12bdd9640cf8720c13dba78b158c379558c72f486",
+      "size": 3527,
       "src": "wfp/api/sim.py"
     },
     "wfp/api/store.py": {
@@ -293,8 +298,8 @@
       "src": "wfp/core/build.py"
     },
     "wfp/core/common.py": {
-      "sha256": "482ee9cf5ce8d1524cbf5f2ab5595a33bfc7097d2e801b858391d63b272bfc9a",
-      "size": 53161,
+      "sha256": "5dd064f2312e9bb08c16b514c061ed579f879dfd01d476c9484d63b24343e265",
+      "size": 53673,
       "src": "wfp/core/common.py"
     },
     "wfp/core/cycle.py": {
@@ -428,8 +433,8 @@
       "src": "wfp/store/__init__.py"
     },
     "wfp/store/appdata.py": {
-      "sha256": "e1762e53e052d922984c3ec34e816c80f7768b73f15fe1de1f2899c7d29565e5",
-      "size": 5061,
+      "sha256": "6de250b78b83544924b22588aff9fe826e4cf3bb78729faf220854b67847d669",
+      "size": 5481,
       "src": "wfp/store/appdata.py"
     },
     "wfp/store/build_images.py": {
@@ -463,8 +468,8 @@
       "src": "wfportal_baro.py"
     },
     "wfportal_builder.py": {
-      "sha256": "2c5416af9063fd4345ff126cd2786b5b1e2ccaa51cafe35c4e84037d18c10806",
-      "size": 36529,
+      "sha256": "0137d7570cf518984e7a66391111f23577a3c2beb312e87c4c6f0ac5a1a6dbba",
+      "size": 41851,
       "src": "wfportal_builder.py"
     },
     "wfportal_msscan.py": {
@@ -476,6 +481,11 @@
       "sha256": "e2dd4f02d1e52483b1ec708682bec85f37671b353fe440e96f675bd9e05bdaeb",
       "size": 27998,
       "src": "wfportal_ocr.py"
+    },
+    "wfportal_rivenscan.py": {
+      "sha256": "2b4104ec443f4de3db9988fe8d3db56c641faf44ab15c2ab0d95a8b0f6af7249",
+      "size": 11602,
+      "src": "wfportal_rivenscan.py"
     },
     "wfportal_ui.py": {
       "sha256": "4b65e8a82be1e40a2ec2da9c8a5169542e4a6f293b5020f096fd78fe04a9629b",

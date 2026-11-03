@@ -188,9 +188,9 @@ SIM_CATS = {"primary": "プライマリ", "secondary": "セカンダリ", "melee
 SIM_RIVEN_GROUPS = {"rifle": "ライフル", "shotgun": "ショットガン", "pistol": "ピストル", "melee": "近接", "archgun": "アークウイングガン"}
 SIM_STATS = {
     "cc": "クリティカル率", "cd": "クリティカルダメージ", "damage": "ダメージ(近接ダメージ)", "multishot": "マルチショット",
-    "fire_rate": "連射速度(攻撃速度)", "status": "状態異常率", "status_duration": "状態異常の持続時間",
+    "fire_rate": "連射速度(攻撃速度)", "status": "状態異常確率", "status_duration": "状態異常の持続時間",
     "heat": "火炎", "cold": "冷気", "electricity": "電気", "toxin": "毒", "impact": "衝撃", "puncture": "貫通", "slash": "切断",
-    "faction": "勢力ダメージ(Grineer など)", "magazine": "マガジン容量", "reload": "リロード速度", "ammo": "最大弾薬数",
+    "faction": "勢力ダメージ(Grineer など)", "magazine": "マガジンサイズ", "reload": "リロード速度", "ammo": "最大弾薬数",
     "projectile_speed": "弾速", "recoil": "反動(マイナスが有利)", "zoom": "ズーム", "punch_through": "貫通力",
     "range": "射程(近接)", "combo_duration": "コンボ持続時間", "initial_combo": "初期コンボ",
     "slide_cc": "スライド攻撃のクリティカル率", "finisher": "フィニッシャーダメージ", "heavy_efficiency": "ヘビーアタック効率",
@@ -234,6 +234,7 @@ MOD_GROUPS = {"warframe": "Warframe", "primary": "プライマリ", "secondary":
 # MOD 効果検索のデータ: データ更新で Export から作るファイル(~/.wfportal)と、影響先の辞書(data/mod_stats/ の中。開発側が手で編集)
 MOD_STATS_FILE = "mod_stats.json"
 MOD_TARGETS_FILE = "targets.json"
+RIVEN_WORDS_FILE = "stat_words.json"  # data/riven/ の Riven の効果名の辞書(画像の読み取り用)
 # 検索結果の件数の上限(全文検索で広い語を打ったときに画面が重くならないように)
 MOD_STATS_LIMIT = 200
 
@@ -619,6 +620,11 @@ TEXT_JA = {
     "err.sim.nodata": "シミュレータ用のデータがありません。メニューの「データ更新」か、画面上部の「シミュレータ用データを取得」で取得してください。",
     "err.sim.unknown": "見つかりません: {name}",
     "err.sim.rank.num": "ランクは数字で入力してください。",
+    "err.sim.grade.value": "値を数字で入力してください: {stat}",
+    "err.sim.grade.curses": "マイナス効果は1つまでです。",
+    "err.sim.grade.stats": "効果の一覧の形が違います。",
+    "err.sim.scan.image": "PNG か JPEG の画像を送ってください。",
+    "err.sim.scan.words": "効果名の辞書(data/riven/stat_words.json)が読めません。",
     "err.update.drops": "ドロップ表を取得できませんでした。ネットワーク設定を確認してください。",
     "err.update.names": "名前辞書を取得できませんでした: {e}",
     "err.update.lang": "言語は文字列で指定してください。",

@@ -146,6 +146,15 @@ RIVEN_MODIFIERS = {(2, False): (0.99, 0.0), (2, True): (1.2375, -0.495),
 RIVEN_DISPO = 1.2
 # スプライス効果は1枚に1つまで(Riven Splicer で2つの効果を1つにまとめたもの。常にプラス)
 RIVEN_SPLICED_MAX = 1
+# グレード(参考: Altair の Riven Grading の Classic)。ズレ = その効果の振れ幅の中央値から何 % 離れているか(-10〜+10)。
+#   上から順に「ズレ >= 下限」なら そのグレード。どれにも当たらなければ RIVEN_GRADE_LOW。
+#   マイナス効果は小さいほど良いので、ズレの符号を逆にしてから当てる(例外は効果の curse_up)。
+#   振れ幅の外の値(読み違い・種類やランクの違い)は RIVEN_GRADE_OUT
+RIVEN_GRADES = [(9.5, "S"), (7.5, "A+"), (5.5, "A"), (3.5, "A-"), (1.5, "B+"), (-1.5, "B"),
+                (-3.5, "B-"), (-5.5, "C+"), (-7.5, "C"), (-9.5, "C-")]
+RIVEN_GRADE_LOW = "F"
+RIVEN_GRADE_OUT = "?"
+RIVEN_GRADE_TOL = 0.05  # 値の許容差(ゲームの表示は小数1桁で丸めているので、その半分)
 _G = lambda rifle=None, shotgun=None, pistol=None, melee=None, archgun=None: {  # noqa: E731
     k: v for k, v in (("rifle", rifle), ("shotgun", shotgun), ("pistol", pistol), ("melee", melee), ("archgun", archgun)) if v is not None}
 _GUNS = lambda v: _G(v, v, v, None, v)  # noqa: E731
@@ -176,7 +185,8 @@ RIVEN_STATS = [
     {"key": "ammo", "unit": "%", "base": _G(49.95, 90, 90, None, 99.9)},
     {"key": "projectile_speed", "unit": "%", "base": _G(90, 90, 90)},
     # 反動は Wiki の係数が負(-0.01)なので基準値も負にする。プラス効果はマイナスの値(反動が減る)、マイナス効果はプラスの値になる
-    {"key": "recoil", "unit": "%", "base": _GUNS(-90)},
+    # curse_up: マイナス効果でも、値が大きいほど上のグレードにする(グレードの向きを逆にしない。2026-11-03 利用者の指定)
+    {"key": "recoil", "unit": "%", "base": _GUNS(-90), "curse_up": True},
     {"key": "zoom", "unit": "%", "base": _G(59.99, 41.994, 80.1, None, 59.99)},
     {"key": "punch_through", "unit": "m", "base": _GUNS(2.7), "no_curse": list(RIVEN_GROUPS)},
     {"key": "range", "unit": "m", "base": _G(melee=1.94)},
@@ -564,6 +574,64 @@ def riven_calc(group: str, buffs: list[str], curse: str | None, rank: int = 8, d
     return {"group": group, "dispo": dispo, "rank": rank, "rows": rows}
 
 
+def riven_grade_letter(score: float) -> str:
+    """ズレ(向きをそろえた後の値。-10〜+10)-> グレード"""
+    for low, grade in RIVEN_GRADES:
+        if score >= low:
+            return grade
+    return RIVEN_GRADE_LOW
+
+
+def riven_grade(group: str, stats: list[dict], rank: int = 8, dispo: float = RIVEN_DISPO) -> dict:
+    """Riven の効果の値からグレードを出す。stats = [{"key", "value", "tol"(任意)}](ゲームの表示の値。単位なし)。
+    マイナス効果かどうかは値の符号と基準値の符号で決める(反動はマイナスの値がプラス効果)。効果の数・マイナス効果の有無は
+    stats から数えて、振れ幅は riven_calc と同じ式で出す"""
+    rows_in = []
+    for st in stats or []:
+        key = str(st.get("key") or "")
+        try:
+            value = float(st.get("value"))
+            tol = float(st.get("tol", RIVEN_GRADE_TOL))
+        except (TypeError, ValueError):
+            raise BuilderError(txt("err.sim.grade.value", stat=txt("sim.stat." + key, key)))
+        info = RIVEN_STAT_INDEX.get(key)
+        if info is None or group not in info["base"]:
+            raise BuilderError(txt("err.sim.stat", group=txt("sim.group." + group) if group in RIVEN_GROUPS else group,
+                                   stat=txt("sim.stat." + key, key)))
+        if value == 0:
+            raise BuilderError(txt("err.sim.grade.value", stat=txt("sim.stat." + key, key)))
+        rows_in.append({"key": key, "value": value, "tol": max(0.0, tol),
+                        "negative": (value < 0) != (info["base"][group] < 0)})
+    buffs = [r["key"] for r in rows_in if not r["negative"]]
+    curses = [r["key"] for r in rows_in if r["negative"]]
+    if len(curses) > 1:
+        raise BuilderError(txt("err.sim.grade.curses"))
+    calc = riven_calc(group, buffs, curses[0] if curses else None, rank, dispo)
+    ranges = {r["key"]: r for r in calc["rows"]}
+    rows, scores = [], []
+    for r in rows_in:
+        rg = ranges[r["key"]]
+        lo, hi = abs(rg["min"]), abs(rg["max"])
+        lo, hi = min(lo, hi), max(lo, hi)
+        mid = (lo + hi) / 2
+        mag = abs(r["value"])
+        dev = (mag / mid - 1) * 100
+        out = not (lo - r["tol"] <= mag <= hi + r["tol"])
+        dev_c = max(-10.0, min(10.0, dev))  # 許容差の分だけはみ出したものは端に寄せる
+        flip = r["negative"] and not RIVEN_STAT_INDEX[r["key"]].get("curse_up")
+        score = None if out else (-dev_c if flip else dev_c)
+        if score is not None:
+            scores.append(score)
+        rows.append({"key": r["key"], "unit": rg["unit"], "value": r["value"], "negative": r["negative"],
+                     "spliced": rg["spliced"], "min": rg["min"], "max": rg["max"], "mid": mid * (1 if rg["max"] > 0 else -1),
+                     "dev": dev, "score": score, "out": out,
+                     "grade": RIVEN_GRADE_OUT if out else riven_grade_letter(score)})
+    avg = sum(scores) / len(scores) if scores else None
+    return {"group": group, "dispo": dispo, "rank": rank, "buffs": len(buffs), "curse": bool(curses), "rows": rows,
+            "score": avg, "grade": None if avg is None else riven_grade_letter(avg),
+            "complete": len(scores) == len(rows)}
+
+
 # --------------------------------------------------------------------------
 # 画面(wfportal_ui.py)から呼ぶ API
 # --------------------------------------------------------------------------
@@ -587,6 +655,7 @@ def api_data(d: Path, dispo_rows: list[dict] | None = None) -> dict:
     data = load_builder_data(d)
     # 種類・効果・ダメージの種類・カテゴリーはキーだけ(表示名は画面の I18N の sim.group / sim.stat / sim.dmg / sim.cat)
     riven = {"groups": list(RIVEN_GROUPS), "stats": RIVEN_STATS, "spliced_max": RIVEN_SPLICED_MAX,
+             "grades": RIVEN_GRADES, "grade_low": RIVEN_GRADE_LOW,
              "modifiers": [{"buffs": b, "curse": c, "buff": m[0], "curse_m": m[1]} for (b, c), m in RIVEN_MODIFIERS.items()]}
     meta = {"cats": list(CAT_JA), "damage_types": list(DAMAGE_KEYS), "elements": list(PRIMARY_ELEMENTS),
             "frame_presets": FRAME_PRESETS, "weapon_presets": WEAPON_PRESETS, "rank30_bonus": RANK30_BONUS,
@@ -628,5 +697,25 @@ def api_riven(d: Path, body: dict, dispo_rows: list[dict] | None = None) -> dict
     group = body.get("group") or (riven_group(weapon_riven_type(weapon, dispo_rows)) if weapon else "rifle")
     buffs = [str(x) for x in body.get("buffs") or [] if x]
     res = riven_calc(group, buffs, str(body.get("curse")) if body.get("curse") else None, rank)
+    res["weapon"] = {"en": weapon["en"], "ja": weapon["ja"]} if weapon else None
+    return res
+
+
+def api_riven_grade(d: Path, body: dict, dispo_rows: list[dict] | None = None) -> dict:
+    """POST /api/builder/riven/grade: {name, cat, group, rank, stats: [{key, value, tol}]}。group が無ければ武器から決める"""
+    weapon = None
+    if body.get("name"):
+        weapon = _find(_need_data(d)["weapons"], body.get("name"), body.get("cat"))
+    try:
+        rank = int(body.get("rank", 8))
+    except (TypeError, ValueError):
+        raise BuilderError(txt("err.sim.rank.num"))
+    group = body.get("group") or (riven_group(weapon_riven_type(weapon, dispo_rows)) if weapon else "rifle")
+    if group not in RIVEN_GROUPS:
+        raise BuilderError(txt("err.sim.group"))
+    stats = body.get("stats")
+    if not isinstance(stats, list) or not all(isinstance(x, dict) for x in stats):
+        raise BuilderError(txt("err.sim.grade.stats"))
+    res = riven_grade(group, stats, rank)
     res["weapon"] = {"en": weapon["en"], "ja": weapon["ja"]} if weapon else None
     return res
