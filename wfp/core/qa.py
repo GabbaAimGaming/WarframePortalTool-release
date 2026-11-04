@@ -241,7 +241,8 @@ class QaIndex:
 
     def find(self, question: str) -> tuple[dict | None, dict]:
         """質問の文から名前を1つ(一番長く当たったもの。同じ長さなら種類の優先順・前にあるもの)。
-        (名前, 名前の部分を除いた文 {"norm", "spaced"})。英字の名前は spaced の文で、ほかは norm の文で探す"""
+        (名前, 名前の部分を除いた文 {"norm", "spaced", "hit_len"})。hit_len は当たったラベルの長さ(無ければ 0)。
+        英字の名前は spaced の文で、ほかは norm の文で探す"""
         forms = {"norm": norm(question), "spaced": spaced(question)}
         best: tuple | None = None
         for ln, keys in self._labels.items():
@@ -258,11 +259,11 @@ class QaIndex:
                 if best is None or cand[:4] > best[:4]:
                     best = cand
         if best is None:
-            return None, forms
+            return None, {**forms, "hit_len": 0}
         e, ln = self.entities[best[3]], best[4]
         # 名前の部分を両方の形から除く(英字の名前は norm の形でも除く)
         rest = {"spaced": _cut(forms["spaced"], spaced(e["en"]) if _is_ascii(ln) else ln, _is_ascii(ln)),
-                "norm": _cut(forms["norm"], norm(ln), _is_ascii(ln))}
+                "norm": _cut(forms["norm"], norm(ln), _is_ascii(ln)), "hit_len": best[0]}
         return e, rest
 
     def candidates(self, question: str, stop_words: set[str] | None = None) -> list[dict]:
@@ -377,15 +378,15 @@ def answer(ctx: QaContext, question: str = "", name: str | None = None, intent: 
     if lore is not None:  # 1. ボタンから(解説の id)
         t = lore_data.topic(lore) if lore_data else None
         return _lore_answer(ctx, res, t, spoil) if t else _miss(ctx, res, "no_hit")
+    if name is not None:
+        e, rest = ctx.index.entities.get(norm(name)), {"norm": "", "spaced": "", "hit_len": 0}
+    else:
+        e, rest = ctx.index.find(question)
     if name is None and intent is None and lore_data:  # 2. 解説の語が当たった
-        group = _lore_word(lore_data, question)
+        group = _lore_group(lore_data, question, rest)
         if group:
             return _lore_answer(ctx, res, pick_stage(lore_data, group, ctx.done), spoil)
     stop = {w for it in data.intents for w in it["words"]}
-    if name is not None:
-        e, rest = ctx.index.entities.get(norm(name)), {"norm": "", "spaced": ""}
-    else:
-        e, rest = ctx.index.find(question)
     res = _result(question, e, None)
     heads = topics_about(lore_data, e["en"]) if (lore_data and e) else []
     ch = (lore_data.choice(choice) if choice else None if intent else _lore_choice(lore_data, rest)) if heads else None
@@ -438,11 +439,20 @@ def _word_hit(forms: dict, word: str) -> int:
     return len(_key(word)) if _bounded(forms["spaced" if ascii_word else "norm"], _key(word), ascii_word) >= 0 else 0
 
 
-def _lore_word(lore: LoreData, question: str) -> str | None:
-    """解説の語が当たった group(一番長く当たった語。同じ長さならファイルの前のもの)。無ければ None"""
-    forms = {"norm": norm(question), "spaced": spaced(question)}
+def _lore_word(lore: LoreData, forms: dict) -> tuple[int, str | None]:
+    """解説の語が当たった (語の長さ, group)(一番長く当たった語。同じ長さならファイルの前のもの)。無ければ (0, None)"""
     best = max(((_word_hit(forms, w), -i, g) for i, (w, g) in enumerate(lore.words())), default=(0, 0, None))
-    return best[2] if best[0] else None
+    return (best[0], best[2]) if best[0] else (0, None)
+
+
+def _lore_group(lore: LoreData, question: str, rest: dict) -> str | None:
+    """解説の語で答える group。名前(QaIndex.find)が解説の語より長く当たったときは、名前の部分を除いた文で探し直す
+    (例: 「オロキンセル」は名前 6 文字 > 解説の語「オロキン」4 文字なので、名前として答える)。
+    同じ長さなら解説が先(名前と同じ語を解説に書いた場合)"""
+    hit_len, group = _lore_word(lore, {"norm": norm(question), "spaced": spaced(question)})
+    if group and rest.get("hit_len", 0) > hit_len:
+        group = _lore_word(lore, rest)[1]
+    return group
 
 
 def _lore_choice(lore: LoreData, rest: dict) -> dict | None:

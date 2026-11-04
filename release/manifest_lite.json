@@ -1,5 +1,5 @@
 {
-  "version": "2.13",
+  "version": "2.14",
   "edition": "lite",
   "files": {
     "INSTALL_PYTHON.md": {
@@ -368,8 +368,8 @@
       "src": "wfp/core/names.py"
     },
     "wfp/core/qa.py": {
-      "sha256": "368a0779ea848001b977d1c09b7eff2b26750c31386548b1c42076ba9f3ed621",
-      "size": 36053,
+      "sha256": "35e61270bcd5dfe3de37bb8f9c5fbc4cdcf7534bc0f948d81fe9f0f3e060234b",
+      "size": 36828,
       "src": "wfp/core/qa.py"
     },
     "wfp/core/qalore.py": {
