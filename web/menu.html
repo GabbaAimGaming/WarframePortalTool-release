@@ -28,6 +28,7 @@ function setLang(code, remember = true) {
   document.documentElement.lang = code;
   if (remember) { try { localStorage.setItem("wf-lang", code); } catch (e) {} }
   renderLangSwitch();
+  renderBetaSwitch();
   renderMenu();
   if (typeof renderStatus === "function") renderStatus();  // ヘッダーのデータの状態(ページ処理の部品。読み込み前は無い)
   if (currentView && relabel[currentView]) relabel[currentView]();
@@ -55,7 +56,7 @@ const MENU = [
   { page: "guide" },
   { page: "update" },
 ];
-/* β版のページ: トップの「β版の機能を使う」がオンのときだけ、メニュー・トップ・ページ説明に出す(メニューの名前に β の札)。
+/* β版のページ: ヘッダーの「β版の機能を使う」がオンのときだけ、メニュー・トップ・ページ説明に出す(メニューの名前に β の札)。
    チェックはこのブラウザに覚える(localStorage の wf-beta。初期値はオフ)。β版の機能を足すときは id をここに足すだけ */
 const BETA_PAGES = ["qa"];
 let betaOn = false;
@@ -131,6 +132,13 @@ $("#nav").addEventListener("click", e => {
   else if (cat) { openGroup = openGroup === cat.dataset.group ? null : cat.dataset.group; applyMenuState(); }
 });
 
+/* ヘッダーの「β版の機能を使う」の表示(チェックと、表示中の言語の文字) */
+function renderBetaSwitch() {
+  const box = $("#beta-sw-box");
+  if (!box) return;
+  applyText(box);
+  $("#beta-sw").checked = betaOn;
+}
 /* β版の機能を使うかどうかを切り替える。オフにしたとき β版のページを開いていればトップに戻す */
 function setBeta(on) {
   const leave = !on && isBeta(currentView);
@@ -138,7 +146,10 @@ function setBeta(on) {
   try { localStorage.setItem("wf-beta", on ? "1" : "0"); } catch (e) {}
   if (leave) show("home");  // views はまだ β版のページを含むので、そのページも隠れる
   renderMenu();
+  renderBetaSwitch();
+  if (!leave && currentView && relabel[currentView]) relabel[currentView]();  // トップ・ページ説明のカードも描き直す
 }
+$("#beta-sw")?.addEventListener("change", e => setBeta(e.target.checked));
 
 /* ---------- ビュー切り替え ---------- */
 const loaders = {};
@@ -157,6 +168,7 @@ function show(view) {
 {
   lang = initialLang(); document.documentElement.lang = lang;
   renderLangSwitch();
+  renderBetaSwitch();
   renderMenu();
 }
 

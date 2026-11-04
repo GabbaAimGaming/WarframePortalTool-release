@@ -5,6 +5,8 @@
 - 聞きたいこと: data/qa/intents.json のキーワード。名前の部分を除いた文から探す(「Helminth Charger」の helminth を拾わない)
 - 答え: data/qa/answers.json の文の型に値を埋める。推測はしない。拾えなかったときは data/qa/miss.json の文をランダムに1つ
 - 入手先は drops の find_sources、開発者のビルドは core.devbuilds、Helminth は core.helminth を使う
+- 解説(設定・ストーリー)は core.qalore(data/qa/lore.json)。判定の順番: ボタンの lore id → 解説の語 → 名前 + 選択肢の語 →
+  名前 + 聞きたいこと → 名前だけ(選択肢を出す)。クエストの中身は、未完了なら話す前に確認する(spoil で確認を飛ばす)
 """
 from __future__ import annotations
 
@@ -18,6 +20,8 @@ from wfp.core.common import (QA_CANDIDATE_LIMIT, QA_FORMATS, QA_KINDS, QA_MIN_AS
                              QA_PART_SOURCE_LIMIT, QA_SOURCE_LIMIT, HELMINTH_FRAME, norm, render_ja)
 from wfp.core.devbuilds import build_view, builds_for
 from wfp.core.helminth import subsume_frame
+from wfp.core.qalore import (LoreData, missing_quests, next_stage, pick_line, pick_prefix, pick_stage,
+                             topics_about)
 from wfp.drops.search import find_sources
 
 _ASCII_ALNUM = re.compile(r"[a-z0-9]")
@@ -67,7 +71,8 @@ def load_qa_data(intents_raw: object, answers_raw: object, miss_raw: object) -> 
         if words and kinds:
             prio = row.get("priority", 0)
             intents.append({"id": row["id"], "kinds": kinds, "words": words, "label": str(row.get("label") or row["id"]),
-                            "priority": prio if isinstance(prio, int) and not isinstance(prio, bool) else 0})
+                            "priority": prio if isinstance(prio, int) and not isinstance(prio, bool) else 0,
+                            "button": row.get("button") is not False})
     ans = answers_raw if isinstance(answers_raw, dict) else {}
     fields = {k: v for k, v in (ans.get("fields") or {}).items()
               if isinstance(v, dict) and isinstance(v.get("label"), str) and v.get("fmt") in QA_FORMATS}
@@ -296,11 +301,11 @@ def find_intents(data: QaData, forms: dict) -> list[dict]:
 
 
 def options(data: QaData, e: dict) -> list[dict]:
-    """その名前について聞けること(ボタン)。開発者のビルドは、ある名前だけ"""
+    """その名前について聞けること(ボタン)。開発者のビルドは、ある名前だけ。button: false の質問(個別の数値)は出さない"""
     kinds = QaIndex.kinds(e)
     out = []
     for it in data.intents:
-        if not kinds & set(it["kinds"]):
+        if not it["button"] or not kinds & set(it["kinds"]):
             continue
         if it["id"] == "build" and not e["devbuild"]:
             continue
@@ -327,6 +332,9 @@ class QaContext:
     archon: dict = field(default_factory=lambda: {"tauforged_rate": 1.5, "colors": []})
     dev: list[dict] = field(default_factory=list)
     mod_stats: object = None          # core.modstats.ModStats(ビルドの MOD の効果。無ければ名前だけ)
+    lore: LoreData | None = None      # 解説(core.qalore。無ければ解説は出さない)
+    done: set = field(default_factory=set)              # クエスト一覧で終えたクエストの id(quests_done.json)
+    quest_names: dict = field(default_factory=dict)     # クエストの id -> 和名(ネタバレの確認の文に使う)
     rng: random.Random | None = None
 
 
@@ -345,7 +353,7 @@ def format_value(value: float, fmt: str) -> str:
 def _result(question: str, e: dict | None = None, intent: str | None = None) -> dict:
     return {"q": question, "type": "answer", "name": {"key": e["key"], "en": e["en"], "ja": e["ja"]} if e else None,
             "intent": intent, "text": "", "facts": [], "sources": [], "builds": [], "options": [], "candidates": [],
-            "options_title": "", "basis": "", "miss": None}
+            "options_title": "", "basis": "", "miss": None, "lore": None, "spoiler": None, "next": None}
 
 
 def _miss(ctx: QaContext, res: dict, kind: str, name: str = "") -> dict:
@@ -353,20 +361,41 @@ def _miss(ctx: QaContext, res: dict, kind: str, name: str = "") -> dict:
     return res
 
 
-def answer(ctx: QaContext, question: str = "", name: str | None = None, intent: str | None = None) -> dict:
+def answer(ctx: QaContext, question: str = "", name: str | None = None, intent: str | None = None,
+           lore: str | None = None, spoil: bool = False, choice: str | None = None) -> dict:
     """質問に答える。name(索引のキー)・intent(質問の id)を渡すと、文から拾わずにそれで答える(ボタンから)。
+    lore(解説の id)・choice(解説の選択肢の id。name と一緒に)もボタンから。spoil はネタバレの確認を飛ばす(「聞く」のボタン)。
 
-    返り値: {q, type: answer|miss, name, intent, text, facts: [{label, value}], sources: [{title, rows}],
-            builds: [build_view], options: [{label, name, intent}], candidates: [{key, en, ja}], basis, miss: {kind, id, text}}
+    返り値: {q, type: answer|miss|options(名前だけ)|lore|spoiler_ask, name, intent, text, facts: [{label, value}], sources: [{title, rows}],
+            builds: [build_view], options: [{label, name, intent} か {label, name, choice} か {label, lore}],
+            candidates: [{key, en, ja}], basis, miss: {kind, id, text},
+            lore: {id, title, group, stage, prefix, paragraphs, source, credit, license},
+            spoiler: {id, title, quests, ok, ng, declined}, next: {id, title, label}}
     """
-    data = ctx.data
+    data, lore_data = ctx.data, ctx.lore
+    res = _result(question, None, None)
+    if lore is not None:  # 1. ボタンから(解説の id)
+        t = lore_data.topic(lore) if lore_data else None
+        return _lore_answer(ctx, res, t, spoil) if t else _miss(ctx, res, "no_hit")
+    if name is None and intent is None and lore_data:  # 2. 解説の語が当たった
+        group = _lore_word(lore_data, question)
+        if group:
+            return _lore_answer(ctx, res, pick_stage(lore_data, group, ctx.done), spoil)
     stop = {w for it in data.intents for w in it["words"]}
     if name is not None:
         e, rest = ctx.index.entities.get(norm(name)), {"norm": "", "spaced": ""}
     else:
         e, rest = ctx.index.find(question)
-    picked = [data.intent(intent)] if intent and data.intent(intent) else find_intents(data, rest)
     res = _result(question, e, None)
+    heads = topics_about(lore_data, e["en"]) if (lore_data and e) else []
+    ch = (lore_data.choice(choice) if choice else None if intent else _lore_choice(lore_data, rest)) if heads else None
+    if ch:  # 3. 名前 + 選択肢の語(「Excalibur Umbra の設定」)
+        hits = [h for h in heads if h["type"] in ch["types"]]
+        if len(hits) == 1:
+            return _lore_answer(ctx, res, pick_stage(lore_data, hits[0]["group"], ctx.done), spoil)
+        if hits:
+            return _lore_pick(ctx, res, hits)
+    picked = [data.intent(intent)] if intent and data.intent(intent) else find_intents(data, rest)
     if e is None:
         if any(it["id"] == "helminth" for it in picked):  # 「Helminth のアビリティは?」(Helminth は名前として拾わない)
             return _helminth_self(ctx, res)
@@ -378,20 +407,86 @@ def answer(ctx: QaContext, question: str = "", name: str | None = None, intent: 
     usable = [it for it in picked if kinds & set(it["kinds"])]
     if not usable and not picked and len(kinds - {"item"}) == 1 and (only := next(iter(kinds - {"item"}))) in _DEFAULT_INTENT:
         usable = [data.intent(_DEFAULT_INTENT[only])]
-    if not usable or usable[0] is None:
-        res["options"] = options(data, e)
-        res["options_title"] = data.say("options", name=e["ja"])
-        return _miss(ctx, res, "no_intent", e["ja"])
-    it = usable[0]
+    lore_opts = _lore_options(lore_data, e, heads)
+    if not usable or usable[0] is None:  # 5. 名前だけ: 解説の選択肢(中身のあるものだけ)+ 聞けること
+        res["options"] = lore_opts + options(data, e)
+        res["options_title"] = pick_line(lore_data, "ask_what", ctx.rng, name=e["ja"]) if lore_opts else ""
+        res["options_title"] = res["options_title"] or data.say("options", name=e["ja"])
+        if not picked:  # 名前だけ: 聞けることの見出しだけ出す(ヒットしなかったときの文は重ねない)
+            res["type"] = "options"
+            return res
+        return _miss(ctx, res, "no_intent", e["ja"])  # 聞きたいことが名前の種類に合わない(例: フレームのクリ率)
+    it = usable[0]  # 4. 名前 + 聞きたいこと
     res["intent"] = it["id"]
     handler = _HANDLERS.get(it["id"])
     if handler is None:
         handler = _field_answer
     out = handler(ctx, res, e, it)
-    out["options"] = [o for o in options(data, e) if o["intent"] != it["id"]]
+    out["options"] = lore_opts + [o for o in options(data, e) if o["intent"] != it["id"]]
     if out["options"]:
         out["options_title"] = data.say("options", name=e["ja"])
     return out
+
+
+# --------------------------------------------------------------------------
+# 解説(設定・ストーリー。core.qalore)
+# --------------------------------------------------------------------------
+
+def _word_hit(forms: dict, word: str) -> int:
+    """文(norm・spaced の形)に語が当たれば語の長さ、当たらなければ 0(英字の語は spaced の文で単語として)"""
+    ascii_word = _is_ascii(norm(word))
+    return len(_key(word)) if _bounded(forms["spaced" if ascii_word else "norm"], _key(word), ascii_word) >= 0 else 0
+
+
+def _lore_word(lore: LoreData, question: str) -> str | None:
+    """解説の語が当たった group(一番長く当たった語。同じ長さならファイルの前のもの)。無ければ None"""
+    forms = {"norm": norm(question), "spaced": spaced(question)}
+    best = max(((_word_hit(forms, w), -i, g) for i, (w, g) in enumerate(lore.words())), default=(0, 0, None))
+    return best[2] if best[0] else None
+
+
+def _lore_choice(lore: LoreData, rest: dict) -> dict | None:
+    """名前を除いた文に当たった選択肢(一番長く当たった語)。無ければ None"""
+    best = max(((_word_hit(rest, w), -i, c["id"]) for i, c in enumerate(lore.choices) for w in c["words"]),
+               default=(0, 0, None))
+    return lore.choice(best[2]) if best[0] else None
+
+
+def _lore_options(lore: LoreData | None, e: dict, heads: list[dict]) -> list[dict]:
+    """名前の解説の選択肢(ボタン)。その種類の話がある選択肢だけ(0段目の type で見る)"""
+    if not lore or not heads:
+        return []
+    types = {h["type"] for h in heads}
+    return [{"label": _fill(c["label"], {"name": e["ja"]}), "name": e["key"], "choice": c["id"]}
+            for c in lore.choices if types & set(c["types"])]
+
+
+def _lore_pick(ctx: QaContext, res: dict, heads: list[dict]) -> dict:
+    """当てはまる話が2つ以上: タイトルのボタン(押すと、進み具合で選んだ段の解説)"""
+    rows = [pick_stage(ctx.lore, h["group"], ctx.done) for h in heads]
+    res.update(intent="lore", text=pick_line(ctx.lore, "pick_topic", ctx.rng),
+               options=[{"label": t["title"], "lore": t["id"]} for t in rows])
+    return res
+
+
+def _lore_answer(ctx: QaContext, res: dict, t: dict, spoil: bool) -> dict:
+    """その話を出す。クエストの中身で未完了のクエストがあり、spoil でなければ、先に確認する"""
+    lore, rng = ctx.lore, ctx.rng
+    res["intent"] = "lore"
+    missing = missing_quests(t, ctx.done)
+    if missing and not spoil:
+        quests = [ctx.quest_names.get(q, q) for q in missing]
+        res.update(type="spoiler_ask", text=pick_line(lore, "spoiler_ask", rng, quest="・".join(quests), title=t["title"]),
+                   spoiler={"id": t["id"], "title": t["title"], "quests": quests, "ok": pick_line(lore, "spoiler_ok", rng),
+                            "ng": pick_line(lore, "spoiler_ng", rng), "declined": pick_line(lore, "declined", rng)})
+        return res
+    res.update(type="lore", lore={"id": t["id"], "title": t["title"], "group": t["group"], "stage": t["stage"],
+                                  "prefix": pick_prefix(lore, t, rng), "paragraphs": list(t["text"]), "source": list(t["source"]),
+                                  "credit": lore.credit, "license": lore.license})
+    nx = next_stage(lore, t)
+    if nx:
+        res["next"] = {"id": nx["id"], "title": nx["title"], "label": pick_line(lore, "next_stage", rng, title=nx["title"])}
+    return res
 
 
 def _builder_basis(ctx: QaContext) -> str:

@@ -301,6 +301,12 @@ DEV_BUILD_NOTE = "(開発者のビルド・{as_of}時点)"
 QA_INTENTS_FILE = "intents.json"
 QA_ANSWERS_FILE = "answers.json"
 QA_MISS_FILE = "miss.json"
+# 解説(設定・ストーリー)と、解説のセリフ(枕詞・ネタバレの確認など)。解説の種類: 設定(クエストと無縁)/ クエストの中身(requires で確認)
+QA_LORE_FILE = "lore.json"
+QA_LORE_TALK_FILE = "lore_talk.json"
+QA_LORE_TYPES = ("setting", "quest")
+# lore_talk.json の一言の場面(すべて {id, ja} の一覧からランダムに1つ)
+QA_LORE_LINES = ("spoiler_ask", "spoiler_ok", "spoiler_ng", "declined", "ask_what", "next_stage", "pick_topic")
 # 名前の種類: フレーム・武器(builder.json)/ アイテム(ドロップ表)/ アビリティ(builder.json と吸収一覧)/
 # 吸収一覧のフレーム(Helminth 自身・Orion & Sirius など builder.json に無いもの)/ 開発者のビルドの名前・対象 /
 # 呼び出し(data/summons/。Sevagoth's Shadow など)

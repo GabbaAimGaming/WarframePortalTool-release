@@ -114,6 +114,10 @@ header::after {
   color: var(--on-secondary); opacity: .85; font-variant-numeric: tabular-nums;
 }
 .pill.warn { color: var(--danger); border-color: var(--danger); opacity: 1; }
+/* β版の機能の切り替え(ヘッダー右・言語の切り替えの左) */
+.beta-sw { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--on-secondary); opacity: .85; cursor: pointer; user-select: none; }
+.beta-sw input { margin: 0; accent-color: var(--accent); cursor: pointer; }
+.beta-sw:has(input:checked) { opacity: 1; color: var(--accent); }
 /* 言語の切り替え(ヘッダー右)。押している言語はアクセント色 */
 .lang-sw { display: flex; margin-right: 10px; }
 .lang-sw[hidden] { display: none; }
@@ -343,7 +347,6 @@ ol.mods .mod-eff { display: block; font-size: 12px; color: var(--mute); white-sp
 .qa-build ol.mods { margin: 0; padding-left: 1.4em; }
 /* β版の札・トップのチェック */
 .beta-tag { display: inline-block; font-size: 10px; font-weight: 700; line-height: 1; padding: 2px 5px; margin-left: 4px; border: 1px solid var(--accent); color: var(--accent); vertical-align: middle; }
-.home-beta { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 0 0 6px; }
 /* Q&A */
 .qa-lead { white-space: pre-line; }
 .qa-item { border: 1px solid var(--line); margin: 12px 0; padding: 10px 14px; }
@@ -357,6 +360,12 @@ ol.mods .mod-eff { display: block; font-size: 12px; color: var(--mute); white-sp
 .qa-item .qa-facts td:first-child { white-space: nowrap; color: var(--accent); width: 1%; padding-right: 12px; vertical-align: top; }
 .qa-item .qa-facts td { white-space: pre-line; }
 .qa-item .qa-group { margin: 8px 0 2px; font-weight: 700; }
+.qa-lore { border: 1px solid var(--line); margin: 10px 0; padding: 0 12px 8px; }
+.qa-lore > header { margin: 0 -12px 8px; padding: 7px 12px; background: var(--panel-2); border-bottom: 1px solid var(--line); }
+.qa-lore > header b { color: var(--ink); font-size: 15px; }
+.qa-lore p { margin: 6px 0; overflow-wrap: anywhere; white-space: pre-line; }
+.qa-lore .qa-lore-prefix { color: var(--mute); }
+.qa-lore .qa-basis a { margin-right: 8px; overflow-wrap: anywhere; }
 .qa-build { border: 1px solid var(--line); margin: 10px 0; }
 .qa-build > header { padding: 7px 12px; background: var(--panel-2); border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .qa-build > header b { color: var(--ink); font-size: 15px; }
@@ -575,8 +584,6 @@ input.own:disabled { cursor: not-allowed; opacity: .35; }
       <section id="view-home" hidden>
         <h2 data-i18n="page.home">トップ</h2>
         <p class="lead" data-i18n="home.lead">見たいページへ、ここから移動できます。</p>
-        <div class="home-beta"><label class="chk"><input type="checkbox" id="home-beta"> <span data-i18n="home.beta">β版の機能を使う</span></label>
-          <span class="mini" data-i18n="home.beta.note">試しに使える機能です。答えや動きが変わることがあります。β版のページはメニューに「β」と付きます。</span></div>
         <div class="cards" id="home-cards"></div>
       </section>
 

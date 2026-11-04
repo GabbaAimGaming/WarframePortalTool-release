@@ -844,6 +844,7 @@
   "qa.adopt.ok": "追加する",
   "qa.adopt.done": "ビルド管理に追加しました: {name}",
   "qa.adopt.open": "ビルド管理で開く",
+  "qa.lore.source": "出典",
   "modstats.placeholder": "例: 威力 / 効率 / Multishot",
   "modstats.groups": "区分",
   "modstats.all": "すべて選ぶ",

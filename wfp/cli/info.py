@@ -7,17 +7,20 @@ from datetime import datetime, timedelta, timezone
 from wfp.cli.table import print_table
 from wfp.core.archon import shard_list
 from wfp.core.common import (BARO_KINDS, CAMBION, CYCLE_SOURCES, CYCLES, MOD_GROUPS, PHASE_ALIASES, QA_ANSWERS_FILE, QA_INTENTS_FILE,
-                             QA_MISS_FILE, RIVEN_TYPES_JA, fmt_dur, norm, parse_remaining, rank, render_ja, txt)
+                             QA_LORE_FILE, QA_LORE_TALK_FILE, QA_MISS_FILE, RIVEN_TYPES_JA, fmt_dur, norm, parse_remaining, rank,
+                             render_ja, txt)
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
 from wfp.core.devbuilds import dev_build_list
 from wfp.core.helminth import subsume_list
 from wfp.core.loader import DropsMissing, load_drops, load_names, load_rivens, load_sources
 from wfp.core.modstats import fold, load_mod_stats, parse_groups
 from wfp.core.qa import QaContext, QaIndex, answer, load_qa_data, stop_words
+from wfp.core.qalore import load_lore
+from wfp.core.quests import check_flow
 from wfp.core.riven import riven_table, update_rivens
 from wfp.core.summons import summon_list
 from wfp.drops.search import all_item_names
-from wfp.store import appdata, datadir
+from wfp.store import appdata, datadir, userdata
 
 
 def cmd_cycle(args):
@@ -188,7 +191,7 @@ def cmd_ask(args):
     """Q&A(日本語のみ)。データ置き場の builder.json・ドロップ表・名前辞書と同梱データから答える"""
     import wfportal_builder as wb
     question = " ".join(args.question).strip()
-    if not question:
+    if not question and not args.lore:
         sys.exit(render_ja(txt("err.qa.empty")))
     d = datadir.data_dir(args.data_dir)
     names = load_names(d)
@@ -202,9 +205,12 @@ def cmd_ask(args):
     builder, subsume = wb.load_builder_data(d), subsume_list(appdata.read_helminth())
     dev = dev_build_list(appdata.read_dev_builds())
     index = QaIndex(builder, names, items, subsume, dev, stop_words(data), summon_list(appdata.read_summons()))
-    res = answer(QaContext(data, index, builder=builder, drops=drops, sources=sources, items=items, subsume=subsume,
-                           archon=shard_list(appdata.read_archon()), dev=dev, mod_stats=load_mod_stats(d)), question)
-    print_qa(res)
+    quest_names = {q["id"]: q["ja"] for q in check_flow(appdata.read_quests()) if q["kind"] == "quest"}
+    ctx = QaContext(data, index, builder=builder, drops=drops, sources=sources, items=items, subsume=subsume,
+                    archon=shard_list(appdata.read_archon()), dev=dev, mod_stats=load_mod_stats(d),
+                    lore=load_lore(appdata.read_qa(QA_LORE_FILE), appdata.read_qa(QA_LORE_TALK_FILE)),
+                    done=userdata.load_quests_done(d), quest_names=quest_names)
+    print_qa(answer(ctx, question, lore=args.lore or None, spoil=args.spoil))
 
 
 def print_qa(res: dict) -> None:
@@ -212,6 +218,21 @@ def print_qa(res: dict) -> None:
     for line in (res["miss"]["text"] if res["miss"] else "", res["text"]):
         if line:
             print(line)
+    if res["spoiler"]:
+        print(f"(--lore {res['spoiler']['id']} --spoil で聞けます)")
+    if res["lore"]:
+        lore = res["lore"]
+        print(f"■ {lore['title']}")
+        if lore["prefix"]:
+            print(lore["prefix"])
+        for para in lore["paragraphs"]:
+            print(f"  {para}")
+        if lore["credit"] or lore["source"]:
+            print("(出典: " + " / ".join(x for x in (lore["credit"], lore["license"]) if x) + ")")
+            for url in lore["source"]:
+                print(f"  {url}")
+    if res["next"]:
+        print(f"{res['next']['label']} → --lore {res['next']['id']}")
     for f in res["facts"]:
         value = f["value"].replace("\n", "\n    ")  # 複数行の値(呼び出しのアビリティの数値など)は字下げしてそろえる
         print(f"  {f['label']}: {value}" if f["label"] and value else f"  {f['label'] or value}")
@@ -235,7 +256,8 @@ def print_qa(res: dict) -> None:
     if res["candidates"]:
         print("もしかして: " + "、".join(c["ja"] for c in res["candidates"]))
     if res["options"]:
-        print((res["options_title"] or "聞けること") + ": " + "、".join(o["label"] for o in res["options"]))
+        print((res["options_title"] or "聞けること") + ": " + "、".join(
+            o["label"] + (f"(--lore {o['lore']})" if o.get("lore") else "") for o in res["options"]))
     if res["basis"]:
         print(f"({res['basis']})")
 
@@ -282,8 +304,10 @@ def add_modstats(sub) -> None:
 
 
 def add_ask(sub) -> None:
-    s = sub.add_parser("ask", help="Q&A(β) (フレーム・武器の数値・入手先・開発者のビルド・Helminth を質問の文で聞く。日本語のみ)")
-    s.add_argument("question", nargs="*", help="質問の文(例: Rhino のアーマーは?)")
+    s = sub.add_parser("ask", help="Q&A(β) (フレーム・武器の数値・入手先・開発者のビルド・Helminth・設定とストーリーの解説を質問の文で聞く。日本語のみ)")
+    s.add_argument("question", nargs="*", help="質問の文(例: Rhino のアーマーは? / グリニアって何?)")
+    s.add_argument("--lore", help="解説の id を指定して聞く(例: setting.grineer)")
+    s.add_argument("--spoil", action="store_true", help="クエストのネタバレの確認を飛ばす")
     s.set_defaults(fn=cmd_ask)
 
 

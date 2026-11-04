@@ -840,6 +840,7 @@
   "qa.adopt.ok": "Add",
   "qa.adopt.done": "Added to Builds: {name}",
   "qa.adopt.open": "Open in Builds",
+  "qa.lore.source": "Source",
   "modstats.placeholder": "e.g. Strength / Efficiency / Multishot",
   "modstats.groups": "Categories",
   "modstats.all": "Select all",

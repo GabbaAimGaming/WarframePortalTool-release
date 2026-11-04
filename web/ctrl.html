@@ -21,6 +21,8 @@
       <small class="ver" id="app-ver"></small>
     </div>
     <div class="spacer"></div>
+    <!-- β版の機能を使うかどうか(web/menu.html の renderBetaSwitch・setBeta。説明は title に出す) -->
+    <label class="beta-sw" id="beta-sw-box" data-i18n-title="home.beta.note"><input type="checkbox" id="beta-sw"> <span data-i18n="home.beta">β版の機能を使う</span></label>
     <!-- 言語の切り替え(ボタンは web/menu.html の renderLangSwitch が I18N の言語から作る) -->
     <div class="lang-sw" id="lang-sw" role="group" hidden></div>
     <span class="pill" id="status-pill" aria-live="polite">データ確認中...</span>
@@ -913,8 +915,19 @@ async function qaAsk(params) {
   } catch (e) { qaLog.unshift({ err: e.message, q: params.q || "" }); }
   renderQa();
 }
-const qaChip = (label, name, intent) =>
-  `<button type="button" class="chip" data-qaname="${esc(name)}"${intent ? ` data-qaintent="${esc(intent)}"` : ""}>${esc(label)}</button>`;
+// ボタン: o = {name, intent, choice, lore}(どれも任意)。押すとその値で /api/qa に聞く。spoil はネタバレの確認を飛ばす
+const QA_CHIP_KEYS = ["name", "intent", "choice", "lore"];
+const qaChip = (label, o, spoil) =>
+  `<button type="button" class="chip" data-qaask="1"${QA_CHIP_KEYS.filter(k => o[k]).map(k => ` data-qa${k}="${esc(o[k])}"`).join("")}${
+    spoil ? ` data-qaspoil="1"` : ""}>${esc(label)}</button>`;
+// 解説のカード(文は API が日本語で返す)。出典は wiki の記事の URL と、ファイル全体の credit・license
+function qaLoreCard(lore, next) {
+  const src = lore.source.map(u => `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(u.replace(/^https?:\/\//, ""))}</a>`).join(" ");
+  const credit = [lore.credit, lore.license].filter(Boolean).join(" / ");
+  return `<div class="qa-lore"><header><b>${esc(lore.title)}</b></header>${lore.prefix ? `<p class="qa-lore-prefix">${esc(lore.prefix)}</p>` : ""}${
+    lore.paragraphs.map(p => `<p>${esc(p)}</p>`).join("")}${credit || src ? `<div class="qa-basis">${esc(t("qa.lore.source"))}: ${esc(credit)} ${src}</div>` : ""}</div>${
+    next ? `<div class="qa-chips">${qaChip(next.label, { lore: next.id })}</div>` : ""}`;
+}
 function qaBuildCard(b, done) {
   const row = (key, val) => val ? `<dt>${esc(t(key))}</dt><dd>${esc(val)}</dd>` : "";
   return `<div class="qa-build"><header><b>${esc(b.name)}</b><span>${esc(b.type_ja)} / ${esc(b.target_ja)} / ${esc(fmt("qa.b.forma", { n: b.forma }))}</span></header>
@@ -928,10 +941,13 @@ function qaBuildCard(b, done) {
 function qaItem(entry, idx) {
   if (entry.err) return `<div class="qa-item"><div class="qa-q">${esc(entry.q)}</div><div class="err">${esc(entry.err)}</div></div>`;
   const r = entry.res;
-  const q = r.q || (r.name ? r.name.ja : "");
+  const q = r.q || (r.name ? r.name.ja : r.lore ? r.lore.title : r.spoiler ? r.spoiler.title : "");
   let h = `<div class="qa-item" data-qaidx="${idx}"><div class="qa-q">${esc(t("qa.you"))} ${esc(q)}</div>`;
   if (r.miss && r.miss.text) h += `<p class="qa-a qa-miss">${esc(r.miss.text)}</p>`;
   if (r.text) h += `<p class="qa-a"><b>${esc(r.text)}</b></p>`;
+  if (r.spoiler) h += entry.declined ? `<p class="qa-a">${esc(r.spoiler.declined)}</p>`
+    : `<div class="qa-chips">${qaChip(r.spoiler.ok, { lore: r.spoiler.id }, true)}<button type="button" class="chip" data-qadecline="1">${esc(r.spoiler.ng)}</button></div>`;
+  if (r.lore) h += qaLoreCard(r.lore, r.next);
   if (r.facts.length) h += `<div class="tablewrap"><table class="qa-facts"><tbody>${r.facts.map(f =>
     `<tr><td>${esc(f.label)}</td><td>${esc(f.value)}</td></tr>`).join("")}</tbody></table></div>`;
   for (const g of r.sources) {
@@ -940,8 +956,8 @@ function qaItem(entry, idx) {
       g.rows.map(x => `<tr><td>${esc(x.chance || "-")}</td><td>${catTag(x.cat)} ${esc(x.where)}${x.qty ? ` ×${esc(x.qty)}` : ""}</td></tr>`).join("")}</tbody></table></div>`;
   }
   h += r.builds.map(b => qaBuildCard(b, entry.done[b.name])).join("");
-  if (r.candidates.length) h += `<div class="qa-chips"><span>${esc(t("qa.maybe"))}</span>${r.candidates.map(c => qaChip(c.ja, c.key, r.intent)).join("")}</div>`;
-  if (r.options.length) h += `<div class="qa-chips"><span>${esc(r.options_title)}</span>${r.options.map(o => qaChip(o.label, o.name, o.intent)).join("")}</div>`;
+  if (r.candidates.length) h += `<div class="qa-chips"><span>${esc(t("qa.maybe"))}</span>${r.candidates.map(c => qaChip(c.ja, { name: c.key, intent: r.intent })).join("")}</div>`;
+  if (r.options.length) h += `<div class="qa-chips"><span>${esc(r.options_title)}</span>${r.options.map(o => qaChip(o.label, o)).join("")}</div>`;
   if (r.basis) h += `<div class="qa-basis">${esc(r.basis)}</div>`;
   return h + `</div>`;
 }
@@ -960,8 +976,15 @@ $("#qa-clear").addEventListener("click", () => { qaLog = []; renderQa(); });
 /* ビルド管理に追加: 名前を入れる小窓(初期値は「名前_dev」)。同じ名前があれば小窓のまま入れ直してもらう(上書きしない) */
 let qaAdopt = null;  // {idx, build}
 $("#qa-log").addEventListener("click", e => {
-  const chip = e.target.closest("[data-qaname]");
-  if (chip) { qaAsk({ name: chip.dataset.qaname, ...(chip.dataset.qaintent ? { intent: chip.dataset.qaintent } : {}) }); return; }
+  const chip = e.target.closest("[data-qaask]");
+  if (chip) {
+    const params = {};
+    for (const k of QA_CHIP_KEYS) if (chip.dataset["qa" + k]) params[k] = chip.dataset["qa" + k];
+    if (chip.dataset.qaspoil) params.spoil = "1";
+    qaAsk(params); return;
+  }
+  const decline = e.target.closest("[data-qadecline]");  // 「やめとく」は通信なしで断りの一言を出す
+  if (decline) { const entry = qaLog[+decline.closest("[data-qaidx]").dataset.qaidx]; if (entry) entry.declined = true; renderQa(); return; }
   const open = e.target.closest("[data-qaopen]");
   if (open) { $("#b-filter").value = open.dataset.qaopen; show("build"); return; }
   const add = e.target.closest("[data-qaadopt]");
@@ -2548,11 +2571,9 @@ function menuSections() {
 function applyViewText(id) { const root = $(`#view-${id}`); if (root) applyText(root); }
 function renderHome() {
   applyViewText("home");
-  $("#home-beta").checked = betaOn;
   $("#home-cards").innerHTML = menuSections().map(s => `<div class="card"><header><b>${esc(s.label)}</b></header>${
     s.items.map(v => `<button type="button" class="go" data-go="${esc(v)}"><b>${esc(t("page." + v))}${betaTag(v) ? " " + betaTag(v) : ""}</b><span>${esc(t("page." + v + ".sub"))}</span></button>`).join("")}</div>`).join("");
 }
-$("#home-beta").addEventListener("change", e => { setBeta(e.target.checked); renderHome(); });
 function renderGuide() {
   applyViewText("guide");
   $("#guide-list").innerHTML = menuSections().map(s => `<h3 class="guide-h">${esc(s.label)}</h3><div class="cards">${
