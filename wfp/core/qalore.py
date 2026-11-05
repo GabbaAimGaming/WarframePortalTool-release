@@ -6,7 +6,9 @@
 - 一言(枕詞・ネタバレの確認・続き など)は lore_talk.json の場面ごとの一覧からランダムに1つ
 - needs(任意): 語のまとまりの and で引く(例: 「Jade の強いビルド」「武器の強いビルド」)。[[語, …], …] でまとまりの間は and・中は or。
   about があれば名前 + needs(名前の部分を除いた文で探す)、about が空なら名前なしで needs だけ(名前つきの話が当たればそちらが先)。
-  まとまりは2つ以上・intents の語を含まないまとまりが1つ以上(普通の「Jade のビルド」を横取りしないため)
+  まとまりは2つ以上・intents の語を含まないまとまりが1つ以上(普通の「Jade のビルド」を横取りしないため)。
+  まとまりには種類の印(QA_NEEDS_MARK + QA_KINDS。例: 「@frame」)も書ける: 拾った名前がその種類なら当たり(「Jade の最強ビルド」)。
+  普通の語は、名前の部分を除いた文に当たるか、拾った名前そのもの(英名・和名)なら当たり
 - mentions(任意): 話の中に出てくる名前(英名)。索引だけで needs は絞らない(about との違い)。その名前だけで聞かれたときの選択肢・
   MOD の名前で直行に使い、Q&A の索引にも足す(index_names)
 - 照合(質問の文に words / needs が当たるか)は core.qa が行う。ここはデータの形・検査・段の選び方だけ
@@ -17,7 +19,7 @@ import random
 import re
 from dataclasses import dataclass, field
 
-from wfp.core.common import QA_LORE_LINES, QA_LORE_TYPES, norm
+from wfp.core.common import QA_KINDS, QA_LORE_LINES, QA_LORE_TYPES, QA_NEEDS_MARK, norm
 from wfp.core.quests import check_flow
 
 # 解説の項目の並び(読み込み後の形)
@@ -144,8 +146,13 @@ def _check_lines(name: str, rows: object, problems: list[str]) -> None:
         problems.append(f"lore_talk: {name} の id が重複")
 
 
+def needs_kind(word: str) -> str | None:
+    """needs の語が種類の印(「@frame」)なら印の後ろ(「frame」)、普通の語なら None。後ろが QA_KINDS に無くても返す(検査で落とす)"""
+    return word[len(QA_NEEDS_MARK):].strip() if word.startswith(QA_NEEDS_MARK) else None
+
+
 def _check_needs(tid: str, raw: object, t: dict, intent_words, problems: list[str]) -> None:
-    """needs の検査(形・まとまりの数・intents の語だけのまとまりにしない)。about は空でもよい(名前なしで引く)"""
+    """needs の検査(形・まとまりの数・intents の語だけのまとまりにしない・種類の印が QA_KINDS にある)。about は空でもよい(名前なしで引く)"""
     groups = _needs(raw)
     if not groups or len(groups) != len(raw):
         problems.append(f"lore: {tid} の needs の形が違う([[語, …], …] で、空のまとまりは書かない)")
@@ -155,6 +162,8 @@ def _check_needs(tid: str, raw: object, t: dict, intent_words, problems: list[st
     intents = {norm(w) for w in intent_words}
     if intents and all(any(norm(w) in intents for w in g) for g in groups):
         problems.append(f"lore: {tid} の needs に intents.json の語を含まないまとまりが無い(普通の質問を横取りする)")
+    for w in sorted({w for g in groups for w in g if needs_kind(w) is not None and needs_kind(w) not in QA_KINDS}):
+        problems.append(f"lore: {tid} の needs の種類の印 {w} が違う({QA_NEEDS_MARK} の後ろは {' / '.join(QA_KINDS)})")
 
 
 def check_lore(lore_raw: object, talk_raw: object, flow_raw: object, intent_words: set[str] | list[str] = ()) -> list[str]:

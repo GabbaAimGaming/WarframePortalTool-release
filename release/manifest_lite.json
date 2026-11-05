@@ -1,5 +1,5 @@
 {
-  "version": "2.17",
+  "version": "2.18",
   "edition": "lite",
   "files": {
     "INSTALL_PYTHON.md": {
@@ -88,8 +88,8 @@
       "src": "data/qa/intents.json"
     },
     "data/qa/lore.json": {
-      "sha256": "fc9be8e5c0a812a0db45a07d7541781976391592594ff2ca28865326b49146ed",
-      "size": 165256,
+      "sha256": "57f62990eea0df6312fcf147078e4b1677cf9f9b1669be0e69908c49d1319024",
+      "size": 165756,
       "src": "data/qa/lore.json"
     },
     "data/qa/lore_talk.json": {
@@ -313,8 +313,8 @@
       "src": "wfp/core/build.py"
     },
     "wfp/core/common.py": {
-      "sha256": "13ff47c5708faaaa0c7b98142bfa14f2111232ae2aded02ba2793b387a6edb38",
-      "size": 54356,
+      "sha256": "0523bad487e6c4866ae9ca2978a5bfe463494eccf9cb9354037ad5d6b07d2b8f",
+      "size": 54517,
       "src": "wfp/core/common.py"
     },
     "wfp/core/cycle.py": {
@@ -368,13 +368,13 @@
       "src": "wfp/core/names.py"
     },
     "wfp/core/qa.py": {
-      "sha256": "1956352f857c20b79ecc0ca9e336a5006096b8f64d7b1b52fa60bcfb05f28d63",
-      "size": 41239,
+      "sha256": "de452728ec4bba8749ee82e3a3b7fe3d140c48e0d300ea97fa04953bcc62ce6e",
+      "size": 41908,
       "src": "wfp/core/qa.py"
     },
     "wfp/core/qalore.py": {
-      "sha256": "016a1b61e01c81d31f32f8712658efaa125caea2841b3ff5a51c8917a04755eb",
-      "size": 17747,
+      "sha256": "aeedb31bafef964cc7e1c7d5c448d19461cb195258e3e8fd3b51fbf73561f907",
+      "size": 18665,
       "src": "wfp/core/qalore.py"
     },
     "wfp/core/quests.py": {

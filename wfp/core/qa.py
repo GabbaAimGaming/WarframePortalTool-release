@@ -21,7 +21,7 @@ from wfp.core.common import (QA_CANDIDATE_LIMIT, QA_FORMATS, QA_KINDS, QA_MIN_AS
                              QA_PART_SOURCE_LIMIT, QA_SOURCE_LIMIT, HELMINTH_FRAME, norm, render_ja)
 from wfp.core.devbuilds import build_view, builds_for, variant_base
 from wfp.core.helminth import subsume_frame
-from wfp.core.qalore import (LoreData, missing_quests, next_stage, pick_line, pick_prefix, pick_stage,
+from wfp.core.qalore import (LoreData, missing_quests, needs_kind, next_stage, pick_line, pick_prefix, pick_stage,
                              topics_about)
 from wfp.drops.search import find_sources
 
@@ -478,9 +478,19 @@ def _lore_choice(lore: LoreData, rest: dict) -> dict | None:
     return lore.choice(best[2]) if best[0] else None
 
 
+def _needs_hit(rest: dict, e: dict | None, word: str) -> bool:
+    """needs の語が当たるか。種類の印(「@frame」)は拾った名前がその種類なら当たり。
+    普通の語は名前の部分を除いた文に当たるか、拾った名前そのもの(英名・和名)なら当たり(名前は文から除かれているため)"""
+    kind = needs_kind(word)
+    if kind is not None:
+        return e is not None and kind in QaIndex.kinds(e)
+    return bool(_word_hit(rest, word)) or (e is not None and norm(word) in {norm(e["en"]), norm(e["ja"] or "")})
+
+
 def _lore_needs(ctx: QaContext, res: dict, e: dict | None, rest: dict, spoil: bool) -> dict | None:
     """needs のまとまりが全部当たった話(group ごと)。文は名前の部分を除いたもの(名前が無ければ文全体)。
     about に拾った名前がある話(名前つき)が当たればそれだけ、無ければ about が空の話(名前なし)から選ぶ。
+    語の当たり方は _needs_hit(種類の印「@frame」なども)。
     まとまりの数が一番多い話を出す。同じ数が2つ以上ならタイトルのボタン。当たらなければ None"""
     key = norm(e["en"]) if e else None
     named: dict[str, tuple[int, dict]] = {}
@@ -488,7 +498,7 @@ def _lore_needs(ctx: QaContext, res: dict, e: dict | None, rest: dict, spoil: bo
     for t in ctx.lore.needs_topics():
         if t["about"] and not any(norm(a) == key for a in t["about"]):
             continue
-        if all(any(_word_hit(rest, w) for w in g) for g in t["needs"]):
+        if all(any(_needs_hit(rest, e, w) for w in g) for g in t["needs"]):
             hits = named if t["about"] else free
             if t["group"] not in hits or len(t["needs"]) > hits[t["group"]][0]:
                 hits[t["group"]] = (len(t["needs"]), t)

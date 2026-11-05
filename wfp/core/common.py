@@ -313,6 +313,8 @@ QA_LORE_LINES = ("spoiler_ask", "spoiler_ok", "spoiler_ng", "declined", "ask_wha
 # 吸収一覧のフレーム(Helminth 自身・Orion & Sirius など builder.json に無いもの)/ 開発者のビルドの名前・対象 /
 # 呼び出し(data/summons/。Sevagoth's Shadow など)
 QA_KINDS = ("frame", "weapon", "item", "ability", "hframe", "devbuild", "summon")
+# 解説の needs に書く種類の印(「@frame」= 拾った名前がフレームなら当たり)。印の後ろは QA_KINDS のどれか
+QA_NEEDS_MARK = "@"
 # ヒットしなかったときの場面: 名前が拾えない / 聞きたいことが分からない / 開発者のビルドが無い / データが無い(データ更新の前)/ データに答えが無い
 QA_MISS_KINDS = ("no_name", "no_intent", "no_build", "no_data", "no_hit")
 # 文の形式: 数値 / 割合(0.25 → 25%)/ 倍率(x2)/ 秒

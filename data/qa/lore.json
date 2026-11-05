@@ -3089,7 +3089,29 @@
           "おすすめ"
         ],
         [
-          "武器"
+          "武器",
+          "@weapon",
+          "Kitgun",
+          "キットガン",
+          "Zaw",
+          "ザウ",
+          "Vermisplicer",
+          "Sporelacer",
+          "Dehtat",
+          "Cyath",
+          "Balla",
+          "Kronsh",
+          "Mewan",
+          "Ooltha",
+          "Dokrahm",
+          "Sepfahn",
+          "Rabvee",
+          "Plague Kripath",
+          "Plague Keewar",
+          "Catchmoon",
+          "Tombfinger",
+          "Rattleguts",
+          "Gaze"
         ]
       ],
       "prefix": "fact",
@@ -3155,7 +3177,8 @@
           "おすすめ"
         ],
         [
-          "フレーム"
+          "フレーム",
+          "@frame"
         ]
       ],
       "prefix": "interp",
