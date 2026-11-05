@@ -1,5 +1,5 @@
 {
-  "version": "2.15",
+  "version": "2.16",
   "edition": "with_python",
   "files": {
     "LICENSE": {
@@ -23,8 +23,8 @@
       "src": "data/baro_rules.json"
     },
     "data/builds/dev_builds.json": {
-      "sha256": "f3bf9f440d23c6c4c3e7013b9819015facfaf05a676c5519238c127c2e1e7b98",
-      "size": 19645,
+      "sha256": "2b4debf07e7cfb5f98649a2736b5ef859288941aad8ee16d2ce66fa9a3b2ba54",
+      "size": 35102,
       "src": "data/builds/dev_builds.json"
     },
     "data/duviri/normal.json": {

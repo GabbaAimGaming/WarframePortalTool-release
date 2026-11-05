@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-03",
+  "as_of": "2026-11-06",
   "builds": [
     {
       "name": "Protea Prime",
@@ -895,6 +895,709 @@
         "Developer"
       ],
       "note": ""
+    },
+    {
+      "name": "Excalibur Umbra",
+      "type": "frame",
+      "target": "Excalibur Umbra",
+      "forma": 3,
+      "mods": [
+        "Steel Charge",
+        "Warrior's Rest",
+        "Umbral Intensify",
+        "Umbral Fiber",
+        "Umbral Vitality",
+        "Equilibrium",
+        "Primed Continuity",
+        "Primed Flow",
+        "Chromatic Blade",
+        "Adaptation"
+      ],
+      "arcanes": [
+        "Arcane Persistence",
+        "Arcane Battery"
+      ],
+      "tags": [
+        "Developer"
+      ],
+      "note": "",
+      "helminth": {
+        "slot": 3,
+        "ability": "Eclipse"
+      },
+      "shards": [
+        {
+          "color": "violet",
+          "effect": "WarframeCritDamageBoost",
+          "tauforged": true
+        },
+        {
+          "color": "violet",
+          "effect": "WarframeCritDamageBoost",
+          "tauforged": true
+        },
+        {
+          "color": "violet",
+          "effect": "WarframeCritDamageBoost",
+          "tauforged": true
+        },
+        {
+          "color": "violet",
+          "effect": "WarframeCritDamageBoost",
+          "tauforged": true
+        },
+        {
+          "color": "violet",
+          "effect": "WarframeCritDamageBoost",
+          "tauforged": true
+        }
+      ]
+    },
+    {
+      "name": "Exalted Umbra Blade",
+      "type": "melee",
+      "target": "Excalibur Umbra",
+      "forma": 6,
+      "mods": [
+        "Exalted Blade",
+        "Dreamer's Wrath",
+        "Sacrificial Pressure",
+        "Sacrificial Steel",
+        "Amalgam Organ Shatter",
+        "Gladiator Vice",
+        "Galvanized Elementalist",
+        "Gladiator Might",
+        "Killing Blow",
+        "Blood Rush"
+      ],
+      "arcanes": [
+        "Melee Influence"
+      ],
+      "tags": [
+        "Developer"
+      ],
+      "note": ""
+    },
+    {
+      "name": "Follie",
+      "type": "frame",
+      "target": "Follie",
+      "forma": 3,
+      "mods": [
+        "Worthy Comradery",
+        "Primed Sure Footed",
+        "Overextended",
+        "Primed Continuity",
+        "Transient Fortitude",
+        "Fleeting Expertise",
+        "Augur Message",
+        "Augur Reach",
+        "Constitution",
+        "Stretch"
+      ],
+      "arcanes": [
+        "Arcane Concentration",
+        "Arcane Precision"
+      ],
+      "tags": [
+        "Developer"
+      ],
+      "note": "",
+      "shards": [
+        {
+          "color": "yellow",
+          "effect": "WarframeCastingSpeed",
+          "tauforged": true
+        },
+        {
+          "color": "green",
+          "effect": "WarframeCorrosiveDamageBoost",
+          "tauforged": true
+        },
+        {
+          "color": "green",
+          "effect": "WarframeCorrosiveStack",
+          "tauforged": true
+        },
+        {
+          "color": "green",
+          "effect": "WarframeCorrosiveDamageBoost",
+          "tauforged": true
+        },
+        {
+          "color": "yellow",
+          "effect": "WarframeCastingSpeed",
+          "tauforged": true
+        }
+      ]
+    },
+    {
+      "name": "Frost Prime",
+      "type": "frame",
+      "target": "Frost Prime",
+      "forma": 7,
+      "mods": [
+        "Ready Steel",
+        "Power Drift",
+        "Archon Flow",
+        "Umbral Vitality",
+        "Umbral Fiber",
+        "Icy Avalanche",
+        "Amar's Hatred",
+        "Biting Frost",
+        "Umbral Intensify",
+        "Stretch"
+      ],
+      "arcanes": [
+        "Molt Augmented",
+        "Arcane Ice Storm"
+      ],
+      "tags": [
+        "Developer"
+      ],
+      "note": "",
+      "helminth": {
+        "slot": 1,
+        "ability": "Parasitic Armor"
+      },
+      "shards": [
+        {
+          "color": "yellow",
+          "effect": "WarframeCastingSpeed",
+          "tauforged": true
+        },
+        {
+          "color": "blue",
+          "effect": "WarframeArmourMax",
+          "tauforged": true
+        },
+        {
+          "color": "blue",
+          "effect": "WarframeArmourMax",
+          "tauforged": true
+        },
+        {
+          "color": "blue",
+          "effect": "WarframeArmourMax",
+          "tauforged": true
+        },
+        {
+          "color": "yellow",
+          "effect": "WarframeCastingSpeed",
+          "tauforged": true
+        }
+      ]
+    },
+    {
+      "name": "Gara Prime",
+      "type": "frame",
+      "target": "Gara Prime",
+      "forma": 6,
+      "mods": [
+        "Steel Charge",
+        "Power Drift",
+        "Primed Continuity",
+        "Umbral Intensify",
+        "Shattered Storm",
+        "Equilibrium",
+        "Transient Fortitude",
+        "Blind Rage",
+        "Constitution",
+        "Mending Splinters"
+      ],
+      "arcanes": [
+        "Arcane Fury",
+        "Molt Augmented"
+      ],
+      "tags": [
+        "Developer"
+      ],
+      "note": "",
+      "helminth": {
+        "slot": 3,
+        "ability": "Brightbonnet"
+      },
+      "shards": [
+        {
+          "color": "yellow",
+          "effect": "WarframeCastingSpeed",
+          "tauforged": true
+        },
+        {
+          "color": "violet",
+          "effect": "WarframeCritDamageBoost",
+          "tauforged": true
+        },
+        {
+          "color": "violet",
+          "effect": "WarframeCritDamageBoost",
+          "tauforged": true
+        },
+        {
+          "color": "violet",
+          "effect": "WarframeCritDamageBoost",
+          "tauforged": true
+        },
+        {
+          "color": "yellow",
+          "effect": "WarframeCastingSpeed",
+          "tauforged": true
+        }
+      ]
+    },
+    {
+      "name": "Shattered Lash Prime",
+      "type": "melee",
+      "target": "Gara Prime",
+      "forma": 2,
+      "mods": [
+        "Shattered Lash",
+        "Blood Rush",
+        "Primed Pressure Point",
+        "Buzz Kill",
+        "Galvanized Elementalist",
+        "Gladiator Might",
+        "Galvanized Steel",
+        "Drifting Contact",
+        "Weeping Wounds"
+      ],
+      "arcanes": [
+        "Melee Afflictions"
+      ],
+      "tags": [
+        "Developer"
+      ],
+      "note": ""
+    },
+    {
+      "name": "Gauss Prime",
+      "type": "frame",
+      "target": "Gauss Prime",
+      "forma": 4,
+      "mods": [
+        "Dreamer's Bond",
+        "Rush",
+        "Primed Continuity",
+        "Primed Flow",
+        "Augur Reach",
+        "Equilibrium",
+        "Fast Deflection",
+        "Umbral Intensify",
+        "Umbral Fiber",
+        "Quick Thinking"
+      ],
+      "arcanes": [
+        "Arcane Aegis",
+        "Molt Augmented"
+      ],
+      "tags": [
+        "Developer"
+      ],
+      "note": "",
+      "shards": [
+        {
+          "color": "red",
+          "effect": "WarframeAbilityDuration",
+          "tauforged": true
+        },
+        {
+          "color": "red",
+          "effect": "WarframeAbilityDuration",
+          "tauforged": true
+        },
+        {
+          "color": "red",
+          "effect": "WarframeAbilityDuration",
+          "tauforged": true
+        },
+        {
+          "color": "red",
+          "effect": "WarframeAbilityDuration",
+          "tauforged": true
+        },
+        {
+          "color": "red",
+          "effect": "WarframeAbilityDuration",
+          "tauforged": true
+        }
+      ]
+    },
+    {
+      "name": "Gyre Prime",
+      "type": "frame",
+      "target": "Gyre Prime",
+      "forma": 6,
+      "mods": [
+        "Rifle Amp",
+        "Primed Sure Footed",
+        "Primed Continuity",
+        "Archon Stretch",
+        "Primed Flow",
+        "Augur Secrets",
+        "Rolling Guard",
+        "Blind Rage",
+        "Cathode Current",
+        "Umbral Intensify"
+      ],
+      "arcanes": [
+        "Arcane Aegis",
+        "Arcane Rage"
+      ],
+      "tags": [
+        "Developer"
+      ],
+      "note": "",
+      "helminth": {
+        "slot": 2,
+        "ability": "Jade Stars"
+      },
+      "shards": [
+        {
+          "color": "yellow",
+          "effect": "WarframeCastingSpeed",
+          "tauforged": true
+        },
+        {
+          "color": "violet",
+          "effect": "WarframeElectricDamage",
+          "tauforged": true
+        },
+        {
+          "color": "violet",
+          "effect": "WarframeElectricDamage",
+          "tauforged": true
+        },
+        {
+          "color": "violet",
+          "effect": "WarframeElectricDamage",
+          "tauforged": true
+        },
+        {
+          "color": "yellow",
+          "effect": "WarframeCastingSpeed",
+          "tauforged": true
+        }
+      ]
+    },
+    {
+      "name": "Harrow Prime",
+      "type": "frame",
+      "target": "Harrow Prime",
+      "forma": 4,
+      "mods": [
+        "Corrosive Projection",
+        "Cunning Drift",
+        "Primed Redirection",
+        "Umbral Intensify",
+        "Umbral Vitality",
+        "Stretch",
+        "Blind Rage",
+        "Augur Message",
+        "Augur Reach",
+        "Primed Continuity"
+      ],
+      "arcanes": [
+        "Arcane Velocity",
+        "Molt Augmented"
+      ],
+      "tags": [
+        "Developer"
+      ],
+      "note": "",
+      "shards": [
+        {
+          "color": "blue",
+          "effect": "WarframeEnergyMax",
+          "tauforged": true
+        },
+        {
+          "color": "blue",
+          "effect": "WarframeEnergyMax",
+          "tauforged": true
+        },
+        {
+          "color": "red",
+          "effect": "WarframeAbilityStrength",
+          "tauforged": true
+        },
+        {
+          "color": "red",
+          "effect": "WarframeAbilityDuration",
+          "tauforged": true
+        },
+        {
+          "color": "yellow",
+          "effect": "WarframeCastingSpeed",
+          "tauforged": true
+        }
+      ]
+    },
+    {
+      "name": "Hildryn Prime",
+      "type": "frame",
+      "target": "Hildryn Prime",
+      "forma": 3,
+      "mods": [
+        "Pistol Amp",
+        "Boreal's Anguish",
+        "Blind Rage",
+        "Primed Redirection",
+        "Umbral Intensify",
+        "Stretch",
+        "Fleeting Expertise",
+        "Aegis Gale",
+        "Blazing Pillage",
+        "Augur Reach"
+      ],
+      "arcanes": [
+        "Arcane Expertise",
+        "Arcane Aegis"
+      ],
+      "tags": [
+        "Developer"
+      ],
+      "note": "",
+      "shards": [
+        {
+          "color": "red",
+          "effect": "WarframeAbilityStrength",
+          "tauforged": true
+        },
+        {
+          "color": "blue",
+          "effect": "WarframeShieldMax",
+          "tauforged": true
+        },
+        {
+          "color": "blue",
+          "effect": "WarframeShieldMax",
+          "tauforged": true
+        },
+        {
+          "color": "blue",
+          "effect": "WarframeShieldMax",
+          "tauforged": true
+        },
+        {
+          "color": "yellow",
+          "effect": "WarframeCastingSpeed",
+          "tauforged": true
+        }
+      ]
+    },
+    {
+      "name": "Balefire Charger Prime",
+      "type": "secondary",
+      "target": "Hildryn Prime",
+      "forma": 4,
+      "mods": [
+        "Hornet Strike",
+        "Lethal Torrent",
+        "Galvanized Diffusion",
+        "Galvanized Shot",
+        "Primed Target Cracker",
+        "Primed Convulsion",
+        "Gunslinger",
+        "Pistol Pestilence"
+      ],
+      "arcanes": [
+        "Secondary Enervate"
+      ],
+      "tags": [
+        "Developer"
+      ],
+      "note": ""
+    },
+    {
+      "name": "Inaros Prime",
+      "type": "frame",
+      "target": "Inaros Prime",
+      "forma": 4,
+      "mods": [
+        "Summoner's Wrath",
+        "Coaction Drift",
+        "Umbral Intensify",
+        "Umbral Fiber",
+        "Umbral Vitality",
+        "Carnis Carapace",
+        "Primed Continuity",
+        "Primed Flow",
+        "Viral Tempest",
+        "Amar's Hatred"
+      ],
+      "arcanes": [
+        "Arcane Persistence",
+        "Arcane Bellicose"
+      ],
+      "tags": [
+        "Developer"
+      ],
+      "note": "",
+      "helminth": {
+        "slot": 1,
+        "ability": "Tempest Barrage"
+      },
+      "shards": [
+        {
+          "color": "green",
+          "effect": "WarframeCorrosiveStack",
+          "tauforged": true
+        },
+        {
+          "color": "green",
+          "effect": "WarframeCorrosiveDamageBoost",
+          "tauforged": true
+        },
+        {
+          "color": "yellow",
+          "effect": "WarframeCastingSpeed",
+          "tauforged": true
+        },
+        {
+          "color": "green",
+          "effect": "WarframeCorrosiveDamageBoost",
+          "tauforged": true
+        },
+        {
+          "color": "green",
+          "effect": "WarframeCorrosiveStack",
+          "tauforged": true
+        }
+      ]
+    },
+    {
+      "name": "Ivara Prime",
+      "type": "frame",
+      "target": "Ivara Prime",
+      "forma": 2,
+      "mods": [
+        "Corrosive Projection",
+        "Power Drift",
+        "Fleeting Expertise",
+        "Equilibrium",
+        "Blind Rage",
+        "Primed Flow",
+        "Primed Continuity",
+        "Overextended",
+        "Concentrated Arrow",
+        "Infiltrate"
+      ],
+      "arcanes": [
+        "Arcane Crepuscular",
+        "Arcane Rage"
+      ],
+      "tags": [
+        "Developer"
+      ],
+      "note": "",
+      "helminth": {
+        "slot": 2,
+        "ability": "Dispensary"
+      },
+      "shards": [
+        {
+          "color": "violet",
+          "effect": "WarframeElectricDamage",
+          "tauforged": true
+        },
+        {
+          "color": "violet",
+          "effect": "WarframeElectricDamage",
+          "tauforged": true
+        },
+        {
+          "color": "violet",
+          "effect": "WarframeElectricDamage",
+          "tauforged": true
+        },
+        {
+          "color": "violet",
+          "effect": "WarframeElectricDamage",
+          "tauforged": true
+        },
+        {
+          "color": "violet",
+          "effect": "WarframeElectricDamage",
+          "tauforged": true
+        }
+      ]
+    },
+    {
+      "name": "Artemis Bow Prime",
+      "type": "primary",
+      "target": "Ivara Prime",
+      "forma": 3,
+      "mods": [
+        "Spectral Serration",
+        "Vital Sense",
+        "Vigilante Fervor",
+        "Speed Trigger",
+        "Hammer Shot",
+        "High Voltage",
+        "Critical Delay",
+        "Primary Acuity",
+        "Terminal Velocity"
+      ],
+      "arcanes": [
+        "Primary Compression"
+      ],
+      "tags": [
+        "Developer"
+      ],
+      "note": ""
+    },
+    {
+      "name": "Koumei",
+      "type": "frame",
+      "target": "Koumei",
+      "forma": 1,
+      "mods": [
+        "Steel Charge",
+        "Primed Sure Footed",
+        "Archon Continuity",
+        "Omikuji's Fortune",
+        "Archon Vitality",
+        "Archon Stretch",
+        "Augur Reach",
+        "Constitution",
+        "Kumihimo Loading",
+        "Amar's Hatred"
+      ],
+      "arcanes": [
+        "Arcane Persistence",
+        "Arcane Blessing"
+      ],
+      "tags": [
+        "Developer"
+      ],
+      "note": "",
+      "shards": [
+        {
+          "color": "yellow",
+          "effect": "WarframeStartingEnergy",
+          "tauforged": true
+        },
+        {
+          "color": "green",
+          "effect": "WarframeToxinDamage",
+          "tauforged": true
+        },
+        {
+          "color": "green",
+          "effect": "WarframeCorrosiveStack",
+          "tauforged": true
+        },
+        {
+          "color": "blue",
+          "effect": "WarframeArmourMax",
+          "tauforged": true
+        },
+        {
+          "color": "yellow",
+          "effect": "WarframeCastingSpeed",
+          "tauforged": true
+        }
+      ]
     }
   ]
 }
