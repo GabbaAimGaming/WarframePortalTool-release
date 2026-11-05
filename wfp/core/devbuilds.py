@@ -9,7 +9,8 @@ from __future__ import annotations
 from datetime import date
 
 from wfp.core.archon import clean_shards, find_effect, shard_text
-from wfp.core.common import BUILD_TYPES, DEV_BUILD_KEYS, DEV_BUILD_LANGS, DEV_BUILD_NOTE, DEV_BUILDS_TAG, TextError, norm
+from wfp.core.common import (BUILD_TYPES, DEV_BUILD_KEYS, DEV_BUILD_LANGS, DEV_BUILD_NOTE, DEV_BUILD_VARIANTS, DEV_BUILDS_TAG,
+                             TextError, norm)
 from wfp.core.helminth import clean_helminth, subsume_frame
 
 
@@ -154,11 +155,20 @@ def dev_build_list(raw: object) -> list[dict]:
     return out
 
 
+def variant_base(target: str) -> str | None:
+    """対象の名前の末尾が派生の語(DEV_BUILD_VARIANTS。Prime・Umbra)なら、それを除いた基本の名前。違えば None"""
+    head, _, tail = target.strip().rpartition(" ")
+    return head.strip() if head.strip() and norm(tail) in {norm(v) for v in DEV_BUILD_VARIANTS} else None
+
+
 def builds_for(builds: list[dict], name: str) -> list[dict]:
     """名前(英名)に当たる開発者のビルド。対象(target)が同じものを全部(例: Jade → Jade と Glory)。
-    対象に当たらなければビルド名で当てる(例: Glory → Glory だけ)。照合は norm"""
+    基本の名前なら派生(Prime・Umbra)を対象にしたビルドも後ろに付ける(例: Ash → Ash・Ash Prime の順)。
+    派生の名前(Ash Prime)では基本のビルドは混ぜない。対象に当たらなければビルド名で当てる(例: Glory → Glory だけ)。照合は norm"""
     key = norm(name)
-    return [b for b in builds if norm(b["target"]) == key] or [b for b in builds if norm(b["name"]) == key]
+    same = [b for b in builds if norm(b["target"]) == key]
+    variants = [b for b in builds if norm(b["target"]) != key and norm(variant_base(b["target"]) or "") == key]
+    return same + variants or [b for b in builds if norm(b["name"]) == key]
 
 
 def find_dev_build(builds: list[dict], name: str) -> dict | None:

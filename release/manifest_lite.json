@@ -1,5 +1,5 @@
 {
-  "version": "2.16",
+  "version": "2.17",
   "edition": "lite",
   "files": {
     "INSTALL_PYTHON.md": {
@@ -313,8 +313,8 @@
       "src": "wfp/core/build.py"
     },
     "wfp/core/common.py": {
-      "sha256": "73ce6df025eac442b2f1e809ef92f889e296604d9564d885e284dc9741ea0869",
-      "size": 54176,
+      "sha256": "13ff47c5708faaaa0c7b98142bfa14f2111232ae2aded02ba2793b387a6edb38",
+      "size": 54356,
       "src": "wfp/core/common.py"
     },
     "wfp/core/cycle.py": {
@@ -323,8 +323,8 @@
       "src": "wfp/core/cycle.py"
     },
     "wfp/core/devbuilds.py": {
-      "sha256": "736299c81d681a288abaede8fa1c55e4b79c329597ca9099cfeba55318dc8757",
-      "size": 10927,
+      "sha256": "82ec209fc9bf1da6f0699e2567702f494c3853709fe6465bc90564e728471d14",
+      "size": 11669,
       "src": "wfp/core/devbuilds.py"
     },
     "wfp/core/duviri.py": {
@@ -368,8 +368,8 @@
       "src": "wfp/core/names.py"
     },
     "wfp/core/qa.py": {
-      "sha256": "49a95f7981385745c0257846c5cb48bbc756afa9bddb21ca895a111e8c60f3a8",
-      "size": 41034,
+      "sha256": "1956352f857c20b79ecc0ca9e336a5006096b8f64d7b1b52fa60bcfb05f28d63",
+      "size": 41239,
       "src": "wfp/core/qa.py"
     },
     "wfp/core/qalore.py": {

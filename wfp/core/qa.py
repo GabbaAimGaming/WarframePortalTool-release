@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 
 from wfp.core.common import (QA_CANDIDATE_LIMIT, QA_FORMATS, QA_KINDS, QA_MIN_ASCII, QA_MIN_LABEL, QA_MISS_KINDS,
                              QA_PART_SOURCE_LIMIT, QA_SOURCE_LIMIT, HELMINTH_FRAME, norm, render_ja)
-from wfp.core.devbuilds import build_view, builds_for
+from wfp.core.devbuilds import build_view, builds_for, variant_base
 from wfp.core.helminth import subsume_frame
 from wfp.core.qalore import (LoreData, missing_quests, next_stage, pick_line, pick_prefix, pick_stage,
                              topics_about)
@@ -214,6 +214,8 @@ class QaIndex:
         for b in dev:
             self._entity(b["name"], None)["devbuild"] = True
             self._entity(b["target"], names.ja(b["target"]))["devbuild"] = True
+            if base := variant_base(b["target"]):  # 基本の名前(Ash)でも派生(Ash Prime)のビルドを聞ける
+                self._entity(base, names.ja(base))["devbuild"] = True
         for n in lore_names or []:
             self._entity(n, names.ja(n))
         stop = {norm(w) for w in stop_words or ()}

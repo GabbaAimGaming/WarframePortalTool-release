@@ -293,6 +293,8 @@ SUMMON_STATS = ("health", "shield", "armor", "energy", "sprint")
 SUMMON_SLOTS = (1, 2, 3, 4)
 # Q&A からビルド管理に追加するときの名前の初期値の末尾(例: Jade_dev)
 DEV_BUILD_SUFFIX = "_dev"
+# 開発者のビルドを基本の名前でも拾う派生の語(対象の末尾。例: Ash → Ash Prime、Excalibur → Excalibur Umbra)
+DEV_BUILD_VARIANTS = ("Prime", "Umbra")
 # Q&A からビルド管理に追加したビルドのメモの末尾(利用者のデータに入る文。日本語のみ)
 DEV_BUILD_NOTE = "(開発者のビルド・{as_of}時点)"
 
