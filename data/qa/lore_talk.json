@@ -1,5 +1,5 @@
 {
-  "_note": "Q&A の解説(lore.json)で使う一言。どの場面も {id, ja} の一覧からランダムに1つ(id は場面の中で重ならない整数)。prefix は枕詞のグループ(lore.json の prefix に書く名前)→ 一覧。spoiler_ask は {quest}(未完了のクエストの和名を「・」でつないだもの)と {title}、ask_what と choices の label は {name}、next_stage は {title} を埋める。choices は名前だけ聞かれたときの「何が知りたいか」の選択肢(types = 0段目の type。words は質問の文に当たったらその選択肢として答える語。intents・解説の words と重ねない)",
+  "_note": "Q&A の解説(lore.json)で使う一言。どの場面も {id, ja} の一覧からランダムに1つ(id は場面の中で重ならない整数)。prefix は枕詞のグループ(lore.json の prefix に書く名前)→ 一覧。spoiler_ask は {quest}(未完了のクエストの和名を「・」でつないだもの)と {title}、ask_what と choices の label は {name}、next_stage は {title} を埋める。choices は名前だけ聞かれたときの「何が知りたいか」の選択肢(types = 0段目の type。system は MOD・ダメージ計算などの仕組みで、MOD の名前だけ聞かれたら選択肢を出さずに system の話へ直行する。words は質問の文に当たったらその選択肢として答える語。intents・解説の words と重ねない)",
   "prefix": {
     "fact": [
       {"id": 1, "ja": "wiki とかゲームで分かってる話をまとめるとね"},
@@ -44,6 +44,7 @@
   ],
   "choices": [
     {"id": "setting", "label": "{name} の設定", "words": ["設定", "背景", "生い立ち", "とは", "って誰", "って何"], "types": ["setting"]},
-    {"id": "story", "label": "{name} のストーリー", "words": ["ストーリー", "物語", "あらすじ", "過去"], "types": ["quest"]}
+    {"id": "story", "label": "{name} のストーリー", "words": ["ストーリー", "物語", "あらすじ", "過去"], "types": ["quest"]},
+    {"id": "system", "label": "{name} の仕組み", "words": ["仕組み", "計算", "計算式"], "types": ["system"]}
   ]
 }

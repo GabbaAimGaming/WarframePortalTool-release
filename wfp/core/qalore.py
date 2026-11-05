@@ -1,9 +1,15 @@
 """Q&A の解説(設定・ストーリー)。**日本語のみ**。文は固定(LLM なし)で、data/qa/lore.json・lore_talk.json に置く。
 
-- 解説の種類は QA_LORE_TYPES: setting(クエストと無縁)/ quest(クエストの中身。requires のクエストが未完了なら、話す前に確認する)
+- 解説の種類は QA_LORE_TYPES: setting(クエストと無縁)/ quest(クエストの中身。requires のクエストが未完了なら、話す前に確認する)/
+  system(MOD・ダメージ計算式などゲームの仕組み。requires を持たない。about の MOD 名は Q&A の索引に足す = system_names)
 - 同じ話は group / stage で段に分ける。進み具合(クエスト一覧のチェック)で終えている段のうち一番上を出し、上の段があれば「続き」を出す
 - 一言(枕詞・ネタバレの確認・続き など)は lore_talk.json の場面ごとの一覧からランダムに1つ
-- 照合(質問の文に words が当たるか)は core.qa が行う。ここはデータの形・検査・段の選び方だけ
+- needs(任意): 語のまとまりの and で引く(例: 「Jade の強いビルド」「武器の強いビルド」)。[[語, …], …] でまとまりの間は and・中は or。
+  about があれば名前 + needs(名前の部分を除いた文で探す)、about が空なら名前なしで needs だけ(名前つきの話が当たればそちらが先)。
+  まとまりは2つ以上・intents の語を含まないまとまりが1つ以上(普通の「Jade のビルド」を横取りしないため)
+- mentions(任意): 話の中に出てくる名前(英名)。索引だけで needs は絞らない(about との違い)。その名前だけで聞かれたときの選択肢・
+  MOD の名前で直行に使い、Q&A の索引にも足す(index_names)
+- 照合(質問の文に words / needs が当たるか)は core.qa が行う。ここはデータの形・検査・段の選び方だけ
 """
 from __future__ import annotations
 
@@ -15,7 +21,8 @@ from wfp.core.common import QA_LORE_LINES, QA_LORE_TYPES, norm
 from wfp.core.quests import check_flow
 
 # 解説の項目の並び(読み込み後の形)
-_LORE_KEYS = ("id", "type", "about", "title", "words", "requires", "group", "stage", "prefix", "source", "text")
+_LORE_KEYS = ("id", "type", "about", "mentions", "title", "words", "needs", "requires", "group", "stage", "prefix", "source", "text")
+NEEDS_MIN_GROUPS = 2  # needs のまとまりの最小数(1つなら words で足りる)
 
 
 @dataclass
@@ -48,6 +55,10 @@ class LoreData:
     def choice(self, cid: str) -> dict | None:
         return next((c for c in self.choices if c["id"] == cid), None)
 
+    def needs_topics(self) -> list[dict]:
+        """needs のある話(ファイルの並び)"""
+        return [t for t in self.topics if t["needs"]]
+
     def words(self) -> list[tuple[str, str]]:
         """照合に使う語: [(語, group)]。group のどの段に書いた語でも group として当たる"""
         return [(w, t["group"]) for t in self.topics for w in t["words"]]
@@ -61,6 +72,14 @@ def _strs(raw: object) -> list[str]:
     return [s.strip() for s in raw if isinstance(s, str) and s.strip()] if isinstance(raw, list) else []
 
 
+def _needs(raw: object) -> list[list[str]]:
+    """needs を [[語, …], …] にそろえる。形が違えば空(検査で落とす)"""
+    if not isinstance(raw, list):
+        return []
+    groups = [_strs(g) if isinstance(g, list) else [] for g in raw]
+    return groups if groups and all(groups) else []
+
+
 def _topic(row: object) -> dict | None:
     """lore.json の1行を形を整えて返す。必須の項目が欠けていれば None"""
     if not isinstance(row, dict):
@@ -72,7 +91,9 @@ def _topic(row: object) -> dict | None:
     stage = row.get("stage", 0)
     group = row.get("group")
     prefix = row.get("prefix")
-    return {"id": tid.strip(), "type": typ, "about": _strs(row.get("about")), "title": title.strip(), "words": _strs(row.get("words")),
+    return {"id": tid.strip(), "type": typ, "about": _strs(row.get("about")),
+            "mentions": _strs(row.get("mentions")), "title": title.strip(), "words": _strs(row.get("words")),
+            "needs": _needs(row.get("needs")),
             "requires": _strs(row.get("requires")) if typ == "quest" else [],
             "group": group.strip() if isinstance(group, str) and group.strip() else tid.strip(),
             "stage": stage if isinstance(stage, int) and not isinstance(stage, bool) else 0,
@@ -123,10 +144,23 @@ def _check_lines(name: str, rows: object, problems: list[str]) -> None:
         problems.append(f"lore_talk: {name} の id が重複")
 
 
+def _check_needs(tid: str, raw: object, t: dict, intent_words, problems: list[str]) -> None:
+    """needs の検査(形・まとまりの数・intents の語だけのまとまりにしない)。about は空でもよい(名前なしで引く)"""
+    groups = _needs(raw)
+    if not groups or len(groups) != len(raw):
+        problems.append(f"lore: {tid} の needs の形が違う([[語, …], …] で、空のまとまりは書かない)")
+        return
+    if len(groups) < NEEDS_MIN_GROUPS:
+        problems.append(f"lore: {tid} の needs はまとまりを {NEEDS_MIN_GROUPS} つ以上書く(1つなら words に書く)")
+    intents = {norm(w) for w in intent_words}
+    if intents and all(any(norm(w) in intents for w in g) for g in groups):
+        problems.append(f"lore: {tid} の needs に intents.json の語を含まないまとまりが無い(普通の質問を横取りする)")
+
+
 def check_lore(lore_raw: object, talk_raw: object, flow_raw: object, intent_words: set[str] | list[str] = ()) -> list[str]:
     """同梱データの検査。見つかった問題の一覧(無ければ空)。
 
-    id の重なりと頭(setting. / quest.)・setting は requires を持たない・quest は requires を持つ・requires が flow.json にあり
+    needs の形(_check_needs)・id の重なりと頭(setting. / quest. / system.)・quest 以外は requires を持たない・quest は requires を持つ・requires が flow.json にあり
     covers でまとめられていない・group の stage が 0 から抜けなく続き、上の段の requires が下の段の分を全部含む・
     words が group どうし/intents/choices と重ならない・words も about も無い話が無い・prefix のグループがある・一言の場面の文
     """
@@ -146,8 +180,8 @@ def check_lore(lore_raw: object, talk_raw: object, flow_raw: object, intent_word
         tid = t["id"]
         if not tid.startswith(t["type"] + "."):
             problems.append(f"lore: {tid} の id は {t['type']}. で始める")
-        if t["type"] == "setting" and isinstance(raw, dict) and _strs(raw.get("requires")):
-            problems.append(f"lore: {tid} は setting なので requires を書かない(クエストに関わるなら quest にする)")
+        if t["type"] != "quest" and isinstance(raw, dict) and _strs(raw.get("requires")):
+            problems.append(f"lore: {tid} は {t['type']} なので requires を書かない(クエストに関わるなら quest にする)")
         if t["type"] == "quest" and not t["requires"]:
             problems.append(f"lore: {tid} は quest なのに requires が無い")
         for q in t["requires"]:
@@ -155,8 +189,10 @@ def check_lore(lore_raw: object, talk_raw: object, flow_raw: object, intent_word
                 problems.append(f"lore: {tid} の requires {q} は covers でまとめられている(まとめた側の id を書く)")
             elif q not in quest_ids:
                 problems.append(f"lore: {tid} の requires {q} が flow.json に無い")
-        if not t["words"] and not t["about"]:
-            problems.append(f"lore: {tid} は words も about も無い(拾えない)")
+        if isinstance(raw, dict) and "needs" in raw:
+            _check_needs(tid, raw["needs"], t, intent_words, problems)
+        if not t["words"] and not t["about"] and not t["needs"] and not t["mentions"]:
+            problems.append(f"lore: {tid} は words も about も needs も mentions も無い(拾えない)")
         if t["prefix"] is not None and t["prefix"] not in data.prefix:
             problems.append(f"lore: {tid} の prefix {t['prefix']} が lore_talk.json に無い")
     for g in data.groups():
@@ -194,10 +230,11 @@ def check_lore(lore_raw: object, talk_raw: object, flow_raw: object, intent_word
 
 
 def lore_notes(data: LoreData, entity_keys: set[str], label_keys: set[str]) -> list[str]:
-    """注意だけ(手元のデータで変わるので検査の失敗にはしない): about が名前の索引に無い・words が索引の名前と同じ"""
+    """注意だけ(手元のデータで変わるので検査の失敗にはしない): about・mentions が名前の索引に無い・words が索引の名前と同じ"""
     notes = []
     for t in data.topics:
         notes += [f"{t['id']}: about {a} が名前の索引に無い(選択肢から出せない)" for a in t["about"] if norm(a) not in entity_keys]
+        notes += [f"{t['id']}: mentions {a} が名前の索引に無い(選択肢から出せない)" for a in t["mentions"] if norm(a) not in entity_keys]
         notes += [f"{t['id']}: 語 {w} が名前の索引にもある(解説が先に答える)" for w in t["words"] if norm(w) in label_keys]
     return notes
 
@@ -231,9 +268,37 @@ def next_stage(data: LoreData, topic: dict) -> dict | None:
 
 
 def topics_about(data: LoreData, en: str) -> list[dict]:
-    """about にその名前(英名)がある話の 0段目(group ごとに1つ。ファイルの並び)"""
+    """about か mentions にその名前(英名)がある話の 0段目(group ごとに1つ。ファイルの並び)"""
     key = norm(en)
-    return [data.stages(g)[0] for g in data.groups() if any(norm(a) == key for t in data.stages(g) for a in t["about"])]
+    return [data.stages(g)[0] for g in data.groups() if any(norm(a) == key for t in data.stages(g) for a in t["about"] + t["mentions"])]
+
+
+def system_names(data: LoreData | None) -> list[str]:
+    """system の話の about に書いた名前(英名。重なりを除いてファイルの並び)。Q&A の索引に足す(ドロップ表に無い MOD も拾える)"""
+    out: dict[str, str] = {}
+    for t in data.topics if data else []:
+        if t["type"] == "system":
+            for a in t["about"]:
+                out.setdefault(norm(a), a)
+    return list(out.values())
+
+
+def needs_names(data: LoreData | None) -> list[str]:
+    """needs のある話の about に書いた名前(英名。重なりを除いてファイルの並び)"""
+    out: dict[str, str] = {}
+    for t in data.needs_topics() if data else []:
+        for a in t["about"]:
+            out.setdefault(norm(a), a)
+    return list(out.values())
+
+
+def index_names(data: LoreData | None) -> list[str]:
+    """Q&A の索引に足す名前: system の about(system_names)+ needs のある話の about(needs_names)+ 全部の話の mentions。重なりを除く"""
+    out: dict[str, str] = {}
+    mentions = [a for t in data.topics for a in t["mentions"]] if data else []
+    for a in system_names(data) + needs_names(data) + mentions:
+        out.setdefault(norm(a), a)
+    return list(out.values())
 
 
 def _fill(template: str, values: dict) -> str:

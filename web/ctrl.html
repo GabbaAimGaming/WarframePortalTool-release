@@ -915,18 +915,20 @@ async function qaAsk(params) {
   } catch (e) { qaLog.unshift({ err: e.message, q: params.q || "" }); }
   renderQa();
 }
-// ボタン: o = {name, intent, choice, lore}(どれも任意)。押すとその値で /api/qa に聞く。spoil はネタバレの確認を飛ばす
-const QA_CHIP_KEYS = ["name", "intent", "choice", "lore"];
+// ボタン: o = {name, intent, choice, lore, only}(どれも任意)。押すとその値で /api/qa に聞く。spoil はネタバレの確認を飛ばす。
+// only は解説のその段だけ(「続き」。指定なしは 0段目からその段まで)
+const QA_CHIP_KEYS = ["name", "intent", "choice", "lore", "only"];
 const qaChip = (label, o, spoil) =>
   `<button type="button" class="chip" data-qaask="1"${QA_CHIP_KEYS.filter(k => o[k]).map(k => ` data-qa${k}="${esc(o[k])}"`).join("")}${
     spoil ? ` data-qaspoil="1"` : ""}>${esc(label)}</button>`;
-// 解説のカード(文は API が日本語で返す)。出典は wiki の記事の URL と、ファイル全体の credit・license
+// 解説のカード(文は API が日本語で返す)。見出しは 0段目(最初の段)のタイトル、2つ目からの段は小見出し。出典は wiki の記事の URL と、ファイル全体の credit・license
 function qaLoreCard(lore, next) {
+  const body = lore.parts.map((p, i) => `${i ? `<h4 class="qa-lore-part">${esc(p.title)}</h4>` : ""}${
+    p.prefix ? `<p class="qa-lore-prefix">${esc(p.prefix)}</p>` : ""}${p.paragraphs.map(x => `<p>${esc(x)}</p>`).join("")}`).join("");
   const src = lore.source.map(u => `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(u.replace(/^https?:\/\//, ""))}</a>`).join(" ");
   const credit = [lore.credit, lore.license].filter(Boolean).join(" / ");
-  return `<div class="qa-lore"><header><b>${esc(lore.title)}</b></header>${lore.prefix ? `<p class="qa-lore-prefix">${esc(lore.prefix)}</p>` : ""}${
-    lore.paragraphs.map(p => `<p>${esc(p)}</p>`).join("")}${credit || src ? `<div class="qa-basis">${esc(t("qa.lore.source"))}: ${esc(credit)} ${src}</div>` : ""}</div>${
-    next ? `<div class="qa-chips">${qaChip(next.label, { lore: next.id })}</div>` : ""}`;
+  return `<div class="qa-lore"><header><b>${esc(lore.parts[0].title)}</b></header>${body}${credit || src ? `<div class="qa-basis">${esc(t("qa.lore.source"))}: ${esc(credit)} ${src}</div>` : ""}</div>${
+    next ? `<div class="qa-chips">${qaChip(next.label, { lore: next.id, only: "1" })}</div>` : ""}`;
 }
 function qaBuildCard(b, done) {
   const row = (key, val) => val ? `<dt>${esc(t(key))}</dt><dd>${esc(val)}</dd>` : "";
@@ -946,7 +948,7 @@ function qaItem(entry, idx) {
   if (r.miss && r.miss.text) h += `<p class="qa-a qa-miss">${esc(r.miss.text)}</p>`;
   if (r.text) h += `<p class="qa-a"><b>${esc(r.text)}</b></p>`;
   if (r.spoiler) h += entry.declined ? `<p class="qa-a">${esc(r.spoiler.declined)}</p>`
-    : `<div class="qa-chips">${qaChip(r.spoiler.ok, { lore: r.spoiler.id }, true)}<button type="button" class="chip" data-qadecline="1">${esc(r.spoiler.ng)}</button></div>`;
+    : `<div class="qa-chips">${qaChip(r.spoiler.ok, { lore: r.spoiler.id, only: r.spoiler.only ? "1" : "" }, true)}<button type="button" class="chip" data-qadecline="1">${esc(r.spoiler.ng)}</button></div>`;
   if (r.lore) h += qaLoreCard(r.lore, r.next);
   if (r.facts.length) h += `<div class="tablewrap"><table class="qa-facts"><tbody>${r.facts.map(f =>
     `<tr><td>${esc(f.label)}</td><td>${esc(f.value)}</td></tr>`).join("")}</tbody></table></div>`;

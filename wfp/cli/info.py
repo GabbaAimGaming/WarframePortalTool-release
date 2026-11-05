@@ -15,7 +15,7 @@ from wfp.core.helminth import subsume_list
 from wfp.core.loader import DropsMissing, load_drops, load_names, load_rivens, load_sources
 from wfp.core.modstats import fold, load_mod_stats, parse_groups
 from wfp.core.qa import QaContext, QaIndex, answer, load_qa_data, stop_words
-from wfp.core.qalore import load_lore
+from wfp.core.qalore import index_names, load_lore
 from wfp.core.quests import check_flow
 from wfp.core.riven import riven_table, update_rivens
 from wfp.core.summons import summon_list
@@ -204,13 +204,13 @@ def cmd_ask(args):
     data = load_qa_data(appdata.read_qa(QA_INTENTS_FILE), appdata.read_qa(QA_ANSWERS_FILE), appdata.read_qa(QA_MISS_FILE))
     builder, subsume = wb.load_builder_data(d), subsume_list(appdata.read_helminth())
     dev = dev_build_list(appdata.read_dev_builds())
-    index = QaIndex(builder, names, items, subsume, dev, stop_words(data), summon_list(appdata.read_summons()))
+    lore = load_lore(appdata.read_qa(QA_LORE_FILE), appdata.read_qa(QA_LORE_TALK_FILE))
+    index = QaIndex(builder, names, items, subsume, dev, stop_words(data), summon_list(appdata.read_summons()), index_names(lore))
     quest_names = {q["id"]: q["ja"] for q in check_flow(appdata.read_quests()) if q["kind"] == "quest"}
     ctx = QaContext(data, index, builder=builder, drops=drops, sources=sources, items=items, subsume=subsume,
                     archon=shard_list(appdata.read_archon()), dev=dev, mod_stats=load_mod_stats(d),
-                    lore=load_lore(appdata.read_qa(QA_LORE_FILE), appdata.read_qa(QA_LORE_TALK_FILE)),
-                    done=userdata.load_quests_done(d), quest_names=quest_names)
-    print_qa(answer(ctx, question, lore=args.lore or None, spoil=args.spoil))
+                    lore=lore, done=userdata.load_quests_done(d), quest_names=quest_names)
+    print_qa(answer(ctx, question, lore=args.lore or None, spoil=args.spoil, only=args.only))
 
 
 def print_qa(res: dict) -> None:
@@ -219,20 +219,23 @@ def print_qa(res: dict) -> None:
         if line:
             print(line)
     if res["spoiler"]:
-        print(f"(--lore {res['spoiler']['id']} --spoil で聞けます)")
+        print(f"(--lore {res['spoiler']['id']} --spoil{' --only' if res['spoiler']['only'] else ''} で聞けます)")
     if res["lore"]:
         lore = res["lore"]
-        print(f"■ {lore['title']}")
-        if lore["prefix"]:
-            print(lore["prefix"])
-        for para in lore["paragraphs"]:
-            print(f"  {para}")
+        print(f"■ {lore['parts'][0]['title']}")  # 見出しは 0段目(最初の段)のタイトル、2つ目からの段は小見出し
+        for i, part in enumerate(lore["parts"]):
+            if i:
+                print(f"□ {part['title']}")
+            if part["prefix"]:
+                print(part["prefix"])
+            for para in part["paragraphs"]:
+                print(f"  {para}")
         if lore["credit"] or lore["source"]:
             print("(出典: " + " / ".join(x for x in (lore["credit"], lore["license"]) if x) + ")")
             for url in lore["source"]:
                 print(f"  {url}")
     if res["next"]:
-        print(f"{res['next']['label']} → --lore {res['next']['id']}")
+        print(f"{res['next']['label']} → --lore {res['next']['id']} --only")
     for f in res["facts"]:
         value = f["value"].replace("\n", "\n    ")  # 複数行の値(呼び出しのアビリティの数値など)は字下げしてそろえる
         print(f"  {f['label']}: {value}" if f["label"] and value else f"  {f['label'] or value}")
@@ -308,6 +311,7 @@ def add_ask(sub) -> None:
     s.add_argument("question", nargs="*", help="質問の文(例: Rhino のアーマーは? / グリニアって何?)")
     s.add_argument("--lore", help="解説の id を指定して聞く(例: setting.grineer)")
     s.add_argument("--spoil", action="store_true", help="クエストのネタバレの確認を飛ばす")
+    s.add_argument("--only", action="store_true", help="--lore の段だけを出す(続き。指定なしは 0段目からその段まで)")
     s.set_defaults(fn=cmd_ask)
 
 
