@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-05",
+  "as_of": "2026-11-06",
   "license": "CC BY-NC-SA 3.0",
   "credit": "WARFRAME Wiki(https://wiki.warframe.com)の投稿者による記事を、日本語に要約・翻案したもの。",
   "_note": "勢力の解説。本文は wiki.warframe.com の各勢力ページの概要と Lore & History を要約したもの。セリフは入れていない。クエストのネタバレを含む部分は type quest(requires で確認)。人の名前は英名のまま。勢力・用語の和名はゲーム内表記と照合が必要なものがある。同じ話は group / stage で段階に分ける(lore_plan.md の「段の選び方」) クエストのあらすじは quest.story.<クエスト>(requires はそのクエスト自身。words はクエストの和名・英名)。",
@@ -1405,7 +1405,7 @@
       ],
       "text": [
         "Nef Anyo は、うぬぼれ強めで怠け者なコーパスの重役。Parvos Granum の息子だって言い張ってて、「利益の預言者」とも名乗ってるんだよね。Void に捧げたお金が百倍になるって言って自分のポケットに入れたり、賭けでイカサマしたり、悪だくみばっか。",
-        "フォルトゥナでは借金を背負わせた労働者を働かせてて、それに反発して立ち上がったのが Solaris United。"
+        "フォーチュナーでは借金を背負わせた労働者を働かせてて、それに反発して立ち上がったのが Solaris United。"
       ]
     },
     {
@@ -1438,7 +1438,6 @@
       "title": "Albrecht Entrati とは",
       "words": [
         "Albrecht",
-        "Entrati",
         "Albrecht Entrati"
       ],
       "group": "albrecht",
@@ -1505,8 +1504,7 @@
       ],
       "title": "Loid とは",
       "words": [
-        "Loid",
-        "ネクロロイド"
+        "Loid"
       ],
       "group": "loid",
       "stage": 0,
@@ -1689,10 +1687,16 @@
       "about": [
         "The Hex"
       ],
-      "title": "ヘックスとは",
+      "title": "ヘックスってどんなとこ",
       "words": [
         "Hex",
-        "ヘックス"
+        "ヘックス",
+        "The Hex",
+        "ヘックスのシンジケート"
+      ],
+      "shared": [
+        "ヘックス",
+        "Hex"
       ],
       "requires": [
         "/Lotus/Types/Keys/1999Quest/1999QuestKeyChain"
@@ -1702,11 +1706,13 @@
       "prefix": "fact",
       "source": [
         "https://wiki.warframe.com/w/The_Hex_(Syndicate)",
-        "https://wiki.warframe.com/w/Albrecht_Entrati"
+        "https://wiki.warframe.com/w/Albrecht_Entrati",
+        "https://wiki.warframe.com/w/H%C3%B6llvania_Central_Mall"
       ],
       "text": [
         "ヘックスは、1999年のホルバニアで戦ってるプロトフレームのチーム。Albrecht Entrati に Helminth を注入されて、心はそのままで Warframe に近い力を持ったひとたちなんだよね。",
-        "メインのメンバーは、リーダーの Arthur Nightingale(Excalibur)、副リーダーの Aoi Morohoshi(Mag)、Amir Beckett(Volt)、Quincy Isaacs(Cyte-09)、Leticia「Lettie」Garcia(Trinity)、Arthur の妹の Eleanor Nightingale(Nyx)。あとから Flare Varleon(Temple)、Velimir Volkov II(Frost)、Minerva Hendricks(Saryn)なんかも入ってる。"
+        "メインのメンバーは、リーダーの Arthur Nightingale(Excalibur)、副リーダーの Aoi Morohoshi(Mag)、Amir Beckett(Volt)、Quincy Isaacs(Cyte-09)、Leticia「Lettie」Garcia(Trinity)、Arthur の妹の Eleanor Nightingale(Nyx)。あとから Flare Varleon(Temple)、Velimir Volkov II(Frost)、Minerva Hendricks(Saryn)なんかも入ってる。",
+        "シンジケートとしての拠点は、テックロットのせいで見捨てられたホルバニア・セントラル・モール。作戦室とかガレージとか避難所をまとめたみたいな場所で、ここから街をスカルドラとテックロットから取り戻しながら、いなくなった博士を探してるんだよね。ランクの管理は Arthur で、地位ポイントはモールの依頼とか、ホルバニアで拾ったお宝を Lettie に渡して稼ぐ形。Eleanor はアルケインとテクノサイト・コーダの武器、Aoi は曲を扱ってて、ランクを上げると新しいプロトフレームたちもモールのたまり場に来るようになるよ。"
       ]
     },
     {
@@ -2053,6 +2059,481 @@
       ]
     },
     {
+      "id": "setting.syndicate.steel_meridian",
+      "type": "setting",
+      "about": [
+        "Steel Meridian"
+      ],
+      "title": "スティール・メリディアンってどんなとこ",
+      "words": [
+        "スティール・メリディアン",
+        "スティールメリディアン",
+        "メリディアン",
+        "Steel Meridian"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Steel_Meridian"
+      ],
+      "text": [
+        "スティール・メリディアンは、グリニアを抜けた人たちのシンジケート。リーダーは脱走したグリニアの Cressa Tal で、でっかい相手にゲリラ戦しながら、ボロボロになったコロニーの人たちを守ってるんだよね。グリニアって乱暴なイメージだけど、こういう筋の通った人もいるってこと。",
+        "仲良しはレッド・ベール。ニュー・ロカとは対立してて、ペリン・シークエンスとは敵同士。だからここの 地位ポイントを稼ぐとレッド・ベールも上がって、ニュー・ロカとペリンは下がる…って感じ。"
+      ]
+    },
+    {
+      "id": "setting.syndicate.arbiters_of_hexis",
+      "type": "setting",
+      "about": [
+        "Arbiters of Hexis"
+      ],
+      "title": "アービターズ・オブ・ヘクシスってどんなとこ",
+      "words": [
+        "アービターズ・オブ・ヘクシス",
+        "アービターズオブヘクシス",
+        "ヘクシス",
+        "Arbiters of Hexis"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Arbiters_of_Hexis"
+      ],
+      "text": [
+        "アービターズ・オブ・ヘクシスは、試練と規律で真実を探す人たち。テンノの力の本当のところを知りたがってて、テンノはバラバラになった過去が言ってるよりずっとすごい存在だって信じてるんだって。だからテンノをただの兵器みたいに使うのは嫌いっぽい。",
+        "リーダーが誰なのかは、まだ分かってないんだよね。仲良しはセファロン・スーダ。ペリン・シークエンスとは対立してて、レッド・ベールとは敵同士。仲裁任務を出してるのもここ。"
+      ]
+    },
+    {
+      "id": "setting.syndicate.cephalon_suda",
+      "type": "setting",
+      "about": [
+        "Cephalon Suda"
+      ],
+      "title": "セファロン・スーダってどんなとこ",
+      "words": [
+        "セファロン・スーダ",
+        "セファロンスーダ",
+        "スーダ",
+        "Cephalon Suda"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Cephalon_Suda"
+      ],
+      "text": [
+        "セファロン・スーダは、すっごく大きな意識みたいな存在で、そのセファロン本人がシンジケートを率いてる。感情は無さそうに見えるけど、知りたい気持ちと、ものが壊されるのが嫌いな気持ちだけはやたら熱いんだよね。昔の技術に力がある世界だから、知識を集めるのが大事って考え。",
+        "仲良しはアービターズ・オブ・ヘクシス。暴れて壊すレッド・ベールとは対立してて、オロキンの技術を地球から消したいニュー・ロカとは敵同士。"
+      ]
+    },
+    {
+      "id": "setting.syndicate.perrin_sequence",
+      "type": "setting",
+      "about": [
+        "The Perrin Sequence"
+      ],
+      "title": "ペリン・シークエンスってどんなとこ",
+      "words": [
+        "ペリン・シークエンス",
+        "ペリンシークエンス",
+        "ペリン",
+        "Perrin Sequence",
+        "The Perrin Sequence"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Perrin_Sequence"
+      ],
+      "text": [
+        "ペリン・シークエンスは、コーパスから分かれた頭のいい商人たちの集まり。コーパスの「争いは儲けのチャンス」って考えをやめて、みんなで豊かになれば平和になるって方向で商売してるんだよね。リーダーは元コーパスの Ergo Glast。",
+        "仲良しはニュー・ロカ。アービターズ・オブ・ヘクシスとは対立してて、スティール・メリディアンとは敵同士。"
+      ]
+    },
+    {
+      "id": "setting.syndicate.red_veil",
+      "type": "setting",
+      "about": [
+        "Red Veil"
+      ],
+      "title": "レッド・ベールってどんなとこ",
+      "words": [
+        "レッド・ベール",
+        "レッドベール",
+        "Red Veil"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Red_Veil"
+      ],
+      "text": [
+        "レッド・ベールは、太陽系はどこも腐ってるって考えてて、でっかくて激しい粛清で治すのが使命って人たち。変化は急で乱暴なもので、自分たちはその道具なんだって。6つのシンジケートの中でも一番考えが固くて、やり方も一番攻撃的なとこ。",
+        "秘密主義でカルトっぽいけど、戦士っていうより暗殺者の流儀なんだよね。リーダーが誰で、どういう組織なのかは分かってない。仲良しはスティール・メリディアン。セファロン・スーダとは対立してて、アービターズ・オブ・ヘクシスとは敵同士。"
+      ]
+    },
+    {
+      "id": "setting.syndicate.new_loka",
+      "type": "setting",
+      "about": [
+        "New Loka"
+      ],
+      "title": "ニュー・ロカってどんなとこ",
+      "words": [
+        "ニュー・ロカ",
+        "ニューロカ",
+        "New Loka"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/New_Loka"
+      ],
+      "text": [
+        "ニュー・ロカは、純粋な人間に戻って、地球にまた人が住めるようにすれば争いは終わるって信じてる人たち。汚される前の地球と、人間の体そのものを大事にしてる感じ。グリニアを歪めた遺伝子いじりも、地球をダメにした技術も嫌いなんだよね。リーダーは Priestess の Amaryn。",
+        "地球に残ってるオロキンの技術を消したいんだけど、それってセファロン・スーダが一番欲しがってるものだから、スーダとは敵同士。仲良しはペリン・シークエンスで、スティール・メリディアンとは対立してる。"
+      ]
+    },
+    {
+      "id": "setting.syndicate.conclave",
+      "type": "setting",
+      "about": [
+        "Conclave"
+      ],
+      "title": "コンクレーヴってどんなとこ",
+      "words": [
+        "コンクレーヴ",
+        "コンクレーブ",
+        "Conclave"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Conclave",
+        "https://wiki.warframe.com/w/Syndicate"
+      ],
+      "text": [
+        "コンクレーヴは中立のシンジケートで、率いてるのはコンクレーヴの師範 Teshin。どのリレーにもあるコンクレーヴの間にいるよ。テンノ同士で戦う PvP をやってるとこなんだよね。",
+        "Teshin が言うには、昔はみんなコンクレーヴを忘れちゃって、そのせいで新しい悪が来たときに備えができてなくて、オロキンを守れなかったんだって。だから Teshin はその償いの道を探して、コンクレーヴでしか作れないバランスを求めてる…って感じ。自分自身っていう一番の敵と向き合ってこそ強くなれる、って考えね。"
+      ]
+    },
+    {
+      "id": "setting.syndicate.cephalon_simaris",
+      "type": "setting",
+      "about": [
+        "Cephalon Simaris"
+      ],
+      "title": "Cephalon Simaris ってどんなとこ",
+      "words": [
+        "Cephalon Simaris",
+        "Simaris",
+        "シマリス"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Cephalon_Simaris",
+        "https://wiki.warframe.com/w/Sanctuary_(Cephalon_Simaris)",
+        "https://wiki.warframe.com/w/Synthesis"
+      ],
+      "text": [
+        "Cephalon Simaris は中立のシンジケートで、そのセファロン本人がリレーのサンクチュアリにいるよ。どのシンジケートと仲良くしてても関係なく手伝えるとこ。",
+        "Simaris はサンクチュアリっていうデータのオアシスを作ってて、太陽系の命をぜんぶ永遠に残したいんだって。そのために、テンノに特別な標的を探してシンセシススキャンしてもらってる。集まったら、時代に埋もれた世界の話が読めるようになるの。協力してくれたらひらめきをあげる、って言ってるけど…ちょっと上から目線なんだよね。"
+      ]
+    },
+    {
+      "id": "setting.syndicate.ostron",
+      "type": "setting",
+      "about": [
+        "Ostron"
+      ],
+      "title": "オストロンってどんなとこ",
+      "words": [
+        "オストロン",
+        "Ostron",
+        "Ostrons"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Ostron",
+        "https://wiki.warframe.com/w/Cetus"
+      ],
+      "text": [
+        "オストロンは、商人とか口のうまい売り子とか生き残りの人たちが集まった、結束の固い仲間。地球のエイドロンの草原の近くにあるシータスが家で、町はオロキンの塔のまわりに作られてて、その塔が町を守って養ってくれてるんだって。",
+        "シータスはグリニアにもコーパスにも口出しされない取引の場所で、いろんなとこから来た人が情報とか品物を交換してる。長老の Konzu がまとめ役で、依頼を出してくれるよ。食べ物は魚とか果物とかの自然のもので、スパイスもよく使う。言葉は普通の言葉に独特の言い回しがまざってて、あいさつは「Swazdo-lah」。"
+      ]
+    },
+    {
+      "id": "quest.syndicate.quills",
+      "type": "quest",
+      "about": [
+        "The Quills"
+      ],
+      "title": "クイルってどんなとこ",
+      "words": [
+        "クイル",
+        "Quills",
+        "The Quills"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/WarWithinQuest/WarWithinQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Quills",
+        "https://wiki.warframe.com/w/Cetus"
+      ],
+      "text": [
+        "クイルは、シータスのオロキンの塔にいる謎の存在 Unum に仕える、秘密主義の修道会みたいな人たち。Unum に一番近い信者で、オストロンからも一目置かれてるんだよね。",
+        "隠れ家はシータスの北東の洞窟で、Konzu の掲示板の裏あたり。扉はオペレーターのときしか開かない。窓口は元シータスの記録係の Onkko で、内なる紛争を終えたら仲間になれるよ。"
+      ]
+    },
+    {
+      "id": "setting.syndicate.solaris_united",
+      "type": "setting",
+      "about": [
+        "Solaris United"
+      ],
+      "title": "ソラリス連合ってどんなとこ",
+      "words": [
+        "ソラリス連合",
+        "ソラ連",
+        "Solaris United"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Solaris_United",
+        "https://wiki.warframe.com/w/Fortuna"
+      ],
+      "text": [
+        "ソラリス連合は、金星のフォーチュナーで Nef Anyo のために働かされてる Solaris の労働者たちの反乱グループ。借金のカタに体まで借りて働いてるような状態から、仲間を自由にしたいって人たちなんだよね。自分の体も未来も、自分のものにしたいって感じ。",
+        "まとめ役はフォーチュナーのフロアボスの Eudico で、オーブ峡谷の依頼もこの人から。地位ポイントはメンバーひとりひとりの頼みごとを手伝って稼ぐ形。中立のシンジケートだから、ほかのとこの地位ポイントには響かないよ。ちゃんと付き合えるのは Vox Solaris のクエストを終えてから。"
+      ]
+    },
+    {
+      "id": "quest.syndicate.vox_solaris",
+      "type": "quest",
+      "about": [
+        "Vox Solaris"
+      ],
+      "title": "Vox Solaris ってどんなとこ",
+      "words": [
+        "Vox Solaris"
+      ],
+      "shared": [
+        "Vox Solaris"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/SolarisQuest/SolarisQuestKeyChain",
+        "/Lotus/Types/Keys/WarWithinQuest/WarWithinQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Vox_Solaris_(Syndicate)",
+        "https://wiki.warframe.com/w/Little_Duck",
+        "https://wiki.warframe.com/w/Fortuna"
+      ],
+      "text": [
+        "Vox Solaris は、ソラリス連合のリーダーたちしか知らない秘密の作戦グループ。クイルともつながってるんだよね。表のソラリス連合とは地位ポイントも別なの。",
+        "窓口はフォーチュナーの北西の隅の裏部屋にいる Little Duck。もとは The Business の弟子だったスパイで、Warframe で話しかけても相手にしてくれなくて、オペレーターで行かないとダメ。オーブ峡谷で拾える Toroid を渡すと地位ポイントになって、アンプの部品とかアルケインと交換してくれる。クイルがエイドロン担当なら、こっちはオーブ峡谷担当って感じ。"
+      ]
+    },
+    {
+      "id": "quest.syndicate.ventkids",
+      "type": "quest",
+      "about": [
+        "Ventkids"
+      ],
+      "title": "ベントキッドってどんなとこ",
+      "words": [
+        "ベントキッド",
+        "ベントキッズ",
+        "Ventkids",
+        "Vent Kids"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/SolarisQuest/SolarisQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Ventkids",
+        "https://wiki.warframe.com/w/K-Drive",
+        "https://wiki.warframe.com/w/The_Waverider"
+      ],
+      "text": [
+        "ベントキッドは、フォーチュナーの通気口に住みついてる子どもたちのグループ。親の借金を返すために働くのはお断りで、コーパスの技術をいじって K-Drive を作っては乗り回してるんだよね。K-Drive の元祖は Yareli で、みんなの憧れなんだって。",
+        "部品とか MOD は Roky、レースは Boon の担当。地位ポイントは K-Drive のトリックとか、オーブ峡谷・カンビオンの荒地のレースで稼ぐ形。乗ってるだけで貯まるから、ある意味いちばんゆるいとこかも。"
+      ]
+    },
+    {
+      "id": "quest.syndicate.nightcap",
+      "type": "quest",
+      "about": [
+        "Nightcap"
+      ],
+      "title": "Nightcap ってどんなとこ",
+      "words": [
+        "Nightcap"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/NewWarQuest/NewWarQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Nightcap",
+        "https://wiki.warframe.com/w/Deepmines",
+        "https://wiki.warframe.com/w/The_Prince"
+      ],
+      "text": [
+        "Nightcap は、オーブ峡谷の地下のディープマインを調べてる Solaris。新たな大戦で Narmer がオーブ峡谷に来たあと、Nef Anyo はフォーチュナーを捨ててディープマインに引っこんだんだけど、そこにいるのがこの人。もとは Nef の下で、地下のキノコを片づける仕事をしてたんだって。",
+        "フォーチュナーの入り口の近くの Airlock にいて、ひとりでシンジケートみたいなことしてる。地位ポイントは無くて、ディープマインの依頼で拾ったキノコを図鑑で分析するとランクが上がる。買い物は Fergolyte で、Nokko とか Arbucep を扱ってるよ。そばで育ててるキノコ The Prince のことは、育てていくと少しずつ分かってくる。"
+      ]
+    },
+    {
+      "id": "quest.syndicate.entrati",
+      "type": "quest",
+      "about": [
+        "Entrati"
+      ],
+      "title": "エントラティってどんなとこ",
+      "words": [
+        "エントラティ",
+        "エントラティ家",
+        "Entrati",
+        "House Entrati",
+        "Entrati Family"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/InfestedMicroplanetQuest/InfestedMicroplanetQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Entrati",
+        "https://wiki.warframe.com/w/Necralisk"
+      ],
+      "text": [
+        "エントラティは、Albrecht Entrati の流れをくむオロキンの一族。今は感染体だらけになったダイモスの、Void 研究の拠点ネクロリスクに住んでるんだよね。オロキンが滅んだあとは守ってくれる人もいなくて、一族はだんだん落ちぶれて、ネクロリスクに閉じこもるしかなかったんだって。家族の仲も、正直あんまりよくない。",
+        "まとめ役は Mother で、カンビオンの荒地の依頼もこの人から。ほかに Father・Son・Daughter・Grandmother・Otak がいて、地位ポイントは直接もらうんじゃなくて、家族ひとりひとりを手伝ってもらえるトークンを Grandmother に渡して稼ぐ形。ちゃんと付き合えるのはダイモスの心臓を終えてから。"
+      ]
+    },
+    {
+      "id": "quest.syndicate.necraloid",
+      "type": "quest",
+      "about": [
+        "Necraloid"
+      ],
+      "title": "ネクロロイドってどんなとこ",
+      "words": [
+        "ネクロロイド",
+        "Necraloid"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/InfestedMicroplanetQuest/InfestedMicroplanetQuestKeyChain",
+        "/Lotus/Types/Keys/WarWithinQuest/WarWithinQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Necraloid",
+        "https://wiki.warframe.com/w/Loid"
+      ],
+      "text": [
+        "ネクロロイドは、エントラティ家に仕えるセファロンのシンジケート。知られてるのは Loid ひとりだけで、Albrecht Entrati が家族に仕えさせるために作ったセファロンを、ネクロロイドの体に入れて動けるようにしたのが Loid なんだよね。ダイモスの心臓のあとは、こっそり Father と組んでネクロメカの部品を回してくれてる。",
+        "場所はネクロリスクのいちばん北の奥の部屋で、扉はオペレーターのときしか開かない(壁の中のササヤキを終えると Warframe でも入れる)。地位ポイントは、貯蔵庫の依頼とか敵のネクロメカから拾ったオロキンマトリックスを Loid に渡して稼ぐ形。ネクロメカの部品とか MOD を扱ってるよ。"
+      ]
+    },
+    {
+      "id": "quest.syndicate.holdfasts",
+      "type": "quest",
+      "about": [
+        "The Holdfasts"
+      ],
+      "title": "ホールドファストってどんなとこ",
+      "words": [
+        "ホールドファスト",
+        "ホールドファスツ",
+        "Holdfasts",
+        "The Holdfasts"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/ZarimanQuest/ZarimanQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Holdfasts",
+        "https://wiki.warframe.com/w/Chrysalith"
+      ],
+      "text": [
+        "ホールドファストは、Zariman Ten Zero の大人の乗組員の、最後の4人の「生き残り」のシンジケート。船の中のクリサリスを拠点にして、Zariman がこれ以上壊れていかないように守ってるんだよね。シンジケートがひとつだけの拠点はここが初めてなんだって。",
+        "リーダーは Quinn で、依頼とランクの管理はこの人。地位ポイントは Zariman で拾える ヴォイドプルーム を Archimedean Yonta に渡して稼ぐ形。Cavalero はインカーノンの武器とアルケイン、Hombask は部屋の飾りを扱ってるよ。"
+      ]
+    },
+    {
+      "id": "quest.syndicate.cavia",
+      "type": "quest",
+      "about": [
+        "Cavia"
+      ],
+      "title": "カビアってどんなとこ",
+      "words": [
+        "カビア",
+        "Cavia",
+        "The Cavia"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/EntratiLab/EntratiQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Cavia",
+        "https://wiki.warframe.com/w/Sanctum_Anatomica",
+        "https://wiki.warframe.com/w/Bird_3"
+      ],
+      "text": [
+        "カビアは、Albrecht Entrati の Void の実験で頭がよくなった動物たちのシンジケート。助手の Loid と一緒に、ネクロリスクの下に隠れてた Albrecht の研究所サンクタム・アナトミカで、研究と実験を続けてるんだよね。",
+        "まとめ役は Fibonacci で、依頼もこの人から。ほかに Tagfer と Bird 3 がいて、Bird 3 は品物を売ってる担当。Loid はカビアじゃないけど仲間に入ってて、ヴォーカを渡すと地位ポイントにしてくれる。地位ポイントは依頼とヴォーカで稼ぐ形ね。"
+      ]
+    },
+    {
+      "id": "quest.syndicate.kahls_garrison",
+      "type": "quest",
+      "about": [
+        "Kahl's Garrison"
+      ],
+      "title": "Kahl守備隊ってどんなとこ",
+      "words": [
+        "Kahl守備隊",
+        "Kahl's Garrison",
+        "Kahls Garrison"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/KahlQuest/KahlQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Kahl%27s_Garrison",
+        "https://wiki.warframe.com/w/Break_Narmer",
+        "https://wiki.warframe.com/w/Veilbreaker"
+      ],
+      "text": [
+        "Kahl守備隊は、Kahl-175 が率いるシンジケート。Daughter とテンノの助けを借りて、漂流者のキャンプに拠点を作って、Narmer に操られてるグリニアの兄弟たちと太陽系を解放するための戦いを準備してるんだよね。",
+        "ほかのシンジケートと違って地位ポイントは無くて、Kahl の週ごとの任務「Break Narmer」を終えると勝手にランクが上がる。最大になるまで4週間ね。任務でもらえるストックで、Chipper の店で買い物できるよ。ランクが上がるたびに、キャンプにも新しい顔が増えていく。"
+      ]
+    },
+    {
+      "id": "setting.nora_night",
+      "type": "setting",
+      "about": [
+        "Nora Night"
+      ],
+      "title": "Nora Night とは",
+      "words": [
+        "Nora Night",
+        "Nora"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Nora_Night",
+        "https://wiki.warframe.com/w/Nightwave"
+      ],
+      "text": [
+        "Nora Night は、海賊ラジオ Nightwave の声をやってる謎の人。放送はオービターのラジオでときどき流れてて、聞いてる人のことは「Dreamers」って呼んでるんだよね。昔のことはほとんど分かってないけど、DJ だから太陽系じゅうの話とか事件の情報が集まってくるみたい。",
+        "Nightwave のシリーズごとに、Nora が語る話があるの。シリーズ3のグラスメイカーの話では、テンノと一緒に犯人を追いかけて、最後はグラスメイカーを閉じ込めた ガラスの小瓶 をテンノに渡して、二度と外に出さないでって託したんだって。"
+      ]
+    },
+    {
       "id": "quest.dante_leverian",
       "type": "quest",
       "about": [
@@ -2170,6 +2651,11 @@
       "title": "Vox Solaris のあらすじ",
       "words": [
         "Vox Solaris",
+        "Vox Solarisのあらすじ",
+        "Vox Solarisのストーリー",
+        "Vox Solarisのクエスト"
+      ],
+      "shared": [
         "Vox Solaris"
       ],
       "requires": [
@@ -2180,7 +2666,7 @@
         "https://wiki.warframe.com/w/Vox_Solaris_(Quest)"
       ],
       "text": [
-        "金星のフォーチュナで、Nef Anyo への借金に縛られてる Solaris のひとたちの話。親の借金を背負った Thursby は、払えないと機械の体どころか生身の手足まで取り上げられちゃう。で、テンノに Corpus の物資を盗んでって頼むの。",
+        "金星のフォーチュナーで、Nef Anyo への借金に縛られてる Solaris のひとたちの話。親の借金を背負った Thursby は、払えないと機械の体どころか生身の手足まで取り上げられちゃう。で、テンノに Corpus の物資を盗んでって頼むの。",
         "かつて「Vox Solaris」の名前で Solaris United を率いてた Eudico は、ある事件のあと身を引いてて、Thursby を手伝うなって止める側。The Business は Corpus に K爆弾で一発かましたい派で、やり方をめぐって Eudico ともめたりする。",
         "最後は、Nef が投資家に見せびらかすつもりの冷却塔をテンノが乗っ取って、オーバーヒート寸前まで追い込む。Vox は投資家の目の前で「谷を動かしてるのは Solaris だ」って突きつけて、Nef は折れるしかなかった。死んだと思われてた Thursby も機械の脚になって生きてて、「Legs」って呼ばれるようになったよ。"
       ]
@@ -2577,9 +3063,9 @@
       ],
       "text": [
         "新たな大戦で Ballas が Void のポータルを大きく開こうとしたせいで、壁の中の男が騒ぎ出す。Loid は「カリモス・シーケンス」って命令を起動して、テンノをダイモスへ呼ぶ。",
-        "エントラティ一家に内緒で、Loid はネクラリスクの下に隠された Albrecht の研究所へ案内する。Albrecht Entrati は、壁の中の男の手先ササヤキとずっと戦ってたの。テンノは人間だったころの Loid 本人「眠り人」を起こして、Void の言葉しか話さない Albrecht の実験動物カヴィアと出会う。",
+        "エントラティ一家に内緒で、Loid はネクロリスクの下に隠された Albrecht の研究所へ案内する。Albrecht Entrati は、壁の中の男の手先ササヤキとずっと戦ってたの。テンノは人間だったころの Loid 本人「眠り人」を起こして、Void の言葉しか話さない Albrecht の実験動物カビアと出会う。",
         "Albrecht の作りかけの器(Vessel)を調べるうちに、Albrecht は壁の中の男から逃げて1999年に行ったって分かる。ササヤキの攻撃がどんどん強まって、Loid はピリピリ。",
-        "カヴィアの言葉を訳すガーゴイルを作ると、カヴィアが伝えたのは、Loid が捨てた Albrecht の最後のメッセージだった。Loid の献身をたたえる、Loid がずっと欲しかった愛情みたいな言葉で、それが壁の中の男を鎮めるの。Loid は気を取り直して、テンノを1999年へ送る準備を始める。"
+        "カビアの言葉を訳すガーゴイルを作ると、カビアが伝えたのは、Loid が捨てた Albrecht の最後のメッセージだった。Loid の献身をたたえる、Loid がずっと欲しかった愛情みたいな言葉で、それが壁の中の男を鎮めるの。Loid は気を取り直して、テンノを1999年へ送る準備を始める。"
       ]
     },
     {
@@ -2612,10 +3098,16 @@
       ],
       "title": "ヘックス のあらすじ",
       "words": [
+        "ヘックス",
+        "Hex",
         "ヘックスのあらすじ",
         "ヘックスのストーリー",
         "ヘックスのクエスト",
         "Hex のあらすじ"
+      ],
+      "shared": [
+        "ヘックス",
+        "Hex"
       ],
       "requires": [
         "/Lotus/Types/Keys/1999Quest/1999QuestKeyChain"

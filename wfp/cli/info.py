@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from wfp.cli.table import print_table
 from wfp.core.archon import shard_list
 from wfp.core.common import (BARO_KINDS, CAMBION, CYCLE_SOURCES, CYCLES, MOD_GROUPS, PHASE_ALIASES, QA_ANSWERS_FILE, QA_INTENTS_FILE,
-                             QA_LORE_FILE, QA_LORE_TALK_FILE, QA_MISS_FILE, RIVEN_TYPES_JA, fmt_dur, norm, parse_remaining, rank,
+                             QA_LORE_FILE, QA_LORE_TALK_FILE, QA_MENU_FILE, QA_MISS_FILE, QA_TALK_FILE, RIVEN_TYPES_JA, fmt_dur, norm, parse_remaining, rank,
                              render_ja, txt)
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
 from wfp.core.devbuilds import dev_build_list
@@ -16,6 +16,8 @@ from wfp.core.loader import DropsMissing, load_drops, load_names, load_rivens, l
 from wfp.core.modstats import fold, load_mod_stats, parse_groups
 from wfp.core.qa import QaContext, QaIndex, answer, load_qa_data, stop_words
 from wfp.core.qalore import index_names, load_lore
+from wfp.core.qamenu import load_menu
+from wfp.core.qatalk import load_talk
 from wfp.core.quests import check_flow
 from wfp.core.riven import riven_table, update_rivens
 from wfp.core.summons import summon_list
@@ -191,7 +193,7 @@ def cmd_ask(args):
     """Q&A(日本語のみ)。データ置き場の builder.json・ドロップ表・名前辞書と同梱データから答える"""
     import wfportal_builder as wb
     question = " ".join(args.question).strip()
-    if not question and not args.lore:
+    if not question and not args.lore and not args.menu and not args.talk:
         sys.exit(render_ja(txt("err.qa.empty")))
     d = datadir.data_dir(args.data_dir)
     names = load_names(d)
@@ -209,8 +211,10 @@ def cmd_ask(args):
     quest_names = {q["id"]: q["ja"] for q in check_flow(appdata.read_quests()) if q["kind"] == "quest"}
     ctx = QaContext(data, index, builder=builder, drops=drops, sources=sources, items=items, subsume=subsume,
                     archon=shard_list(appdata.read_archon()), dev=dev, mod_stats=load_mod_stats(d),
-                    lore=lore, done=userdata.load_quests_done(d), quest_names=quest_names)
-    print_qa(answer(ctx, question, lore=args.lore or None, spoil=args.spoil, only=args.only))
+                    lore=lore, done=userdata.load_quests_done(d), quest_names=quest_names,
+                    menu=load_menu(appdata.read_qa(QA_MENU_FILE)), talk=load_talk(appdata.read_qa(QA_TALK_FILE)))
+    print_qa(answer(ctx, question, lore=args.lore or None, spoil=args.spoil, only=args.only, menu=args.menu or None,
+                    talk=args.talk or None))
 
 
 def print_qa(res: dict) -> None:
@@ -220,6 +224,10 @@ def print_qa(res: dict) -> None:
             print(line)
     if res["spoiler"]:
         print(f"(--lore {res['spoiler']['id']} --spoil{' --only' if res['spoiler']['only'] else ''} で聞けます)")
+    if res["talk"]:
+        print(f"■ {res['talk']['title']}")
+        for para in res["talk"]["paragraphs"]:
+            print(f"  {para}")
     if res["lore"]:
         lore = res["lore"]
         print(f"■ {lore['parts'][0]['title']}")  # 見出しは 0段目(最初の段)のタイトル、2つ目からの段は小見出し
@@ -260,9 +268,24 @@ def print_qa(res: dict) -> None:
         print("もしかして: " + "、".join(c["ja"] for c in res["candidates"]))
     if res["options"]:
         print((res["options_title"] or "聞けること") + ": " + "、".join(
-            o["label"] + (f"(--lore {o['lore']})" if o.get("lore") else "") for o in res["options"]))
+            o["label"] + _option_hint(o) for o in res["options"]))
     if res["basis"]:
         print(f"({res['basis']})")
+
+
+def _option_hint(o: dict) -> str:
+    """CLI でボタンの代わりに使う引数の案内(解説 --lore・メニュー --menu・話 --talk・画面のページ・例文 q は label と違うときだけ質問の文)"""
+    if o.get("lore"):
+        return f"(--lore {o['lore']})"
+    if o.get("menu"):
+        return f"(--menu {o['menu']})"
+    if o.get("talk"):
+        return f"(--talk {o['talk']})"
+    if o.get("page"):
+        return f"(画面のページ {o['page']})"
+    if o.get("q") and o["q"] != o["label"]:
+        return f"(「{o['q']}」)"
+    return ""
 
 
 def add_cycle(sub) -> None:
@@ -312,6 +335,8 @@ def add_ask(sub) -> None:
     s.add_argument("--lore", help="解説の id を指定して聞く(例: setting.grineer)")
     s.add_argument("--spoil", action="store_true", help="クエストのネタバレの確認を飛ばす")
     s.add_argument("--only", action="store_true", help="--lore の段だけを出す(続き。指定なしは 0段目からその段まで)")
+    s.add_argument("--talk", help="ツールの使い方・雑談の話の id を指定して聞く(例: chat.omikuji)")
+    s.add_argument("--menu", help="「教えてクロちゃん」の分類の id を指定して聞く(例: stats。top で分類の一覧)")
     s.set_defaults(fn=cmd_ask)
 
 

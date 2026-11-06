@@ -17,11 +17,11 @@
   "frame": ["health", "shield", "armor", "energy", "sprint"],
   "weapon": ["cc", "cd", "sc", "fire_rate", "multishot", "magazine", "reload"],
   "text": {
-    "field.frame": "{name} の{label}は {value} だよ(ランク0の基本値)",
+    "field.frame": "{name} の{label}は {value} だよ",
     "field.weapon": "{name} の{label}は {value} だよ",
     "field.summon": "{name} の{label}は {value} だよ(基礎値)",
     "field.none": "{name} には{label}が無いみたい",
-    "stats.frame": "{name} の基本の数値(ランク0)はこんな感じ",
+    "stats.frame": "{name} の基本の数値はこんな感じ",
     "stats.weapon": "{name} の基本の数値はこんな感じ",
     "stats.summon": "{name} の基礎値はこんな感じ",
     "abilities": "{name} のアビリティはこれ",

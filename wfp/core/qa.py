@@ -21,6 +21,8 @@ from wfp.core.common import (QA_CANDIDATE_LIMIT, QA_FORMATS, QA_KINDS, QA_MIN_AS
                              QA_PART_SOURCE_LIMIT, QA_SOURCE_LIMIT, HELMINTH_FRAME, norm, render_ja)
 from wfp.core.devbuilds import build_view, builds_for, variant_base
 from wfp.core.helminth import subsume_frame
+from wfp.core.qamenu import MenuData, menu_answer, menu_rest
+from wfp.core.qatalk import TalkData, talk_answer
 from wfp.core.qalore import (LoreData, missing_quests, needs_kind, next_stage, pick_line, pick_prefix, pick_stage,
                              topics_about)
 from wfp.drops.search import find_sources
@@ -343,6 +345,8 @@ class QaContext:
     lore: LoreData | None = None      # 解説(core.qalore。無ければ解説は出さない)
     done: set = field(default_factory=set)              # クエスト一覧で終えたクエストの id(quests_done.json)
     quest_names: dict = field(default_factory=dict)     # クエストの id -> 和名(ネタバレの確認の文に使う)
+    menu: MenuData | None = None      # 「教えてクロちゃん」(core.qamenu。無ければ呼びかけに反応しない)
+    talk: TalkData | None = None      # ツールの使い方・雑談(core.qatalk。無ければ話に反応しない)
     rng: random.Random | None = None
 
 
@@ -361,7 +365,8 @@ def format_value(value: float, fmt: str) -> str:
 def _result(question: str, e: dict | None = None, intent: str | None = None) -> dict:
     return {"q": question, "type": "answer", "name": {"key": e["key"], "en": e["en"], "ja": e["ja"]} if e else None,
             "intent": intent, "text": "", "facts": [], "sources": [], "builds": [], "options": [], "candidates": [],
-            "options_title": "", "basis": "", "miss": None, "lore": None, "spoiler": None, "next": None}
+            "options_title": "", "basis": "", "miss": None, "lore": None, "spoiler": None, "next": None, "menu": None,
+            "talk": None}
 
 
 def _miss(ctx: QaContext, res: dict, kind: str, name: str = "") -> dict:
@@ -370,19 +375,39 @@ def _miss(ctx: QaContext, res: dict, kind: str, name: str = "") -> dict:
 
 
 def answer(ctx: QaContext, question: str = "", name: str | None = None, intent: str | None = None,
-           lore: str | None = None, spoil: bool = False, choice: str | None = None, only: bool = False) -> dict:
+           lore: str | None = None, spoil: bool = False, choice: str | None = None, only: bool = False,
+           menu: str | None = None, talk: str | None = None) -> dict:
     """質問に答える。name(索引のキー)・intent(質問の id)を渡すと、文から拾わずにそれで答える(ボタンから)。
     lore(解説の id)・choice(解説の選択肢の id。name と一緒に)もボタンから。spoil はネタバレの確認を飛ばす(「聞く」のボタン)。
     解説は 0段目からその段までをまとめて出す(parts)。only はその段だけ(「続き」のボタン。上の段はもう出ているため)。
+    menu(「教えてクロちゃん」の分類の id。QA_MENU_TOP で分類の一覧)・talk(ツールの使い方・雑談の話の id)もボタンから。
+    文に話の語が当たれば話(呼びかけより先。「クロちゃんって何者?」)、文が呼びかけの語だけならメニューを出す。
 
-    返り値: {q, type: answer|miss|options(名前だけ)|lore|spoiler_ask, name, intent, text, facts: [{label, value}], sources: [{title, rows}],
-            builds: [build_view], options: [{label, name, intent} か {label, name, choice} か {label, lore}],
+    返り値: {q, type: answer|miss|options(名前だけ)|lore|spoiler_ask|menu|talk, name, intent, text, facts: [{label, value}], sources: [{title, rows}],
+            builds: [build_view], options: [{label, name, intent} か {label, name, choice} か {label, lore} か {label, menu} か {label, q} か {label, talk} か {label, page}],
             candidates: [{key, en, ja}], basis, miss: {kind, id, text},
             lore: {id, title, group, stage, parts: [{id, title, stage, prefix, paragraphs}], source, credit, license},
-            spoiler: {id, title, quests, ok, ng, declined, only}, next: {id, title, label}}
+            spoiler: {id, title, quests, ok, ng, declined, only}, next: {id, title, label}, menu: {id, title},
+            talk: {id, type, title, paragraphs}}
     """
     data, lore_data = ctx.data, ctx.lore
     res = _result(question, None, None)
+    if menu is not None:  # 0. ボタンから(メニューの分類の id)
+        return (menu_answer(ctx.menu, res, menu, ctx.rng) if ctx.menu else None) or _miss(ctx, res, "no_hit")
+    if talk is not None:  # 0. ボタンから(話の id)
+        return (talk_answer(ctx.talk, res, talk, ctx.rng) if ctx.talk else None) or _miss(ctx, res, "no_hit")
+    if lore is None and name is None and intent is None and choice is None and ctx.talk:  # 0. 話の語(ツールの使い方・雑談)
+        tid = _talk_topic(ctx, question)
+        if tid:
+            return talk_answer(ctx.talk, res, tid, ctx.rng)
+    if lore is None and name is None and intent is None and choice is None:  # 0. 呼びかけ(「教えてクロちゃん」)。後ろに質問が続けば語を除いて答える
+        rest_q = menu_rest(ctx.menu, question)
+        if rest_q == "":
+            return menu_answer(ctx.menu, res, rng=ctx.rng)
+        if rest_q:
+            out = answer(ctx, rest_q, spoil=spoil)
+            out["q"] = question
+            return out
     if lore is not None:  # 1. ボタンから(解説の id)
         t = lore_data.topic(lore) if lore_data else None
         return _lore_answer(ctx, res, t, spoil, only) if t else _miss(ctx, res, "no_hit")
@@ -395,9 +420,11 @@ def answer(ctx: QaContext, question: str = "", name: str | None = None, intent: 
         if hit:
             return hit
     if name is None and intent is None and lore_data:  # 3. 解説の語が当たった
-        group = _lore_group(lore_data, question, rest)
-        if group:
-            return _lore_answer(ctx, res, pick_stage(lore_data, group, ctx.done), spoil)
+        groups = _lore_group(lore_data, question, rest)
+        if len(groups) == 1:
+            return _lore_answer(ctx, res, pick_stage(lore_data, groups[0], ctx.done), spoil)
+        if groups:  # shared の語が2つ以上の話に当たった(「Vox Solaris」= シンジケートとクエストのあらすじ)
+            return _lore_pick(ctx, res, [lore_data.stages(g)[0] for g in groups])
     stop = {w for it in data.intents for w in it["words"]}
     res = _result(question, e, None)
     heads = topics_about(lore_data, e["en"]) if (lore_data and e) else []
@@ -445,6 +472,20 @@ def answer(ctx: QaContext, question: str = "", name: str | None = None, intent: 
     return out
 
 
+def _talk_topic(ctx: QaContext, question: str) -> str | None:
+    """話の語が当たった話の id(一番長く当たった語。同じ長さならファイルの並びで先のもの)。名前(QaIndex.find)が話の語より長く
+    当たったときは名前を優先する(解説の _lore_group と同じ考え方)。無ければ None"""
+    forms = {"norm": norm(question), "spaced": spaced(question)}
+    hits = [(_word_hit(forms, w), tid) for w, tid in ctx.talk.words()]
+    best = max((n for n, _ in hits), default=0)
+    if not best:
+        return None
+    _, rest = ctx.index.find(question)
+    if rest.get("hit_len", 0) > best:
+        return None
+    return next(tid for n, tid in hits if n == best)
+
+
 # --------------------------------------------------------------------------
 # 解説(設定・ストーリー。core.qalore)
 # --------------------------------------------------------------------------
@@ -455,20 +496,21 @@ def _word_hit(forms: dict, word: str) -> int:
     return len(_key(word)) if _bounded(forms["spaced" if ascii_word else "norm"], _key(word), ascii_word) >= 0 else 0
 
 
-def _lore_word(lore: LoreData, forms: dict) -> tuple[int, str | None]:
-    """解説の語が当たった (語の長さ, group)(一番長く当たった語。同じ長さならファイルの前のもの)。無ければ (0, None)"""
-    best = max(((_word_hit(forms, w), -i, g) for i, (w, g) in enumerate(lore.words())), default=(0, 0, None))
-    return (best[0], best[2]) if best[0] else (0, None)
+def _lore_word(lore: LoreData, forms: dict) -> tuple[int, list[str]]:
+    """解説の語が当たった (語の長さ, [group])(一番長く当たった語の group。shared の語なら2つ以上・ファイルの並び)。無ければ (0, [])"""
+    hits = [(_word_hit(forms, w), g) for w, g in lore.words()]
+    best = max((n for n, _ in hits), default=0)
+    return (best, list(dict.fromkeys(g for n, g in hits if n == best))) if best else (0, [])
 
 
-def _lore_group(lore: LoreData, question: str, rest: dict) -> str | None:
-    """解説の語で答える group。名前(QaIndex.find)が解説の語より長く当たったときは、名前の部分を除いた文で探し直す
-    (例: 「オロキンセル」は名前 6 文字 > 解説の語「オロキン」4 文字なので、名前として答える)。
+def _lore_group(lore: LoreData, question: str, rest: dict) -> list[str]:
+    """解説の語で答える group(2つ以上なら選ぶボタン。shared の語)。名前(QaIndex.find)が解説の語より長く当たったときは、
+    名前の部分を除いた文で探し直す(例: 「オロキンセル」は名前 6 文字 > 解説の語「オロキン」4 文字なので、名前として答える)。
     同じ長さなら解説が先(名前と同じ語を解説に書いた場合)"""
-    hit_len, group = _lore_word(lore, {"norm": norm(question), "spaced": spaced(question)})
-    if group and rest.get("hit_len", 0) > hit_len:
-        group = _lore_word(lore, rest)[1]
-    return group
+    hit_len, groups = _lore_word(lore, {"norm": norm(question), "spaced": spaced(question)})
+    if groups and rest.get("hit_len", 0) > hit_len:
+        groups = _lore_word(lore, rest)[1]
+    return groups
 
 
 def _lore_choice(lore: LoreData, rest: dict) -> dict | None:

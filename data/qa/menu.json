@@ -1,0 +1,144 @@
+{
+  "_note": "Q&A の「教えてクロちゃん」(話題のメニュー。日本語のみ)。words = 呼びかけの語(質問の文がこれだけならメニューを出す。後ろに質問が続けば語を除いて普通に答える。intents・解説・選択肢の語と重ねない。ほかの名前の一部になる語(例: 「クロ」= クロマ)は書かない)。lines = 一言({id, ja} からランダムに1つ。id は整数)。title = ボタンから聞いたときの見出し。back = 分類の一覧へ戻るボタン。topics = 分類(id に top は使えない)。items はボタン({q: 例文(label は任意。無ければ例文)}・{label, lore: 解説の id}・{label, menu: 分類の id}・{label, talk: talk.json の話の id}・{label, page: 画面のページの id} のどれか)。検査は core/qamenu の check_menu",
+  "words": ["教えてクロちゃん", "おしえてクロちゃん", "クロちゃん"],
+  "title": "教えてクロちゃん",
+  "back": "ほかの話題",
+  "lines": [
+    {"id": 1, "ja": "ん、呼んだ? あーしが話せるのはこのへんかな。気になるのあったら押してみて"},
+    {"id": 2, "ja": "はいはい、クロちゃんだよ。ざっくりだけど、こんな話ならできるよ"},
+    {"id": 3, "ja": "聞けることまとめといた。全部は無理だけど、このへんならまあ任せて"}
+  ],
+  "topics": [
+    {"id": "stats", "label": "フレーム・武器の数値",
+     "lines": [
+       {"id": 1, "ja": "数値系ね。名前のあとに知りたい項目をつけて聞いてくれればいいよ"},
+       {"id": 2, "ja": "性能とかアビリティの話。こんな感じで聞いてくれたら答えるね"}
+     ],
+     "items": [
+       {"q": "Rhino の性能は?"},
+       {"q": "Rhino のアーマーは?"},
+       {"q": "Soma Prime のクリティカル率は?"},
+       {"q": "Excalibur のアビリティは?"},
+       {"q": "Nidus のパッシブは?"}
+     ]},
+    {"id": "sources", "label": "入手先",
+     "lines": [
+       {"id": 1, "ja": "どこで手に入るかってやつね。MOD とか素材の名前でも聞けるよ"},
+       {"id": 2, "ja": "ドロップの話なら、名前のあとに「どこ」ってつければだいたい分かる"}
+     ],
+     "items": [
+       {"q": "Rhino の入手先は?"},
+       {"q": "Serration はどこで手に入る?"},
+       {"q": "Neurode はどこで取れる?"}
+     ]},
+    {"id": "build", "label": "ビルド",
+     "lines": [
+       {"id": 1, "ja": "ビルドの話ね。開発者のビルドがあるやつは、そのままビルド管理に入れられるよ"},
+       {"id": 2, "ja": "ただ、すぐには真似できないのもふつうにあると思う。そうなったら、ごめんね"}
+     ],
+     "items": [
+       {"q": "Jade のおすすめビルドは?"},
+       {"q": "初心者におすすめのフレーム"}
+     ]},
+    {"id": "helminth", "label": "Helminth",
+     "lines": [
+       {"id": 1, "ja": "Helminth のことね。どのフレームから何を吸収できるかが分かるよ"}
+     ],
+     "items": [
+       {"q": "Rhino の Helminth は?"},
+       {"q": "Helminth のアビリティは?"}
+     ]},
+    {"id": "world", "label": "世界観",
+     "lines": [
+       {"id": 1, "ja": "この世界のざっくりした成り立ちね。どこから読んでもいいよ"},
+       {"id": 2, "ja": "勢力とか種族の話。最初はテンノとオロキンあたりからがおすすめかな"}
+     ],
+     "items": [
+       {"label": "テンノ", "lore": "setting.tenno"},
+       {"label": "オロキン帝国", "lore": "setting.orokin"},
+       {"label": "センティエント", "lore": "setting.sentient"},
+       {"label": "グリニア", "lore": "setting.grineer"},
+       {"label": "コーパス", "lore": "setting.corpus"},
+       {"label": "感染体", "lore": "setting.infested"}
+     ]},
+    {"id": "people", "label": "登場人物",
+     "lines": [
+       {"id": 1, "ja": "よく出てくる人たちね。クエストの中身にかかわる話は、押したときに確認するから"}
+     ],
+     "items": [
+       {"label": "Lotus", "lore": "setting.lotus"},
+       {"label": "Ordis", "lore": "setting.ordis"},
+       {"label": "Teshin", "lore": "setting.teshin"},
+       {"label": "Stalker", "lore": "setting.stalker"},
+       {"label": "Captain Vor", "lore": "setting.vor"},
+       {"label": "Alad V", "lore": "setting.alad_v"},
+       {"label": "Nef Anyo", "lore": "setting.nef_anyo"},
+       {"label": "Albrecht Entrati", "lore": "setting.albrecht"}
+     ]},
+    {"id": "syndicate", "label": "シンジケート",
+     "lines": [
+       {"id": 1, "ja": "シンジケートね。派閥の6つと、街の人たちの話ができるよ"}
+     ],
+     "items": [
+       {"label": "スティール・メリディアン", "lore": "setting.syndicate.steel_meridian"},
+       {"label": "アービターズ・オブ・ヘクシス", "lore": "setting.syndicate.arbiters_of_hexis"},
+       {"label": "セファロン・スーダ", "lore": "setting.syndicate.cephalon_suda"},
+       {"label": "ペリン・シークエンス", "lore": "setting.syndicate.perrin_sequence"},
+       {"label": "レッド・ベール", "lore": "setting.syndicate.red_veil"},
+       {"label": "ニュー・ロカ", "lore": "setting.syndicate.new_loka"},
+       {"label": "オストロン", "lore": "setting.syndicate.ostron"},
+       {"label": "ソラリス連合", "lore": "setting.syndicate.solaris_united"},
+       {"label": "Cephalon Simaris", "lore": "setting.syndicate.cephalon_simaris"}
+     ]},
+    {"id": "story", "label": "クエストのあらすじ",
+     "lines": [
+       {"id": 1, "ja": "メインクエストのあらすじね。まだ終わってないのはネタバレになるから、押したら一回確認するよ"},
+       {"id": 2, "ja": "話の流れを追いたいなら上から順にどうぞ。終わってないクエストは聞く前に確認するね"}
+     ],
+     "items": [
+       {"label": "Vorの秘宝", "lore": "quest.story.vors_prize"},
+       {"label": "博士の計略", "lore": "quest.story.once_awake"},
+       {"label": "Natah", "lore": "quest.story.natah"},
+       {"label": "二番目の夢", "lore": "quest.story.second_dream"},
+       {"label": "内なる紛争", "lore": "quest.story.war_within"},
+       {"label": "Harrowの鎖", "lore": "quest.story.chains_of_harrow"},
+       {"label": "背信のプロローグ", "lore": "quest.story.apostasy_prologue"},
+       {"label": "サクリファイス", "lore": "quest.story.sacrifice"},
+       {"label": "争いの序曲", "lore": "quest.story.prelude_to_war"},
+       {"label": "新たな大戦", "lore": "quest.story.new_war"}
+     ]},
+    {"id": "system", "label": "ゲームの仕組み",
+     "lines": [
+       {"id": 1, "ja": "仕組みの話ね。まだ少ないけど、ちょっとずつ増やしてくつもり"}
+     ],
+     "items": [
+       {"label": "初心者向けフレーム", "lore": "system.newbie_frame"},
+       {"label": "フレームのダメージの出し方", "lore": "system.nuke_build_frame"},
+       {"label": "武器のダメージの出し方", "lore": "system.nuke_build_weapon"}
+     ]},
+    {"id": "tool", "label": "ツールの使い方",
+     "lines": [
+       {"id": 1, "ja": "このツールの使い方ね。気になるページのこと押してみて"}
+     ],
+     "items": [
+       {"label": "Q&A の使い方", "talk": "tool.qa"},
+       {"label": "データ更新のこと", "talk": "tool.update"},
+       {"label": "マスター一覧", "talk": "tool.mastery"},
+       {"label": "ビルド管理", "talk": "tool.build"},
+       {"label": "Tips", "talk": "tool.tips"},
+       {"label": "β版の機能", "talk": "tool.beta"},
+       {"label": "言語の切り替え", "talk": "tool.lang"}
+     ]},
+    {"id": "chat", "label": "クロちゃんと話す",
+     "lines": [
+       {"id": 1, "ja": "え、あーしと話すの? ……まあ、いいけど"},
+       {"id": 2, "ja": "ひまつぶしね。付き合ってあげる"}
+     ],
+     "items": [
+       {"label": "クロちゃんって何者?", "talk": "chat.profile"},
+       {"label": "おみくじ", "talk": "chat.omikuji"},
+       {"label": "褒めて", "talk": "chat.praise"},
+       {"label": "どういう仕組みなの？", "talk": "chat.qa.settings"}
+     ]}
+  ]
+}

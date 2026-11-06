@@ -4,12 +4,14 @@ from __future__ import annotations
 import wfportal_builder as wb
 from wfp.api.store import ApiError, Store
 from wfp.core.archon import shard_list
-from wfp.core.common import (DEV_BUILD_SUFFIX, QA_ANSWERS_FILE, QA_INTENTS_FILE, QA_LORE_FILE, QA_LORE_TALK_FILE, QA_MISS_FILE,
-                             txt)
+from wfp.core.common import (DEV_BUILD_SUFFIX, QA_ANSWERS_FILE, QA_INTENTS_FILE, QA_LORE_FILE, QA_LORE_TALK_FILE, QA_MENU_FILE,
+                             QA_MISS_FILE, QA_TALK_FILE, txt)
 from wfp.core.devbuilds import dev_build_list
 from wfp.core.helminth import subsume_list
 from wfp.core.qa import QaContext, QaIndex, answer, load_qa_data, stop_words
 from wfp.core.qalore import index_names, load_lore
+from wfp.core.qamenu import load_menu
+from wfp.core.qatalk import load_talk
 from wfp.core.quests import check_flow
 from wfp.core.summons import summon_list
 from wfp.store import appdata, userdata
@@ -41,21 +43,24 @@ def qa_context(store: Store) -> QaContext:
     quest_names = {q["id"]: q["ja"] for q in check_flow(appdata.read_quests()) if q["kind"] == "quest"}
     return QaContext(data, index, builder=builder, drops=drops, sources=sources, items=items, subsume=subsume,
                      archon=shard_list(appdata.read_archon()), dev=dev, mod_stats=store.mod_stats(),
-                     lore=lore, done=userdata.load_quests_done(store.d), quest_names=quest_names)
+                     lore=lore, done=userdata.load_quests_done(store.d), quest_names=quest_names,
+                     menu=load_menu(appdata.read_qa(QA_MENU_FILE)), talk=load_talk(appdata.read_qa(QA_TALK_FILE)))
 
 
 def ask(store: Store, q: str, name: str | None = None, intent: str | None = None, lore: str | None = None,
-        spoil: bool = False, choice: str | None = None, only: bool = False) -> dict:
+        spoil: bool = False, choice: str | None = None, only: bool = False, menu: str | None = None,
+        talk: str | None = None) -> dict:
     """GET /api/qa: 質問(q)に答える。ボタンからは name(索引のキー)と intent(質問の id)・choice(解説の選択肢の id)、
-    または lore(解説の id。spoil=1 でネタバレの確認を飛ばす・only=1 でその段だけ(「続き」))で聞く。
+    または lore(解説の id。spoil=1 でネタバレの確認を飛ばす・only=1 でその段だけ(「続き」))・menu(「教えてクロちゃん」の分類の id)・talk(使い方・雑談の話の id)で聞く。
     ビルドには、ビルド管理に追加するときの名前の初期値 adopt_name を付ける"""
     q = (q or "").strip()
-    if not q and not name and not lore:
+    if not q and not name and not lore and not menu and not talk:
         raise ApiError(txt("err.qa.empty"))
     if len(q) > QA_QUESTION_MAX:
         raise ApiError(txt("err.qa.long", max=QA_QUESTION_MAX))
     res = answer(qa_context(store), q, name=name or None, intent=intent or None, lore=lore or None, spoil=spoil,
-                 choice=choice or None, only=only)
+                 choice=choice or None, only=only, menu=menu or None,
+                 talk=talk or None)
     for b in res["builds"]:
         b["adopt_name"] = b["name"] + DEV_BUILD_SUFFIX
     return res
@@ -63,5 +68,6 @@ def ask(store: Store, q: str, name: str | None = None, intent: str | None = None
 
 ROUTES = {
     ("GET", "/api/qa"): lambda c: ask(c.store, c.q.get("q", ""), c.q.get("name"), c.q.get("intent"), c.q.get("lore"),
-                                      c.flag("spoil"), c.q.get("choice"), c.flag("only")),
+                                      c.flag("spoil"), c.q.get("choice"), c.flag("only"), c.q.get("menu"),
+                                      c.q.get("talk")),
 }

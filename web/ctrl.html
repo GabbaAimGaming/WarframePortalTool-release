@@ -915,12 +915,19 @@ async function qaAsk(params) {
   } catch (e) { qaLog.unshift({ err: e.message, q: params.q || "" }); }
   renderQa();
 }
-// ボタン: o = {name, intent, choice, lore, only}(どれも任意)。押すとその値で /api/qa に聞く。spoil はネタバレの確認を飛ばす。
-// only は解説のその段だけ(「続き」。指定なしは 0段目からその段まで)
-const QA_CHIP_KEYS = ["name", "intent", "choice", "lore", "only"];
+// ボタン: o = {name, intent, choice, lore, only, menu, q}(どれも任意)。押すとその値で /api/qa に聞く。spoil はネタバレの確認を飛ばす。
+// only は解説のその段だけ(「続き」。指定なしは 0段目からその段まで)。menu は「教えてクロちゃん」の分類、q は例文(その文で聞く)、
+// talk はツールの使い方・雑談の話。page は聞かずに画面のページを開く(qaPageChip。無いページのボタンは出さない)
+const QA_CHIP_KEYS = ["name", "intent", "choice", "lore", "only", "menu", "q", "talk"];
 const qaChip = (label, o, spoil) =>
   `<button type="button" class="chip" data-qaask="1"${QA_CHIP_KEYS.filter(k => o[k]).map(k => ` data-qa${k}="${esc(o[k])}"`).join("")}${
     spoil ? ` data-qaspoil="1"` : ""}>${esc(label)}</button>`;
+const qaPageChip = (label, page) => pageExists(page)
+  ? `<button type="button" class="chip" data-qapage="${esc(page)}">${esc(label)}</button>` : "";
+const qaOption = o => o.page ? qaPageChip(o.label, o.page) : qaChip(o.label, o);
+// ツールの使い方・雑談の話のカード(文は API が日本語で返す)
+const qaTalkCard = talk => `<div class="qa-lore qa-talk"><header><b>${esc(talk.title)}</b></header>${
+  talk.paragraphs.map(x => `<p>${esc(x)}</p>`).join("")}</div>`;
 // 解説のカード(文は API が日本語で返す)。見出しは 0段目(最初の段)のタイトル、2つ目からの段は小見出し。出典は wiki の記事の URL と、ファイル全体の credit・license
 function qaLoreCard(lore, next) {
   const body = lore.parts.map((p, i) => `${i ? `<h4 class="qa-lore-part">${esc(p.title)}</h4>` : ""}${
@@ -943,13 +950,14 @@ function qaBuildCard(b, done) {
 function qaItem(entry, idx) {
   if (entry.err) return `<div class="qa-item"><div class="qa-q">${esc(entry.q)}</div><div class="err">${esc(entry.err)}</div></div>`;
   const r = entry.res;
-  const q = r.q || (r.name ? r.name.ja : r.lore ? r.lore.title : r.spoiler ? r.spoiler.title : "");
+  const q = r.q || (r.name ? r.name.ja : r.lore ? r.lore.title : r.spoiler ? r.spoiler.title : r.menu ? r.menu.title : r.talk ? r.talk.title : "");
   let h = `<div class="qa-item" data-qaidx="${idx}"><div class="qa-q">${esc(t("qa.you"))} ${esc(q)}</div>`;
   if (r.miss && r.miss.text) h += `<p class="qa-a qa-miss">${esc(r.miss.text)}</p>`;
   if (r.text) h += `<p class="qa-a"><b>${esc(r.text)}</b></p>`;
   if (r.spoiler) h += entry.declined ? `<p class="qa-a">${esc(r.spoiler.declined)}</p>`
     : `<div class="qa-chips">${qaChip(r.spoiler.ok, { lore: r.spoiler.id, only: r.spoiler.only ? "1" : "" }, true)}<button type="button" class="chip" data-qadecline="1">${esc(r.spoiler.ng)}</button></div>`;
   if (r.lore) h += qaLoreCard(r.lore, r.next);
+  if (r.talk) h += qaTalkCard(r.talk);
   if (r.facts.length) h += `<div class="tablewrap"><table class="qa-facts"><tbody>${r.facts.map(f =>
     `<tr><td>${esc(f.label)}</td><td>${esc(f.value)}</td></tr>`).join("")}</tbody></table></div>`;
   for (const g of r.sources) {
@@ -959,7 +967,7 @@ function qaItem(entry, idx) {
   }
   h += r.builds.map(b => qaBuildCard(b, entry.done[b.name])).join("");
   if (r.candidates.length) h += `<div class="qa-chips"><span>${esc(t("qa.maybe"))}</span>${r.candidates.map(c => qaChip(c.ja, { name: c.key, intent: r.intent })).join("")}</div>`;
-  if (r.options.length) h += `<div class="qa-chips"><span>${esc(r.options_title)}</span>${r.options.map(o => qaChip(o.label, o)).join("")}</div>`;
+  if (r.options.length) h += `<div class="qa-chips"><span>${esc(r.options_title)}</span>${r.options.map(qaOption).join("")}</div>`;
   if (r.basis) h += `<div class="qa-basis">${esc(r.basis)}</div>`;
   return h + `</div>`;
 }
@@ -978,6 +986,8 @@ $("#qa-clear").addEventListener("click", () => { qaLog = []; renderQa(); });
 /* ビルド管理に追加: 名前を入れる小窓(初期値は「名前_dev」)。同じ名前があれば小窓のまま入れ直してもらう(上書きしない) */
 let qaAdopt = null;  // {idx, build}
 $("#qa-log").addEventListener("click", e => {
+  const page = e.target.closest("[data-qapage]");  // 画面のページを開く(使い方の話から)
+  if (page) { show(page.dataset.qapage); return; }
   const chip = e.target.closest("[data-qaask]");
   if (chip) {
     const params = {};

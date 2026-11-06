@@ -11,6 +11,8 @@
   普通の語は、名前の部分を除いた文に当たるか、拾った名前そのもの(英名・和名)なら当たり
 - mentions(任意): 話の中に出てくる名前(英名)。索引だけで needs は絞らない(about との違い)。その名前だけで聞かれたときの選択肢・
   MOD の名前で直行に使い、Q&A の索引にも足す(index_names)
+- shared(任意): words のうち、ほかの話(group が違う)と重ねてよい語。重ねる側の話の全部に書く。当たったら話のタイトルのボタンで選ぶ
+  (例: 「Vox Solaris」= シンジケートとクエストのあらすじ)。shared に書いていない重なりは検査で落とす
 - 照合(質問の文に words / needs が当たるか)は core.qa が行う。ここはデータの形・検査・段の選び方だけ
 """
 from __future__ import annotations
@@ -23,7 +25,7 @@ from wfp.core.common import QA_KINDS, QA_LORE_LINES, QA_LORE_TYPES, QA_NEEDS_MAR
 from wfp.core.quests import check_flow
 
 # 解説の項目の並び(読み込み後の形)
-_LORE_KEYS = ("id", "type", "about", "mentions", "title", "words", "needs", "requires", "group", "stage", "prefix", "source", "text")
+_LORE_KEYS = ("id", "type", "about", "mentions", "title", "words", "shared", "needs", "requires", "group", "stage", "prefix", "source", "text")
 NEEDS_MIN_GROUPS = 2  # needs のまとまりの最小数(1つなら words で足りる)
 
 
@@ -95,7 +97,7 @@ def _topic(row: object) -> dict | None:
     prefix = row.get("prefix")
     return {"id": tid.strip(), "type": typ, "about": _strs(row.get("about")),
             "mentions": _strs(row.get("mentions")), "title": title.strip(), "words": _strs(row.get("words")),
-            "needs": _needs(row.get("needs")),
+            "shared": _strs(row.get("shared")), "needs": _needs(row.get("needs")),
             "requires": _strs(row.get("requires")) if typ == "quest" else [],
             "group": group.strip() if isinstance(group, str) and group.strip() else tid.strip(),
             "stage": stage if isinstance(stage, int) and not isinstance(stage, bool) else 0,
@@ -166,12 +168,36 @@ def _check_needs(tid: str, raw: object, t: dict, intent_words, problems: list[st
         problems.append(f"lore: {tid} の needs の種類の印 {w} が違う({QA_NEEDS_MARK} の後ろは {' / '.join(QA_KINDS)})")
 
 
+def _check_shared(data: LoreData, problems: list[str]) -> None:
+    """words の group どうしの重なりの検査。重ねてよいのは、その語を持つ話の全部が shared に書いた語だけ。
+    shared の語は自分の words にあり、ほかの group の words と重なっていること(重ならないなら書かない)"""
+    by_word: dict[str, list[tuple[dict, str]]] = {}
+    for t in data.topics:
+        for w in dict.fromkeys(t["words"]):
+            by_word.setdefault(norm(w), []).append((t, w))
+    for t in data.topics:
+        words = {norm(w) for w in t["words"]}
+        for w in t["shared"]:
+            if norm(w) not in words:
+                problems.append(f"lore: {t['id']} の shared の語 {w} が words に無い")
+            elif len({o["group"] for o, _ in by_word[norm(w)]}) < 2:
+                problems.append(f"lore: {t['id']} の shared の語 {w} はほかの話と重なっていない(shared は要らない)")
+    for rows in by_word.values():
+        groups = list(dict.fromkeys(t["group"] for t, _ in rows))
+        if len(groups) < 2:
+            continue
+        loose = [t["id"] for t, w in rows if norm(w) not in {norm(x) for x in t["shared"]}]
+        if loose:
+            problems.append(f"lore: 語 {rows[0][1]} が {' と '.join(groups)} の両方にある"
+                            f"(重ねるなら {' ・ '.join(loose)} の shared にも書く)")
+
+
 def check_lore(lore_raw: object, talk_raw: object, flow_raw: object, intent_words: set[str] | list[str] = ()) -> list[str]:
     """同梱データの検査。見つかった問題の一覧(無ければ空)。
 
     needs の形(_check_needs)・id の重なりと頭(setting. / quest. / system.)・quest 以外は requires を持たない・quest は requires を持つ・requires が flow.json にあり
     covers でまとめられていない・group の stage が 0 から抜けなく続き、上の段の requires が下の段の分を全部含む・
-    words が group どうし/intents/choices と重ならない・words も about も無い話が無い・prefix のグループがある・一言の場面の文
+    words が group どうし(shared に書いた語を除く)/intents/choices と重ならない・shared が words にあり、ほかの group と重なっている・words も about も無い話が無い・prefix のグループがある・一言の場面の文
     """
     problems: list[str] = []
     data = load_lore(lore_raw, talk_raw)
@@ -211,14 +237,11 @@ def check_lore(lore_raw: object, talk_raw: object, flow_raw: object, intent_word
         for lo, hi in zip(rows, rows[1:]):
             if not set(lo["requires"]) <= set(hi["requires"]):
                 problems.append(f"lore: {hi['id']} の requires が下の段 {lo['id']} の分を含んでいない")
-    seen: dict[str, str] = {}
+    _check_shared(data, problems)
     intents = {norm(w) for w in intent_words}
     choice_words = {norm(w): c["id"] for c in data.choices for w in c["words"]}
     for w, g in data.words():
         key = norm(w)
-        if key in seen and seen[key] != g:
-            problems.append(f"lore: 語 {w} が {seen[key]} と {g} の両方にある")
-        seen[key] = g
         if key in intents:
             problems.append(f"lore: 語 {w} が intents.json と重なる")
         if key in choice_words:

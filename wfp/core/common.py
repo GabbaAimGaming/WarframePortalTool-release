@@ -309,6 +309,12 @@ QA_LORE_TALK_FILE = "lore_talk.json"
 QA_LORE_TYPES = ("setting", "quest", "system")
 # lore_talk.json の一言の場面(すべて {id, ja} の一覧からランダムに1つ)
 QA_LORE_LINES = ("spoiler_ask", "spoiler_ok", "spoiler_ng", "declined", "ask_what", "next_stage", "pick_topic")
+# 「教えてクロちゃん」(話題のメニュー。core.qamenu)。QA_MENU_TOP = 分類の一覧(1段目)の id(分類の id には使えない)
+QA_MENU_FILE = "menu.json"
+QA_MENU_TOP = "top"
+# Warframe と関係ない話(core.qatalk): ツールの使い方 tool / 雑談 chat
+QA_TALK_FILE = "talk.json"
+QA_TALK_TYPES = ("tool", "chat")
 # 名前の種類: フレーム・武器(builder.json)/ アイテム(ドロップ表)/ アビリティ(builder.json と吸収一覧)/
 # 吸収一覧のフレーム(Helminth 自身・Orion & Sirius など builder.json に無いもの)/ 開発者のビルドの名前・対象 /
 # 呼び出し(data/summons/。Sevagoth's Shadow など)
