@@ -1,5 +1,5 @@
 {
-  "version": "2.19",
+  "version": "2.20",
   "edition": "lite",
   "files": {
     "INSTALL_PYTHON.md": {
@@ -28,8 +28,8 @@
       "src": "data/baro_rules.json"
     },
     "data/builds/dev_builds.json": {
-      "sha256": "2b4debf07e7cfb5f98649a2736b5ef859288941aad8ee16d2ce66fa9a3b2ba54",
-      "size": 35102,
+      "sha256": "4e88e4ec817c6cded4b764a0b6036943a02beeace9d991f51c83fcd2910e4b14",
+      "size": 50309,
       "src": "data/builds/dev_builds.json"
     },
     "data/duviri/normal.json": {
