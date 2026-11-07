@@ -252,6 +252,8 @@ def print_qa(res: dict) -> None:
             print(f"■ {group['title']}")
         for r in group["rows"]:
             print(f"  {r['chance']:>7}  {r['where']}" + (f"  ×{r['qty']}" if r["qty"] else ""))
+            if r.get("relics"):  # 時代ごとのレリックの入手先: その場所で出るレリック
+                print("           " + " / ".join(x["name"] + (f" {x['chance']}" if x["chance"] else "") for x in r["relics"]))
     for b in res["builds"]:
         print(f"■ {b['name']}({b['type_ja']}・{b['target_ja']}・フォーマ {b['forma']})")
         for m in b["mods"]:

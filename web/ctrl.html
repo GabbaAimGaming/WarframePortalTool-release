@@ -947,6 +947,11 @@ function qaBuildCard(b, done) {
       ? `<span class="mini">${esc(fmt("qa.adopt.done", { name: done }))}</span> <button type="button" class="btn ghost" data-qaopen="${esc(done)}">${esc(t("qa.adopt.open"))}</button>`
       : `<button type="button" class="btn ghost" data-qaadopt="${esc(b.name)}" data-qaadoptname="${esc(b.adopt_name)}">${esc(t("qa.adopt"))}</button>`}</div></div>`;
 }
+// 時代ごとのレリックの入手先: その場所で出るレリックと確率(ドロップ表のまま)
+function qaRelics(relics) {
+  if (!relics || !relics.length) return "";
+  return `<div class="qa-relics">${relics.map(r => `${esc(r.name)}${r.chance ? ` ${esc(r.chance)}` : ""}`).join(" / ")}</div>`;
+}
 function qaItem(entry, idx) {
   if (entry.err) return `<div class="qa-item"><div class="qa-q">${esc(entry.q)}</div><div class="err">${esc(entry.err)}</div></div>`;
   const r = entry.res;
@@ -963,7 +968,7 @@ function qaItem(entry, idx) {
   for (const g of r.sources) {
     if (g.title) h += `<div class="qa-group">${esc(g.title)}</div>`;
     h += `<div class="tablewrap"><table><thead><tr><th>${esc(t("qa.col.chance"))}</th><th>${esc(t("qa.col.where"))}</th></tr></thead><tbody>${
-      g.rows.map(x => `<tr><td>${esc(x.chance || "-")}</td><td>${catTag(x.cat)} ${esc(x.where)}${x.qty ? ` ×${esc(x.qty)}` : ""}</td></tr>`).join("")}</tbody></table></div>`;
+      g.rows.map(x => `<tr><td>${esc(x.chance || "-")}</td><td>${catTag(x.cat)} ${esc(x.where)}${x.qty ? ` ×${esc(x.qty)}` : ""}${qaRelics(x.relics)}</td></tr>`).join("")}</tbody></table></div>`;
   }
   h += r.builds.map(b => qaBuildCard(b, entry.done[b.name])).join("");
   if (r.candidates.length) h += `<div class="qa-chips"><span>${esc(t("qa.maybe"))}</span>${r.candidates.map(c => qaChip(c.ja, { name: c.key, intent: r.intent })).join("")}</div>`;

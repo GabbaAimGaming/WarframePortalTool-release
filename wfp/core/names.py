@@ -366,9 +366,14 @@ class Names:
             return "resource"
         if self.is_mod(base) or base.endswith(" Riven Mod"):
             return "mod"
-        if _RELIC_NAME.match(base):
+        if self.relic_era(base):
             return "relic"
         return "other"
+
+    def relic_era(self, name: str) -> tuple[str, str] | None:
+        """レリックなら (時代(ERA_JA のキー。例: Lith), 記号(例: A1))、違えば None。数量の付いた名前でもよい"""
+        m = _RELIC_NAME.match(self.split_qty(name)[1])
+        return (m.group(1), m.group(2)) if m else None
 
     def part_of(self, name: str, owners: dict[str, str] | None = None) -> tuple[str, str] | None:
         """パーツ(Warframe・武器などの本体・設計図・パーツ)なら (本体の英名, マスター一覧のカテゴリー)、違えば None。

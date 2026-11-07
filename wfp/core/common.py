@@ -329,6 +329,9 @@ QA_FORMATS = ("num", "pct", "mult", "sec")
 QA_SOURCE_LIMIT = 8
 QA_PART_SOURCE_LIMIT = 2
 QA_CANDIDATE_LIMIT = 6
+# レリックは時代(Lith など。ERA_JA のキー)ごとにまとめて答える: 入手先の場所の件数と、時代が無いときに候補(時代の一覧)を出す語
+QA_RELIC_SOURCE_LIMIT = 8
+QA_RELIC_WORDS = ("レリック", "relic", "relics")
 # 英字の名前はこれより短いと拾わない(「Ash」などが単語の中で当たらないよう、英字は単語の区切りも見る)
 QA_MIN_ASCII = 3
 QA_MIN_LABEL = 2

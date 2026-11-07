@@ -28,6 +28,7 @@
     "passive": "{name} のパッシブはこれ",
     "sources": "{name} の入手先だよ(確率の高い順に {n} 件まで)",
     "sources.parts": "{name} 本体のドロップは無いから、パーツごとの入手先を出すね(それぞれ {n} 件まで)",
+    "sources.relic": "{name} が出る場所だよ(出やすい場所から {n} か所まで。確率はドロップ表のまま)",
     "build": "開発者はこんな感じで使ってるっぽいね({as_of}時点)",
     "helminth.frame": "{name} から吸収できるのは {ability} だよ",
     "helminth.prime": "{name} は Helminth に食べさせられないけど、{base} からなら {ability} を吸収できるよ",

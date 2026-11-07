@@ -18,7 +18,8 @@ import unicodedata
 from dataclasses import dataclass, field
 
 from wfp.core.common import (QA_CANDIDATE_LIMIT, QA_FORMATS, QA_KINDS, QA_MIN_ASCII, QA_MIN_LABEL, QA_MISS_KINDS,
-                             QA_PART_SOURCE_LIMIT, QA_SOURCE_LIMIT, HELMINTH_FRAME, norm, render_ja)
+                             QA_PART_SOURCE_LIMIT, QA_RELIC_SOURCE_LIMIT, QA_RELIC_WORDS, QA_SOURCE_LIMIT, ERA_JA,
+                             HELMINTH_FRAME, norm, render_ja)
 from wfp.core.devbuilds import build_view, builds_for, variant_base
 from wfp.core.helminth import subsume_frame
 from wfp.core.qamenu import MenuData, menu_answer, menu_rest
@@ -37,6 +38,8 @@ _VARIANT_RE = re.compile(r"\s+(Prime|Umbra)$", re.I)
 _KIND_ORDER = {k: i for i, k in enumerate(("frame", "summon", "weapon", "hframe", "ability", "devbuild", "item"))}
 # 名前だけで聞きたいことが無いとき、その種類しか無ければこれに答える
 _DEFAULT_INTENT = {"ability": "helminth", "hframe": "helminth", "devbuild": "build"}
+# 時代ごとのレリックの名前だけのときに答える聞きたいこと
+_RELIC_INTENT = "sources"
 
 
 # --------------------------------------------------------------------------
@@ -90,7 +93,7 @@ def load_qa_data(intents_raw: object, answers_raw: object, miss_raw: object) -> 
 # 答えで使う文の型(check_qa_data が有無を検査する)
 TEXT_KEYS = ("field.frame", "field.weapon", "field.summon", "field.none", "stats.frame", "stats.weapon", "stats.summon", "abilities",
              "passive", "sources",
-             "sources.parts", "build", "helminth.frame", "helminth.prime", "helminth.self", "helminth.ability", "helminth.not",
+             "sources.parts", "sources.relic", "build", "helminth.frame", "helminth.prime", "helminth.self", "helminth.ability", "helminth.not",
              "basis.builder", "basis.drops", "basis.dev", "basis.helminth", "basis.summon", "options")
 
 
@@ -181,6 +184,7 @@ class QaIndex:
 
     frame・weapon は builder.json の行、summon は呼び出しの行(core.summons。フレームと同じ項目名)、
     abilities は [(持ち主の英名, アビリティの行)]、item・hframe・devbuild は真偽、mod は MOD の英名か(names.is_mod。種類ではなく印)。
+    レリックは1個ずつ(Lith A1 Relic)ではなく時代ごとの名前(Lith Relic。relic = 時代のキー)にまとめ、時代の名前だけ(Lith)も別名(aliases)で拾う。
     lore_names(解説の system と needs のある話の about の名前。core.qalore の index_names)も名前として拾う(ドロップ表に無い MOD など)。
     stop_words(聞きたいことの語)と同じ名前は拾わない(例: Helminth は「Helminth」の質問として扱う)
     """
@@ -210,9 +214,14 @@ class QaIndex:
             fe = self._entity(row["frame"], None)
             if not fe["frame"]:
                 fe["hframe"] = True
+        self._relic_keys: list[str] = []  # 時代ごとのレリックのキー(ERA_JA の並び。候補に出す)
         for n in items:
             base = names.split_qty(n)[1]
+            if era_code := names.relic_era(base):
+                self._relic_entity(era_code[0])
+                continue
             self._entity(base, names.ja(base))["item"] = True
+        self._relic_keys.sort(key=lambda k: list(ERA_JA).index(self.entities[k]["relic"]))
         for b in dev:
             self._entity(b["name"], None)["devbuild"] = True
             self._entity(b["target"], names.ja(b["target"]))["devbuild"] = True
@@ -222,7 +231,7 @@ class QaIndex:
             self._entity(n, names.ja(n))
         stop = {norm(w) for w in stop_words or ()}
         for key, e in self.entities.items():
-            for label in {e["en"], e["ja"]}:
+            for label in {e["en"], e["ja"], *e["aliases"]}:
                 ln = norm(label)
                 if len(ln) < (QA_MIN_ASCII if _is_ascii(ln) else QA_MIN_LABEL) or ln in stop:
                     continue
@@ -235,9 +244,17 @@ class QaIndex:
         if e is None:
             e = self.entities[key] = {"key": key, "en": en, "ja": ja, "frame": None, "weapon": None, "summon": None,
                                       "item": False, "abilities": [], "subsume": False, "hframe": False, "devbuild": False,
-                                      "mod": self.names.is_mod(en)}
+                                      "mod": self.names.is_mod(en), "relic": None, "aliases": []}
         elif e["ja"] == e["en"] and ja != en:
             e["ja"] = ja
+        return e
+
+    def _relic_entity(self, era: str) -> dict:
+        """時代ごとのレリックの名前(英名「Lith Relic」・和名「Lith レリック」・別名「Lith」)。種類は item"""
+        e = self._entity(f"{era} Relic", f"{ERA_JA[era]} レリック")
+        if e["relic"] is None:
+            e.update(item=True, relic=era, aliases=sorted({era, ERA_JA[era]}))
+            self._relic_keys.append(e["key"])
         return e
 
     @staticmethod
@@ -290,6 +307,11 @@ class QaIndex:
             hits |= {k for ln, keys in self._labels.items() if not _is_ascii(ln) and tok in ln for k in keys}
         ents = [self.entities[k] for k in hits]
         ents.sort(key=lambda e: (min((_KIND_ORDER[k] for k in self.kinds(e)), default=99), len(e["en"]), e["en"]))
+        # 「レリック」だけで時代が無ければ、時代ごとのレリックを先に(Lith → Meso → Neo → Axi …)
+        forms = {"norm": norm(question), "spaced": spaced(question)}
+        if any(_bounded(forms["spaced" if _is_ascii(w) else "norm"], norm(w), _is_ascii(w)) >= 0 for w in QA_RELIC_WORDS):
+            relics = [self.entities[k] for k in self._relic_keys]
+            ents = relics + [e for e in ents if not e["relic"]]
         return [{"key": e["key"], "en": e["en"], "ja": e["ja"]} for e in ents[:QA_CANDIDATE_LIMIT]]
 
 
@@ -451,6 +473,8 @@ def answer(ctx: QaContext, question: str = "", name: str | None = None, intent: 
     usable = [it for it in picked if kinds & set(it["kinds"])]
     if not usable and not picked and len(kinds - {"item"}) == 1 and (only := next(iter(kinds - {"item"}))) in _DEFAULT_INTENT:
         usable = [data.intent(_DEFAULT_INTENT[only])]
+    elif not usable and not picked and e["relic"]:  # レリックは入手先しか聞けないので、名前だけでも入手先を答える
+        usable = [data.intent(_RELIC_INTENT)]
     lore_opts = _lore_options(lore_data, e, heads)
     if not usable or usable[0] is None:  # 6. 名前だけ: 解説の選択肢(中身のあるものだけ)+ 聞けること
         res["options"] = lore_opts + options(data, e)
@@ -710,9 +734,40 @@ def _source_rows(rows: list[dict], limit: int) -> list[dict]:
     return out
 
 
+def _relic_sources(ctx: QaContext, res: dict, e: dict) -> dict:
+    """時代ごとのレリック(Lith など)の入手先。場所(入手先の種類・場所の文)ごとに1行にまとめ、その場所で出るレリックを
+    ドロップ表の確率のまま並べる(rows の relics = [{name, chance}]。足し算などはしない)。
+    場所の並びはそこで一番高い確率の順、レリックの並びは確率の高い順・名前順"""
+    names = ctx.index.names
+    relics = sorted({names.split_qty(n)[1] for n in ctx.items if (hit := names.relic_era(n)) and hit[0] == e["relic"]})
+    places: dict[tuple, dict] = {}
+    for relic in relics:
+        label = f"{ERA_JA[e['relic']]} {names.relic_era(relic)[1]}"
+        for src in find_sources(relic, ctx.drops, ctx.sources, names):
+            row = _source_rows([src], 1)[0]
+            place = places.setdefault((row["cat"], row["where"]), {"cat": row["cat"], "where": row["where"], "qty": "",
+                                                                   "chance": "", "relics": [], "_best": -1.0})
+            place["relics"].append({"name": label + (f" ×{row['qty']}" if row["qty"] else ""), "chance": row["chance"],
+                                    "_chance": src.get("chance")})
+            place["_best"] = max(place["_best"], src.get("chance") or 0)
+    if not places:
+        return _miss(ctx, res, "no_hit", e["ja"])
+    rows = sorted(places.values(), key=lambda p: (-p["_best"], p["where"]))[:QA_RELIC_SOURCE_LIMIT]
+    for p in rows:
+        p["relics"].sort(key=lambda r: (r["_chance"] is None, -(r["_chance"] or 0), r["name"]))
+        p["relics"] = [{"name": r["name"], "chance": r["chance"]} for r in p["relics"]]
+        del p["_best"]
+    res["sources"].append({"title": "", "rows": rows})
+    res["text"] = ctx.data.say("sources.relic", name=e["ja"], n=QA_RELIC_SOURCE_LIMIT)
+    res["basis"] = ctx.data.say("basis.drops")
+    return res
+
+
 def _sources(ctx: QaContext, res: dict, e: dict, it: dict) -> dict:
     if ctx.drops is None:
         return _miss(ctx, res, "no_data", e["ja"])
+    if e["relic"]:
+        return _relic_sources(ctx, res, e)
     names = ctx.index.names
     rows = find_sources(e["en"], ctx.drops, ctx.sources, names) if e["item"] else []
     if rows:
