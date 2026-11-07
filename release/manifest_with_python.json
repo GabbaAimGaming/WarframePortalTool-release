@@ -1,5 +1,5 @@
 {
-  "version": "2.21",
+  "version": "2.22",
   "edition": "with_python",
   "files": {
     "LICENSE": {
@@ -163,8 +163,8 @@
       "src": "tips/30_Rivenスプライサーの合成表.md"
     },
     "web/ctrl.html": {
-      "sha256": "78d15f332de95d129c0a680b4a253739fc79422db547272ece3ab1594aa3b28f",
-      "size": 180524,
+      "sha256": "094dee3bfe9de4d310de10ccfe08e9ee3c2531b70173b5185ba4f9fe1c5af2c1",
+      "size": 180797,
       "src": "web/ctrl.html"
     },
     "web/i18n.html": {
@@ -183,13 +183,13 @@
       "src": "web/i18n/ja.json"
     },
     "web/menu.html": {
-      "sha256": "3ec3a3d33fc4804edeadfe5e4734ba4dfa0d04bd6a15a679c36724c07ed27ca6",
-      "size": 8846,
+      "sha256": "ff023fe9fc73b00033015c19a654cf228e19bb62e3fa9021dfd0bae9b1199a65",
+      "size": 8976,
       "src": "web/menu.html"
     },
     "web/view.html": {
-      "sha256": "3c014c88f398673f2ba518d6feef11f20a6fe95fc5be7ac6d12890e399d03577",
-      "size": 84984,
+      "sha256": "3ea993396895cbe9c43e74027f78b3e502c51a021ea94deba80b985cb3214cf5",
+      "size": 85982,
       "src": "web/view.html"
     },
     "web/wfportal_builder.html": {

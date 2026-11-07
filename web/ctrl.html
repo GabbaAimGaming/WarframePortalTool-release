@@ -40,6 +40,11 @@
 
 <script>
 const $ = (s, r = document) => r.querySelector(s);
+/** 表示画面(main)を先頭などへスクロールする。広い画面は main だけがスクロールし、狭い画面はページ全体なので両方に効かせる */
+function scrollView(opt = { top: 0 }) {
+  $("main")?.scrollTo(opt);
+  window.scrollTo(opt);
+}
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 async function api(path, opts = {}) {
@@ -442,7 +447,7 @@ function openEnemy(name) {
   $("#enemy-q").value = name;
   enemySel = name;
   show("enemy");
-  window.scrollTo(0, 0);
+  scrollView();
 }
 $("#enemy-q").addEventListener("input", debounce(searchEnemy));
 $("#enemy-kinds").addEventListener("change", e => {  // 種類を変えたら覚えて、表を取り直す
@@ -2530,7 +2535,7 @@ $("#build-list").addEventListener("click", async e => {
     $("#b-helm-slot").value = b.helminth ? String(b.helminth.slot) : ""; $("#b-helm-ability").value = b.helminth ? b.helminth.ability : ""; helmToggle();
     renderShardSlots(b.shards || []); shardToggle();
     clearFormImages(); formImages = (b.images || []).map(n => ({ saved: n })); renderFormImages();
-    $("#build-form-wrap").open = true; $("#b-name").focus(); window.scrollTo({ top: 0, behavior: "smooth" });
+    $("#build-form-wrap").open = true; $("#b-name").focus({ preventScroll: true }); scrollView({ top: 0, behavior: "smooth" });
   } else if (del) {
     const name = del.dataset.del;
     if (armed !== name) { armed = name; renderBuilds(); setTimeout(() => { if (armed === name) { armed = null; renderBuilds(); } }, 4000); return; }
@@ -2598,7 +2603,7 @@ function renderGuide() {
 }
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-go]");
-  if (b) { show(b.dataset.go); window.scrollTo(0, 0); }
+  if (b) { show(b.dataset.go); scrollView(); }
 });
 loaders.home = relabel.home = renderHome;
 loaders.guide = relabel.guide = renderGuide;

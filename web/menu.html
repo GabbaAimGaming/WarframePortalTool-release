@@ -157,8 +157,10 @@ const loaders = {};
 const leaveGuards = [];
 function show(view) {
   if (view !== currentView && leaveGuards.some(ok => !ok(view))) return;
+  const moved = view !== currentView;
   views.forEach(v => { $("#view-" + v).hidden = v !== view; });
   currentView = view;
+  if (moved) scrollView();  // 前のページのスクロール位置を持ち越さない
   const g = groupOf(view);
   if (g) openGroup = g;  // 起動時や別の画面から移ったときも、そのページのカテゴリを開く
   applyMenuState();
