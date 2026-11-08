@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from wfp.core.common import EXPORT_EXTRA_LANGS, LANG_NAMES_FILE, MOD_STATS_FILE, REGIONS_FILE, WFCD_EXTRA, TextError, txt
+from wfp.core.common import ARBYS_FILE, EXPORT_EXTRA_LANGS, LANG_NAMES_FILE, MOD_STATS_FILE, REGIONS_FILE, WFCD_EXTRA, TextError, txt
 
 
 def read_names(d: Path) -> dict | None:
@@ -59,6 +59,18 @@ def read_regions(d: Path) -> dict:
 
 def save_regions(d: Path, regions: dict) -> None:
     (d / REGIONS_FILE).write_text(json.dumps(regions, ensure_ascii=False), encoding="utf-8")
+
+
+def read_arbys(d: Path) -> str | None:
+    """arbys.txt(仲裁のスケジュール。取得したまま)。無い・読めなければ None(行の検査は core.arbitration で行う)"""
+    try:
+        return (d / ARBYS_FILE).read_text(encoding="utf-8")
+    except (OSError, ValueError):
+        return None
+
+
+def save_arbys(d: Path, text: str) -> None:
+    (d / ARBYS_FILE).write_text(text, encoding="utf-8", newline="\n")
 
 
 def read_mod_stats(d: Path) -> dict | None:

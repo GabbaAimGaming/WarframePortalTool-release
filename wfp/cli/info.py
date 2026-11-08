@@ -1,14 +1,15 @@
-"""CLI: 情報(cycle・baro・riven・modstats・ask)"""
+"""CLI: 情報(cycle・arby・baro・riven・modstats・ask)"""
 from __future__ import annotations
 
 import sys
 from datetime import datetime, timedelta, timezone
 
 from wfp.cli.table import print_table
+from wfp.core.arbitration import arbitration_view, load_schedule, update_arbys
 from wfp.core.archon import shard_list
-from wfp.core.common import (BARO_KINDS, CAMBION, CYCLE_SOURCES, CYCLES, MOD_GROUPS, PHASE_ALIASES, QA_ANSWERS_FILE, QA_INTENTS_FILE,
+from wfp.core.common import (BARO_KINDS, CAMBION, CYCLE_SOURCES, CYCLES, FACTIONS_JA, MODES_JA, MOD_GROUPS, PHASE_ALIASES, QA_ANSWERS_FILE, QA_INTENTS_FILE,
                              QA_LORE_FILE, QA_LORE_TALK_FILE, QA_MENU_FILE, QA_MISS_FILE, QA_TALK_FILE, RIVEN_TYPES_JA, fmt_dur, norm, parse_remaining, rank,
-                             render_ja, txt)
+                             error_text, render_ja, txt)
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
 from wfp.core.devbuilds import dev_build_list
 from wfp.core.helminth import subsume_list
@@ -290,6 +291,49 @@ def _option_hint(o: dict) -> str:
     return ""
 
 
+def cmd_arby(args):
+    """仲裁: 今の枠と次の枠(画面と同じく今の1件 + 次の12件)。sync でスケジュールを取り直す"""
+    d = datadir.data_dir(args.data_dir)
+    if args.action == "sync":
+        try:
+            update_arbys(d)
+        except Exception as e:  # noqa: BLE001
+            print(render_ja(txt("err.arbys.fetch", e=error_text(e))), file=sys.stderr)
+        else:
+            print("仲裁のスケジュールを取り直しました。")
+    view = arbitration_view(d, load_schedule(d))
+    if not view["has_schedule"]:
+        sys.exit("仲裁のスケジュールがまだありません。`update` か `arby sync` で取得してください。")
+    if view["out_of_range"]:
+        sys.exit("保存済みのスケジュールの範囲を過ぎました。`arby sync` で取り直してください。")
+    jst = timezone(timedelta(hours=9))
+    if not view["regions_ok"]:
+        print("※ノード名の辞書がまだ無いため、内部名で表示しています(`update` で取得できます)。")
+    elif view["regions_old"]:
+        print("※ノード名の辞書が古いため、ミッションの種類と敵がわかりません(`update` で取り直してください)。")
+    out = []
+    for r in view["rows"]:
+        start, end = datetime.fromtimestamp(r["start"], jst), datetime.fromtimestamp(r["end"], jst)
+        when = f"{start:%m/%d %H:%M}〜{end:%H:%M}"
+        node = f"{r['node_ja']}({r['planet_ja']})" if r["planet_ja"] else r["node_ja"]
+        mission = MODES_JA.get(r["mission"], r["mission"]) if r["mission"] else _arby_unknown(r["mission_index"])
+        faction = FACTIONS_JA.get(r["faction"], r["faction"]) if r["faction"] else _arby_unknown(r["faction_index"])
+        left = f"残り {fmt_dur(r['end'] - view['now'])}" if r["current"] else ""
+        out.append(["▶" if r["current"] else "", when, node, mission, faction, left])
+    print_table(["", "時間(JST)", "ノード", "ミッション", "敵", ""], out)
+
+
+def _arby_unknown(index) -> str:
+    return f"不明({index})" if index is not None else "不明"
+
+
+def add_arby(sub) -> None:
+    s = sub.add_parser("arby", help="仲裁(今の枠と次の 12 件)")
+    s.add_argument("action", nargs="?", default="show", choices=["show", "sync"],
+                   help="sync: スケジュール(browse.wf の arbys.txt)を取り直す")
+    s.set_defaults(fn=cmd_arby)
+
+
 def add_cycle(sub) -> None:
     s = sub.add_parser("cycle", help="昼夜サイクルとリセット時刻")
     s.add_argument("action", nargs="?", default="show", choices=["show", "set", "sync"],
@@ -343,4 +387,4 @@ def add_ask(sub) -> None:
 
 
 # このグループのコマンド: 名前 -> parser に登録する関数(並び順は wfp/cli/main.py の ORDER)
-COMMANDS = {"cycle": add_cycle, "riven": add_riven, "baro": add_baro, "modstats": add_modstats, "ask": add_ask}
+COMMANDS = {"cycle": add_cycle, "arby": add_arby, "riven": add_riven, "baro": add_baro, "modstats": add_modstats, "ask": add_ask}

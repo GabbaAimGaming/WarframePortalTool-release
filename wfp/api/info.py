@@ -1,4 +1,4 @@
-"""画面向け API: 情報(サイクル・侵略サイクル・バロ吉・Riven 相場・デュヴィリ・MOD 効果検索)"""
+"""画面向け API: 情報(サイクル・侵略サイクル・仲裁・バロ吉・Riven 相場・デュヴィリ・MOD 効果検索)"""
 from __future__ import annotations
 
 from datetime import datetime
@@ -6,7 +6,8 @@ from datetime import datetime
 import wfportal_baro as wbaro
 import wfportal_worldstate as ws
 from wfp.api.store import ApiError, JST, Store, mtime_jst
-from wfp.core.common import CYCLES, MOD_STATS_FILE, PHASE_ALIASES, error_text, parse_remaining, txt
+from wfp.core.arbitration import arbitration_view, update_arbys
+from wfp.core.common import ARBYS_FILE, CYCLES, MOD_STATS_FILE, PHASE_ALIASES, error_text, parse_remaining, txt
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
 from wfp.core.duviri import clear_duviri_adjust, duviri_view, set_duviri_adjust
 from wfp.core.invasion import invasion_view, set_invasion_part
@@ -132,6 +133,21 @@ def set_invasion_parts(store: Store, body: dict) -> dict:
     return invasions(store)
 
 
+def arbitration(store: Store) -> dict:
+    """仲裁: 保存済みのスケジュールから今の枠と次の枠を作る(通信しない)。fetched_at はスケジュールを保存した時刻(UNIX 秒)"""
+    f = store.d / ARBYS_FILE
+    return {**arbitration_view(store.d, store.arbys()), "fetched_at": f.stat().st_mtime if f.exists() else None}
+
+
+def sync_arbitration(store: Store) -> dict:
+    """仲裁のスケジュールを取り直す。取れなければ 502(保存済みの分はそのまま)"""
+    try:
+        update_arbys(store.d)
+    except Exception as e:  # noqa: BLE001
+        raise ApiError(txt("err.arbys.fetch", e=error_text(e)), 502)
+    return arbitration(store)
+
+
 def mod_suggest(store: Store, query: str) -> dict:
     """MOD 効果検索: 影響先の候補(表示名に部分一致)。データが無ければ空で has_data が false(画面は案内を出す)"""
     data = store.mod_stats()
@@ -160,6 +176,8 @@ ROUTES = {
     ("GET", "/api/invasions"): lambda c: invasions(c.store),
     ("POST", "/api/invasions/update"): lambda c: c.empty_body() or sync_invasions(c.store),
     ("POST", "/api/invasions/parts"): lambda c: set_invasion_parts(c.store, c.body()),
+    ("GET", "/api/arbitration"): lambda c: arbitration(c.store),
+    ("POST", "/api/arbitration/update"): lambda c: c.empty_body() or sync_arbitration(c.store),
     ("GET", "/api/duviri"): lambda c: duviri(c.store),
     ("POST", "/api/duviri/adjust"): lambda c: set_duviri(c.store, c.body()),
     ("POST", "/api/duviri/reset"): lambda c: reset_duviri(c.store, c.body()),

@@ -6,7 +6,8 @@ import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from wfp.core.common import CLAN_FILE, MOD_STATS_FILE, MOD_TARGETS_FILE, OTHER_FILE, render_ja, txt
+from wfp.core.arbitration import Schedule, load_schedule
+from wfp.core.common import ARBYS_FILE, CLAN_FILE, MOD_STATS_FILE, MOD_TARGETS_FILE, OTHER_FILE, render_ja, txt
 from wfp.core.loader import load_drops, load_names, load_rivens, load_sources
 from wfp.core.modstats import ModStats, load_mod_stats
 from wfp.core.names import Names
@@ -37,6 +38,10 @@ class Store:
 
     def drops(self) -> Drops | None:
         return self._cached("missionRewards.json", lambda: load_drops(self.d))
+
+    def arbys(self) -> Schedule | None:
+        """仲裁のスケジュール(arbys.txt が変われば読み直す)"""
+        return self._cached(ARBYS_FILE, lambda: load_schedule(self.d))
 
     def names(self) -> Names:
         return self._cached("names.json", lambda: load_names(self.d)) or Names()

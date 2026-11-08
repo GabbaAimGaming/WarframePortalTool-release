@@ -74,8 +74,14 @@ def part_index(weapons: list[dict]) -> dict[str, dict]:
 # ノード名(公式 Public Export の ExportRegions から「データ更新」で作る)
 # --------------------------------------------------------------------------
 
+def _index(v) -> int | None:
+    """Export の番号(missionIndex など)。整数でなければ None(bool は除く)"""
+    return v if isinstance(v, int) and not isinstance(v, bool) else None
+
+
 def regions_from_exports(en_doc: dict, ja_doc: dict) -> dict:
-    """{ノードの内部名: {node, node_ja, planet, planet_ja}}。日本語が無ければ英語(惑星は PLANETS_JA も見る)"""
+    """{ノードの内部名: {node, node_ja, planet, planet_ja, mission_index, faction_index}}。日本語が無ければ英語(惑星は PLANETS_JA も見る)。
+    mission_index・faction_index は Export の数字のまま(整数でなければ None)。種類・勢力のキーへは読むときに変える(core/arbitration)"""
     def rows(doc):
         items = doc.get("ExportRegions") if isinstance(doc, dict) else None
         return {it["uniqueName"]: it for it in items or []
@@ -87,7 +93,8 @@ def regions_from_exports(en_doc: dict, ja_doc: dict) -> dict:
         planet = it.get("systemName") if isinstance(it.get("systemName"), str) else ""
         planet_ja = j.get("systemName") if isinstance(j.get("systemName"), str) else ""
         out[uid] = {"node": it["name"], "node_ja": j.get("name") or it["name"],
-                    "planet": planet, "planet_ja": planet_ja or PLANETS_JA.get(planet, planet)}
+                    "planet": planet, "planet_ja": planet_ja or PLANETS_JA.get(planet, planet),
+                    "mission_index": _index(it.get("missionIndex")), "faction_index": _index(it.get("factionIndex"))}
     return out
 
 

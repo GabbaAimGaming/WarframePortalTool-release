@@ -11,7 +11,7 @@ from pathlib import Path
 
 import wfportal_baro as wbaro
 import wfportal_builder as wb
-from wfp.core import invasion, modstats, riven
+from wfp.core import arbitration, invasion, modstats, riven
 from wfp.core.common import (DROPS_URLS, WFCD_BASES, WFCD_EXTRA, TextError, TextFailure, error_text, export_lang, name_txt, say,
                              txt)
 from wfp.fetch import exports, logos, net
@@ -130,6 +130,15 @@ def update_all(d: Path, langs: tuple[str, ...] = ()) -> None:
         say(txt("log.regions.done", n=str(len(regions)), src=name_txt("export.src.", src)))
     except Exception as e:  # noqa: BLE001
         say(txt("log.regions.failed", e=error_text(e)), 1)
+
+    # 仲裁のスケジュール(browse.wf の arbys.txt)。取れなければ前回分を使う
+    say(txt("log.fetching.arbys"))
+    try:
+        sched = arbitration.update_arbys(d)
+        last = datetime.fromtimestamp(sched.last, timezone.utc).strftime("%Y-%m-%d")
+        say(txt("log.arbys.done", n=str(len(sched)), last=last))
+    except Exception as e:  # noqa: BLE001
+        say(txt("log.arbys.failed", e=error_text(e)), 1)
 
     if not logos.find_logos_dir(d):  # 初回(ロゴ素材が未取得)のときだけ取得する
         logos.fetch_logos(d)

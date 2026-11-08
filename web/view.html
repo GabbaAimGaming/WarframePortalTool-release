@@ -278,6 +278,12 @@ td.num, th.num { text-align: right; }
 .FC_GRINEER { --fac: var(--rar-rare); }
 .FC_CORPUS { --fac: var(--accent); }
 .FC_INFESTATION { --fac: var(--rar-legendary); }
+/* 仲裁: 開催中の行を目立たせる。敵グループの色は侵略サイクルの .inv-fac / .FC_* を使う(表に色が無い勢力は文字の色) */
+#arb-out tr.now > td { background: var(--panel-2); font-weight: 700; }
+/* 目立たせる仲裁(防衛・耐久 かつ 感染体。条件は Python の ARBY_PICK): 開催中はオレンジ・まだの枠はクリーム */
+#arb-out tr.pick > td { background: #fbf3d9; }
+#arb-out tr.pick.now > td { background: #f8c88a; }
+#arb-out .arb-left { display: block; font-size: 12px; font-weight: 400; color: var(--accent); }
 .inv-bar { display: flex; height: 8px; background: var(--panel-2); border: 1px solid var(--line); }
 .inv-bar > i { display: block; background: var(--fac, var(--accent)); }
 .inv-pct { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--mute); font-variant-numeric: tabular-nums; }
@@ -817,6 +823,19 @@ input.own:disabled { cursor: not-allowed; opacity: .35; }
           </div>
         </div>
         <p class="note" data-i18n="invasion.note">報酬はその陣営の側でミッションを3回クリアすると手に入ります。完了した侵略は表示しません。取得済みのチェックはこの PC に保存され、ツールの更新では消えません。</p>
+      </section>
+
+      <!-- 仲裁 -->
+      <section id="view-arbitration" hidden>
+        <h2 data-i18n="page.arbitration">仲裁</h2>
+        <p class="lead" data-i18n="arby.lead">いま開催中の仲裁と、次の 12 時間ぶんの予定です。</p>
+        <div class="cyc-sync">
+          <button class="btn" type="button" id="arb-sync" data-i18n="arby.sync">スケジュールを取り直す</button>
+          <span class="note" id="arb-info" role="status"></span>
+        </div>
+        <div class="err" id="arb-err" role="alert"></div>
+        <div id="arb-out"></div>
+        <p class="note" data-i18n="arby.note">スケジュールは browse.wf のデータを使っています。</p>
       </section>
 
       <!-- サイクル -->

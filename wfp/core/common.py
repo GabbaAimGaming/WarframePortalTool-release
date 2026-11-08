@@ -107,11 +107,11 @@ PLANETS_JA = {
 MODES_JA = {
     "Survival": "耐久", "Defense": "防衛", "Capture": "確保", "Rescue": "救出", "Spy": "潜入",
     "Assassination": "抹殺", "Interception": "傍受", "Exterminate": "掃滅", "Excavation": "発掘",
-    "Disruption": "分裂", "Mobile Defense": "機動防衛", "Sabotage": "妨害",
+    "Disruption": "分裂", "Mobile Defense": "機動防衛", "Mirror Defense": "ミラー防衛", "Sabotage": "妨害",
     "Defection": "脱出", "Skirmish": "小競り合い", "Caches": "キャッシュ", "Conclave": "コンクラーヴ",
     "Arena": "アリーナ", "Hard": "ハード", "Normal": "ノーマル", "Rush": "ラッシュ",
     "Pursuit": "追跡", "Ascension": "アセンション", "Alchemy": "錬金",
-    "Infested Salvage": "感染サルベージ", "Void Flood": "ヴォイドフラッド",
+    "Infested Salvage": "感染回収", "Void Flood": "ヴォイドフラッド",
     "Void Cascade": "ヴォイドカスケード", "Void Armageddon": "ヴォイドアルマゲドン",
     "The Circuit": "サーキット", "Legacyte Harvest": "レガシート収穫",
     "Sanctuary Onslaught": "サンクチュアリ", "Elite Sanctuary Onslaught": "エリート・サンクチュアリ", "Shrine Defense": "神殿防衛",
@@ -124,6 +124,7 @@ MODES_JA = {
 NODE_MODES = {
     ("Lua", "Yuvarium"): ("Survival", "Conjunction Survival"),
     ("Lua", "Circulus"): ("Survival", "Conjunction Survival"),
+    ("Mars", "Tyana Pass"): ("Defense", "Mirror Defense"),  # ExportRegions の番号は防衛と同じ(仲裁でも使う)
 }
 
 
@@ -520,6 +521,36 @@ INVASION_WEAPON_PART_PREFIX = "/Lotus/Types/Recipes/Weapons/"
 # 名前辞書 names.json にノード名が混ざらないよう、別に取得して regions.json にする)
 REGIONS_EXPORT = "ExportRegions"
 REGIONS_FILE = "regions.json"
+# ExportRegions の missionIndex -> ミッションの種類(MODES_JA のキー。画面は I18N の mode.<キー>)。
+# 対応は WARFRAME Wiki の Module:Missions/data の Index(2026-11-08 確認)。MODES_JA に無い種類は書かない(画面は「不明」と番号)。
+# 8 は防衛・ミラー防衛・ステージ防衛で共通(ExportRegions では区別できない)
+REGION_MISSIONS = {
+    0: "Assassination", 1: "Exterminate", 2: "Survival", 3: "Rescue", 4: "Sabotage", 5: "Capture", 7: "Spy",
+    8: "Defense", 9: "Mobile Defense", 10: "Conclave", 13: "Interception", 17: "Excavation", 21: "Infested Salvage",
+    22: "Arena", 24: "Pursuit", 25: "Rush", 27: "Defection", 31: "The Circuit", 33: "Disruption", 34: "Void Flood",
+    35: "Void Cascade", 36: "Void Armageddon", 38: "Alchemy", 39: "Ascension", 40: "Legacyte Harvest", 41: "Shrine Defense",
+}
+# ExportRegions の factionIndex -> 勢力のキー(FACTIONS_JA。画面は I18N の faction.<キー>)。
+# 公式の対応表が無いので、ノードの勢力から確かめた(2026-11-08。3 = ヴォイド(和名はオロキン)、5 = Ropalolyst、7 = ダイモスの研究所(和名はササヤキ)、8・9 = ホルバニア)
+REGION_FACTIONS = {
+    0: "FC_GRINEER", 1: "FC_CORPUS", 2: "FC_INFESTATION", 3: "FC_OROKIN", 5: "FC_SENTIENT", 7: "FC_MURMUR",
+    8: "FC_SCALDRA", 9: "FC_TECHROT", 10: "FC_DUVIRI", 11: "FC_TENNO",
+}
+FACTIONS_JA = {
+    "FC_GRINEER": "グリニア", "FC_CORPUS": "コーパス", "FC_INFESTATION": "感染体", "FC_OROKIN": "オロキン",
+    "FC_SENTIENT": "センティエント", "FC_MURMUR": "ササヤキ", "FC_SCALDRA": "スカルドラ", "FC_TECHROT": "テクロット",
+    "FC_DUVIRI": "デュヴィリ", "FC_TENNO": "テンノ",
+}
+
+# 仲裁(Arbitration)のスケジュール: browse.wf が公開している CSV(1 行 =「UNIX 時刻(秒・UTC。その 1 時間の始まり),ノードの内部名」。
+# 古い順・1 時間ごと・数年先まで)。データ更新とページのボタンで取り直し、取れなければ前回分を使う
+ARBYS_URL = "https://browse.wf/arbys.txt"
+ARBYS_FILE = "arbys.txt"
+ARBY_SLOT = 3600   # 1 件の長さ(秒)
+ARBY_COUNT = 13    # 出す件数(今の 1 件 + 次の 12 件)
+# 目立たせる仲裁(画面で背景に色。開催中はオレンジ・まだの枠はクリーム)。種類(MODES_JA のキー)のどれか かつ 勢力のどれか。
+# 2026-11-08 利用者の指定: 防衛・耐久 かつ 感染体(ミラー防衛は入れない)
+ARBY_PICK = {"missions": ("Defense", "Survival"), "factions": ("FC_INFESTATION",)}
 
 
 def parse_remaining(s: str) -> int:
@@ -650,6 +681,8 @@ TEXT_JA = {
     "err.update.lang_unknown": "名前辞書を取れない言語です: {lang}",
     "err.notfound": "{name} が見つかりません",
     "err.regions.none": "ノードが見つかりません",
+    "err.arbys.none": "スケジュールの行がありません",
+    "err.arbys.fetch": "仲裁のスケジュールを取得できませんでした。前回取得した内容で表示しています。({e})",
     "err.modstats.none": "MOD の効果が見つかりません",
     "err.modstats.target": "不明な影響先です: {name}",
     "err.modstats.group": "不明な区分です: {name}",
@@ -684,6 +717,9 @@ TEXT_JA = {
     "log.fetching.regions": "ノード名(ExportRegions)を取得中...",
     "log.regions.done": "ノード名: {n} 件(取得元: {src})",
     "log.regions.failed": "ノード名を取得できませんでした: {e}  ※前回取得分があればそれを使います(無ければ内部名で表示)",
+    "log.fetching.arbys": "仲裁のスケジュールを取得中...",
+    "log.arbys.done": "仲裁のスケジュール: {n} 件({last} まで)",
+    "log.arbys.failed": "仲裁のスケジュールを取得できませんでした: {e}  ※前回取得分があればそれを使います",
     "log.fetching.riven": "Riven 相場(公式・週次)を取得中...",
     "log.riven.count": "{n} 件取得しました",
     "log.riven.failed": "失敗しました: {e}  ※前回取得分があればそれを使います",
@@ -717,7 +753,7 @@ TEXT_JA = {
 }
 # キーの頭 -> {キーの残り: 日本語}。表示名の表をそのまま画面の文字として使う
 JA_TABLES = {
-    "planet.": PLANETS_JA, "mode.": MODES_JA, "rarity.": RARITY_JA, "src.cat.": SOURCE_CATS, "area.kind.": AREA_KINDS, "bounty.": BOUNTY_JA,
+    "planet.": PLANETS_JA, "mode.": MODES_JA, "faction.": FACTIONS_JA, "rarity.": RARITY_JA, "src.cat.": SOURCE_CATS, "area.kind.": AREA_KINDS, "bounty.": BOUNTY_JA,
     "relic.era.": ERA_JA, "relic.state.": RELIC_STATE_JA, "clan.lab.": {k: v[1] for k, v in CLAN_LABS.items()},
     "mod.type.": MOD_TYPES, "mod.compat.": COMPAT_JA, "mod.group.": MOD_GROUPS, "mastery.cat.": MASTERY_CATS, "arcane.cat.": ARCANE_CATS,
     "quest.cat.": QUEST_CATS, "quest.state.": QUEST_STATES,
