@@ -1,0 +1,18 @@
+<!-- ページ「トップ」(id home): 表示部(view = <section id="view-home">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- トップ(カードの中身は MENU から作る: 下の renderHome) -->
+      <section id="view-home" hidden>
+        <h2 data-i18n="page.home">トップ</h2>
+        <p class="lead" data-i18n="home.lead">見たいページへ、ここから移動できます。</p>
+        <div class="cards" id="home-cards"></div>
+      </section>
+<!-- PART:script -->
+/* ---------- トップ ---------- */
+function renderHome() {
+  applyViewText("home");
+  $("#home-cards").innerHTML = menuSections().map(s => `<div class="card"><header><b>${esc(s.label)}</b></header>${
+    s.items.map(v => `<button type="button" class="go" data-go="${esc(v)}"><b>${esc(t("page." + v))}${betaTag(v) ? " " + betaTag(v) : ""}</b><span>${esc(t("page." + v + ".sub"))}</span></button>`).join("")}</div>`).join("");
+}
+loaders.home = relabel.home = renderHome;

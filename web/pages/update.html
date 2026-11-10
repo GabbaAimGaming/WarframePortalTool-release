@@ -1,0 +1,29 @@
+<!-- ページ「データ更新」(id update): 表示部(view = <section id="view-update">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- データ更新 -->
+      <section id="view-update" hidden>
+        <h2 data-i18n="page.update">データ更新</h2>
+        <p class="lead" data-i18n="upd.lead">ドロップ表・敵やバウンティの入手先・Riven 相場・日本語名の辞書(Riven性質・シミュレータ用のデータを含む)を取得します。ゲームのアップデート後にも実行してください。</p>
+        <dl class="kv" id="update-info"></dl>
+        <div class="row"><button class="btn" id="update-btn" data-i18n="upd.btn">公式データを取得</button>
+          <button class="btn ghost" id="update-riv-btn" type="button" data-i18n="upd.riv">Riven相場だけ取得</button></div>
+        <pre class="log" id="update-log" hidden></pre>
+        <p class="note" data-i18n="upd.note">取得元: ドロップ表・入手先は WFCD/warframe-drop-data(drops.warframestat.us)、日本語名は calamity-inc/warframe-public-export(取得できなければ公式 Public Export)、Riven 相場は公式の weeklyRivensPC.json(取得できなければ WFCD の api.warframestat.us)です。ロゴ素材が未取得のときは、公式ファンキット(Warframe Fan Kit)の配布元からロゴ素材も取得します。インターネット接続が必要です。</p>
+      </section>
+<!-- PART:script -->
+/* ---------- データ更新 ---------- */
+$("#update-btn").addEventListener("click", async () => {
+  const btn = $("#update-btn"), log = $("#update-log");
+  btn.disabled = true; btn.textContent = t("upd.fetching"); log.hidden = false; log.textContent = t("upd.fetching.log");
+  try {
+    // 表示中の言語も送る(日英のほかの言語なら、その言語の名前辞書も取る。ja・en はサーバーが毎回取る)
+    const r = await api("/api/update", { method: "POST", body: { lang } });
+    showLog(log, r);
+    Object.values(dataResets).forEach(reset => reset());
+  } catch (e) { log.textContent = e.message; }
+  btn.disabled = false; btn.textContent = t("upd.btn"); refreshStatus();
+});
+loaders.update = () => { applyViewText("update"); return refreshStatus(); };
+relabel.update = () => { applyViewText("update"); renderStatus(); relabelLogs(); };

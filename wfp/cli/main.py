@@ -7,6 +7,7 @@ from typing import Callable
 
 from wfp.cli import admin, info, personal, search
 from wfp.core.common import app_version
+from wfp.store import userdb
 
 GROUPS = (search, personal, info, admin)
 # --help に出るコマンドの並び順。コマンドを足したらここにも足す(tests/test_cli.py が漏れ・重複を検査する)
@@ -37,5 +38,7 @@ def main(argv: list[str] | None = None, serve: Callable[[list[str]], None] | Non
             serve(admin.serve_argv(args))
         else:
             args.fn(args)
+    except userdb.UserDbError as e:  # 利用者データが壊れていて戻せない・新しい版で作られている
+        sys.exit(str(e))
     except BrokenPipeError:  # `| head` などで出力が途中で閉じられた場合
         sys.stderr.close()

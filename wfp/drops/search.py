@@ -3,7 +3,10 @@ from __future__ import annotations
 
 from typing import Callable
 
-from wfp.core.common import AREA_KIND_DEFAULT, AREA_KINDS, SOURCE_CATS, name_txt, norm, rank, render_ja
+from wfp.core.common import rank
+from wfp.core.i18n import name_txt, render_ja
+from wfp.core.text import norm
+from wfp.core.const import AREA_KIND_DEFAULT, AREA_KINDS, SOURCE_CATS
 from wfp.core.names import Names, item_key
 from wfp.drops.tables import Drops, Sources, mission_place, stage_label
 
@@ -12,7 +15,7 @@ def find_sources(key: str, drops: "Drops", sources: Sources | None, names: Names
     """項目(英名)の入手先を、ミッション・敵・バウンティ・レリック・クラン研究等すべてから集めて確率の高い順に返す(確率の無いクラン研究は最後)。
 
     cat は入手先の種類のキー(SOURCE_CATS)、敵の行だけ enemy に敵の英名(敵から探すへのリンク用)、rarity はレア度のキー(Common など)、place・detail・stage はテキスト指定
-    (wfp/core/common.py の txt。画面は web/i18n の表で、CLI は render_ja で文にする)。並びは日本語の入手先名で決める
+    (wfp/core/i18n.py の txt。画面は web/i18n の表で、CLI は render_ja で文にする)。並びは日本語の入手先名で決める
     """
     k = item_key(key)
     out = []

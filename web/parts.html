@@ -1,0 +1,232 @@
+<!-- 画面の共通部品: 複数のページで使う処理(入手先の表と検索・種類のチェック・ゲーム画面の読み取り・ログの表示・
+     トップとページ説明の分類)。ctrl.html の INCLUDE:parts.html#script で、基礎スクリプトのあと・各ページの処理の前に入る。
+     メイン画面だけで使う(シミュレータと共用のものは web/i18n.html) -->
+<!-- PART:script -->
+/* ---------- 入手先の検索(素材から探す・パーツ検索で共用) ---------- */
+/** 入手先の名前。敵の行(API の enemy に英名)は押すと敵から探すで開く(openEnemy) */
+const placeCell = x => x.enemy
+  ? `<button type="button" class="go-enemy" data-enemy="${esc(x.enemy)}" title="${esc(t("enemy.open"))}">${esc(x.enemy)}</button>`
+  : esc(renderTxt(x.place));
+/** 入手先の表 (素材から探す / パーツ検索 / MOD 一覧の詳細で共用)。行の place・detail・stage は API のテキスト指定 */
+function sourceTable(rows) {
+  const max = Math.max(...rows.map(x => x.chance ?? 0), 0.0001);  // 確率の無い入手先(クラン研究)は「—」でバーを出さない
+  return `<div class="tablewrap"><table>
+    <thead><tr>${["cat", "place", "detail", "stage", "chance", "rarity"].map(c => `<th>${esc(t("src.col." + c))}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(x => `<tr><td>${catTag(x.cat)}</td><td>${placeCell(x)}${x.event ? `<span class="tag-event">${esc(t("src.event"))}</span>` : ""}</td>
+      <td>${esc(renderTxt(x.detail))}</td><td>${esc(renderTxt(x.stage))}</td>
+      <td>${x.chance == null ? "—" : `<div class="chance"><div class="bar"><i style="--w:${(x.chance / max * 100).toFixed(1)}%"></i></div><b>${x.qty ? esc(fmt("src.qty", { n: x.qty })) : ""}${fmtPct(x.chance)}</b></div>`}</td>
+      <td>${x.rarity ? rarity(x.rarity) : ""}</td></tr>`).join("")}</tbody></table></div>`;
+}
+/**
+ * 名前で候補を出し、選んだ項目の入手先(/api/item)を表にするページを作る。部品は #<id>-q #<id>-chips #<id>-out #<id>-ev
+ * o.id: ページの id / o.suggest(q): 候補を取る URL / o.list(res): 応答から候補の配列を取り出す(既定は応答そのもの)
+ * o.onSuggest(res): 候補を受け取ったとき(カテゴリーの描画など。o.blocked で止めたときは null) / o.more(res, list): 候補の後ろに足す HTML / o.tag(item): 候補の名前の後ろに足す HTML(種類のラベルなど)
+ * o.blocked(): 候補を取らずに止めるときの文字(例: 種類を1つも選んでいない)。止めないときは "" を返す(省略可)
+ * o.msg: noMatch(res) 候補なし / pick 候補から選ぶ / empty 何も入っていない / noData データなし(どれも文字を返す関数)
+ * 返り値: load(ページを開いたとき) / search(autoPick)(候補を取り直す) / reset(データ更新の後)
+ */
+function sourceSearch(o) {
+  const el = part => $(`#${o.id}-${part}`);
+  const list = o.list || (res => res);
+  let key = null, cat = "", data = null;
+  // 候補の名前: 日本語の画面は日本語名(下に英名)、ほかの言語は英名(ゲームの名前は Export の英語・日本語の2つだけ)
+  const nameOf = i => nameByLang(i), subOf = i => (lang === "ja" && i.ja && i.ja !== i.en ? i.en : "");
+  const chip = i => `<button class="chip" data-key="${esc(i.key)}" aria-pressed="${i.key === key}">${esc(nameOf(i))}${subOf(i) ? `<small>${esc(subOf(i))}</small>` : ""}${o.tag ? o.tag(i) : ""}</button>`;
+  async function loadChips() {
+    const stop = o.blocked ? o.blocked() : "";
+    if (stop) { el("chips").innerHTML = `<span class="note">${esc(stop)}</span>`; if (o.onSuggest) o.onSuggest(null); return []; }
+    try {
+      const res = await api(o.suggest(el("q").value)), items = list(res);
+      if (o.onSuggest) o.onSuggest(res);
+      el("chips").innerHTML = items.length ? items.map(chip).join("") + (o.more ? o.more(res, items) : "")
+        : `<span class="note">${esc(o.msg.noMatch(res))}</span>`;
+      return items;
+    } catch (e) { el("chips").innerHTML = ""; el("out").innerHTML = noData(e.message); return []; }
+  }
+  function renderResult() {
+    const r = data; if (!r) return;
+    if (cat && !r.cats.some(c => c.key === cat)) cat = "";
+    const rows = cat ? r.rows.filter(x => x.cat === cat) : r.rows;
+    el("out").innerHTML = `
+    <div class="result-head"><h3>${esc(nameOf(r))}</h3>${subOf(r) ? `<span class="en">${esc(subOf(r))}</span>` : ""}<span class="count">${esc(fmt("src.count", { n: r.total }))}</span></div>
+    ${r.cats.length > 1 ? `<div class="seg" role="group" aria-label="${esc(t("src.cats"))}">
+      <button class="chip" data-cat="" aria-pressed="${!cat}">${esc(t("src.all"))}<small>${r.total}</small></button>
+      ${r.cats.map(c => `<button class="chip" data-cat="${esc(c.key)}" aria-pressed="${cat === c.key}">${esc(tName("src.cat.", c.key))}<small>${c.n}</small></button>`).join("")}</div>` : ""}
+    ${sourceTable(rows)}
+    <p class="note">${esc(t("src.footnote"))}</p>`;
+  }
+  async function loadResult() {
+    if (!key) { el("out").innerHTML = ""; return; }
+    try {
+      data = await api(`/api/item?key=${encodeURIComponent(key)}&events=${el("ev").checked ? 1 : 0}`);
+      renderResult();
+    } catch (e) { data = null; el("out").innerHTML = noData(e.message); }
+  }
+  const markChips = () => el("chips").querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c.dataset.key === key));
+  async function search(autoPick) {
+    const items = await loadChips();
+    if (!items || !items.length) { key = null; el("out").innerHTML = ""; return; }
+    const q = el("q").value.trim();
+    if (autoPick || !items.some(i => i.key === key)) {
+      const exact = q && items.find(i => [i.ja, i.en].some(n => n.toLowerCase() === q.toLowerCase()));
+      key = exact ? exact.key : (q && items.length === 1 ? items[0].key : (q ? null : key));
+      if (key) markChips();
+    }
+    if (!key) el("out").innerHTML = `<div class="empty">${esc(q ? o.msg.pick() : o.msg.empty())}</div>`;
+    else await loadResult();
+  }
+  el("out").addEventListener("click", e => {
+    const c = e.target.closest("[data-cat]"); if (!c) return;
+    cat = c.dataset.cat; renderResult();
+  });
+  el("q").addEventListener("input", debounce(() => search(true)));
+  el("ev").addEventListener("change", loadResult);
+  el("chips").addEventListener("click", e => {
+    const c = e.target.closest(".chip[data-key]"); if (!c) return;
+    key = c.dataset.key; cat = "";
+    markChips();
+    loadResult();
+  });
+  return {
+    search,
+    async load() {
+      const s = await refreshStatus();
+      if (!s || !s.has_drops) { el("chips").innerHTML = ""; el("out").innerHTML = noData(o.msg.noData()); return; }
+      if (!el("chips").children.length || !key) await search(true);
+    },
+    reset() { key = null; data = null; el("chips").innerHTML = ""; },
+    // 言語を切り替えたとき: 候補と結果を手元のデータで描き直す(取り直さない)
+    relabel() { applyViewText(o.id); if (data) renderResult(); return el("chips").children.length ? loadChips() : null; },
+  };
+}
+
+/* ---------- 種類のチェック(アイテム・エリア・敵から探すで共用) ---------- */
+/* #<id>-kinds の中に、種類(CONST.AREA_KINDS の並び)のチェックを作る。文字は I18N の area.kind.<キー>。
+   初期の ON は key(localStorage)に覚えた種類、無ければ def。key があれば、変えるたびに覚える。
+   返り値は「選んでいる種類のキーの一覧」を返す関数 */
+function kindChecks(id, def, key) {
+  const box = $(`#${id}-kinds`);
+  const saved = key ? pref.json(key) : null;
+  const on = Array.isArray(saved) ? saved : def;
+  box.innerHTML = CONST.AREA_KINDS.map(k => `<label class="chk"><input type="checkbox" data-kind="${esc(k)}"${on.includes(k) ? " checked" : ""}> <span></span></label>`).join("");
+  box.querySelectorAll("span").forEach((span, i) => {  // 文字は applyText で言語を切り替えたときも描き直す
+    span.dataset.i18n = "area.kind." + CONST.AREA_KINDS[i]; span.textContent = t(span.dataset.i18n);
+  });
+  const picked = () => [...box.querySelectorAll("input[data-kind]")].filter(x => x.checked).map(x => x.dataset.kind);
+  if (key) box.addEventListener("change", e => { if (e.target.dataset.kind) pref.setJson(key, picked()); });
+  return picked;
+}
+
+
+/* ---------- ゲーム画面の読み取り(MOD 入手一覧・マスター一覧で共用) ----------
+   画面共有の動画を SCAN_INTERVAL ごとに1コマ見て、前の読み取りから画面が変わったときだけ読む。スクリーンショットのファイルからも読める。
+   部品の id は <prefix>-toggle(ON / OFF)・-file-btn・-files(ファイルの選択)・-video・-panel(結果の欄。結果の描き方は呼ぶ側)。
+   o: { prefix, state(読み取りの状態を足すオブジェクト。on・stream・timer・busy・last を足す), render(状態の文 | undefined),
+        read(Blob) → 読んだ件数, found(件数) → 状態の文, frame(video) → Blob(既定は PNG), file(File) → Blob(既定はそのまま) }
+   返り値: { start, stop, label }(label は言語を切り替えたときにボタンの文字を描き直す) */
+const SCAN_INTERVAL = 2500, SCAN_DIFF = 1.5;  // 読み取りの間隔(ミリ秒)・画面が変わったとみなす明るさの差(縮めた画像の1画素あたり)
+/* 文字認識が使えない理由(API のテキスト指定。無ければ「使えません」) */
+const ocrReason = info => (info.reason ? renderTxt(info.reason) : t("err.ocr.none"));
+/* 文字認識が使えるか(/api/ocr-info。1回だけ聞いて覚える。ゲーム画面の読み取り・ビルド画像の解析で共用) */
+let ocrInfo = null;
+async function loadOcrInfo() {
+  if (ocrInfo) return ocrInfo;
+  try { ocrInfo = await api("/api/ocr-info"); } catch (e) { ocrInfo = { available: false, reason: e.message }; }
+  return ocrInfo;
+}
+/* 画像(ファイル・動画の1コマ)を PNG にする。JPEG・WebP や、16bit・パレットの PNG もサーバーが読める形にそろえる */
+async function toPng(source) {
+  const canvas = document.createElement("canvas");
+  if (source instanceof Blob) {
+    const bitmap = await createImageBitmap(source);
+    canvas.width = bitmap.width; canvas.height = bitmap.height; canvas.getContext("2d").drawImage(bitmap, 0, 0); bitmap.close();
+  } else { canvas.width = source.videoWidth; canvas.height = source.videoHeight; canvas.getContext("2d").drawImage(source, 0, 0); }
+  return await new Promise(done => canvas.toBlob(done, "image/png"));
+}
+function createScreenScanner(o) {
+  const st = Object.assign(o.state, { on: false, stream: null, timer: null, busy: false, last: null });
+  const el = part => $(`#${o.prefix}-${part}`);
+  const frame = o.frame || toPng, file = o.file || (f => f);
+  /** 画面が前回の読み取りから変わったか(小さく縮めた白黒画像の差で判断) */
+  function changed(video) {
+    const canvas = document.createElement("canvas"); canvas.width = 64; canvas.height = 36;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true }); ctx.drawImage(video, 0, 0, 64, 36);
+    const px = ctx.getImageData(0, 0, 64, 36).data, cur = new Uint8Array(64 * 36);
+    for (let i = 0; i < cur.length; i++) cur[i] = (px[i * 4] + px[i * 4 + 1] + px[i * 4 + 2]) / 3;
+    const prev = st.last; st.last = cur;
+    if (!prev) return true;
+    let diff = 0; for (let i = 0; i < cur.length; i++) diff += Math.abs(cur[i] - prev[i]);
+    return diff / cur.length > SCAN_DIFF;
+  }
+  async function tick() {
+    const video = el("video");
+    if (!st.on || st.busy || !video.videoWidth) return;
+    if (!changed(video)) { o.render(t("scan.waiting")); return; }
+    st.busy = true;
+    try {
+      const blob = await frame(video);
+      o.render(t("scan.reading"));
+      o.render(o.found(await o.read(blob)));
+    } catch (err) { o.render(fmt("scan.failed", { msg: err.message })); st.last = null; }
+    st.busy = false;
+  }
+  async function start() {
+    const info = await loadOcrInfo();
+    if (!info.available) { o.render(fmt("scan.unavailable", { reason: ocrReason(info) })); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { o.render(t("scan.nobrowser")); return; }
+    try {
+      st.stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 2 }, audio: false });
+    } catch (err) { o.render(t("scan.cancel")); return; }
+    const video = el("video"); video.srcObject = st.stream; await video.play().catch(() => {});
+    st.stream.getVideoTracks()[0].addEventListener("ended", stop);  // ブラウザ側で「共有を停止」したとき
+    st.on = true; st.last = null;
+    label();
+    o.render(t("scan.reading"));
+    st.timer = setInterval(tick, SCAN_INTERVAL); tick();
+  }
+  function stop() {
+    st.on = false; clearInterval(st.timer); st.timer = null;
+    if (st.stream) st.stream.getTracks().forEach(track => track.stop());
+    st.stream = null; el("video").srcObject = null;
+    label();
+    if (!el("panel").hidden) o.render(t("scan.stopped"));
+  }
+  /* 読み取りのボタンの文字(ON / OFF) */
+  function label() {
+    el("toggle").setAttribute("aria-pressed", String(st.on)); el("toggle").textContent = t(st.on ? "scan.on" : "scan.off");
+  }
+  el("toggle").addEventListener("click", () => (st.on ? stop() : start()));
+  el("file-btn").addEventListener("click", () => el("files").click());
+  el("files").addEventListener("change", async ev => {
+    const files = [...ev.target.files]; ev.target.value = "";
+    const info = await loadOcrInfo();
+    if (!info.available) { o.render(fmt("scan.unavailable", { reason: ocrReason(info) })); return; }
+    for (let i = 0; i < files.length; i++) {
+      o.render(fmt("scan.files", { i: i + 1, n: files.length }));
+      try { await o.read(await file(files[i])); }
+      catch (err) { o.render(fmt("scan.file.failed", { file: files[i].name, msg: err.message })); return; }
+    }
+    o.render(fmt("scan.files.done", { n: files.length }));
+  });
+  label();
+  return { start, stop, label };
+}
+
+
+/* ログの表示: 結果を覚えておき、言語を切り替えたら描き直す(ログの欄ごと) */
+const shownLogs = new Map();
+function showLog(el, r) { shownLogs.set(el, r); el.textContent = renderLog(r, t(r.ok ? "common.done" : "common.failed")); }
+function relabelLogs() { shownLogs.forEach((r, el) => { el.textContent = renderLog(r, t(r.ok ? "common.done" : "common.failed")); }); }
+
+/* どちらも MENU から組み立てる(ページを足すと自動で載る)。ノンカテゴリのページ(トップ自身を除く)は「その他」にまとめる */
+function menuSections() {
+  const out = [], other = [];
+  MENU.forEach(e => {
+    if (e.group) {
+      const items = e.items.filter(pageVisible);
+      if (items.length) out.push({ label: t("group." + e.group), items });
+    } else if (e.page !== "home" && pageVisible(e.page)) other.push(e.page);
+  });
+  if (other.length) out.push({ label: t("group.other"), items: other });
+  return out;
+}

@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """wfportal_baro - バロ吉入手一覧: Void 商人 (Baro Ki'Teer) の品物と、自分の所持の照合 (標準ライブラリのみ)
 
-- 今回の品物: 公式 World State (wfportal_worldstate) の VoidTraders。品物は内部パスなので、
+- 今回の品物: 公式 World State (wfp/core/worldstate・wfp/fetch/worldstate) の VoidTraders。品物は内部パスなので、
   「データ更新」のときに Public Export から作るパス → 英語名の辞書 (item_paths.json) で名前にする。
 - 履歴リスト(これまでに持ってきた品物)= ① 初期リスト + ② この PC で記録した来訪
     ① 初期リスト: 公式データ(names.json)から作る。バロだけが持ってくる(ほぼバロだけの)品物
          - 名前が "Prisma " で始まるマスター対象(武器・コンパニオン・アークウイング系)
          - 名前が "Primed " で始まるレジェンダリーの MOD(data/baro_rules.json の primed_exclude を除く)
          - data/baro_rules.json の include(Primed Chamber など、上の条件に当てはまらないもの)
-    ② 来訪の記録 (baro_seen.json): 「バロ情報を更新」でバロが来ている品物を取得したとき、来訪日と品物を記録する。
+    ② 来訪の記録 (利用者データの baro_seen): 「バロ情報を更新」でバロが来ている品物を取得したとき、来訪日と品物を記録する。
        履歴リストに無い品物は追加され、ある品物は「最後に来た日」「回数」が更新される。
        過去の日付は分からないので、回数・最後に来た日はこの PC で記録した来訪だけで数える。
 - 所持の照合は種類で振り分ける:
     MOD         → MOD入手一覧の所持チェック (mods_owned.json)
     武器        → マスター一覧のマスター済み (mastered.json)。マスター済み = 入手したことがある、とみなす
     消耗品など  → 何度でも買えるので照合しない
-    それ以外    → このページの手動チェック (baro_owned.json)
+    それ以外    → このページの手動チェック (利用者データの baro_owned)
   名前が " Skin" で終わるものは、パスや初期リストの分け方によらず装飾・外装として扱う。
 
 非公式のファンツールです。Digital Extremes Ltd. とは関係ありません。
@@ -28,20 +28,19 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from wfp.core import common
+from wfp.core import const, errors, i18n
 from wfp.core.cycle import clock_offset
 from wfp.core.loader import load_names
+from wfp.core import worldstate
 from wfp.core.names import Names
-from wfp.store import userdata
+from wfp.fetch import worldstate as wsfetch
+from wfp.store import gamedata, userdata
 
-SEEN_FILE = "baro_seen.json"      # この PC で記録した来訪
-OWNED_FILE = "baro_owned.json"    # このページの手動チェック
-PATHS_FILE = "item_paths.json"    # 内部パス → 英語名(「データ更新」で作る)
-RULES_FILE = common.APP_DIR / "data" / "baro_rules.json"  # 初期リストの除外・追加(ツールに同梱。編集してよい)
+RULES_FILE = const.APP_DIR / "data" / "baro_rules.json"  # 初期リストの除外・追加(ツールに同梱。編集してよい)
 
-# 照合の種類(表示名は wfp/core/common.py。画面は I18N の baro.kind.<キー> / baro.check.<キー>)
-KINDS = common.BARO_KINDS
-CHECK_BY = common.BARO_CHECK_BY
+# 照合の種類(表示名は wfp/core/const.py の BARO_KINDS・BARO_CHECK_BY。画面は I18N の baro.kind.<キー> / baro.check.<キー>)
+KINDS = const.BARO_KINDS
+CHECK_BY = const.BARO_CHECK_BY
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 TENNOCON_NODES = {"TennoConHUB2"}  # TennoCon は過去の品物がすべて並ぶ特別な来訪なので、記録しない
 
@@ -111,7 +110,7 @@ def seed_items(names: Names, rules: dict) -> list[dict]:
 # --------------------------------------------------------------------------
 # ② この PC で記録した来訪
 # --------------------------------------------------------------------------
-# baro_seen.json: {"visits": {"2026-10-16": {"recorded_at": 時刻, "node": "PlutoHUB",
+# baro_seen(利用者データ): {"visits": {"2026-10-16": {"recorded_at": 時刻, "node": "PlutoHUB",
 #                                           "items": {英語名: {"kind": 種類, "ducats": 数, "credits": 数}}}}}
 # 来訪日は到着の UTC の日付(バロは金曜 13:00 UTC ごろに来る)
 
@@ -119,21 +118,17 @@ def visit_date(activation: float) -> str:
     return datetime.fromtimestamp(activation, timezone.utc).strftime("%Y-%m-%d")
 
 
-def load_seen(d: Path) -> dict:
-    f = d / SEEN_FILE
-    try:
-        j = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
-    except ValueError:
-        return {}
-    visits = j.get("visits") if isinstance(j, dict) else None
+def clean_visits(seen: dict) -> dict:
+    """記録の中身({"visits": …})から、形の合う来訪だけを取り出す"""
+    visits = seen.get("visits")
     if not isinstance(visits, dict):
         return {}
     return {k: v for k, v in visits.items()
             if DATE_RE.match(str(k)) and isinstance(v, dict) and isinstance(v.get("items"), dict)}
 
 
-def save_seen(d: Path, visits: dict) -> None:
-    (d / SEEN_FILE).write_text(json.dumps({"visits": visits}, ensure_ascii=False), encoding="utf-8")
+def load_seen(d: Path) -> dict:
+    return clean_visits(userdata.load_baro_seen(d))
 
 
 def record_visit(d: Path, snap: dict | None, paths: dict, now: float) -> str | None:
@@ -153,10 +148,12 @@ def record_visit(d: Path, snap: dict | None, paths: dict, now: float) -> str | N
     if not items:
         return None
     date = visit_date(t["activation"])
-    visits = load_seen(d)
-    prev = visits.get(date, {})
-    visits[date] = {"recorded_at": now, "node": t["node"], "items": {**prev.get("items", {}), **items}}
-    save_seen(d, visits)
+    with userdata.editing(d, "baro_seen") as seen:
+        visits = clean_visits(seen)  # 形の合わない来訪は書き戻さない(以前と同じ)
+        prev = visits.get(date, {})
+        visits[date] = {"recorded_at": now, "node": t["node"], "items": {**prev.get("items", {}), **items}}
+        seen.clear()
+        seen["visits"] = visits
     return date
 
 
@@ -185,41 +182,8 @@ def load_history_items(d: Path, names: Names) -> list[dict]:
 
 
 # --------------------------------------------------------------------------
-# 内部パス → 名前 (「データ更新」のときに Public Export から作る)
+# 内部パス → 名前(辞書は「データ更新」のときに Public Export から作る: core/names の item_paths_from_exports・store/gamedata の read_item_paths)
 # --------------------------------------------------------------------------
-
-def item_paths_from_exports(en_docs: list[dict]) -> dict:
-    """{内部パス: 英語名}。設計図 (ExportRecipes) は「作れるものの名前 + Blueprint」"""
-    names, recipes = {}, {}
-    for doc in en_docs:
-        for key, val in doc.items():
-            if not isinstance(val, list):
-                continue
-            for it in val:
-                if not isinstance(it, dict) or not isinstance(it.get("uniqueName"), str):
-                    continue
-                if it.get("name"):
-                    names.setdefault(it["uniqueName"], it["name"])
-                elif key == "ExportRecipes" and isinstance(it.get("resultType"), str):
-                    recipes[it["uniqueName"]] = it["resultType"]
-    for uid, result in recipes.items():
-        if result in names:
-            names.setdefault(uid, f"{names[result]} Blueprint")
-    return names
-
-
-def save_item_paths(d: Path, paths: dict) -> None:
-    (d / PATHS_FILE).write_text(json.dumps(paths, ensure_ascii=False), encoding="utf-8")
-
-
-def load_item_paths(d: Path) -> dict:
-    f = d / PATHS_FILE
-    try:
-        j = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
-    except ValueError:
-        return {}
-    return j if isinstance(j, dict) else {}
-
 
 def path_name(path: str, paths: dict) -> tuple[str, bool]:
     """(英語名, 辞書で見つかったか)。World State は /StoreItems/ 付きのパスで、Export には付かないものが多い"""
@@ -236,26 +200,20 @@ def path_name(path: str, paths: dict) -> tuple[str, bool]:
 # --------------------------------------------------------------------------
 
 def load_manual_owned(d: Path) -> set[str]:
-    f = d / OWNED_FILE
-    try:
-        j = json.loads(f.read_text(encoding="utf-8-sig")) if f.exists() else []
-    except ValueError:
-        return set()
-    return {str(x).lower() for x in j} if isinstance(j, list) else set()
+    return {x.lower() for x in userdata.load_baro_owned(d)}
 
 
 def set_manual_owned(d: Path, name: str, owned: bool, names: Names | None = None) -> set[str]:
     """手動チェックを付け外しする(装飾・外装など、ほかの一覧で照合できないものだけ)"""
     key = name.strip().lower()
     if not key:
-        raise common.TextError(common.txt("err.baro.noname"))
+        raise errors.TextError(i18n.txt("err.baro.noname"))
     known = {r["name"].lower(): r["kind"] for r in load_history_items(d, names or load_names(d))}
     if known.get(key, fix_kind(key, "manual")) != "manual":
-        raise common.TextError(common.txt("err.baro.notmanual", name=name, by=common.txt("baro.check." + known[key])))
-    s = load_manual_owned(d)
-    (s.add if owned else s.discard)(key)
-    (d / OWNED_FILE).write_text(json.dumps(sorted(s), ensure_ascii=False, indent=0), encoding="utf-8")
-    return s
+        raise errors.TextError(i18n.txt("err.baro.notmanual", name=name, by=i18n.txt("baro.check." + known[key])))
+    with userdata.editing(d, "baro_owned") as s:
+        (s.add if owned else s.discard)(key)
+    return {x.lower() for x in s}
 
 
 class Owned:
@@ -304,7 +262,6 @@ def pick_trader(traders: list[dict], now: float) -> dict | None:
 def current_trader(snap: dict | None, items_hist: list[dict], paths: dict, names: Names, owned: Owned,
                    now: float) -> dict | None:
     """保存済みの World State から、いま(または次)のバロと品物の照合結果を作る。回数は記録した来訪で数える"""
-    import wfportal_worldstate as ws
     t = pick_trader((snap or {}).get("traders") or [], now)
     if t is None:
         return None
@@ -318,7 +275,7 @@ def current_trader(snap: dict | None, items_hist: list[dict], paths: dict, names
                       "credits": it["credits"], "limit": it["limit"], "in_history": bool(h),
                       "count": h["count"] if h else 0})
     state = "here" if t["activation"] <= now < t["expiry"] else ("coming" if t["activation"] > now else "gone")
-    return {"character": t["character"], "node": t["node"], "relay": ws.relay_txt(t["node"]),
+    return {"character": t["character"], "node": t["node"], "relay": worldstate.relay_txt(t["node"]),
             "activation": t["activation"], "expiry": t["expiry"], "state": state, "items": items,
             "fetched_at": (snap or {}).get("fetched_at")}
 
@@ -336,7 +293,6 @@ def summary(rows: list[dict]) -> dict:
 
 def baro_view(d: Path, names: Names, now: float | None = None) -> dict:
     """画面・コマンド共通: 履歴リストの照合表と、いま(次)のバロ"""
-    import wfportal_worldstate as ws
     now = time.time() if now is None else now
     visits = load_seen(d)
     items = history_items(seed_items(names, load_rules()), visits)
@@ -345,19 +301,18 @@ def baro_view(d: Path, names: Names, now: float | None = None) -> dict:
     offset = clock_offset(userdata.load_cycles(d))
     return {"rows": rows, "summary": summary(rows), "kinds": list(KINDS),  # 種類は並び(キー)だけ
             "visits": {"count": len(visits), "latest": max(visits, default=None)},
-            "current": current_trader(ws.load_snapshot(d), items, load_item_paths(d), names, owned, now + offset),
-            "has_names": bool(names.mastery or names.mods), "has_paths": (d / PATHS_FILE).exists(), "now": now + offset}
+            "current": current_trader(gamedata.read_worldstate(d), items, gamedata.read_item_paths(d), names, owned, now + offset),
+            "has_names": bool(names.mastery or names.mods), "has_paths": gamedata.has_item_paths(d), "now": now + offset}
 
 
 def update_all(d: Path, force: bool = False, verbose: bool = False) -> dict:
     """バロ情報を更新: 今回の品物を公式 World State から取得し、来ていれば来訪を記録する"""
-    import wfportal_worldstate as ws
     result = {"worldstate": None, "recorded": None, "errors": []}
     try:
-        snap = ws.sync(d, force=force, verbose=verbose)
+        snap = worldstate.sync(d, force=force, verbose=verbose)
         result["worldstate"] = "cached" if snap["cached"] else "fetched"
         now = time.time() + clock_offset(userdata.load_cycles(d))
-        result["recorded"] = record_visit(d, snap, load_item_paths(d), now)
-    except ws.WorldStateError as e:
-        result["errors"].append(common.txt("err.baro.fetch", e=str(e)))  # テキスト指定(CLI は render_ja で出す)
+        result["recorded"] = record_visit(d, snap, gamedata.read_item_paths(d), now)
+    except wsfetch.WorldStateError as e:
+        result["errors"].append(i18n.txt("err.baro.fetch", e=str(e)))  # テキスト指定(CLI は render_ja で出す)
     return result

@@ -11,7 +11,8 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
-from wfp.core.common import QA_TALK_TYPES, norm
+from wfp.core.text import norm
+from wfp.core.const import QA_TALK_TYPES
 from wfp.core.qamenu import check_buttons, parse_button
 
 

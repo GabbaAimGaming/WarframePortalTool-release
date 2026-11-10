@@ -7,14 +7,19 @@ from datetime import datetime, timedelta, timezone
 from wfp.cli.table import print_table
 from wfp.core.arbitration import arbitration_view, load_schedule, update_arbys
 from wfp.core.archon import shard_list
-from wfp.core.common import (BARO_KINDS, CAMBION, CYCLE_SOURCES, CYCLES, FACTIONS_JA, MODES_JA, MOD_GROUPS, PHASE_ALIASES, QA_ANSWERS_FILE, QA_INTENTS_FILE,
-                             QA_LORE_FILE, QA_LORE_TALK_FILE, QA_MENU_FILE, QA_MISS_FILE, QA_TALK_FILE, RIVEN_TYPES_JA, fmt_dur, norm, parse_remaining, rank,
-                             error_text, render_ja, txt)
+from wfp.core.common import fmt_dur, parse_remaining, rank
+from wfp.core.errors import error_text
+from wfp.core.i18n import render_ja, txt
+from wfp.core.text import fold_case, norm
+from wfp.core.const import (
+    BARO_KINDS, CAMBION, CYCLES, CYCLE_SOURCES, FACTIONS_JA, MODES_JA, MOD_GROUPS, PHASE_ALIASES, QA_ANSWERS_FILE,
+    QA_INTENTS_FILE, QA_LORE_FILE, QA_LORE_TALK_FILE, QA_MENU_FILE, QA_MISS_FILE, QA_TALK_FILE, RIVENS_FILE, RIVEN_TYPES_JA,
+)
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
 from wfp.core.devbuilds import dev_build_list
 from wfp.core.helminth import subsume_list
 from wfp.core.loader import DropsMissing, load_drops, load_names, load_rivens, load_sources
-from wfp.core.modstats import fold, load_mod_stats, parse_groups
+from wfp.core.modstats import load_mod_stats, parse_groups
 from wfp.core.qa import QaContext, QaIndex, answer, load_qa_data, stop_words
 from wfp.core.qalore import index_names, load_lore
 from wfp.core.qamenu import load_menu
@@ -22,8 +27,10 @@ from wfp.core.qatalk import load_talk
 from wfp.core.quests import check_flow
 from wfp.core.riven import riven_table, update_rivens
 from wfp.core.summons import summon_list
+from wfp.core import worldstate
+from wfp.fetch import worldstate as wsfetch
 from wfp.drops.search import all_item_names
-from wfp.store import appdata, datadir, userdata
+from wfp.store import appdata, datadir, gamedata, userdata
 
 
 def cmd_cycle(args):
@@ -37,10 +44,9 @@ def cmd_cycle(args):
             sys.exit(str(e))
         print("時刻合わせを保存しました。")
     elif args.action == "sync":
-        import wfportal_worldstate as ws
         try:
-            snap = ws.sync(d, force=True, verbose=True)
-        except ws.WorldStateError as e:
+            snap = worldstate.sync(d, force=True, verbose=True)
+        except wsfetch.WorldStateError as e:
             sys.exit(f"公式データを取得できませんでした: {e}\n※基準時刻(または前回の同期)からの計算で表示します。")
         print(f"公式データで同期しました(PC の時計のずれ {snap['offset']:+.0f} 秒)。")
     jst = timezone(timedelta(hours=9))
@@ -131,7 +137,7 @@ def cmd_riven(args):
     stat = lambda s: f"{s['median']:g} ({s['min']:g}〜{s['max']:g}, {int(s['pop'])}件)" if s else "—"
     print_table(["武器", "武器種", "未リロール 中央値(最小〜最大, 件数)", "リロール済み 中央値(最小〜最大, 件数)"],
                 [[r["weapon_ja"], r["type_ja"], stat(r["unrolled"]), stat(r["rerolled"])] for r in rows[: args.limit]])
-    f = d / "rivens.json"
+    f = d / RIVENS_FILE
     print(f"\n単位はプラチナ(PC 版・公式の週次統計 / {datetime.fromtimestamp(f.stat().st_mtime):%Y-%m-%d} 取得)。"
           "極端な出品価格が混ざるため、平均より中央値が目安になります。")
 
@@ -140,7 +146,7 @@ def _pick_target(data, args) -> str | None:
     """影響先キーを決める。--target はキーか表示名。指定が無ければ入力が影響先の名前に当たるか見る(当たらなければ全文検索)"""
     word = (args.target or "").strip()
     if word:
-        hits = [k for k, ent in data.targets.items() if fold(word) in (fold(k), fold(ent["ja"]), fold(ent["en"]))]
+        hits = [k for k, ent in data.targets.items() if fold_case(word) in (fold_case(k), fold_case(ent["ja"]), fold_case(ent["en"]))]
         if not hits:
             sys.exit(f"影響先が見つかりません: {word}(--targets で一覧)")
         return hits[0]
@@ -148,7 +154,7 @@ def _pick_target(data, args) -> str | None:
     if args.text or not query:
         return None
     cands = data.suggest(query)
-    exact = [c["key"] for c in cands if fold(query) in (fold(c["ja"]), fold(c["en"]))]
+    exact = [c["key"] for c in cands if fold_case(query) in (fold_case(c["ja"]), fold_case(c["en"]))]
     if exact or len(cands) == 1:
         return exact[0] if exact else cands[0]["key"]
     if cands:
@@ -192,7 +198,6 @@ def cmd_modstats(args):
 
 def cmd_ask(args):
     """Q&A(日本語のみ)。データ置き場の builder.json・ドロップ表・名前辞書と同梱データから答える"""
-    import wfportal_builder as wb
     question = " ".join(args.question).strip()
     if not question and not args.lore and not args.menu and not args.talk:
         sys.exit(render_ja(txt("err.qa.empty")))
@@ -205,7 +210,7 @@ def cmd_ask(args):
     sources = load_sources(d)
     items = all_item_names(drops, sources) if drops else []
     data = load_qa_data(appdata.read_qa(QA_INTENTS_FILE), appdata.read_qa(QA_ANSWERS_FILE), appdata.read_qa(QA_MISS_FILE))
-    builder, subsume = wb.load_builder_data(d), subsume_list(appdata.read_helminth())
+    builder, subsume = gamedata.read_builder(d), subsume_list(appdata.read_helminth())
     dev = dev_build_list(appdata.read_dev_builds())
     lore = load_lore(appdata.read_qa(QA_LORE_FILE), appdata.read_qa(QA_LORE_TALK_FILE))
     index = QaIndex(builder, names, items, subsume, dev, stop_words(data), summon_list(appdata.read_summons()), index_names(lore))

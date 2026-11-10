@@ -24,8 +24,11 @@ import struct
 import unicodedata
 import zlib
 
-import wfportal_ocr as ocr
-from wfp.core.common import TextError, txt
+from wfp.core.errors import TextError
+from wfp.core.i18n import txt
+from wfp.core.matcher import NameMatcher
+from wfp.core.ocr_chars import OCR_LIKE_L
+from wfp.core.text import fold_ocr, ocr_key
 
 # --------------------------------------------------------------------------
 # 定数(ゲームの表示が変わったら、ここを直す)
@@ -207,37 +210,16 @@ def bar_ratio(png: Png, x0: float, x1: float, y0: float, y1: float) -> float | N
 
 
 # --------------------------------------------------------------------------
-# 3. 文字の正規化(OCR の読み違いをそろえる)
+# 3. 文字の正規化(OCR の読み違いをそろえる。正規化そのものは wfp/core/text の fold_ocr・ocr_key、表は wfp/core/ocr_chars)
 # --------------------------------------------------------------------------
 
-# 濁点・半濁点を取ったあとの小さいかなと、カタカナに似た漢字(OCR がよく取り違える)
-_KANA_FOLD = str.maketrans({"ァ": "ア", "ィ": "イ", "ゥ": "ウ", "ェ": "エ", "ォ": "オ", "ャ": "ヤ", "ュ": "ユ", "ョ": "ヨ",
-                            "ッ": "ツ", "ヮ": "ワ", "ぁ": "あ", "ぃ": "い", "ぅ": "う", "ぇ": "え", "ぉ": "お",
-                            "ゃ": "や", "ゅ": "ゆ", "ょ": "よ", "っ": "つ",
-                            "工": "エ", "口": "ロ", "力": "カ", "夕": "タ", "卜": "ト", "二": "ニ", "八": "ハ"})
-
-
-def fold(text: str) -> str:
-    """読み違いに強い比較用の文字列: 空白・長音記号・中黒を消し、濁点・半濁点・小さいかな・似た漢字をそろえ、
-    ひらがなはカタカナにする(英字は小文字)
-
-    例: 「セ カ ン ダ ー リ」と「セカンダリ」、「工クストラ」と「エクストラ」、「クプロウ」と「クブロウ」、
-        「パッドベイビ」と「バッド・ベイビー」、ひらがなの「べ」とカタカナの「ベ」は同じになる
-    """
-    text = unicodedata.normalize("NFKC", text).lower()
-    text = re.sub(r"[\s\-‐－―ー・]", "", text)
-    text = "".join(ch for ch in unicodedata.normalize("NFD", text) if ch not in "゙゚")
-    text = unicodedata.normalize("NFC", text).translate(_KANA_FOLD)
-    return "".join(chr(ord(ch) + 0x60) if "ぁ" <= ch <= "ゖ" else ch for ch in text)  # ひらがな -> カタカナ
-
-
-_LIKE_L = str.maketrans({"|": "l", "!": "l", "｜": "l", "！": "l"})
+_LIKE_L = str.maketrans(OCR_LIKE_L)
 
 
 def ms_key(text: str) -> str:
-    """名前の照合キー: wfportal_ocr.name_key(記号・空白を落とし 0/o 1/l をそろえる)のあとに fold をかける。
-    name_key は記号を消してから 1/l をそろえるので、I の読み違いの | ! は先に l にしておく(消えると「LOKI」が「lok」になる)"""
-    return fold(ocr.name_key(text.translate(_LIKE_L)))
+    """名前の照合キー: wfp.core.text の ocr_key(記号・空白を落とし 0/o 1/l をそろえる)のあとに fold_ocr をかける。
+    ocr_key は記号を消してから 1/l をそろえるので、I の読み違いの | ! は先に l にしておく(消えると「LOKI」が「lok」になる)"""
+    return fold_ocr(ocr_key(text.translate(_LIKE_L)))
 
 
 def latinize(text: str) -> str:
@@ -276,12 +258,12 @@ def _lines(result: dict) -> list[list[dict]]:
 
 
 def _find_run(words: list[dict], target: str) -> tuple[int, int] | None:
-    """単語の並びの中で、つなげると target(fold 済み)になる連続した範囲 [i, j) の最初のもの。
+    """単語の並びの中で、つなげると target(fold_ocr 済み)になる連続した範囲 [i, j) の最初のもの。
     日本語は1文字ずつ別の単語になる(「最 大 ラ ン ク」)のでつなげて比べる"""
     for i in range(len(words)):
         joined = ""
         for j in range(i, len(words)):
-            joined += fold(words[j]["text"])
+            joined += fold_ocr(words[j]["text"])
             if joined == target:
                 return i, j + 1
             if not target.startswith(joined):
@@ -294,7 +276,7 @@ def grid_top(result: dict) -> tuple[float, float] | None:
     found = []
     for words in _lines(result):
         for label in MSSCAN_CLEARED_WORDS:
-            run = _find_run(words, fold(label))
+            run = _find_run(words, fold_ocr(label))
             if run:
                 part = words[run[0]:run[1]]
                 found.append((min(word["y"] for word in part), max(_bottom(word) for word in part)))
@@ -312,9 +294,9 @@ def read_tab(result: dict, near: tuple[float, float] | None, above: float | None
                 continue
         elif above is None or bottom > above:
             continue
-        text = fold("".join(word["text"] for word in words))
+        text = fold_ocr("".join(word["text"] for word in words))
         for key, tab in MSSCAN_TABS.items():
-            if any(fold(label) in text for label in tab["words"]):
+            if any(fold_ocr(label) in text for label in tab["words"]):
                 return key
     return None
 
@@ -322,7 +304,7 @@ def read_tab(result: dict, near: tuple[float, float] | None, above: float | None
 def _anchors(result: dict) -> list[dict]:
     """ランク表記の単語(目印)。{x, y, h, rank: "max" or 数字 or None(数字が読めない)}"""
     out = []
-    targets = [(kind, fold(label)) for kind in ("max", "rank") for label in MSSCAN_RANK_WORDS[kind]]
+    targets = [(kind, fold_ocr(label)) for kind in ("max", "rank") for label in MSSCAN_RANK_WORDS[kind]]
     for words in _lines(result):
         used: set[int] = set()
         for kind, target in targets:
@@ -418,8 +400,8 @@ def find_tiles(result: dict, others: list[dict] | None = None) -> tuple[list[dic
 class MasteryIndex:
     """マスター一覧の項目を名前(en・ja)で引く索引。同じ名前の項目(Kitgun のプライマリ版・セカンダリ版など)は1つのキーにまとめる
 
-    wfportal_ocr.NameMatcher は同じキーの2つ目以降を捨てるので、キーごとに項目をまとめてから1回だけ登録する。
-    NameMatcher には照合キー(ms_key 済み)を名前として渡す(name_key をかけ直しても変わらない)"""
+    NameMatcher(core/matcher)は同じキーの2つ目以降を捨てるので、キーごとに項目をまとめてから1回だけ登録する。
+    NameMatcher には照合キー(ms_key 済み)を名前として渡す(ocr_key をかけ直しても変わらない)"""
 
     def __init__(self, items: list[dict]):
         self.groups: dict[str, list[dict]] = {}
@@ -428,7 +410,7 @@ class MasteryIndex:
                 key = ms_key(name)
                 if key and item not in self.groups.setdefault(key, []):
                     self.groups[key].append(item)
-        self.matcher = ocr.NameMatcher([("mastery", key, key) for key in self.groups])
+        self.matcher = NameMatcher([("mastery", key, key) for key in self.groups])
 
     def lookup(self, text: str) -> tuple[list[dict], float]:
         key = ms_key(text)

@@ -1,7 +1,9 @@
 """アルケイン所持一覧"""
 from __future__ import annotations
 
-from wfp.core.common import ARCANE_CATS, ARCANE_DROP_ONLY_CATS, ARCANE_DROP_ONLY_MAX_RANK, TextError, txt
+from wfp.core.errors import TextError
+from wfp.core.i18n import txt
+from wfp.core.const import ARCANE_CATS, ARCANE_DROP_ONLY_CATS, ARCANE_DROP_ONLY_MAX_RANK
 from wfp.core.names import Names, arcane_cat
 
 

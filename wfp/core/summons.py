@@ -8,7 +8,8 @@ from __future__ import annotations
 import re
 from datetime import date
 
-from wfp.core.common import SUMMON_SLOTS, SUMMON_STATS, norm
+from wfp.core.text import norm
+from wfp.core.const import SUMMON_SLOTS, SUMMON_STATS
 
 _EXPORT_PATH = re.compile(r"^/Lotus/[\w/]+$")
 

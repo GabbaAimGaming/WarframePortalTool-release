@@ -1,8 +1,12 @@
 """公式 Public Export の取得と名前辞書の作成"""
 from __future__ import annotations
 
-from wfp.core.common import (EXPORT_BASE, EXPORT_EXTRA_LANGS, EXPORT_GITHUB, EXPORT_PREFIXES, EXPORT_SRC_GITHUB, EXPORT_SRC_OFFICIAL,
-                             REGIONS_EXPORT, TextError, TextFailure, error_text, name_txt, say, txt)
+from wfp.core.errors import TextError, TextFailure, error_text
+from wfp.core.i18n import name_txt, txt
+from wfp.core.log import say
+from wfp.core.const import (
+    EXPORT_BASE, EXPORT_EXTRA_LANGS, EXPORT_GITHUB, EXPORT_PREFIXES, EXPORT_SRC_GITHUB, EXPORT_SRC_OFFICIAL, REGIONS_EXPORT,
+)
 from wfp.core.names import names_by_lang, names_from_exports
 from wfp.fetch import decode, net
 

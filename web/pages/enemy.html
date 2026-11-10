@@ -1,0 +1,105 @@
+<!-- ページ「敵から探す」(id enemy): 表示部(view = <section id="view-enemy">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- 敵から探す(敵の名前は WFCD の英名のまま。和名の出どころが無いため) -->
+      <section id="view-enemy" hidden>
+        <h2 data-i18n="page.enemy">敵から探す</h2>
+        <p class="lead" data-i18n="enemy.lead">敵の名前(英語)を入力すると、その敵を1体倒したときに落とすアイテムと確率を表示します。</p>
+        <div class="row">
+          <input type="text" class="search" id="enemy-q" data-i18n-placeholder="enemy.placeholder" placeholder="例: Heavy Gunner / Corrupted" autocomplete="off">
+        </div>
+        <!-- 種類のチェック: 中身は web/parts.html の kindChecks が core/const の AREA_KINDS の並びで作る(初期のチェックは ENEMY_KIND_DEFAULT = すべて・覚える(wf-enemy-kinds)) -->
+        <div class="row" id="enemy-kinds"></div>
+        <div class="chips" id="enemy-chips"></div>
+        <div id="enemy-out"></div>
+      </section>
+<!-- PART:script -->
+/* ---------- 敵から探す ---------- */
+/* 敵の名前(英名)で候補を出し、選んだ敵が落とすアイテム(/api/enemy)を種類の順 → 確率の高い順に表にする。
+   種類のチェックは localStorage(wf-enemy-kinds)に覚える。覚えていなければ ENEMY_KIND_DEFAULT(すべて)。
+   入手先の表(sourceTable)の敵の名前を押すと、ここに移ってその敵を開く(openEnemy) */
+const enemyKinds = kindChecks("enemy", CONST.ENEMY_KIND_DEFAULT, "wf-enemy-kinds");
+let enemySel = null, enemyList = null, enemyRes = null;  // 候補・結果は言語の切り替えで描き直すため手元に残す
+function renderEnemyChips() {
+  const res = enemyList;
+  if (!res) { $("#enemy-chips").innerHTML = ""; return; }
+  $("#enemy-chips").innerHTML = res.items.length
+    ? res.items.map(i => `<button class="chip" data-key="${esc(i.key)}" aria-pressed="${i.key === enemySel}">${esc(i.name)}</button>`).join("")
+      + (res.total > res.items.length ? `<span class="note">${esc(fmt("enemy.more", { n: res.total - res.items.length }))}</span>` : "")
+    : `<span class="note">${esc(t("enemy.nomatch"))}</span>`;
+}
+async function loadEnemyChips() {
+  const q = $("#enemy-q").value;
+  if (!q.trim()) { enemyList = null; renderEnemyChips(); return []; }  // 敵は千件以上あるので、何か入れるまで候補は出さない
+  try {
+    enemyList = await api(`/api/suggest/enemy?q=${encodeURIComponent(q)}`);
+    renderEnemyChips();
+    return enemyList.items;
+  } catch (e) { enemyList = null; $("#enemy-chips").innerHTML = ""; $("#enemy-out").innerHTML = noData(e.message); return null; }
+}
+function renderEnemyResult() {
+  const r = enemyRes;
+  if (!enemySel) { $("#enemy-out").innerHTML = `<div class="empty">${esc(t($("#enemy-q").value.trim() ? "enemy.pick" : "enemy.empty"))}</div>`; return; }
+  if (!r) return;
+  const kinds = r.kinds_n.map(k => `<span class="tag-mini">${esc(t("area.kind." + k.key))} ${k.n}</span>`).join("");
+  const headHtml = `<div class="result-head"><h3>${esc(r.name)}</h3><span class="count">${esc(fmt("enemy.count", { n: r.items.length, total: r.total }))}</span>${kinds}</div>`;
+  if (!r.items.length) { $("#enemy-out").innerHTML = headHtml + noData(t("enemy.none")); return; }
+  const max = Math.max(...r.items.map(i => i.chance || 0), 0.0001);
+  const head = ["item", "detail", "chance", "rarity"].map(c => `<th>${esc(t("enemy.col." + c))}</th>`).join("");
+  const rows = r.items.map(i => `<tr><td>${esc(nameByLang(i))}<span class="tag-mini">${esc(t("area.kind." + i.kind))}</span></td>
+    <td>${esc(renderTxt(i.detail))}</td>
+    <td><div class="chance"><div class="bar"><i style="--w:${(i.chance / max * 100).toFixed(1)}%"></i></div><b>${i.qty ? esc(fmt("src.qty", { n: i.qty })) : ""}${fmtPct(i.chance)}</b></div></td>
+    <td>${i.rarity ? rarity(i.rarity) : ""}</td></tr>`).join("");
+  $("#enemy-out").innerHTML = headHtml + `<div class="tablewrap"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="note">${esc(t("enemy.footnote"))}</p>`;
+}
+async function loadEnemyResult() {
+  enemyRes = null;
+  if (!enemySel) { renderEnemyResult(); return; }
+  const kinds = enemyKinds();
+  if (!kinds.length) { $("#enemy-out").innerHTML = `<div class="empty">${esc(t("enemy.nokind"))}</div>`; return; }
+  try {
+    enemyRes = await api(`/api/enemy?name=${encodeURIComponent(enemySel)}&kinds=${kinds.join(",")}`);
+    renderEnemyResult();
+  } catch (e) { $("#enemy-out").innerHTML = noData(e.message); }
+}
+async function searchEnemy() {
+  const items = await loadEnemyChips();
+  if (items === null) return;  // 取得に失敗(エラーは表示済み)
+  const q = $("#enemy-q").value.trim().toLowerCase();
+  const exact = q && items.find(i => i.name.toLowerCase() === q);
+  if (exact || items.length === 1) enemySel = (exact || items[0]).key;
+  else if (!items.some(i => i.key === enemySel)) enemySel = null;  // 選んでいた敵が候補から外れたら選び直し
+  renderEnemyChips();
+  await loadEnemyResult();
+}
+/** 敵から探すでその敵を開く(入手先の表の敵の名前から) */
+function openEnemy(name) {
+  $("#enemy-q").value = name;
+  enemySel = name;
+  show("enemy");
+  scrollView();
+}
+$("#enemy-q").addEventListener("input", debounce(searchEnemy));
+$("#enemy-kinds").addEventListener("change", e => {  // 種類を変えたら(覚えるのは kindChecks)、表を取り直す
+  if (!e.target.dataset.kind) return;
+  loadEnemyResult();
+});
+$("#enemy-chips").addEventListener("click", e => {
+  const c = e.target.closest(".chip[data-key]"); if (!c) return;
+  enemySel = c.dataset.key;
+  renderEnemyChips();
+  loadEnemyResult();
+});
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-enemy]");
+  if (b) openEnemy(b.dataset.enemy);
+});
+loaders.enemy = async () => {
+  applyViewText("enemy");
+  const s = await refreshStatus();
+  if (!s || !s.has_drops) { $("#enemy-chips").innerHTML = ""; $("#enemy-out").innerHTML = noData(t("enemy.nodata")); return; }
+  await loadEnemyChips(); await loadEnemyResult();
+};
+relabel.enemy = () => { applyViewText("enemy"); renderEnemyChips(); renderEnemyResult(); };

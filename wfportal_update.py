@@ -53,7 +53,8 @@ EXIT_OK, EXIT_FAILED, EXIT_RESTART = 0, 1, 10
 MAX_FILE_BYTES = 50 * 1024 * 1024
 MAX_MANIFEST_BYTES = 2 * 1024 * 1024
 # 更新で触らない場所 (同梱 Python・ロゴ素材・配布用の出力・git)
-UNMANAGED = ("python/", "assets/", "dist/", "release/", ".git/", ".github/")
+# userdata/ は uninstall.bat がデータ置き場を zip にして退避する場所(利用者のデータ。更新で触らない)
+UNMANAGED = ("python/", "assets/", "dist/", "release/", ".git/", ".github/", "userdata/")
 # 利用者が編集するメモ。配布したままのものだけ更新し、編集・削除したものは残す
 USER_FILES = ("tips/",)
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) wfportal-updater/1.0"

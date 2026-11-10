@@ -14,12 +14,14 @@ from __future__ import annotations
 import difflib
 import random
 import re
-import unicodedata
 from dataclasses import dataclass, field
 
-from wfp.core.common import (QA_CANDIDATE_LIMIT, QA_FORMATS, QA_KINDS, QA_MIN_ASCII, QA_MIN_LABEL, QA_MISS_KINDS,
-                             QA_PART_SOURCE_LIMIT, QA_RELIC_SOURCE_LIMIT, QA_RELIC_WORDS, QA_SOURCE_LIMIT, ERA_JA,
-                             HELMINTH_FRAME, norm, render_ja)
+from wfp.core.i18n import render_ja
+from wfp.core.text import norm, spaced
+from wfp.core.const import (
+    QA_CANDIDATE_LIMIT, QA_FORMATS, QA_KINDS, QA_MIN_ASCII, QA_MIN_LABEL, QA_MISS_KINDS, QA_PART_SOURCE_LIMIT,
+    QA_RELIC_SOURCE_LIMIT, QA_RELIC_WORDS, QA_SOURCE_LIMIT, ERA_JA, HELMINTH_FRAME,
+)
 from wfp.core.devbuilds import build_view, builds_for, variant_base
 from wfp.core.helminth import subsume_frame
 from wfp.core.qamenu import MenuData, menu_answer, menu_rest
@@ -147,13 +149,6 @@ def pick_miss(data: QaData, kind: str, name: str = "", rng: random.Random | None
 
 def _is_ascii(s: str) -> bool:
     return s.isascii()
-
-
-def spaced(s: str) -> str:
-    """英字の照合用: norm と同じく小文字にして記号を除くが、空白(と - _)は1つの空白で残す(「rhino prime armor」の区切りを見るため)"""
-    s = unicodedata.normalize("NFKC", s).lower()
-    s = re.sub(r"['’,()（）・･]", "", s)
-    return re.sub(r"[\s\-_]+", " ", s).strip()
 
 
 def _key(label: str) -> str:
@@ -412,88 +407,222 @@ def answer(ctx: QaContext, question: str = "", name: str | None = None, intent: 
             spoiler: {id, title, quests, ok, ng, declined, only}, next: {id, title, label}, menu: {id, title},
             talk: {id, type, title, paragraphs}}
     """
-    data, lore_data = ctx.data, ctx.lore
-    res = _result(question, None, None)
-    if menu is not None:  # 0. ボタンから(メニューの分類の id)
-        return (menu_answer(ctx.menu, res, menu, ctx.rng) if ctx.menu else None) or _miss(ctx, res, "no_hit")
-    if talk is not None:  # 0. ボタンから(話の id)
-        return (talk_answer(ctx.talk, res, talk, ctx.rng) if ctx.talk else None) or _miss(ctx, res, "no_hit")
-    if lore is None and name is None and intent is None and choice is None and ctx.talk:  # 0. 話の語(ツールの使い方・雑談)
-        tid = _talk_topic(ctx, question)
-        if tid:
-            return talk_answer(ctx.talk, res, tid, ctx.rng)
-    if lore is None and name is None and intent is None and choice is None:  # 0. 呼びかけ(「教えてクロちゃん」)。後ろに質問が続けば語を除いて答える
-        rest_q = menu_rest(ctx.menu, question)
-        if rest_q == "":
-            return menu_answer(ctx.menu, res, rng=ctx.rng)
-        if rest_q:
-            out = answer(ctx, rest_q, spoil=spoil)
-            out["q"] = question
+    ask = _Ask(ctx, question, name, intent, lore, spoil, choice, only, menu, talk)
+    for step in _STEPS:
+        out = step(ask)
+        if out is not None:
             return out
-    if lore is not None:  # 1. ボタンから(解説の id)
-        t = lore_data.topic(lore) if lore_data else None
-        return _lore_answer(ctx, res, t, spoil, only) if t else _miss(ctx, res, "no_hit")
-    if name is not None:
-        e, rest = ctx.index.entities.get(norm(name)), {"norm": "", "spaced": "", "hit_len": 0}
+    raise AssertionError("_STEPS の最後の段は必ず答えを返す")
+
+
+class _Ask:
+    """answer の1回分の入れ物。段(_STEPS)どうしで使い回す値は、初めて使うときに1回だけ作る"""
+
+    def __init__(self, ctx: QaContext, question: str, name: str | None, intent: str | None, lore: str | None,
+                 spoil: bool, choice: str | None, only: bool, menu: str | None, talk: str | None):
+        self.ctx, self.question, self.name, self.intent, self.lore = ctx, question, name, intent, lore
+        self.spoil, self.choice, self.only, self.menu, self.talk = spoil, choice, only, menu, talk
+        self.data, self.lore_data = ctx.data, ctx.lore
+        self.res = _result(question, None, None)  # 名前を拾う前の答え(段 0〜3)
+        # ボタンからの指定が無い(文だけで聞かれた)
+        self.free = lore is None and name is None and intent is None and choice is None
+        self._found = self._named = self._heads = self._picked = self._usable = self._lore_opts = None
+
+    @property
+    def found(self) -> tuple[dict | None, dict]:
+        """(拾った名前, 名前を除いた文)。ボタンの name があればそれ"""
+        if self._found is None:
+            if self.name is not None:
+                self._found = (self.ctx.index.entities.get(norm(self.name)), {"norm": "", "spaced": "", "hit_len": 0})
+            else:
+                self._found = self.ctx.index.find(self.question)
+        return self._found
+
+    @property
+    def e(self) -> dict | None:
+        return self.found[0]
+
+    @property
+    def rest(self) -> dict:
+        return self.found[1]
+
+    @property
+    def named(self) -> dict:
+        """名前つきの答え(段 4 から。段どうしで同じものを使う)"""
+        if self._named is None:
+            self._named = _result(self.question, self.e, None)
+        return self._named
+
+    @property
+    def heads(self) -> list[dict]:
+        """拾った名前の解説の見出し"""
+        if self._heads is None:
+            self._heads = topics_about(self.lore_data, self.e["en"]) if (self.lore_data and self.e) else []
+        return self._heads
+
+    @property
+    def picked(self) -> list[dict]:
+        """聞きたいこと(ボタンの intent か、名前を除いた文から)"""
+        if self._picked is None:
+            it = self.data.intent(self.intent) if self.intent else None
+            self._picked = [it] if it else find_intents(self.data, self.rest)
+        return self._picked
+
+    @property
+    def usable(self) -> list:
+        """聞きたいことのうち名前の種類に合うもの。聞きたいことが無ければ種類の既定(_DEFAULT_INTENT・レリック)"""
+        if self._usable is None:
+            e, picked, data = self.e, self.picked, self.data
+            kinds = QaIndex.kinds(e)
+            usable = [it for it in picked if kinds & set(it["kinds"])]
+            if not usable and not picked and len(kinds - {"item"}) == 1 and (only := next(iter(kinds - {"item"}))) in _DEFAULT_INTENT:
+                usable = [data.intent(_DEFAULT_INTENT[only])]
+            elif not usable and not picked and e["relic"]:  # レリックは入手先しか聞けないので、名前だけでも入手先を答える
+                usable = [data.intent(_RELIC_INTENT)]
+            self._usable = usable
+        return self._usable
+
+    @property
+    def lore_opts(self) -> list[dict]:
+        if self._lore_opts is None:
+            self._lore_opts = _lore_options(self.lore_data, self.e, self.heads)
+        return self._lore_opts
+
+
+# 判定の段。前から試し、答え(dict)を返した段で終わる(None なら次の段へ)。地図 §2 の Q&A の判定の順番と同じ並び
+
+def _step_menu_button(a: _Ask) -> dict | None:
+    """0. ボタンから(メニューの分類の id)"""
+    if a.menu is None:
+        return None
+    ctx = a.ctx
+    return (menu_answer(ctx.menu, a.res, a.menu, ctx.rng) if ctx.menu else None) or _miss(ctx, a.res, "no_hit")
+
+
+def _step_talk_button(a: _Ask) -> dict | None:
+    """0. ボタンから(話の id)"""
+    if a.talk is None:
+        return None
+    ctx = a.ctx
+    return (talk_answer(ctx.talk, a.res, a.talk, ctx.rng) if ctx.talk else None) or _miss(ctx, a.res, "no_hit")
+
+
+def _step_talk_words(a: _Ask) -> dict | None:
+    """0. 話の語(ツールの使い方・雑談。呼びかけより先。「クロちゃんって何者?」)"""
+    if not (a.free and a.ctx.talk):
+        return None
+    tid = _talk_topic(a.ctx, a.question)
+    return talk_answer(a.ctx.talk, a.res, tid, a.ctx.rng) if tid else None
+
+
+def _step_call(a: _Ask) -> dict | None:
+    """0. 呼びかけ(「教えてクロちゃん」)。語だけならメニュー、後ろに質問が続けば語を除いて答える(q は元の文)"""
+    if not a.free:
+        return None
+    rest_q = menu_rest(a.ctx.menu, a.question)
+    if rest_q == "":
+        return menu_answer(a.ctx.menu, a.res, rng=a.ctx.rng)
+    if rest_q:
+        out = answer(a.ctx, rest_q, spoil=a.spoil)
+        out["q"] = a.question
+        return out
+    return None
+
+
+def _step_lore_button(a: _Ask) -> dict | None:
+    """1. ボタンから(解説の id)"""
+    if a.lore is None:
+        return None
+    t = a.lore_data.topic(a.lore) if a.lore_data else None
+    return _lore_answer(a.ctx, a.res, t, a.spoil, a.only) if t else _miss(a.ctx, a.res, "no_hit")
+
+
+def _step_lore_needs(a: _Ask) -> dict | None:
+    """2. needs(「Jade の強いビルド」「武器の強いビルド」)"""
+    if not (a.free and a.lore_data):
+        return None
+    return _lore_needs(a.ctx, _result(a.question, a.e, None), a.e, a.rest, a.spoil) or None
+
+
+def _step_lore_words(a: _Ask) -> dict | None:
+    """3. 解説の語。shared の語で2つ以上の話に当たったらタイトルのボタン(「Vox Solaris」)"""
+    if not (a.name is None and a.intent is None and a.lore_data):
+        return None
+    groups = _lore_group(a.lore_data, a.question, a.rest)
+    if len(groups) == 1:
+        return _lore_answer(a.ctx, a.res, pick_stage(a.lore_data, groups[0], a.ctx.done), a.spoil)
+    if groups:
+        return _lore_pick(a.ctx, a.res, [a.lore_data.stages(g)[0] for g in groups])
+    return None
+
+
+def _step_mod_system(a: _Ask) -> dict | None:
+    """4a. MOD の名前だけ(「Serration」「Serrationとは」)なら仕組みの解説に直行"""
+    if not (a.e and a.e["mod"] and a.heads and a.intent is None and a.choice is None and not a.picked):
+        return None
+    return _lore_system(a.ctx, a.named, a.heads, a.spoil) or None
+
+
+def _step_lore_choice(a: _Ask) -> dict | None:
+    """4. 名前 + 選択肢の語(「Excalibur Umbra の設定」)"""
+    if not a.heads:
+        return None
+    if a.choice:
+        ch = a.lore_data.choice(a.choice)
     else:
-        e, rest = ctx.index.find(question)
-    if name is None and intent is None and choice is None and lore_data:  # 2. needs(「Jade の強いビルド」「武器の強いビルド」)
-        hit = _lore_needs(ctx, _result(question, e, None), e, rest, spoil)
-        if hit:
-            return hit
-    if name is None and intent is None and lore_data:  # 3. 解説の語が当たった
-        groups = _lore_group(lore_data, question, rest)
-        if len(groups) == 1:
-            return _lore_answer(ctx, res, pick_stage(lore_data, groups[0], ctx.done), spoil)
-        if groups:  # shared の語が2つ以上の話に当たった(「Vox Solaris」= シンジケートとクエストのあらすじ)
-            return _lore_pick(ctx, res, [lore_data.stages(g)[0] for g in groups])
-    stop = {w for it in data.intents for w in it["words"]}
-    res = _result(question, e, None)
-    heads = topics_about(lore_data, e["en"]) if (lore_data and e) else []
-    picked = [data.intent(intent)] if intent and data.intent(intent) else find_intents(data, rest)
-    if e and e["mod"] and heads and intent is None and choice is None and not picked:  # 4a. MOD の名前(「Serration」「Serrationとは」)
-        hit = _lore_system(ctx, res, heads, spoil)
-        if hit:
-            return hit
-    ch = (lore_data.choice(choice) if choice else None if intent else _lore_choice(lore_data, rest)) if heads else None
-    if ch:  # 4. 名前 + 選択肢の語(「Excalibur Umbra の設定」)
-        hits = [h for h in heads if h["type"] in ch["types"]]
-        if len(hits) == 1:
-            return _lore_answer(ctx, res, pick_stage(lore_data, hits[0]["group"], ctx.done), spoil)
-        if hits:
-            return _lore_pick(ctx, res, hits)
-    if e is None:
-        if any(it["id"] == "helminth" for it in picked):  # 「Helminth のアビリティは?」(Helminth は名前として拾わない)
-            return _helminth_self(ctx, res)
-        res["candidates"] = ctx.index.candidates(question, stop)
-        if picked:
-            res["intent"] = picked[0]["id"]
-        return _miss(ctx, res, "no_name")
-    kinds = QaIndex.kinds(e)
-    usable = [it for it in picked if kinds & set(it["kinds"])]
-    if not usable and not picked and len(kinds - {"item"}) == 1 and (only := next(iter(kinds - {"item"}))) in _DEFAULT_INTENT:
-        usable = [data.intent(_DEFAULT_INTENT[only])]
-    elif not usable and not picked and e["relic"]:  # レリックは入手先しか聞けないので、名前だけでも入手先を答える
-        usable = [data.intent(_RELIC_INTENT)]
-    lore_opts = _lore_options(lore_data, e, heads)
-    if not usable or usable[0] is None:  # 6. 名前だけ: 解説の選択肢(中身のあるものだけ)+ 聞けること
-        res["options"] = lore_opts + options(data, e)
-        res["options_title"] = pick_line(lore_data, "ask_what", ctx.rng, name=e["ja"]) if lore_opts else ""
-        res["options_title"] = res["options_title"] or data.say("options", name=e["ja"])
-        if not picked:  # 名前だけ: 聞けることの見出しだけ出す(ヒットしなかったときの文は重ねない)
-            res["type"] = "options"
-            return res
-        return _miss(ctx, res, "no_intent", e["ja"])  # 聞きたいことが名前の種類に合わない(例: フレームのクリ率)
-    it = usable[0]  # 5. 名前 + 聞きたいこと
+        ch = None if a.intent else _lore_choice(a.lore_data, a.rest)
+    if not ch:
+        return None
+    hits = [h for h in a.heads if h["type"] in ch["types"]]
+    if len(hits) == 1:
+        return _lore_answer(a.ctx, a.named, pick_stage(a.lore_data, hits[0]["group"], a.ctx.done), a.spoil)
+    if hits:
+        return _lore_pick(a.ctx, a.named, hits)
+    return None
+
+
+def _step_no_name(a: _Ask) -> dict | None:
+    """名前が無い: 候補を出す(「Helminth のアビリティは?」は Helminth 自身。Helminth は名前として拾わない)"""
+    if a.e is not None:
+        return None
+    res, picked = a.named, a.picked
+    if any(it["id"] == "helminth" for it in picked):
+        return _helminth_self(a.ctx, res)
+    stop = {w for it in a.data.intents for w in it["words"]}
+    res["candidates"] = a.ctx.index.candidates(a.question, stop)
+    if picked:
+        res["intent"] = picked[0]["id"]
+    return _miss(a.ctx, res, "no_name")
+
+
+def _step_name_only(a: _Ask) -> dict | None:
+    """6. 名前だけ: 解説の選択肢(中身のあるものだけ)+ 聞けること。聞きたいことが名前の種類に合わなければヒットなし"""
+    if a.usable and a.usable[0] is not None:
+        return None
+    res, e = a.named, a.e
+    res["options"] = a.lore_opts + options(a.data, e)
+    res["options_title"] = pick_line(a.lore_data, "ask_what", a.ctx.rng, name=e["ja"]) if a.lore_opts else ""
+    res["options_title"] = res["options_title"] or a.data.say("options", name=e["ja"])
+    if not a.picked:  # 聞けることの見出しだけ出す(ヒットしなかったときの文は重ねない)
+        res["type"] = "options"
+        return res
+    return _miss(a.ctx, res, "no_intent", e["ja"])  # 例: フレームのクリ率
+
+
+def _step_intent(a: _Ask) -> dict:
+    """5. 名前 + 聞きたいこと(項目ごとの _HANDLERS。無ければ数値の _field_answer)"""
+    res, e, it = a.named, a.e, a.usable[0]
     res["intent"] = it["id"]
-    handler = _HANDLERS.get(it["id"])
-    if handler is None:
-        handler = _field_answer
-    out = handler(ctx, res, e, it)
-    out["options"] = lore_opts + [o for o in options(data, e) if o["intent"] != it["id"]]
+    out = _HANDLERS.get(it["id"], _field_answer)(a.ctx, res, e, it)
+    out["options"] = a.lore_opts + [o for o in options(a.data, e) if o["intent"] != it["id"]]
     if out["options"]:
-        out["options_title"] = data.say("options", name=e["ja"])
+        out["options_title"] = a.data.say("options", name=e["ja"])
     return out
+
+
+_STEPS = (_step_menu_button, _step_talk_button, _step_talk_words, _step_call, _step_lore_button,
+          _step_lore_needs, _step_lore_words, _step_mod_system, _step_lore_choice, _step_no_name,
+          _step_name_only, _step_intent)
 
 
 def _talk_topic(ctx: QaContext, question: str) -> str | None:

@@ -5,11 +5,16 @@ import json
 import sys
 from pathlib import Path
 
+from wfp.cli.common import find_hits, match_rows, split_action
 from wfp.cli.table import pad, print_table
 from wfp.core.arcane import arcane_summary, arcane_table, set_arcanes_owned
 from wfp.core.build import canon_arcanes, find_build
-from wfp.core.common import (ARCANE_CATS, BUILD_TYPES, MASTERY_CATS, MOD_TYPES, QUEST_CATS, QUEST_STATES, RARITY_JA, SOURCE_CATS, norm, pct,
-                             rank, render_ja)
+from wfp.core.common import pct, rank
+from wfp.core.i18n import render_ja
+from wfp.core.text import norm
+from wfp.core.const import (
+    ARCANE_CATS, BUILD_TYPES, DROPS_FILE, MASTERY_CATS, MOD_TYPES, QUEST_CATS, QUEST_STATES, RARITY_JA, SOURCE_CATS,
+)
 from wfp.core.archon import clean_shards, find_effect, parse_shard_args, shard_list, shard_text
 from wfp.core.helminth import clean_helminth, parse_helminth_arg, subsume_frame, subsume_list
 from wfp.core.loader import load_drops, load_names, load_sources
@@ -26,25 +31,22 @@ def cmd_mods(args):
     if not names.mods:
         sys.exit("MOD の情報がありません。`python wfportal.py update` を実行してください。")
     owned = userdata.load_owned(d)
-    args.action = "list"
-    if args.query and args.query[0] in ("list", "own", "unown"):
-        args.action, args.query = args.query[0], args.query[1:]
-    if args.action in ("own", "unown"):
-        q = " ".join(args.query)
-        hits = [m for m in names.mods if norm(q) in (norm(m["en"]), norm(m["ja"]))] or \
-               [m for m in names.mods if rank(q, [m["en"], m["ja"]]) is not None]
+    action, query = split_action(args.query, ("own", "unown"))
+    if action in ("own", "unown"):
+        q = " ".join(query)
+        hits = find_hits(names.mods, q, lambda m: [m["en"], m["ja"]])
         if len(hits) != 1:
             sys.exit(f"「{q}」に一致する MOD が {len(hits)} 件あります。名前を正確に入力してください。"
                      + ("".join(f"\n  {m['ja']} ({m['en']})" for m in hits[:15]) if hits else ""))
         m = hits[0]
-        (owned.add if args.action == "own" else owned.discard)(m["en"].lower())
-        userdata.save_owned(d, owned)
-        print(f"{m['ja']} を{'所持済み' if args.action == 'own' else '未所持'}にしました。")
+        with userdata.editing(d, "mods_owned") as owned:
+            (owned.add if action == "own" else owned.discard)(m["en"].lower())
+        print(f"{m['ja']} を{'所持済み' if action == 'own' else '未所持'}にしました。")
         return
-    drops = load_drops(d) if (d / "missionRewards.json").exists() else None
+    drops = load_drops(d) if (d / DROPS_FILE).exists() else None
     rows = mod_table(names, drops, load_sources(d), owned)
-    if args.query:
-        q = " ".join(args.query)
+    if query:
+        q = " ".join(query)
         scored = [(rank(q, [m["en"], m["ja"], m.get("compat", "")]), m) for m in rows]
         rows = [m for r, m in sorted((x for x in scored if x[0] is not None), key=lambda x: (x[0], x[1]["en"].lower()))]
     if args.type:
@@ -73,27 +75,25 @@ def cmd_mastery(args):
     done = userdata.load_mastered(d)
     # 表示名(Kitgun の区別つき)とカテゴリー名は CLI で付ける(一覧の中身はキーのまま)
     rows = [{**r, "label": mastery_label(r), "cat_ja": MASTERY_CATS.get(r["cat"], r["cat"])} for r in mastery_table(names, done)]
-    action, query = "list", list(args.query)
-    if query and query[0] in ("list", "done", "undo"):
-        action, query = query[0], query[1:]
+    action, query = split_action(args.query, ("done", "undo"))
     q = " ".join(query)
     if args.cat:
         rows = [r for r in rows if r["cat"] == args.cat]
+    keys = lambda r: [r["en"], r["ja"], r["label"]]
     if action in ("done", "undo"):
-        hits = [r for r in rows if norm(q) in (norm(r["en"]), norm(r["ja"]), norm(r["label"]))] or \
-               [r for r in rows if rank(q, [r["en"], r["ja"], r["label"]]) is not None]
+        hits = find_hits(rows, q, keys)
         if not hits:
             sys.exit(f"「{q}」に一致するものがありません。")
         if len(hits) > 1 and len({norm(r["en"]) for r in hits}) > 1:
             sys.exit(f"「{q}」に一致するものが {len(hits)} 件あります。名前を正確に入力するか --cat で絞り込んでください。"
                      + "".join(f"\n  {r['label']} [{r['cat_ja']}]" for r in hits[:15]))
-        for r in hits:  # Kitgun はプライマリ版・セカンダリ版の両方 (片方だけなら --cat と名前で指定)
-            (done.add if action == "done" else done.discard)(r["id"])
-        userdata.save_mastered(d, done)
+        with userdata.editing(d, "mastered") as done:
+            for r in hits:  # Kitgun はプライマリ版・セカンダリ版の両方 (片方だけなら --cat と名前で指定)
+                (done.add if action == "done" else done.discard)(r["id"])
         print("、".join(r["label"] for r in hits) + f" を{'マスター済み' if action == 'done' else '未マスター'}にしました。")
         return
     if q:
-        rows = [r for r in rows if rank(q, [r["en"], r["ja"], r["label"]]) is not None]
+        rows = match_rows(rows, q, keys)
     if args.todo:
         rows = [r for r in rows if not r["done"]]
     if not rows:
@@ -118,33 +118,32 @@ def cmd_quest(args):
     if not rows:
         sys.exit("クエストのデータがありません。")
     label = {r["id"]: render_ja(item_name(r)) for r in rows}
-    action, query = "list", list(args.query)
-    if query and query[0] in ("list", "done", "undo"):
-        action, query = query[0], query[1:]
+    action, query = split_action(args.query, ("done", "undo"))
     q = " ".join(query)
     if args.cat:
         rows = [r for r in rows if r["cat"] == args.cat]
+    keys = lambda r: [r.get("en") or r.get("to", ""), r.get("ja", ""), label[r["id"]]]
     if action in ("done", "undo"):
-        keys = lambda r: [r.get("en") or r.get("to", ""), r.get("ja", ""), label[r["id"]]]
-        hits = [r for r in rows if norm(q) in [norm(k) for k in keys(r)]] or \
-               [r for r in rows if rank(q, keys(r)) is not None]
+        hits = find_hits(rows, q, keys)
         if len(hits) != 1:
             sys.exit(f"「{q}」に一致するものがありません。" if not hits else
                      f"「{q}」に一致するものが {len(hits)} 件あります。名前を正確に入力してください。"
                      + "".join(f"\n  {label[r['id']]} [{QUEST_CATS[r['cat']]}]" for r in hits[:15]))
         hit = hits[0]
         ids = (hit["route"] if action == "done" and args.route else []) + [hit["id"]]
-        try:
-            done = set_quests_done(quest_items(names), done, ids, action == "done")
-        except ValueError as e:
-            route = "" if action == "undo" or not hit["route"] else \
-                "\n先に必要な順: " + " → ".join(label[i] for i in hit["route"]) + "\n(--route を付けると、これらもまとめて完了にします)"
-            sys.exit(str(e) + route)
-        userdata.save_quests_done(d, done)
+        with userdata.editing(d, "quests_done") as done:  # 前提の検査と書き込みの間に、ほかの変更が割り込まない
+            try:
+                new = set_quests_done(quest_items(names), done, ids, action == "done")
+            except ValueError as e:
+                route = "" if action == "undo" or not hit["route"] else \
+                    "\n先に必要な順: " + " → ".join(label[i] for i in hit["route"]) + "\n(--route を付けると、これらもまとめて完了にします)"
+                sys.exit(str(e) + route)
+            done.clear()
+            done.update(new)
         print("、".join(label[i] for i in ids) + f" を{'完了' if action == 'done' else '未完了'}にしました。")
         return
     if q:
-        rows = [r for r in rows if rank(q, [r.get("en") or r.get("to", ""), r.get("ja", ""), label[r["id"]]]) is not None]
+        rows = match_rows(rows, q, keys)
     if args.state == "todo":
         rows = [r for r in rows if not r["done"]]
     elif args.state:
@@ -169,35 +168,33 @@ def cmd_arcane(args):
         sys.exit("アルケインのデータがありません。`python wfportal.py update` を実行してください"
                  "(この機能を追加する前に取得したデータには含まれていません)。")
     owned = userdata.load_arcanes_owned(d)
-    drop_items = all_item_names(load_drops(d), load_sources(d)) if (d / "missionRewards.json").exists() else []
+    drop_items = all_item_names(load_drops(d), load_sources(d)) if (d / DROPS_FILE).exists() else []
     rows = [{**r, "cat_ja": ARCANE_CATS.get(r["cat"], r["cat"]), "rarity_ja": RARITY_JA.get(r["rarity"], r["rarity"])}
             for r in arcane_table(names, owned, drop_items)]
-    action, query = "list", list(args.query)
-    if query and query[0] in ("list", "own", "unown"):
-        action, query = query[0], query[1:]
+    action, query = split_action(args.query, ("own", "unown"))
     q = " ".join(query)
     if args.cat:
         rows = [r for r in rows if r["cat"] == args.cat]
+    keys = lambda r: [r["en"], r["ja"]]
     if action in ("own", "unown"):
-        hits = [r for r in rows if norm(q) in (norm(r["en"]), norm(r["ja"]))] or \
-               [r for r in rows if rank(q, [r["en"], r["ja"]]) is not None]
+        hits = find_hits(rows, q, keys)
         if not hits:
             sys.exit(f"「{q}」に一致するアルケインがありません。")
         if len(hits) > 1:
             sys.exit(f"「{q}」に一致するアルケインが {len(hits)} 件あります。名前を正確に入力してください。"
                      + "".join(f"\n  {r['ja']} [{r['cat_ja']}]" for r in hits[:15]))
-        try:
-            m, = set_arcanes_owned(names, owned, [hits[0]["en"]], action == "own", args.rank if action == "own" else None,
-                                   drop_items)
-        except ValueError as e:
-            sys.exit(str(e))
-        userdata.save_arcanes_owned(d, owned)
+        with userdata.editing(d, "arcanes_owned") as owned:
+            try:
+                m, = set_arcanes_owned(names, owned, [hits[0]["en"]], action == "own", args.rank if action == "own" else None,
+                                       drop_items)
+            except ValueError as e:
+                sys.exit(str(e))
         print(f"{m['ja']} を" + (f"所持(ランク {owned[m['en'].lower()]})にしました。" if action == "own" else "未所持にしました。"))
         return
     if args.rank is not None:
         sys.exit("--rank は own と一緒に使います(例: python wfportal.py arcane own \"Arcane Energize\" --rank 5)。")
     if q:
-        rows = [r for r in rows if rank(q, [r["en"], r["ja"]]) is not None]
+        rows = match_rows(rows, q, keys)
     if args.unowned:
         rows = [r for r in rows if not r["owned"]]
     if not rows:
@@ -265,44 +262,43 @@ def cmd_build(args):
         name = " ".join(args.query)
         if not name:
             sys.exit("ビルド名を指定してください。")
-        old = find_build(builds, name)
-        entry = {"name": name, "type": args.type or "frame", "target": args.target or "",
-                 "forma": args.forma or 0, "mods": [m.strip() for m in (args.mods or "").split(",") if m.strip()],
-                 "arcanes": canon_arcanes(load_names(d), [a.strip() for a in (args.arcanes or "").split(",") if a.strip()]),
-                 "tags": [t.strip() for t in (args.tags or "").split(",") if t.strip()], "note": args.note or "",
-                 "images": []}
-        try:
-            helminth = clean_helminth(entry["type"], parse_helminth_arg(args.helminth) if args.helminth else None)
-            shards = clean_shards(entry["type"], parse_shard_args(args.shard), shard_list(appdata.read_archon()))
-        except ValueError as e:
-            sys.exit(str(e))
-        if helminth:
-            entry["helminth"] = helminth
-        if shards:
-            entry["shards"] = shards
-        same = old is not None and norm(old["name"]) == norm(name)
-        if same and not args.update:
-            sys.exit("同名のビルドがあります。上書きするには --update を付けてください。")
-        if same:
-            entry["images"] = list(old.get("images", []))  # 既存の画像は残し、--image の分を追加する
-        for path in args.image or []:
+        with userdata.editing(d, "builds") as builds:  # 同名の検査と書き込みの間に、ほかの変更が割り込まない
+            old = find_build(builds, name)
+            entry = {"name": name, "type": args.type or "frame", "target": args.target or "",
+                     "forma": args.forma or 0, "mods": [m.strip() for m in (args.mods or "").split(",") if m.strip()],
+                     "arcanes": canon_arcanes(load_names(d), [a.strip() for a in (args.arcanes or "").split(",") if a.strip()]),
+                     "tags": [t.strip() for t in (args.tags or "").split(",") if t.strip()], "note": args.note or "",
+                     "images": []}
             try:
-                entry["images"].append(build_images.save_build_image(d, Path(path).expanduser().read_bytes()))
-            except (OSError, ValueError) as e:
-                sys.exit(f"画像を追加できませんでした({path}): {e}")
-        if same:
-            builds[builds.index(old)] = entry
-            print("更新しました。")
-        else:
-            builds.append(entry)
-            print("追加しました。")
-        userdata.save_builds(d, builds)
+                helminth = clean_helminth(entry["type"], parse_helminth_arg(args.helminth) if args.helminth else None)
+                shards = clean_shards(entry["type"], parse_shard_args(args.shard), shard_list(appdata.read_archon()))
+            except ValueError as e:
+                sys.exit(str(e))
+            if helminth:
+                entry["helminth"] = helminth
+            if shards:
+                entry["shards"] = shards
+            same = old is not None and norm(old["name"]) == norm(name)
+            if same and not args.update:
+                sys.exit("同名のビルドがあります。上書きするには --update を付けてください。")
+            if same:
+                entry["images"] = list(old.get("images", []))  # 既存の画像は残し、--image の分を追加する
+            for path in args.image or []:
+                try:
+                    entry["images"].append(build_images.save_build_image(d, Path(path).expanduser().read_bytes()))
+                except (OSError, ValueError) as e:
+                    sys.exit(f"画像を追加できませんでした({path}): {e}")
+            if same:
+                builds[builds.index(old)] = entry
+            else:
+                builds.append(entry)
+        print("更新しました。" if same else "追加しました。")  # 書き込みが確定してから出す
     elif act == "rm":
-        b = find_build(builds, " ".join(args.query))
-        if not b:
-            sys.exit("該当するビルドが見つからない、または複数あります。")
-        builds.remove(b)
-        userdata.save_builds(d, builds)
+        with userdata.editing(d, "builds") as builds:
+            b = find_build(builds, " ".join(args.query))
+            if not b:
+                sys.exit("該当するビルドが見つからない、または複数あります。")
+            builds.remove(b)
         build_images.delete_build_images(d, b.get("images", []))
         print(f"削除しました: {b['name']}")
     elif act == "export":

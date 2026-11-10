@@ -331,21 +331,18 @@ function trend(value, base, lowerIsBetter = false) {
 }
 /* 名前: 日本語の画面は日本語名(横に英名)、ほかの言語は英名 */
 const nameOf = x => lang === "ja" && x.ja && x.ja !== x.en ? `${esc(x.ja)} <span class="mini" style="color:var(--mute)">${esc(x.en)}</span>` : esc(x.en);
-const nameTxt = x => (lang === "ja" ? x.ja || x.en : x.en);
 /* 選択肢の名前: 日本語の画面は「日本語名 (英名)」、ほかは英名。並びも表示名の順 */
-const optName = x => (lang === "ja" && x.ja !== x.en ? `${x.ja} (${x.en})` : nameTxt(x));
-const byName = (a, b) => nameTxt(a).localeCompare(nameTxt(b), locale());
+const optName = x => (lang === "ja" && x.ja !== x.en ? `${x.ja} (${x.en})` : nameByLang(x));
+const byName = (a, b) => nameByLang(a).localeCompare(nameByLang(b), locale());
 
 async function api(path, body) {
   const init = body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
-  const res = await fetch(path, init);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.text ? renderTxt(data.text) : (data.error || fmt("err.http", { status: res.status })));
-  return data;
+  return apiRead(await fetch(path, init));  // エラーの文の決め方は i18n.html の apiRead
 }
+/* シミュレータの入力の記憶(キーの頭に wf-builder- を付けて JSON で。読み書きは i18n.html の pref) */
 const store = {
-  get(k, d) { try { const v = localStorage.getItem("wf-builder-" + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem("wf-builder-" + k, JSON.stringify(v)); } catch (e) {} },
+  get: (k, d) => pref.json("wf-builder-" + k, d),
+  set: (k, v) => pref.setJson("wf-builder-" + k, v),
 };
 
 let META = null, simLog = null;  // simLog: 最後の取得ログ(言語を切り替えたら描き直す)
@@ -395,7 +392,7 @@ function setupFrame() {
 }
 function renderFramePresets() {
   $("#f-presets").innerHTML = META.frame_presets.map((p, i) =>
-    `<button class="chip" type="button" data-fp="${i}" aria-pressed="${fOn.includes(p.en)}" title="${esc(nameTxt(p))}: ${esc(Object.entries(p.add).map(([k, v]) => `${k} ${sign(v)}`).join(" / "))}">${esc(p.en)}</button>`).join("");
+    `<button class="chip" type="button" data-fp="${i}" aria-pressed="${fOn.includes(p.en)}" title="${esc(nameByLang(p))}: ${esc(Object.entries(p.add).map(([k, v]) => `${k} ${sign(v)}`).join(" / "))}">${esc(p.en)}</button>`).join("");
 }
 function frameMods() {
   const m = {}; $$("[data-f]").forEach(i => { m[i.dataset.f] = +i.value || 0; }); return m;
@@ -431,9 +428,9 @@ function renderFrame(r) {
     <h4>${esc(t("sim.abil.ref"))}</h4>
     ${f.abilities.map((ab, i) => {
       const ref = mine[i] || {};
-      return `<div class="abil"><b>${i + 1}. ${esc(nameTxt(ab))}</b>${lang === "ja" && ab.ja !== ab.en ? `<span class="en">${esc(ab.en)}</span>` : ""}
+      return `<div class="abil"><b>${i + 1}. ${esc(nameByLang(ab))}</b>${subEn(ab, "ja", "en", "en")}
         ${desc(ab) ? `<p>${esc(desc(ab))}</p>` : ""}
-        <div class="ref" data-ref="${i}">${esc(t("sim.ref"))} <input type="number" step="any" data-k="base" value="${esc(ref.base ?? "")}" aria-label="${esc(fmt("sim.ref.aria", { name: nameTxt(ab) }))}">
+        <div class="ref" data-ref="${i}">${esc(t("sim.ref"))} <input type="number" step="any" data-k="base" value="${esc(ref.base ?? "")}" aria-label="${esc(fmt("sim.ref.aria", { name: nameByLang(ab) }))}">
           <select data-k="scale" aria-label="${esc(t("sim.scale"))}">${SCALES.map(k => `<option value="${k}"${(ref.scale || "strength") === k ? " selected" : ""}>${esc(t("sim.scale." + k))}</option>`).join("")}</select>
           → <output>${refVal[i] !== undefined ? num(refVal[i], 2) : "—"}</output></div></div>`;
     }).join("")}
@@ -776,9 +773,7 @@ async function scanGrade(file) {
   const btn = $("#g-pick"); btn.disabled = true;
   gScan = { busy: true }; renderGradeStatus();
   try {
-    const res = await fetch("/api/builder/riven/scan", { method: "POST", headers: { "Content-Type": file.type || "image/png" }, body: file });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.text ? renderTxt(data.text) : (data.error || fmt("err.http", { status: res.status })));
+    const data = await apiImage("/api/builder/riven/scan", file);
     if (data.weapon) {
       const v = data.weapon.cat + "|" + data.weapon.en;
       $("#g-q").value = ""; filterSelect($("#g-q"), $("#g-weapon")); findNote("#g-q-note", { q: "" }, 0);

@@ -4,7 +4,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from wfp.core.common import TextError, txt
+from wfp.core.errors import TextError
+from wfp.core.i18n import txt
 
 
 IMAGE_DIR = "build_images"

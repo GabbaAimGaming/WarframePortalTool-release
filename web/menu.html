@@ -1,6 +1,6 @@
 <!-- メニュー部: 言語の切り替え・メニューの並び(MENU)・メニューの描画とページの切り替え(show)。
      web/ctrl.html の基礎スクリプト($ esc api など)と、文字を引く部品(web/i18n.html の t fmt renderTxt など)のあと、ページ処理の前に読まれる。
-     読み込んだ時点でページ(<section>)の有無を見てメニューを描くので、表示部(web/view.html)のマークアップが先に必要。 -->
+     読み込んだ時点でページ(<section>)の有無を見てメニューを描くので、各ページ(web/pages/)のマークアップが先に必要。 -->
 <!-- PART:script -->
 <script>
 /* ---------- 言語の切り替え ---------- */
@@ -26,7 +26,7 @@ function setLang(code, remember = true) {
   if (!I18N[code]) return;
   lang = code;
   document.documentElement.lang = code;
-  if (remember) { try { localStorage.setItem("wf-lang", code); } catch (e) {} }
+  if (remember) { pref.set("wf-lang", code); }
   renderLangSwitch();
   renderBetaSwitch();
   renderMenu();
@@ -59,8 +59,7 @@ const MENU = [
 /* β版のページ: ヘッダーの「β版の機能を使う」がオンのときだけ、メニュー・トップ・ページ説明に出す(メニューの名前に β の札)。
    チェックはこのブラウザに覚える(localStorage の wf-beta。初期値はオフ)。β版の機能を足すときは id をここに足すだけ */
 const BETA_PAGES = ["qa"];
-let betaOn = false;
-try { betaOn = localStorage.getItem("wf-beta") === "1"; } catch (e) {}
+let betaOn = pref.flag("wf-beta");
 const isBeta = id => BETA_PAGES.includes(id);
 const pageExists = id => !!document.getElementById("view-" + id);
 const pageVisible = id => pageExists(id) && (betaOn || !isBeta(id));  // メニューに出すページ
@@ -143,7 +142,7 @@ function renderBetaSwitch() {
 function setBeta(on) {
   const leave = !on && isBeta(currentView);
   betaOn = on;  // 先に変える(トップに戻ったときのカードに β版のページを出さない)
-  try { localStorage.setItem("wf-beta", on ? "1" : "0"); } catch (e) {}
+  pref.setFlag("wf-beta", on);
   if (leave) show("home");  // views はまだ β版のページを含むので、そのページも隠れる
   renderMenu();
   renderBetaSwitch();
@@ -164,7 +163,7 @@ function show(view) {
   const g = groupOf(view);
   if (g) openGroup = g;  // 起動時や別の画面から移ったときも、そのページのカテゴリを開く
   applyMenuState();
-  try { localStorage.setItem("wf-view", view); } catch (e) {}
+  pref.set("wf-view", view);
   loaders[view] && loaders[view]();
 }
 {

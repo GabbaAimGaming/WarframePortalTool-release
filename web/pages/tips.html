@@ -1,0 +1,445 @@
+<!-- ページ「Tips」(id tips): 表示部(view = <section id="view-tips">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- Tips -->
+      <section id="view-tips" hidden>
+        <!-- 多言語対応は枠の説明文とボタンだけ(メモの中身・編集画面・目次は日本語のまま) -->
+        <h2 data-i18n="page.tips">Tips</h2>
+        <p class="lead" data-i18n="tips.lead">すぐ見たいメモをまとめるページです。メモはこのページで追加・編集できるほか、ツールのフォルダにある tips フォルダのファイルを直接編集しても変わります(メモ帳・Excel などで編集できます)。</p>
+        <p class="note" data-i18n="tips.sample">例文は日本語のみです。</p>
+        <div class="row">
+          <button class="btn" type="button" id="tips-new" data-i18n="tips.new">新規</button>
+          <button class="btn ghost" type="button" id="tips-edit-btn" disabled data-i18n="tips.edit">編集</button>
+          <button class="btn ghost" type="button" id="tips-del" disabled data-i18n="tips.del">削除</button>
+          <button class="btn ghost" type="button" id="tips-group" data-i18n="tips.group">グループ追加</button>
+          <button class="btn ghost" type="button" id="tips-trash-btn" aria-pressed="false" data-i18n="tips.trash">ゴミ箱</button>
+          <button class="btn ghost" type="button" id="tips-reload" data-i18n="tips.reload">再読み込み</button>
+          <button class="btn ghost" type="button" id="tips-open" data-i18n="tips.open">tips フォルダを開く</button>
+          <span class="mini" id="tips-dir"></span>
+        </div>
+        <div class="err" id="tips-err" role="alert"></div>
+        <div class="tips">
+          <div class="tips-toc" id="tips-toc" role="navigation" aria-label="Tips の目次"></div>
+          <div class="tips-main">
+            <article class="tips-body" id="tips-body" aria-live="polite"></article>
+            <form class="tips-edit" id="tips-edit" hidden autocomplete="off">
+              <div class="row" id="te-new">
+                <label class="field"><span data-i18n="te.title">タイトル(ファイル名にもなります)</span><input type="text" id="te-title" maxlength="200"></label>
+                <label class="field"><span data-i18n="te.group">保存先</span><select id="te-group"></select></label>
+              </div>
+              <p class="mini" id="te-path" hidden></p>
+              <div class="te-tools" role="toolbar" data-i18n-aria="te.tools" aria-label="書き方の挿入">
+                <button class="btn ghost" type="button" data-line="## " data-i18n-title="te.tip.line" title="行頭に入れる" data-i18n="te.b.h2">見出し</button>
+                <button class="btn ghost" type="button" data-line="### " data-i18n-title="te.tip.line" title="行頭に入れる" data-i18n="te.b.h3">小見出し</button>
+                <button class="btn ghost" type="button" data-line="- " data-i18n-title="te.tip.line" title="行頭に入れる" data-i18n="te.b.ul">箇条書き</button>
+                <button class="btn ghost" type="button" data-line="1. " data-i18n-title="te.tip.line" title="行頭に入れる" data-i18n="te.b.ol">番号</button>
+                <button class="btn ghost" type="button" data-line="- [ ] " data-i18n-title="te.tip.line" title="行頭に入れる" data-i18n="te.b.check">チェック</button>
+                <button class="btn ghost" type="button" data-line="> " data-i18n-title="te.tip.line" title="行頭に入れる" data-i18n="te.b.quote">引用</button>
+                <button class="btn ghost" type="button" data-block="table" data-i18n-title="te.tip.block" title="カーソルの次の行に入れる" data-i18n="te.b.table">表</button>
+                <span class="sep" aria-hidden="true"></span>
+                <button class="btn ghost" type="button" data-ins="|" data-i18n-title="te.tip.ins" title="カーソル位置に入れる">|</button>
+                <button class="btn ghost" type="button" data-wrap="**" data-i18n-title="te.tip.wrap" title="選んだ文字を囲む" data-i18n="te.b.bold">太字</button>
+                <button class="btn ghost" type="button" data-wrap="`" data-i18n-title="te.tip.wrap" title="選んだ文字を囲む" data-i18n="te.b.code">コード</button>
+              </div>
+              <textarea id="te-text" rows="24" spellcheck="false" data-i18n-aria="te.body" aria-label="本文"></textarea>
+              <div class="row">
+                <button class="btn" type="submit" id="te-save" data-i18n="duviri.adjust.save">保存</button>
+                <button class="btn ghost" type="button" id="te-cancel" data-i18n="te.cancel">キャンセル</button>
+                <span class="mini" data-i18n="te.ctrls">Ctrl+S でも保存できます</span>
+              </div>
+              <div class="err" id="te-err" role="alert"></div>
+            </form>
+            <div class="tips-trash" id="tips-trash" hidden>
+              <h3 data-i18n="trash.title">ゴミ箱</h3>
+              <p class="mini" data-i18n="trash.lead">削除したメモの置き場所です(tips フォルダの中の _trash)。「元に戻す」で元の場所に戻ります。</p>
+              <div id="tips-trash-list"></div>
+              <div class="mini" id="tips-trash-msg" aria-live="polite"></div>
+            </div>
+          </div>
+        </div>
+        <dialog class="tips-dlg" id="tips-dlg" data-i18n-aria="dlg.aria" aria-label="確認">
+          <form method="dialog"><p id="tips-dlg-msg"></p><div class="row" id="tips-dlg-btns"></div></form>
+        </dialog>
+        <p class="note">使えるファイル: .md(見出し・表・箇条書き・チェックボックスなどが使える書き方)/ .txt(そのまま表示)/ .csv(表として表示。Excel で編集可)。ファイル名の先頭の数字(例: 10_)は並び順に使われ、目次には表示されません(目次の ▲▼ で並べ替えると、そちらが優先されます)。tips の中にフォルダを作ると、目次の見出しになります(1段まで)。.md の最初の「# 見出し」が目次の名前になります。</p>
+      </section>
+<!-- PART:script -->
+/* ---------- Tips ---------- */
+/* tips フォルダのメモ(.md / .txt / .csv)を表示する。.md は簡単な書き方(見出し・表・箇条書きなど)に対応 */
+let tipsList = null, tipCur = null, tipSeq = 0, tipFile = null, tipHeads = "", tipTrashOpen = false;
+tipCur = pref.get("wf-tip");
+const TIP_KINDS = /\.(md|markdown|txt|csv)$/i, TIP_IMAGES = /\.(png|jpe?g|gif|webp)$/i;
+function tipResolve(base, src) {  // メモのファイルから見た相対パス -> tips フォルダの中のパス
+  let s = src; try { s = decodeURIComponent(src); } catch (e) {}
+  const parts = base ? base.split("/") : [];
+  for (const seg of s.replace(/\\/g, "/").split("/")) {
+    if (seg === "..") parts.pop(); else if (seg && seg !== ".") parts.push(seg);
+  }
+  return parts.join("/");
+}
+const tipUrl = path => "/tips/" + path.split("/").map(encodeURIComponent).join("/");
+function mdInline(s, base) {
+  const keep = [], put = html => `\u0000${keep.push(html) - 1}\u0000`;
+  s = s.replace(/\u0000/g, "");
+  s = s.replace(/`([^`]+)`/g, (_, c) => put(`<code>${esc(c)}</code>`));
+  s = s.replace(/!\[([^\]]*)\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g, (_, alt, src) => {
+    if (/^https?:\/\//i.test(src)) return put(`<img src="${esc(src)}" alt="${esc(alt)}" loading="lazy">`);
+    if (/^[a-z][a-z0-9+.-]*:/i.test(src) || !TIP_IMAGES.test(src)) return put(esc(alt));
+    return put(`<img src="${esc(tipUrl(tipResolve(base, src)))}" alt="${esc(alt)}" loading="lazy">`);
+  });
+  s = s.replace(/\[([^\]]+)\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g, (_, text, href) => {
+    if (/^https?:\/\//i.test(href)) return put(`<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(text)}</a>`);
+    if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return put(esc(text));
+    const path = tipResolve(base, href.split("#")[0]);
+    if (TIP_KINDS.test(path)) return put(`<a href="#" data-tip="${esc(path)}">${esc(text)}</a>`);
+    if (TIP_IMAGES.test(path)) return put(`<a href="${esc(tipUrl(path))}" target="_blank" rel="noopener">${esc(text)}</a>`);
+    return put(esc(text));
+  });
+  s = s.replace(/https?:\/\/[^\s<>"'　-ヿ＀-￯]+[^\s<>"'.,;:!?)\]　-ヿ＀-￯]/g,
+    url => put(`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(url)}</a>`));
+  s = esc(s)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*(?!\s)([^*]*[^*\s])\*(?!\*)/g, "$1<em>$2</em>")
+    .replace(/~~(.+?)~~/g, "<del>$1</del>")
+    .replace(/==(.+?)==/g, "<mark>$1</mark>");
+  return s.replace(/\u0000(\d+)\u0000/g, (_, i) => keep[+i]);
+}
+function mdToHtml(text, base, ctx = { h: 0 }) {
+  const lines = text.replace(/\r\n?/g, "\n").replace(/\t/g, "    ").split("\n");
+  const out = []; let para = [], i = 0;
+  const flush = () => { if (para.length) { out.push(`<p>${para.map(l => mdInline(l, base)).join("<br>")}</p>`); para = []; } };
+  const LIST = /^(\s*)([-*+]|\d{1,9}[.)])\s+(.*)$/;
+  const isSep = l => /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(l);
+  const cells = l => {
+    let s = l.trim(); if (s.startsWith("|")) s = s.slice(1); if (s.endsWith("|") && !s.endsWith("\\|")) s = s.slice(0, -1);
+    return s.split(/(?<!\\)\|/).map(c => c.trim().replace(/\\\|/g, "|"));
+  };
+  while (i < lines.length) {
+    const l = lines[i];
+    let m;
+    if ((m = l.match(/^\s*(`{3,}|~{3,})/))) {             // コード
+      flush(); const fence = m[1], code = []; i++;
+      while (i < lines.length && !lines[i].trim().startsWith(fence)) code.push(lines[i++]);
+      i++; out.push(`<pre><code>${esc(code.join("\n"))}</code></pre>`); continue;
+    }
+    if (!l.trim()) { flush(); i++; continue; }
+    if ((m = l.match(/^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/))) { // 見出し
+      flush(); const n = m[1].length; out.push(`<h${n} id="tip-h-${ctx.h++}">${mdInline(m[2], base)}</h${n}>`); i++; continue;
+    }
+    if (/^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(l)) { flush(); out.push("<hr>"); i++; continue; }
+    if (l.includes("|") && i + 1 < lines.length && lines[i + 1].includes("-") && isSep(lines[i + 1])) { // 表
+      flush();
+      const head = cells(l), align = cells(lines[i + 1]).map(c => c.endsWith(":") ? (c.startsWith(":") ? "center" : "right") : "");
+      const rows = []; i += 2;
+      while (i < lines.length && lines[i].trim() && lines[i].includes("|")) rows.push(cells(lines[i++]));
+      const td = (tag, c, k) => `<${tag}${align[k] ? ` style="text-align:${align[k]}"` : ""}>${mdInline(c, base).replace(/&lt;br\s*\/?&gt;/gi, "<br>")}</${tag}>`;
+      out.push(`<div class="tablewrap"><table><thead><tr>${head.map((c, k) => td("th", c, k)).join("")}</tr></thead>
+        <tbody>${rows.map(r => `<tr>${head.map((_, k) => td("td", r[k] || "", k)).join("")}</tr>`).join("")}</tbody></table></div>`);
+      continue;
+    }
+    if (/^\s{0,3}>/.test(l)) {                               // 引用
+      flush(); const q = [];
+      while (i < lines.length && /^\s{0,3}>/.test(lines[i])) q.push(lines[i++].replace(/^\s{0,3}>\s?/, ""));
+      out.push(`<blockquote>${mdToHtml(q.join("\n"), base, ctx)}</blockquote>`); continue;
+    }
+    if (LIST.test(l)) {                                      // 箇条書き(字下げで入れ子)
+      flush(); const items = [];
+      while (i < lines.length) {
+        const x = lines[i], lm = x.match(LIST);
+        if (lm) { items.push({ indent: lm[1].length, ordered: /\d/.test(lm[2]), start: parseInt(lm[2], 10) || 1, lines: [lm[3]] }); i++; continue; }
+        if (x.trim() && /^\s{2,}/.test(x) && items.length) { items[items.length - 1].lines.push(x.trim()); i++; continue; }
+        if (!x.trim() && i + 1 < lines.length && LIST.test(lines[i + 1])) { i++; continue; }
+        break;
+      }
+      let html = ""; const stack = [];
+      for (const it of items) {
+        const tag = it.ordered ? "ol" : "ul";
+        while (stack.length && it.indent < stack[stack.length - 1].indent) html += `</li></${stack.pop().tag}>`;
+        const top = stack[stack.length - 1];
+        if (!top || it.indent > top.indent) {
+          html += `<${tag}${it.ordered && it.start !== 1 ? ` start="${it.start}"` : ""}>`; stack.push({ indent: it.indent, tag });
+        } else {
+          html += "</li>";
+          if (top.tag !== tag) { html += `</${top.tag}><${tag}>`; top.tag = tag; }
+        }
+        let first = it.lines[0], cls = "";
+        const task = first.match(/^\[([ xX])\]\s+(.*)$/);
+        if (task) { cls = ' class="task"'; first = task[2]; }
+        const body = [first, ...it.lines.slice(1)].map(x => mdInline(x, base)).join("<br>");
+        html += `<li${cls}>${task ? `<input type="checkbox" disabled${task[1] !== " " ? " checked" : ""}>` : ""}${body}`;
+      }
+      while (stack.length) html += `</li></${stack.pop().tag}>`;
+      out.push(html); continue;
+    }
+    para.push(l.trim()); i++;
+  }
+  flush();
+  return out.join("\n");
+}
+/* 目次: API の toc(直下のメモとグループの並び)から描く。▲▼ で並べ替え(_order.json に保存) */
+const tipMv = (list, i, n) => `<button type="button" class="mv" data-list="${esc(list)}" data-i="${i}" data-d="-1" aria-label="上へ" title="上へ"${i ? "" : " disabled"}>▲</button>`
+  + `<button type="button" class="mv" data-list="${esc(list)}" data-i="${i}" data-d="1" aria-label="下へ" title="下へ"${i < n - 1 ? "" : " disabled"}>▼</button>`;
+function renderTipsToc(heads = tipHeads) {
+  if (!tipsList) return;
+  tipHeads = heads;
+  const toc = tipsList.toc || [];
+  const link = (t, inGrp, list, i, n) => {
+    const cur = t.path === tipCur;
+    return `<div class="ti"><a href="#" data-tip="${esc(t.path)}" class="${inGrp ? "in-grp" : ""}" aria-current="${cur}">${esc(t.title)}</a>${tipMv(list, i, n)}</div>`
+      + (cur && heads ? `<div class="heads${inGrp ? " in-grp" : ""}">${heads}</div>` : "");
+  };
+  const html = toc.map((e, i) => e.type === "group"
+    ? `<div class="grp"><span>${esc(e.label)}${e.items.length ? "" : `<span class="empty-grp">(空)</span>`}</span>${tipMv("top", i, toc.length)}</div>`
+      + e.items.map((t, j) => link(t, true, "g:" + e.name, j, e.items.length)).join("")
+    : link(e, false, "top", i, toc.length)).join("");
+  $("#tips-toc").innerHTML = html || `<div class="empty">メモがありません</div>`;
+}
+async function moveTip(list, i, d) {
+  const toc = tipsList.toc, order = { top: [...tipsList.order.top], groups: { ...tipsList.order.groups } };
+  const key = e => e.type === "group" ? e.name + "/" : e.path;
+  const swap = arr => { const a = [...arr]; [a[i], a[i + d]] = [a[i + d], a[i]]; return a; };
+  if (list === "top") order.top = swap(toc.map(key));  // 動かした一覧だけを差し替える(ほかは保存済みの並びのまま)
+  else {
+    const g = toc.find(e => e.type === "group" && "g:" + e.name === list); if (!g) return;
+    order.groups[g.name] = swap(g.items.map(it => it.path.slice(g.name.length + 1)));
+  }
+  try { tipsList = await api("/api/tips/order", { method: "POST", body: order }); $("#tips-err").textContent = ""; }
+  catch (e) { $("#tips-err").textContent = e.message; return; }
+  renderTipsToc();
+  $(`#tips-toc .mv[data-list="${CSS.escape(list)}"][data-i="${i + d}"][data-d="${d}"]`)?.focus();  // 続けて押せるように
+}
+function tipsButtons() {
+  const editing = !!tipEdit;
+  ["#tips-new", "#tips-group", "#tips-trash-btn"].forEach(s => { $(s).disabled = editing; });  // 再読み込みは押せる(確認してから読み直す)
+  $("#tips-edit-btn").disabled = editing || !(tipFile && tipFile.path === tipCur && tipFile.editable);
+  $("#tips-del").disabled = editing || !(tipFile && tipFile.path === tipCur);
+  $("#tips-trash-btn").setAttribute("aria-pressed", String(tipTrashOpen));
+  $("#tips-body").hidden = editing || tipTrashOpen;
+  $("#tips-edit").hidden = !editing;
+  $("#tips-trash").hidden = editing || !tipTrashOpen;
+}
+async function openTip(path) {
+  if (!tipLeaveEdit()) return;
+  const seq = ++tipSeq; tipCur = path; tipFile = null; tipTrashOpen = false; $("#tips-err").textContent = "";
+  pref.set("wf-tip", path);
+  renderTipsToc(""); tipsButtons();
+  let f;
+  try { f = await api(`/api/tips/file?path=${encodeURIComponent(path)}`); }
+  catch (e) { if (seq === tipSeq) $("#tips-body").innerHTML = noData(e.message); return; }
+  if (seq !== tipSeq) return;
+  tipFile = f;
+  const base = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+  let body;
+  if (f.kind === "csv") {
+    const [head = [], ...rows] = f.rows, n = Math.max(head.length, ...rows.map(r => r.length));
+    const cell = (tag, c) => `<${tag}>${mdInline(c || "", base).replace(/\n/g, "<br>")}</${tag}>`;
+    body = `<h1>${esc(f.title)}</h1>` + (head.length ? `<div class="tablewrap"><table><thead><tr>${Array.from({ length: n }, (_, k) => cell("th", head[k])).join("")}</tr></thead>
+      <tbody>${rows.map(r => `<tr>${Array.from({ length: n }, (_, k) => cell("td", r[k])).join("")}</tr>`).join("")}</tbody></table></div>` : noData("中身が空です。"));
+  } else if (f.kind === "txt") {
+    body = `<h1>${esc(f.title)}</h1><pre>${esc(f.text)}</pre>`;
+  } else {
+    body = mdToHtml(f.text, base);
+    if (!/^<h1[ >]/.test(body)) body = `<h1>${esc(f.title)}</h1>` + body;
+  }
+  $("#tips-body").innerHTML = `<p class="tip-meta">${esc(f.path)}${f.updated ? ` ・ ${esc(f.updated)} 更新` : ""}</p>` + body;
+  const heads = [...$("#tips-body").querySelectorAll("h2[id], h3[id]")]
+    .map(h => `<a href="#" data-h="${h.id}" class="${h.tagName.toLowerCase()}">${esc(h.textContent)}</a>`).join("");
+  renderTipsToc(heads); tipsButtons();
+}
+async function loadTips() {
+  if (!tipLeaveEdit()) return;
+  $("#tips-err").textContent = "";
+  try { tipsList = await api("/api/tips"); }
+  catch (e) { $("#tips-err").textContent = e.message; return; }
+  $("#tips-dir").textContent = tipsList.dir;
+  if (tipTrashOpen) { renderTipsToc(); tipsButtons(); return loadTipsTrash(); }
+  if (!tipsList.items.length) {
+    tipFile = null; renderTipsToc(""); tipsButtons();
+    $("#tips-body").innerHTML = `<div class="empty">${tipsList.exists ? "tips フォルダにメモがありません。" : "tips フォルダがありません。"}
+      「新規」でメモを作るか、「tips フォルダを開く」でフォルダを開き、.md / .txt / .csv のファイルを置いてから「再読み込み」を押してください。</div>`;
+    return;
+  }
+  if (!tipsList.items.some(it => it.path === tipCur)) tipCur = tipsList.items[0].path;
+  await openTip(tipCur);
+}
+
+/* 確認の小窓: buttons = [{label, value, cls}]。押したボタンの value(Esc・キャンセルは "")を返す */
+function askTips(msg, buttons) {
+  const d = $("#tips-dlg");
+  $("#tips-dlg-msg").textContent = msg;
+  $("#tips-dlg-btns").innerHTML = buttons.map(b => `<button class="btn ${b.cls || ""}" value="${esc(b.value)}"${b.value ? "" : " autofocus"}>${esc(b.label)}</button>`).join("");
+  d.returnValue = "";
+  return new Promise(res => { d.addEventListener("close", () => res(d.returnValue || ""), { once: true }); d.showModal(); });
+}
+/* 小窓の文字は開くときに表示中の言語で作る(関数にしておき、言語を切り替えた後も合うように) */
+const tipCancel = () => ({ label: t("dlg.cancel"), value: "", cls: "ghost" });
+const askPurge = async title => await askTips(fmt("dlg.purge.confirm", { title }),
+  [{ label: t("dlg.yes"), value: "yes", cls: "danger armed" }, { label: t("dlg.no"), value: "", cls: "ghost" }]) === "yes";
+
+/* 編集: 新規(タイトル + 保存先)と既存の .md の書き換え。保存しないで離れるときは確認する */
+let tipEdit = null;  // {mode: "new" | "edit", path, rev, orig}
+const tipDirty = () => !!tipEdit && ($("#te-text").value !== tipEdit.orig || (tipEdit.mode === "new" && $("#te-title").value.trim() !== ""));
+function tipLeaveEdit() {
+  if (!tipEdit) return true;
+  if (tipDirty() && !confirm(t("te.leave"))) return false;
+  tipEdit = null; tipsButtons();
+  return true;
+}
+function startTipEdit(mode) {
+  const f = tipFile;
+  if (mode === "edit" && !(f && f.editable)) return;
+  tipTrashOpen = false;
+  tipEdit = mode === "edit" ? { mode, path: f.path, rev: f.rev, orig: f.text } : { mode, orig: "" };
+  $("#te-new").hidden = mode !== "new";
+  $("#te-path").hidden = mode !== "edit";
+  $("#te-path").textContent = mode === "edit" ? fmt("te.editing", { path: f.path }) : "";
+  if (mode === "new") {
+    const curGrp = tipCur && tipCur.includes("/") ? tipCur.slice(0, tipCur.indexOf("/")) : "";
+    const groups = (tipsList ? tipsList.toc : []).filter(e => e.type === "group");
+    $("#te-group").innerHTML = `<option value="">${esc(t("te.nogroup"))}</option>`
+      + groups.map(g => `<option value="${esc(g.name)}"${g.name === curGrp ? " selected" : ""}>${esc(g.label)}</option>`).join("");
+    $("#te-title").value = "";
+  }
+  $("#te-text").value = tipEdit.orig;
+  $("#te-err").textContent = "";
+  tipsButtons();
+  (mode === "new" ? $("#te-title") : $("#te-text")).focus();
+}
+async function saveTipEdit() {
+  if (!tipEdit) return;
+  const body = tipEdit.mode === "edit"
+    ? { path: tipEdit.path, rev: tipEdit.rev, text: $("#te-text").value }
+    : { title: $("#te-title").value, group: $("#te-group").value, text: $("#te-text").value };
+  $("#te-save").disabled = true; $("#te-err").textContent = "";
+  let f;
+  try { f = await api("/api/tips/save", { method: "POST", body }); }
+  catch (e) {
+    $("#te-err").textContent = e.status === 409 ? fmt("te.conflict", { msg: e.message }) : e.message;
+    return;
+  } finally { $("#te-save").disabled = false; }
+  tipEdit = null; tipCur = f.path;
+  await loadTips();
+}
+/* 書き方の挿入。execCommand("insertText") を優先して Ctrl+Z で戻せるようにする */
+function teReplace(ta, start, end, text, selStart = start + text.length, selEnd = selStart) {
+  ta.focus(); ta.setSelectionRange(start, end);
+  if (!document.execCommand("insertText", false, text)) ta.setRangeText(text, start, end, "end");
+  ta.setSelectionRange(selStart, selEnd);
+}
+const tipTable = () => t("te.table");  // 表の雛形(見出しは表示中の言語)
+$("#tips-edit").querySelector(".te-tools").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const ta = $("#te-text"), v = ta.value, s = ta.selectionStart, en = ta.selectionEnd;
+  if (b.dataset.line) {  // 選んだ行すべての行頭に入れる
+    const ls = v.lastIndexOf("\n", s - 1) + 1, le = v.indexOf("\n", Math.max(en - (en > s && v[en - 1] === "\n" ? 1 : 0), s));
+    const end = le < 0 ? v.length : le, block = v.slice(ls, end).split("\n").map(l => b.dataset.line + l).join("\n");
+    teReplace(ta, ls, end, block, ls + block.length);
+  } else if (b.dataset.block === "table") {  // カーソルの行が空ならそこへ、そうでなければ次の行へ
+    const ls = v.lastIndexOf("\n", s - 1) + 1, le = v.indexOf("\n", s), end = le < 0 ? v.length : le;
+    const tb = tipTable(), w = tb.indexOf(" |", 2) - 2;  // 最初の見出しの長さ(挿入後にそこを選ぶ)
+    if (v.slice(ls, end).trim() === "") teReplace(ta, ls, end, tb.slice(0, -1), ls + 2, ls + 2 + w);
+    else teReplace(ta, end, end, "\n" + tb.slice(0, -1), end + 3, end + 3 + w);
+  } else if (b.dataset.wrap) {
+    const w = b.dataset.wrap, sel = v.slice(s, en);
+    teReplace(ta, s, en, w + sel + w, s + w.length, s + w.length + sel.length);
+  } else if (b.dataset.ins) teReplace(ta, s, en, b.dataset.ins);
+});
+$("#te-text").addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); saveTipEdit(); }
+});
+$("#te-title").addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); saveTipEdit(); }
+  else if (e.key === "Enter") { e.preventDefault(); $("#te-text").focus(); }
+});
+$("#tips-edit").addEventListener("submit", e => { e.preventDefault(); saveTipEdit(); });
+$("#te-cancel").addEventListener("click", () => { if (tipLeaveEdit()) tipCur ? openTip(tipCur) : loadTips(); });
+$("#tips-new").addEventListener("click", () => startTipEdit("new"));
+$("#tips-edit-btn").addEventListener("click", () => startTipEdit("edit"));
+leaveGuards.push(() => currentView !== "tips" || tipLeaveEdit());  // メニューで別のページへ移るとき
+window.addEventListener("beforeunload", e => { if (tipDirty()) { e.preventDefault(); e.returnValue = ""; } });
+
+/* 削除: ゴミ箱に入れる / 完全削除(2回目の確認つき) */
+$("#tips-del").addEventListener("click", async () => {
+  const f = tipFile; if (!f) return;
+  const v = await askTips(fmt("dlg.del", { title: f.title }),
+    [{ label: t("dlg.trash"), value: "trash" }, { label: t("dlg.purge"), value: "purge", cls: "danger" }, tipCancel()]);
+  if (!v || (v === "purge" && !await askPurge(f.title))) return;
+  try { await api(v === "trash" ? "/api/tips/trash" : "/api/tips/purge", { method: "POST", body: { path: f.path } }); }
+  catch (e) { $("#tips-err").textContent = e.message; return; }
+  tipCur = null; await loadTips();
+});
+$("#tips-group").addEventListener("click", async () => {
+  const name = prompt(t("dlg.group"));
+  if (name === null || !name.trim()) return;
+  try { const r = await api("/api/tips/group", { method: "POST", body: { name } }); $("#tips-err").textContent = ""; tipsList = await api("/api/tips");
+    renderTipsToc(); if (r.group !== name.trim()) $("#tips-err").textContent = fmt("dlg.group.renamed", { name: r.group }); }
+  catch (e) { $("#tips-err").textContent = e.message; }
+});
+
+/* ゴミ箱(tips/_trash/)の一覧: 元に戻す / 完全削除 */
+let tipTrash = [], tipTrashMsg = null;  // tipTrashMsg: 元に戻した・消したときの案内(テキスト指定。言語を切り替えたら描き直す)
+async function loadTipsTrash() {
+  try { tipTrash = (await api("/api/tips/trash")).items; }
+  catch (e) { $("#tips-trash-list").innerHTML = noData(e.message); return; }
+  renderTipsTrash();
+}
+/* ゴミ箱の一覧を描く(言語を切り替えたら描き直す) */
+function renderTipsTrash() {
+  $("#tips-trash-list").innerHTML = tipTrash.length ? `<div class="tablewrap"><table><thead><tr>${["note", "path", "at"].map(c => `<th>${esc(t("trash.col." + c))}</th>`).join("")}<th></th></tr></thead><tbody>
+    ${tipTrash.map((tr, i) => `<tr><td>${esc(tr.title)}</td><td>${esc(tr.path)}</td><td>${esc(tr.trashed)}</td>
+      <td class="ops"><button class="btn ghost" type="button" data-restore="${i}">${esc(t("trash.restore"))}</button> <button class="btn danger" type="button" data-purge="${i}">${esc(t("trash.purge"))}</button></td></tr>`).join("")}
+    </tbody></table></div>` : noData(t("trash.empty"));
+}
+$("#tips-trash-btn").addEventListener("click", async () => {
+  tipTrashOpen = !tipTrashOpen; tipTrashMsg = null; $("#tips-trash-msg").textContent = ""; tipsButtons();
+  if (tipTrashOpen) await loadTipsTrash();
+});
+$("#tips-trash-list").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-restore], button[data-purge]"); if (!b) return;
+  const tr = tipTrash[b.dataset.restore ?? b.dataset.purge]; if (!tr) return;
+  let msg;
+  try {
+    if (b.dataset.restore !== undefined) {
+      const r = await api("/api/tips/restore", { method: "POST", body: { id: tr.id } });
+      msg = { k: "trash.restored", v: { title: tr.title, path: r.path } };
+    } else {
+      if (await askTips(fmt("dlg.trash.purge", { title: tr.title }), [{ label: t("dlg.purge"), value: "purge", cls: "danger" }, tipCancel()]) !== "purge"
+        || !await askPurge(tr.title)) return;
+      await api("/api/tips/purge", { method: "POST", body: { id: tr.id } });
+      msg = { k: "trash.purged", v: { title: tr.title } };
+    }
+  } catch (err) { tipTrashMsg = null; $("#tips-trash-msg").textContent = err.message; return; }
+  try { tipsList = await api("/api/tips"); renderTipsToc(); } catch (err) { /* 目次は次の読み込みで直る */ }
+  await loadTipsTrash();
+  tipTrashMsg = msg; $("#tips-trash-msg").textContent = renderTxt(msg);
+});
+$("#tips-toc").addEventListener("click", e => {
+  const mv = e.target.closest("button.mv");
+  if (mv) { if (!mv.disabled) moveTip(mv.dataset.list, +mv.dataset.i, +mv.dataset.d); return; }
+  const a = e.target.closest("a"); if (!a) return; e.preventDefault();
+  if (a.dataset.tip) openTip(a.dataset.tip);
+  else if (a.dataset.h) document.getElementById(a.dataset.h)?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+$("#tips-body").addEventListener("click", e => {
+  const a = e.target.closest("a[data-tip]"); if (!a) return; e.preventDefault();
+  if (tipsList && tipsList.items.some(it => it.path === a.dataset.tip)) openTip(a.dataset.tip);
+  else $("#tips-err").textContent = fmt("tips.linkmissing", { path: a.dataset.tip });
+});
+$("#tips-reload").addEventListener("click", loadTips);
+$("#tips-open").addEventListener("click", async () => {
+  try { await api("/api/tips/open", { method: "POST", body: {} }); $("#tips-err").textContent = ""; }
+  catch (e) { $("#tips-err").textContent = e.message; }
+});
+loaders.tips = () => { applyViewText("tips"); return loadTips(); };  // 開くたびに読み直す(外で編集した内容をすぐ反映。編集中なら確認する)
+/* 言語を切り替えたとき: 枠の説明文・ボタンと編集画面(入力中の内容はそのまま)。目次・メモの中身は日本語のまま */
+relabel.tips = () => {
+  applyViewText("tips");
+  if (!tipEdit) return;
+  if (tipEdit.mode === "edit") $("#te-path").textContent = fmt("te.editing", { path: tipEdit.path });
+  const none = $("#te-group").querySelector('option[value=""]'); if (none) none.textContent = t("te.nogroup");
+};
+const relabelTipsEdit = relabel.tips;
+relabel.tips = () => {
+  relabelTipsEdit();
+  if (tipTrashOpen) { renderTipsTrash(); if (tipTrashMsg) $("#tips-trash-msg").textContent = renderTxt(tipTrashMsg); }
+};

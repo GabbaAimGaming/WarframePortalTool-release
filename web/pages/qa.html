@@ -1,0 +1,153 @@
+<!-- ページ「Q&A」(id qa): 表示部(view = <section id="view-qa">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- Q&A(答えは日本語のみ。ページの枠・ボタンは I18N。答えの中身は下の renderQa が API の文をそのまま出す) -->
+      <section id="view-qa" hidden>
+        <h2 data-i18n="page.qa">Q&amp;A</h2>
+        <p class="lead qa-lead" data-i18n="qa.lead">あーしはセファロン クロ。
+あーしに聞いてもらえれば、答えられる範囲で答えるよ。全部は無理だけどね
+「教えてクロちゃん」って聞いてくれたら、ざっくりとした話題を出すね
+※日本語版のみの機能だよ</p>
+        <p class="note qa-jaonly" id="qa-jaonly" hidden data-i18n="qa.jaonly">Q&amp;A の答えは日本語のみです。</p>
+        <form class="row" id="qa-form">
+          <input type="text" class="search" id="qa-q" maxlength="200" data-i18n-placeholder="qa.placeholder" placeholder="例: Rhino のアーマーは? / Jade のおすすめビルドは?" autocomplete="off">
+          <button class="btn" type="submit" data-i18n="qa.ask">聞く</button>
+          <button class="btn ghost" type="button" id="qa-clear" data-i18n="qa.clear">履歴を消す</button>
+        </form>
+        <div id="qa-log" aria-live="polite"></div>
+        <dialog class="tips-dlg" id="qa-dlg" data-i18n-aria="qa.adopt.title" aria-label="ビルド管理に追加">
+          <form id="qa-dlg-form">
+            <p id="qa-dlg-msg"></p>
+            <label class="field"><span data-i18n="b.f.name">ビルド名</span><input type="text" id="qa-dlg-name" required autocomplete="off"></label>
+            <div class="err" id="qa-dlg-err" role="alert"></div>
+            <div class="row"><button class="btn" type="submit" data-i18n="qa.adopt.ok">追加する</button>
+              <button class="btn ghost" type="button" id="qa-dlg-cancel" data-i18n="dlg.cancel">キャンセル</button></div>
+          </form>
+        </dialog>
+      </section>
+<!-- PART:script -->
+/* ---------- Q&A ---------- */
+/* 答えの文は API(Python)が日本語で作る(Q&A は日本語のみ)。ここは表示とボタンだけ。枠の文字(ボタン・見出し)は I18N(t)から。
+   履歴は新しいものを上に QA_LOG_MAX 件まで(ページを離れても残す。データは取り直さない) */
+const QA_LOG_MAX = 20;
+let qaLog = [];  // [{res, done}] done = ビルド管理に追加した名前 {ビルド名: 保存した名前}
+async function qaAsk(params) {
+  const qs = new URLSearchParams(params).toString();
+  try {
+    const res = await api(`/api/qa?${qs}`);
+    qaLog.unshift({ res, done: {} }); qaLog = qaLog.slice(0, QA_LOG_MAX);
+  } catch (e) { qaLog.unshift({ err: e.message, q: params.q || "" }); }
+  renderQa();
+}
+// ボタン: o = {name, intent, choice, lore, only, menu, q}(どれも任意)。押すとその値で /api/qa に聞く。spoil はネタバレの確認を飛ばす。
+// only は解説のその段だけ(「続き」。指定なしは 0段目からその段まで)。menu は「教えてクロちゃん」の分類、q は例文(その文で聞く)、
+// talk はツールの使い方・雑談の話。page は聞かずに画面のページを開く(qaPageChip。無いページのボタンは出さない)
+const QA_CHIP_KEYS = ["name", "intent", "choice", "lore", "only", "menu", "q", "talk"];
+const qaChip = (label, o, spoil) =>
+  `<button type="button" class="chip" data-qaask="1"${QA_CHIP_KEYS.filter(k => o[k]).map(k => ` data-qa${k}="${esc(o[k])}"`).join("")}${
+    spoil ? ` data-qaspoil="1"` : ""}>${esc(label)}</button>`;
+const qaPageChip = (label, page) => pageExists(page)
+  ? `<button type="button" class="chip" data-qapage="${esc(page)}">${esc(label)}</button>` : "";
+const qaOption = o => o.page ? qaPageChip(o.label, o.page) : qaChip(o.label, o);
+// ツールの使い方・雑談の話のカード(文は API が日本語で返す)
+const qaTalkCard = talk => `<div class="qa-lore qa-talk"><header><b>${esc(talk.title)}</b></header>${
+  talk.paragraphs.map(x => `<p>${esc(x)}</p>`).join("")}</div>`;
+// 解説のカード(文は API が日本語で返す)。見出しは 0段目(最初の段)のタイトル、2つ目からの段は小見出し。出典は wiki の記事の URL と、ファイル全体の credit・license
+function qaLoreCard(lore, next) {
+  const body = lore.parts.map((p, i) => `${i ? `<h4 class="qa-lore-part">${esc(p.title)}</h4>` : ""}${
+    p.prefix ? `<p class="qa-lore-prefix">${esc(p.prefix)}</p>` : ""}${p.paragraphs.map(x => `<p>${esc(x)}</p>`).join("")}`).join("");
+  const src = lore.source.map(u => `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(u.replace(/^https?:\/\//, ""))}</a>`).join(" ");
+  const credit = [lore.credit, lore.license].filter(Boolean).join(" / ");
+  return `<div class="qa-lore"><header><b>${esc(lore.parts[0].title)}</b></header>${body}${credit || src ? `<div class="qa-basis">${esc(t("qa.lore.source"))}: ${esc(credit)} ${src}</div>` : ""}</div>${
+    next ? `<div class="qa-chips">${qaChip(next.label, { lore: next.id, only: "1" })}</div>` : ""}`;
+}
+function qaBuildCard(b, done) {
+  const row = (key, val) => val ? `<dt>${esc(t(key))}</dt><dd>${esc(val)}</dd>` : "";
+  return `<div class="qa-build"><header><b>${esc(b.name)}</b><span>${esc(b.type_ja)} / ${esc(b.target_ja)} / ${esc(fmt("qa.b.forma", { n: b.forma }))}</span></header>
+    <dl>${b.mods.length ? `<dt>${esc(t("qa.b.mods"))}</dt><dd><ol class="mods">${b.mods.map(m =>
+      `<li>${esc(m.name)}${m.effect ? `<span class="mod-eff">${esc(m.effect)}</span>` : ""}</li>`).join("")}</ol></dd>` : ""}${row("qa.b.arcanes", b.arcanes.join("、"))}${row("qa.b.helminth", b.helminth)}${
+      row("qa.b.shards", b.shards.join("\n"))}${row("qa.b.note", b.note)}</dl>
+    <div class="row">${done
+      ? `<span class="mini">${esc(fmt("qa.adopt.done", { name: done }))}</span> <button type="button" class="btn ghost" data-qaopen="${esc(done)}">${esc(t("qa.adopt.open"))}</button>`
+      : `<button type="button" class="btn ghost" data-qaadopt="${esc(b.name)}" data-qaadoptname="${esc(b.adopt_name)}">${esc(t("qa.adopt"))}</button>`}</div></div>`;
+}
+// 時代ごとのレリックの入手先: その場所で出るレリックと確率(ドロップ表のまま)
+function qaRelics(relics) {
+  if (!relics || !relics.length) return "";
+  return `<div class="qa-relics">${relics.map(r => `${esc(r.name)}${r.chance ? ` ${esc(r.chance)}` : ""}`).join(" / ")}</div>`;
+}
+function qaItem(entry, idx) {
+  if (entry.err) return `<div class="qa-item"><div class="qa-q">${esc(entry.q)}</div><div class="err">${esc(entry.err)}</div></div>`;
+  const r = entry.res;
+  const q = r.q || (r.name ? r.name.ja : r.lore ? r.lore.title : r.spoiler ? r.spoiler.title : r.menu ? r.menu.title : r.talk ? r.talk.title : "");
+  let h = `<div class="qa-item" data-qaidx="${idx}"><div class="qa-q">${esc(t("qa.you"))} ${esc(q)}</div>`;
+  if (r.miss && r.miss.text) h += `<p class="qa-a qa-miss">${esc(r.miss.text)}</p>`;
+  if (r.text) h += `<p class="qa-a"><b>${esc(r.text)}</b></p>`;
+  if (r.spoiler) h += entry.declined ? `<p class="qa-a">${esc(r.spoiler.declined)}</p>`
+    : `<div class="qa-chips">${qaChip(r.spoiler.ok, { lore: r.spoiler.id, only: r.spoiler.only ? "1" : "" }, true)}<button type="button" class="chip" data-qadecline="1">${esc(r.spoiler.ng)}</button></div>`;
+  if (r.lore) h += qaLoreCard(r.lore, r.next);
+  if (r.talk) h += qaTalkCard(r.talk);
+  if (r.facts.length) h += `<div class="tablewrap"><table class="qa-facts"><tbody>${r.facts.map(f =>
+    `<tr><td>${esc(f.label)}</td><td>${esc(f.value)}</td></tr>`).join("")}</tbody></table></div>`;
+  for (const g of r.sources) {
+    if (g.title) h += `<div class="qa-group">${esc(g.title)}</div>`;
+    h += `<div class="tablewrap"><table><thead><tr><th>${esc(t("qa.col.chance"))}</th><th>${esc(t("qa.col.where"))}</th></tr></thead><tbody>${
+      g.rows.map(x => `<tr><td>${esc(x.chance || "-")}</td><td>${catTag(x.cat)} ${esc(x.where)}${x.qty ? ` ×${esc(x.qty)}` : ""}${qaRelics(x.relics)}</td></tr>`).join("")}</tbody></table></div>`;
+  }
+  h += r.builds.map(b => qaBuildCard(b, entry.done[b.name])).join("");
+  if (r.candidates.length) h += `<div class="qa-chips"><span>${esc(t("qa.maybe"))}</span>${r.candidates.map(c => qaChip(c.ja, { name: c.key, intent: r.intent })).join("")}</div>`;
+  if (r.options.length) h += `<div class="qa-chips"><span>${esc(r.options_title)}</span>${r.options.map(qaOption).join("")}</div>`;
+  if (r.basis) h += `<div class="qa-basis">${esc(r.basis)}</div>`;
+  return h + `</div>`;
+}
+function renderQa() {
+  $("#qa-jaonly").hidden = lang === "ja";
+  $("#qa-log").innerHTML = qaLog.length ? qaLog.map(qaItem).join("") : `<div class="empty">${esc(t("qa.empty"))}</div>`;
+}
+$("#qa-form").addEventListener("submit", e => {
+  e.preventDefault();
+  const q = $("#qa-q").value.trim();
+  if (!q) return;
+  $("#qa-q").value = "";
+  qaAsk({ q });
+});
+$("#qa-clear").addEventListener("click", () => { qaLog = []; renderQa(); });
+/* ビルド管理に追加: 名前を入れる小窓(初期値は「名前_dev」)。同じ名前があれば小窓のまま入れ直してもらう(上書きしない) */
+let qaAdopt = null;  // {idx, build}
+$("#qa-log").addEventListener("click", e => {
+  const page = e.target.closest("[data-qapage]");  // 画面のページを開く(使い方の話から)
+  if (page) { show(page.dataset.qapage); return; }
+  const chip = e.target.closest("[data-qaask]");
+  if (chip) {
+    const params = {};
+    for (const k of QA_CHIP_KEYS) if (chip.dataset["qa" + k]) params[k] = chip.dataset["qa" + k];
+    if (chip.dataset.qaspoil) params.spoil = "1";
+    qaAsk(params); return;
+  }
+  const decline = e.target.closest("[data-qadecline]");  // 「やめとく」は通信なしで断りの一言を出す
+  if (decline) { const entry = qaLog[+decline.closest("[data-qaidx]").dataset.qaidx]; if (entry) entry.declined = true; renderQa(); return; }
+  const open = e.target.closest("[data-qaopen]");
+  if (open) { $("#b-filter").value = open.dataset.qaopen; show("build"); return; }
+  const add = e.target.closest("[data-qaadopt]");
+  if (!add) return;
+  qaAdopt = { idx: +add.closest("[data-qaidx]").dataset.qaidx, build: add.dataset.qaadopt };
+  $("#qa-dlg-msg").textContent = fmt("qa.adopt.msg", { name: qaAdopt.build });
+  $("#qa-dlg-name").value = add.dataset.qaadoptname;
+  $("#qa-dlg-err").textContent = "";
+  $("#qa-dlg").showModal();
+});
+$("#qa-dlg-cancel").addEventListener("click", () => $("#qa-dlg").close());
+$("#qa-dlg-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = $("#qa-dlg-name").value.trim();
+  if (!qaAdopt || !name) return;
+  try {
+    const res = await api("/api/builds/adopt", { method: "POST", body: { build: qaAdopt.build, name } });
+    const entry = qaLog[qaAdopt.idx];
+    if (entry && entry.done) entry.done[qaAdopt.build] = res.name;
+    $("#qa-dlg").close(); renderQa();
+  } catch (err) { $("#qa-dlg-err").textContent = err.message; }
+});
+loaders.qa = () => { applyViewText("qa"); renderQa(); };
+relabel.qa = () => { applyViewText("qa"); renderQa(); };

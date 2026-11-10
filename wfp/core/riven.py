@@ -3,7 +3,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from wfp.core.common import DISPO_CATS, RIVEN_TYPES_JA, TextFailure, error_text, say, to_float, txt
+from wfp.core.common import to_float
+from wfp.core.errors import TextFailure, error_text
+from wfp.core.i18n import txt
+from wfp.core.log import say
+from wfp.core.const import DISPO_CATS, RIVEN_TYPES_JA
 from wfp.core.names import Names, dispo_dots
 from wfp.fetch import riven_stats
 from wfp.store import gamedata

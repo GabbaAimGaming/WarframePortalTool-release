@@ -1,7 +1,7 @@
 """侵略サイクル: 今の侵略の一覧と、侵略で獲得できる武器パーツの収集表
 
 - 侵略の一覧は World State の抜き出し結果(worldstate.json の invasions)から作る。取得は画面の「更新」のときだけ
-  (World State の取得・保存は wfportal_worldstate。層のルールにより、ここへは API から値で渡す)
+  (World State の取得・保存は core/worldstate・store/gamedata。ここへは API から値で渡す)
 - 収集表は同梱の data/invasion/parts.json(手編集)。報酬との照合は名前ではなく内部パスで行う
   (名前の綴りや辞書の有無に左右されないため)。取得済みは利用者のデータ invasion_parts.json にパスで保存する
 - 文字は値(陣営・パーツの種類のキー)で返し、画面の I18N で整形する。武器名は英語のまま
@@ -11,8 +11,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from wfp.core.common import (INVASION_INFESTED, INVASION_PART_KINDS, INVASION_PARTS_FILE, INVASION_WEAPON_PART_PREFIX,
-                             PLANETS_JA, TextError, txt)
+from wfp.core.errors import TextError
+from wfp.core.i18n import txt
+from wfp.core.const import INVASION_INFESTED, INVASION_PART_KINDS, INVASION_PARTS_FILE, INVASION_WEAPON_PART_PREFIX, PLANETS_JA
 from wfp.core.names import Names
 from wfp.store import appdata, gamedata, userdata
 
@@ -197,10 +198,9 @@ def set_invasion_part(d: Path, path: str, owned: bool, src: Path | None = None) 
     hit = part_index(weapons).get(path)
     if hit is None:
         raise TextError(txt("err.invasion.unknown"))
-    done = userdata.load_invasion_parts(d)
-    if owned:
-        done.add(hit["path"])
-    else:
-        done.discard(hit["path"])
-    userdata.save_invasion_parts(d, done)
+    with userdata.editing(d, "invasion_parts") as done:
+        if owned:
+            done.add(hit["path"])
+        else:
+            done.discard(hit["path"])
     return done

@@ -19,7 +19,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 from wfp.api.store import JST, ApiError, Raw, mtime_jst
-from wfp.core import common
+from wfp.core import const, i18n
 
 
 TIPS_KINDS = {".md": "md", ".markdown": "md", ".txt": "txt", ".csv": "csv"}
@@ -43,7 +43,7 @@ _TIPS_LOCK = threading.Lock()    # 画面サーバーは複数スレッドで動
 
 
 def tips_root() -> Path:
-    return common.APP_DIR / "tips"
+    return const.APP_DIR / "tips"
 
 
 def _natural(s: str) -> list:
@@ -168,7 +168,7 @@ def _rev(p: Path) -> str:
 def tip_file(root: Path, rel: str) -> dict:
     p = tip_path(root, rel)
     if p is None or p.suffix.lower() not in TIPS_KINDS:
-        raise ApiError(common.txt("err.tips.missing"), 404)
+        raise ApiError(i18n.txt("err.tips.missing"), 404)
     text = _read_tip_text(p)
     kind = TIPS_KINDS[p.suffix.lower()]
     out = {"path": rel, "title": _tip_title(p, text), "kind": kind, "updated": mtime_jst(p),
@@ -234,38 +234,36 @@ def _write_text(p: Path, text: str) -> None:
 class _Writing:
     """書き込みの失敗を画面向けの文言にする(PermissionError はほかのアプリで開いているときに多い)"""
 
-    def __init__(self, failed):
-        self.failed = failed  # 文字列(日本語)か、テキスト指定(画面が表示中の言語で出す。メモの保存だけ)
+    def __init__(self, failed: dict):
+        self.failed = failed  # 何が失敗したかのテキスト指定(画面が表示中の言語で出す)
 
     def __enter__(self):
         return self
 
     def __exit__(self, et, e, tb):
-        text = not isinstance(self.failed, str)
         if et is not None and issubclass(et, PermissionError):
-            raise ApiError(common.txt("err.tips.locked", what=self.failed) if text else
-                           f"{self.failed}。ファイルがほかのアプリで開かれていないか、書き込みが許可されているか確認してください。", 423) from e
+            raise ApiError(i18n.txt("err.tips.locked", what=self.failed), 423) from e
         if et is not None and issubclass(et, OSError):
-            raise ApiError(common.txt("err.tips.write", what=self.failed, e=str(e)) if text else f"{self.failed}: {e}", 500) from e
+            raise ApiError(i18n.txt("err.tips.write", what=self.failed, e=str(e)), 500) from e
         return False
 
 
 def _obj(body) -> dict:
     if not isinstance(body, dict):
-        raise ApiError("リクエストの形式が正しくありません。")
+        raise ApiError(i18n.txt("err.tips.form"))
     return body
 
 
 def _str(body: dict, key: str) -> str:
     v = body.get(key) or ""
     if not isinstance(v, str):
-        raise ApiError(f"{key} は文字列で指定してください。")
+        raise ApiError(i18n.txt("err.tips.str", name=key))
     return v
 
 
 def _check_size(text: str) -> None:
     if len(text.encode("utf-8")) > TIPS_EDIT_MAX_BYTES:
-        raise ApiError(common.txt("err.tips.large", kb=str(TIPS_EDIT_MAX_BYTES // 1024)), 413)
+        raise ApiError(i18n.txt("err.tips.large", kb=str(TIPS_EDIT_MAX_BYTES // 1024)), 413)
 
 
 def _group_dir(root: Path, group: str) -> Path | None:
@@ -285,26 +283,26 @@ def save_tip(root: Path, body) -> dict:
     body = _obj(body)
     text, rel = body.get("text"), _str(body, "path")
     if not isinstance(text, str):
-        raise ApiError("text は文字列で指定してください。")
-    with _TIPS_LOCK, _Writing(common.txt("err.tips.save")):
+        raise ApiError(i18n.txt("err.tips.str", name="text"))
+    with _TIPS_LOCK, _Writing(i18n.txt("err.tips.save")):
         if rel:
             p = tip_path(root, rel)
             if p is None:
-                raise ApiError(common.txt("err.tips.missing"), 404)
+                raise ApiError(i18n.txt("err.tips.missing"), 404)
             if TIPS_KINDS.get(p.suffix.lower()) not in TIPS_EDIT_KINDS or p.stat().st_size > TIPS_EDIT_MAX_BYTES:
-                raise ApiError(common.txt("err.tips.editable", kb=str(TIPS_EDIT_MAX_BYTES // 1024)))
+                raise ApiError(i18n.txt("err.tips.editable", kb=str(TIPS_EDIT_MAX_BYTES // 1024)))
             if _str(body, "rev") != _rev(p):
-                raise ApiError(common.txt("err.tips.changed"), 409)
+                raise ApiError(i18n.txt("err.tips.changed"), 409)
             _check_size(text)
             _write_text(p, text)
         else:
             title = " ".join(_str(body, "title").split())
             if not title:
-                raise ApiError(common.txt("err.tips.title"))
+                raise ApiError(i18n.txt("err.tips.title"))
             group = _str(body, "group")
             d = _group_dir(root, group) if group else root
             if d is None:
-                raise ApiError(common.txt("err.tips.group"), 404)
+                raise ApiError(i18n.txt("err.tips.group"), 404)
             text = f"# {title}\n\n{text.lstrip(chr(10))}"
             _check_size(text)
             root.mkdir(parents=True, exist_ok=True)
@@ -317,7 +315,7 @@ def save_tip(root: Path, body) -> dict:
 def add_group(root: Path, body) -> dict:
     """グループ(tips 直下のフォルダ)を足す。名前の変更・削除は画面からはしない(リンクが切れるため)"""
     name = tip_name(_str(_obj(body), "name"), "グループ")
-    with _TIPS_LOCK, _Writing("グループを追加できませんでした"):
+    with _TIPS_LOCK, _Writing(i18n.txt("err.tips.groupadd")):
         root.mkdir(parents=True, exist_ok=True)
         name = _unique(root, name, "")
         (root / name).mkdir()
@@ -360,17 +358,17 @@ def _trash_item(root: Path, tid) -> Path:
         and not tid.startswith(".") and tid != TIPS_TRASH_INDEX
     p = td / tid if ok else None
     if p is None or not p.is_file() or p.suffix.lower() not in TIPS_KINDS:
-        raise ApiError(common.txt("err.tips.trashmissing"), 404)
+        raise ApiError(i18n.txt("err.tips.trashmissing"), 404)
     return p
 
 
 def trash_tip(root: Path, body) -> dict:
     """メモをゴミ箱(tips/_trash/)へ移す。元の場所・日時・タイトルは _index.json に残す"""
     rel = _str(_obj(body), "path")
-    with _TIPS_LOCK, _Writing(common.txt("err.tips.trashmove")):
+    with _TIPS_LOCK, _Writing(i18n.txt("err.tips.trashmove")):
         p = tip_path(root, rel)
         if p is None or p.suffix.lower() not in TIPS_KINDS:
-            raise ApiError(common.txt("err.tips.missing"), 404)
+            raise ApiError(i18n.txt("err.tips.missing"), 404)
         rel, title = _rel(root, p), _tip_title(p)
         td = root / TIPS_TRASH
         td.mkdir(exist_ok=True)
@@ -400,7 +398,7 @@ def trash_list(root: Path) -> dict:
 def restore_tip(root: Path, body) -> dict:
     """ゴミ箱から元の場所へ戻す。元のグループが無ければ作り直す。同じ名前があれば「名前 (2)」"""
     tid = _obj(body).get("id")
-    with _TIPS_LOCK, _Writing(common.txt("err.tips.restore")):
+    with _TIPS_LOCK, _Writing(i18n.txt("err.tips.restore")):
         src = _trash_item(root, tid)
         td = src.parent
         entries = _trash_index(td)
@@ -424,7 +422,7 @@ def _group_name_ok(name: str) -> bool:
 def purge_tip(root: Path, body) -> dict:
     """完全に消す。id ならゴミ箱の中、path なら目次のメモ。メモに貼った画像は残す"""
     body = _obj(body)
-    with _TIPS_LOCK, _Writing(common.txt("err.tips.purge")):
+    with _TIPS_LOCK, _Writing(i18n.txt("err.tips.purge")):
         if "id" in body:
             p = _trash_item(root, body.get("id"))
             p.unlink()
@@ -433,7 +431,7 @@ def purge_tip(root: Path, body) -> dict:
         rel = _str(body, "path")
         p = tip_path(root, rel)
         if p is None or p.suffix.lower() not in TIPS_KINDS:
-            raise ApiError(common.txt("err.tips.missing"), 404)
+            raise ApiError(i18n.txt("err.tips.missing"), 404)
         rel = _rel(root, p)
         p.unlink()
         _drop_order(root, rel)
@@ -449,10 +447,10 @@ def set_order(root: Path, body) -> dict:
     top, groups = body.get("top", []), body.get("groups", {})
     if not (isinstance(top, list) and all(isinstance(x, str) for x in top) and isinstance(groups, dict)
             and all(isinstance(v, list) and all(isinstance(x, str) for x in v) for v in groups.values())):
-        raise ApiError("並び順の形式が正しくありません。")
-    with _TIPS_LOCK, _Writing("並び順を保存できませんでした"):
+        raise ApiError(i18n.txt("err.tips.order"))
+    with _TIPS_LOCK, _Writing(i18n.txt("err.tips.ordersave")):
         if not root.is_dir():
-            raise ApiError("tips フォルダがありません。", 404)
+            raise ApiError(i18n.txt("err.tips.nofolder"), 404)
         have = {p.name: p for p in root.iterdir()}
         out_top = [x for x in dict.fromkeys(top)
                    if (x.endswith("/") and _group_dir(root, x[:-1]) is not None) or (x in have and _is_tip_file(have[x]))]
@@ -475,7 +473,7 @@ def open_tips_folder(root: Path) -> dict:
         else:
             subprocess.Popen(["xdg-open", str(root)])
     except OSError as e:
-        raise ApiError(f"フォルダを開けませんでした: {e}", 500)
+        raise ApiError(i18n.txt("err.tips.open", e=str(e)), 500)
     return {"dir": str(root)}
 
 
@@ -486,7 +484,7 @@ def tip_image(root: Path, rel: str) -> Raw:
     """Tips のメモに貼った画像 (tips フォルダの中の画像だけ)"""
     p = tip_path(root, rel)
     if p is None or p.suffix.lower() not in TIPS_IMAGE_MIME:
-        raise ApiError("画像が見つかりません。", 404)
+        raise ApiError(i18n.txt("err.image.none"), 404)
     return Raw(p.read_bytes(), TIPS_IMAGE_MIME[p.suffix.lower()])
 
 

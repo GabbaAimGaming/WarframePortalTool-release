@@ -8,9 +8,9 @@
 
 データ:
   - 公式 Public Export の ExportWarframes / ExportWeapons (英語・日本語) から必要な値だけを抜き出して
-    データ置き場の builder.json に保存する。「データ更新」のときに名前辞書と同じデータから作る
-    (シミュレータの画面の「シミュレータ用データを取得」でも取得できる。取得元は名前辞書と同じ
-    calamity-inc/warframe-public-export -> 失敗したら公式 Public Export から直接)。
+    データ置き場の builder.json に保存する(作るのは wfp/core/simdata、読むのは wfp/store/gamedata の read_builder)。
+    「データ更新」のときに名前辞書と同じデータから作る(シミュレータの画面の「シミュレータ用データを取得」でも取得できる。
+    取得元は名前辞書と同じ calamity-inc/warframe-public-export -> 失敗したら公式 Public Export から直接)。
   - Public Export に無いもの(アビリティの数値、MOD の効果量、Riven の基準値)は、
     下の表(WARFRAME Wiki 掲載値をもとにした参考値)を使う。ゲームの更新で変わることがあるので、
     画面では「参考値」と表示し、入力欄で値を直せるようにしている。
@@ -19,18 +19,12 @@
 """
 from __future__ import annotations
 
-import json
-import re
-from datetime import datetime, timezone
 from pathlib import Path
 
-from wfp.core.common import (EXPORT_BASE, EXPORT_GITHUB, EXPORT_SRC_GITHUB, EXPORT_SRC_OFFICIAL, SIM_CATS, SIM_DAMAGE_TYPES,
-                             SIM_RIVEN_GROUPS, SIM_STATS, TextError, TextFailure, error_text, name_txt, say,
-                             txt)
-from wfp.fetch import decode, net
-
-BUILDER_FILE = "builder.json"
-BUILDER_EXPORTS = ("ExportWarframes", "ExportWeapons")
+from wfp.core.const import SIM_CATS, SIM_DAMAGE_TYPES
+from wfp.core.errors import TextError
+from wfp.core.i18n import txt
+from wfp.store import gamedata
 
 
 class BuilderError(TextError):
@@ -45,8 +39,7 @@ class BuilderError(TextError):
 # ダメージの種類 (ExportWeapons の damagePerShot は 20 要素の配列で、この順)
 # --------------------------------------------------------------------------
 
-# 表示名は wfp/core/common.py の SIM_DAMAGE_TYPES(画面は I18N の sim.dmg.<キー>)
-DAMAGE_TYPES = tuple(SIM_DAMAGE_TYPES.items())
+# 表示名は wfp/core/const.py の SIM_DAMAGE_TYPES(画面は I18N の sim.dmg.<キー>)
 DAMAGE_KEYS = tuple(SIM_DAMAGE_TYPES)
 PHYSICAL = ("impact", "puncture", "slash")
 PRIMARY_ELEMENTS = ("heat", "cold", "electricity", "toxin")
@@ -57,12 +50,7 @@ COMBINED = {
     frozenset(("cold", "toxin")): "viral", frozenset(("electricity", "toxin")): "corrosive",
 }
 
-# 武器のカテゴリー (ExportWeapons の productCategory)
-WEAPON_CATS = {"LongGuns": "primary", "Pistols": "secondary", "Melee": "melee",
-               "SpaceGuns": "archgun", "SentinelWeapons": "robotic"}
 CAT_JA = SIM_CATS  # 並びと表示名(画面は I18N の sim.cat.<キー>)
-# 組み立て式の部品(Kitgun・Zaw・アンプなど)は単体の性能にならないので除く
-_MODULAR_PARTS = re.compile(r"/(OperatorAmplifiers|ModularMelee[^/]*|SUModular[^/]*|InfKitGun|Hoverboard|ZanukaPetParts|MoaPetParts)/")
 
 # ランク 30 で増える量 (Update 36 以降の多くのフレーム: ヘルス・シールド +100、エネルギー +50。例外のフレームもある)
 RANK30_BONUS = {"health": 100.0, "shield": 100.0, "energy": 50.0}
@@ -133,7 +121,6 @@ WEAPON_PRESETS["robotic"] = WEAPON_PRESETS["primary"]
 # --------------------------------------------------------------------------
 
 RIVEN_GROUPS = ("rifle", "shotgun", "pistol", "melee", "archgun")
-RIVEN_GROUP_JA = SIM_RIVEN_GROUPS  # 表示名(画面は I18N の sim.group.<キー>)
 # Riven の種類 (wfportal の RIVEN_TYPES_JA のキー) -> 基準値の列。Kitgun はピストル(Wiki の Pistol / Kitgun)、
 # Zaw は近接(Wiki の Melee / Zaw)、コンパニオン武器はライフルで代用(Wiki では武器ごとに対応する列。推定)
 RIVEN_TYPE_GROUP = {"Rifle Riven Mod": "rifle", "Shotgun Riven Mod": "shotgun", "Pistol Riven Mod": "pistol",
@@ -219,143 +206,6 @@ for _st in RIVEN_STATS:  # スプライス効果はマイナスにならない
     if _st.get("spliced"):
         _st["no_curse"] = list(RIVEN_GROUPS)
 RIVEN_STAT_INDEX = {s["key"]: s for s in RIVEN_STATS}
-
-
-# --------------------------------------------------------------------------
-# Public Export からシミュレータ用のデータを作る
-# --------------------------------------------------------------------------
-
-def _clean_name(name) -> str:
-    return re.sub(r"^<[^>]+>\s*", "", str(name or "")).strip()
-
-
-def _clean_text(text) -> str:
-    """説明文の <DT_FIRE_COLOR> のようなタグを外し、空白をそろえる"""
-    s = re.sub(r"<[^>]*>", "", str(text or ""))
-    return re.sub(r"\s+", " ", s).strip()
-
-
-def _num(v, default: float = 0.0) -> float:
-    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else default
-
-
-def extract_builder_data(en_docs: list[dict], ja_docs: list[dict]) -> dict:
-    """ExportWarframes / ExportWeapons (英語・日本語) からフレームと武器の性能を抜き出す"""
-    ja: dict[str, dict] = {}
-    for doc in ja_docs:
-        for key in BUILDER_EXPORTS:
-            for it in doc.get(key, []) or []:
-                if isinstance(it, dict) and it.get("uniqueName"):
-                    ja[it["uniqueName"]] = it
-
-    frames: dict[str, dict] = {}
-    weapons: dict[tuple, dict] = {}
-    for doc in en_docs:
-        for it in doc.get("ExportWarframes", []) or []:
-            if not isinstance(it, dict) or it.get("productCategory") != "Suits":
-                continue
-            name = _clean_name(it.get("name"))
-            if not name or name.lower() in frames:
-                continue
-            j = ja.get(it.get("uniqueName", ""), {})
-            abil_ja = {a.get("abilityUniqueName"): a for a in j.get("abilities", []) or [] if isinstance(a, dict)}
-            abilities = []
-            for a in it.get("abilities", []) or []:
-                if not isinstance(a, dict) or not a.get("abilityName"):
-                    continue
-                aj = abil_ja.get(a.get("abilityUniqueName"), {})
-                # desc は日本語(無ければ英語)、desc_en は英語の説明(英語の画面で使う。古い builder.json には無い)
-                abilities.append({"en": _clean_name(a["abilityName"]), "ja": _clean_name(aj.get("abilityName") or a["abilityName"]),
-                                  "desc": _clean_text(aj.get("description") or a.get("description")),
-                                  "desc_en": _clean_text(a.get("description"))})
-            frames[name.lower()] = {
-                "en": name, "ja": _clean_name(j.get("name") or name),
-                "health": _num(it.get("health")), "shield": _num(it.get("shield")), "armor": _num(it.get("armor")),
-                "energy": _num(it.get("power")), "sprint": _num(it.get("sprintSpeed"), 1.0),
-                "passive": _clean_text(j.get("passiveDescription") or it.get("passiveDescription")),
-                "passive_en": _clean_text(it.get("passiveDescription")),
-                "abilities": abilities,
-            }
-        for it in doc.get("ExportWeapons", []) or []:
-            if not isinstance(it, dict):
-                continue
-            uid, cat = it.get("uniqueName", ""), WEAPON_CATS.get(it.get("productCategory"))
-            dmg = it.get("damagePerShot")
-            if not cat or not isinstance(dmg, list) or it.get("excludeFromCodex") or _MODULAR_PARTS.search(uid):
-                continue
-            name = _clean_name(it.get("name"))
-            damage = {DAMAGE_KEYS[i]: round(float(v), 4) for i, v in enumerate(dmg[:len(DAMAGE_KEYS)])
-                      if isinstance(v, (int, float)) and v > 0}
-            if not name or not damage or (cat, name.lower()) in weapons:
-                continue
-            w = {"en": name, "ja": _clean_name(ja.get(uid, {}).get("name") or name), "cat": cat, "damage": damage,
-                 "cc": _num(it.get("criticalChance")), "cd": _num(it.get("criticalMultiplier"), 1.0),
-                 "sc": _num(it.get("procChance")), "fire_rate": _num(it.get("fireRate"), 1.0),
-                 "shotgun": "shotgun" in uid.lower()}
-            if cat != "melee":
-                w.update(multishot=_num(it.get("multishot"), 1.0) or 1.0, magazine=_num(it.get("magazineSize")),
-                         reload=_num(it.get("reloadTime")), trigger=str(it.get("trigger") or ""))
-            weapons[(cat, name.lower())] = w
-    order = list(CAT_JA)
-    return {"frames": sorted(frames.values(), key=lambda f: f["en"].lower()),
-            "weapons": sorted(weapons.values(), key=lambda w: (order.index(w["cat"]), w["en"].lower()))}
-
-
-def save_builder_data(d: Path, data: dict, source: str) -> dict:
-    """抜き出したデータを builder.json に保存する(データ更新・シミュレータ用データの取得から使う)"""
-    if not data.get("frames") or not data.get("weapons"):
-        raise TextFailure(txt("err.sim.empty"))
-    data = {**data, "source": source, "updated": datetime.now(timezone.utc).isoformat(timespec="seconds")}
-    (d / BUILDER_FILE).write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-    return data
-
-
-def _fetch_docs_github(lang: str) -> list[dict]:
-    docs = []
-    for prefix in BUILDER_EXPORTS:
-        say(txt("log.get", file=f"{prefix}_{lang}.json"), 1)
-        raw = net.http_get(f"{EXPORT_GITHUB}/{prefix}_{lang}.json", timeout=120)
-        docs.append(decode.parse_export_json(raw.decode("utf-8", "replace")))
-    return docs
-
-
-def _fetch_docs_official(lang: str) -> list[dict]:
-    text = decode.decompress_lzma(net.http_get(f"{EXPORT_BASE}/index_{lang}.txt.lzma")).decode("utf-8", "replace")
-    docs = []
-    for line in text.splitlines():
-        if line.startswith(BUILDER_EXPORTS):
-            say(txt("log.get", file=line.split("!")[0]), 1)
-            docs.append(decode.parse_export_json(net.http_get(f"{EXPORT_BASE}/Manifest/{line}").decode("utf-8", "replace")))
-    return docs
-
-
-def update_builder_data(d: Path) -> bool:
-    """シミュレータ用のデータ(フレーム・武器の性能)だけを取得して builder.json に保存する。進み具合は say で出す"""
-    say(txt("log.fetching.sim"))
-    errors = []
-    for label, fetch in ((EXPORT_SRC_GITHUB, _fetch_docs_github), (EXPORT_SRC_OFFICIAL, _fetch_docs_official)):
-        say(txt("log.source", src=name_txt("export.src.", label)), 1)
-        try:
-            data = save_builder_data(d, extract_builder_data(fetch("en"), fetch("ja")), label)
-        except Exception as e:  # noqa: BLE001
-            say(txt("log.failed", e=error_text(e)), 1)
-            errors.append(txt("log.failed.what", what=name_txt("export.src.", label), e=error_text(e)))
-            continue
-        say(txt("log.sim.done2", f=str(len(data["frames"])), w=str(len(data["weapons"]))))
-        return True
-    say(txt("log.sim.fetchfail", e=errors))
-    return False
-
-
-def load_builder_data(d: Path) -> dict | None:
-    f = d / BUILDER_FILE
-    if not f.exists():
-        return None
-    try:
-        data = json.loads(f.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    return data if isinstance(data, dict) and data.get("frames") is not None else None
 
 
 # --------------------------------------------------------------------------
@@ -545,12 +395,11 @@ def riven_range(base: float, dispo: float, buffs: int, curse: bool, negative: bo
     return (min(lo, hi), max(lo, hi))
 
 
-def riven_calc(group: str, buffs: list[str], curse: str | None, rank: int = 8, dispo: float = RIVEN_DISPO) -> dict:
-    """性質値は既定で RIVEN_DISPO(1.2 固定)。dispo を渡せば別の値でも計算できる(画面からは渡さない)"""
+def riven_calc(group: str, buffs: list[str], curse: str | None, rank: int = 8) -> dict:
+    """Riven の効果ごとの振れ幅。性質値は RIVEN_DISPO(1.2 固定。武器ごとの値は持たない)"""
+    dispo = RIVEN_DISPO
     if group not in RIVEN_GROUPS:
         raise BuilderError(txt("err.sim.group"))
-    if not 0.1 <= dispo <= 3:  # 画面からは来ないが、dispo= で渡されたときのために残す
-        raise BuilderError(txt("err.sim.dispo"))
     if len(buffs) not in (2, 3):
         raise BuilderError(txt("err.sim.buffs"))
     keys = list(buffs) + ([curse] if curse else [])
@@ -582,7 +431,7 @@ def riven_grade_letter(score: float) -> str:
     return RIVEN_GRADE_LOW
 
 
-def riven_grade(group: str, stats: list[dict], rank: int = 8, dispo: float = RIVEN_DISPO) -> dict:
+def riven_grade(group: str, stats: list[dict], rank: int = 8) -> dict:
     """Riven の効果の値からグレードを出す。stats = [{"key", "value", "tol"(任意)}](ゲームの表示の値。単位なし)。
     マイナス効果かどうかは値の符号と基準値の符号で決める(反動はマイナスの値がプラス効果)。効果の数・マイナス効果の有無は
     stats から数えて、振れ幅は riven_calc と同じ式で出す"""
@@ -606,7 +455,7 @@ def riven_grade(group: str, stats: list[dict], rank: int = 8, dispo: float = RIV
     curses = [r["key"] for r in rows_in if r["negative"]]
     if len(curses) > 1:
         raise BuilderError(txt("err.sim.grade.curses"))
-    calc = riven_calc(group, buffs, curses[0] if curses else None, rank, dispo)
+    calc = riven_calc(group, buffs, curses[0] if curses else None, rank)
     ranges = {r["key"]: r for r in calc["rows"]}
     rows, scores = [], []
     for r in rows_in:
@@ -627,7 +476,7 @@ def riven_grade(group: str, stats: list[dict], rank: int = 8, dispo: float = RIV
                      "dev": dev, "score": score, "out": out,
                      "grade": RIVEN_GRADE_OUT if out else riven_grade_letter(score)})
     avg = sum(scores) / len(scores) if scores else None
-    return {"group": group, "dispo": dispo, "rank": rank, "buffs": len(buffs), "curse": bool(curses), "rows": rows,
+    return {"group": group, "dispo": RIVEN_DISPO, "rank": rank, "buffs": len(buffs), "curse": bool(curses), "rows": rows,
             "score": avg, "grade": None if avg is None else riven_grade_letter(avg),
             "complete": len(scores) == len(rows)}
 
@@ -637,7 +486,7 @@ def riven_grade(group: str, stats: list[dict], rank: int = 8, dispo: float = RIV
 # --------------------------------------------------------------------------
 
 def _need_data(d: Path) -> dict:
-    data = load_builder_data(d)
+    data = gamedata.read_builder(d)
     if data is None:
         raise BuilderError(txt("err.sim.nodata"), 409)
     return data
@@ -652,7 +501,7 @@ def _find(items: list[dict], name: str, cat: str | None = None) -> dict:
 
 
 def api_data(d: Path, dispo_rows: list[dict] | None = None) -> dict:
-    data = load_builder_data(d)
+    data = gamedata.read_builder(d)
     # 種類・効果・ダメージの種類・カテゴリーはキーだけ(表示名は画面の I18N の sim.group / sim.stat / sim.dmg / sim.cat)
     riven = {"groups": list(RIVEN_GROUPS), "stats": RIVEN_STATS, "spliced_max": RIVEN_SPLICED_MAX,
              "grades": RIVEN_GRADES, "grade_low": RIVEN_GRADE_LOW,
@@ -686,7 +535,8 @@ def api_weapon(d: Path, body: dict, dispo_rows: list[dict] | None = None) -> dic
     return {"weapon": weapon, **weapon_stats(weapon, body.get("mods"))}
 
 
-def api_riven(d: Path, body: dict, dispo_rows: list[dict] | None = None) -> dict:
+def _riven_target(d: Path, body: dict, dispo_rows: list[dict] | None) -> tuple[dict | None, int, str]:
+    """Riven の計算の前半(api_riven・api_riven_grade で共通): 武器(name・cat があれば)・ランク・種類(group が無ければ武器から。武器も無ければ rifle)"""
     weapon = None
     if body.get("name"):
         weapon = _find(_need_data(d)["weapons"], body.get("name"), body.get("cat"))
@@ -695,27 +545,29 @@ def api_riven(d: Path, body: dict, dispo_rows: list[dict] | None = None) -> dict
     except (TypeError, ValueError):
         raise BuilderError(txt("err.sim.rank.num"))
     group = body.get("group") or (riven_group(weapon_riven_type(weapon, dispo_rows)) if weapon else "rifle")
+    return weapon, rank, group
+
+
+def _weapon_ref(weapon: dict | None) -> dict | None:
+    return {"en": weapon["en"], "ja": weapon["ja"]} if weapon else None
+
+
+def api_riven(d: Path, body: dict, dispo_rows: list[dict] | None = None) -> dict:
+    weapon, rank, group = _riven_target(d, body, dispo_rows)
     buffs = [str(x) for x in body.get("buffs") or [] if x]
     res = riven_calc(group, buffs, str(body.get("curse")) if body.get("curse") else None, rank)
-    res["weapon"] = {"en": weapon["en"], "ja": weapon["ja"]} if weapon else None
+    res["weapon"] = _weapon_ref(weapon)
     return res
 
 
 def api_riven_grade(d: Path, body: dict, dispo_rows: list[dict] | None = None) -> dict:
     """POST /api/builder/riven/grade: {name, cat, group, rank, stats: [{key, value, tol}]}。group が無ければ武器から決める"""
-    weapon = None
-    if body.get("name"):
-        weapon = _find(_need_data(d)["weapons"], body.get("name"), body.get("cat"))
-    try:
-        rank = int(body.get("rank", 8))
-    except (TypeError, ValueError):
-        raise BuilderError(txt("err.sim.rank.num"))
-    group = body.get("group") or (riven_group(weapon_riven_type(weapon, dispo_rows)) if weapon else "rifle")
+    weapon, rank, group = _riven_target(d, body, dispo_rows)
     if group not in RIVEN_GROUPS:
         raise BuilderError(txt("err.sim.group"))
     stats = body.get("stats")
     if not isinstance(stats, list) or not all(isinstance(x, dict) for x in stats):
         raise BuilderError(txt("err.sim.grade.stats"))
     res = riven_grade(group, stats, rank)
-    res["weapon"] = {"en": weapon["en"], "ja": weapon["ja"]} if weapon else None
+    res["weapon"] = _weapon_ref(weapon)
     return res

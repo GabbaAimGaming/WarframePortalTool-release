@@ -1,0 +1,80 @@
+<!-- ページ「デュヴィリサーキット」(id duviri): 表示部(view = <section id="view-duviri">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- デュヴィリサーキット(文字は I18N の data-i18n で差し替え。中の日本語は読み込み前の表示) -->
+      <section id="view-duviri" hidden>
+        <h2 data-i18n="page.duviri">デュヴィリサーキット</h2>
+        <p class="lead" data-i18n="duviri.lead">サーキットで選べる報酬の今週分と、来週以降の並びです。毎週月曜 9:00(JST)のウィークリーリセットで切り替わります。</p>
+        <div class="seg" id="dv-modes" role="group" data-i18n-aria="duviri.modes" aria-label="モード"></div>
+        <div id="dv-out"></div>
+        <details id="dv-adjust" hidden>
+          <summary data-i18n="duviri.adjust">ゲーム内とズレているとき(手動で調整)</summary>
+          <form id="dv-form" class="formgrid">
+            <label class="field"><span data-i18n="duviri.adjust.id">今週の ID(表示中のモード)</span><select id="dv-id"></select></label>
+            <div class="field"><span>&nbsp;</span><button class="btn" type="submit" data-i18n="duviri.adjust.save">保存</button></div>
+            <div class="field"><span>&nbsp;</span><button class="btn" type="button" id="dv-reset" data-i18n="duviri.adjust.reset">同梱の設定に戻す</button></div>
+          </form>
+          <div class="err" id="dv-err" role="alert"></div>
+          <p class="note" data-i18n="duviri.adjust.help">ゲーム内の今週の報酬に合う ID を選んで保存すると、以降はそこから毎週進めて表示します。調整はモードごとで、ツールの更新では消えません。「同梱の設定に戻す」で調整を消せます。</p>
+        </details>
+      </section>
+<!-- PART:script -->
+/* ---------- デュヴィリサーキット ---------- */
+/* 今週の ID は API(Python)側で計算する。ここは表示・タブ・手動調整の送信だけ。文字はすべて I18N(t)から */
+let duviri = null, dvMode = "normal";
+const dvDate = iso => { const [, m, d] = iso.split("-"); return `${+m}/${+d}${t("duviri.weekday")}`; };
+/* 報酬は英語名のまま表示する(Normal は Warframe、Steel Path は武器。JSON の綴りがそのまま出る) */
+const dvItem = it => it ? esc(it) : "";
+function dvTable(rows, cols, withDate) {
+  const n = Array.from({ length: cols }, (_, i) => i);
+  return `<div class="tablewrap"><table><thead><tr>${withDate ? `<th>${esc(t("duviri.date"))}</th>` : ""}${
+    n.map(i => `<th>${esc(t("duviri.col").replace("{n}", i + 1))}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(r => `<tr>${withDate ? `<td>${esc(dvDate(r.date))}</td>` : ""}${
+      n.map(i => `<td>${dvItem(r.items[i])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+function renderDuviri() {
+  applyViewText("duviri");
+  if (!duviri) return;
+  const keys = duviri.modes.map(m => m.key);
+  if (!keys.includes(dvMode)) dvMode = keys[0];
+  $("#dv-modes").innerHTML = duviri.modes.map(m =>
+    `<button type="button" class="chip" data-dvmode="${esc(m.key)}" aria-pressed="${m.key === dvMode}">${esc(t("duviri." + m.key))}</button>`).join("");
+  const m = duviri.modes.find(x => x.key === dvMode);
+  $("#dv-adjust").hidden = !m || !m.ok;
+  if (!m || !m.ok) { $("#dv-out").innerHTML = noData(t("duviri.broken")); return; }
+  $("#dv-out").innerHTML = `<h3 class="dv-h">${esc(t("duviri.current"))}<span class="note">${esc(fmt("duviri.from", { date: dvDate(m.current.date) }))}</span>${
+      m.manual ? `<span class="tag-event">${esc(t("duviri.manual"))}</span>` : ""}</h3>
+    ${dvTable([m.current], m.columns, false)}
+    <h3 class="dv-h">${esc(t("duviri.upcoming"))}</h3>
+    ${m.upcoming.length ? dvTable(m.upcoming, m.columns, true) : noData(t("duviri.none"))}`;
+  $("#dv-id").innerHTML = m.rotation.map(r =>
+    `<option value="${r.id}"${r.id === m.current.id ? " selected" : ""}>ID ${r.id}: ${esc(r.items.join(", "))}</option>`).join("");
+  $("#dv-reset").disabled = !m.manual;
+}
+/* 選択中のタブを押しても何もしない(AC-1 / AC-3) */
+$("#dv-modes").addEventListener("click", e => {
+  const b = e.target.closest("[data-dvmode]");
+  if (!b || b.dataset.dvmode === dvMode) return;
+  dvMode = b.dataset.dvmode;
+  pref.set("wf-duviri-mode", dvMode);
+  $("#dv-err").textContent = "";
+  renderDuviri();
+});
+async function dvPost(path, body) {
+  $("#dv-err").textContent = "";
+  try { duviri = await api(path, { method: "POST", body }); renderDuviri(); }
+  catch (e) { $("#dv-err").textContent = e.message; }
+}
+$("#dv-form").addEventListener("submit", e => { e.preventDefault(); dvPost("/api/duviri/adjust", { mode: dvMode, id: +$("#dv-id").value }); });
+$("#dv-reset").addEventListener("click", () => dvPost("/api/duviri/reset", { mode: dvMode }));
+/* 開くたびに取り直す(週を跨いでも開き直せば新しくなる) */
+async function loadDuviri() {
+  dvMode = pref.get("wf-duviri-mode", dvMode);
+  renderDuviri();
+  if (!duviri) $("#dv-out").innerHTML = `<div class="empty">${esc(t("duviri.loading"))}</div>`;
+  try { duviri = await api("/api/duviri"); renderDuviri(); }
+  catch (e) { $("#dv-modes").innerHTML = ""; $("#dv-adjust").hidden = true; $("#dv-out").innerHTML = noData(e.message); }
+}
+loaders.duviri = loadDuviri;
+relabel.duviri = renderDuviri;

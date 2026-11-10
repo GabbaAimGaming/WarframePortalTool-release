@@ -8,11 +8,13 @@
 from __future__ import annotations
 
 import re
-import unicodedata
 from pathlib import Path
 
-from wfp.core.common import MOD_GROUPS, MOD_STATS_LIMIT, TextError, txt
+from wfp.core.errors import TextError
+from wfp.core.i18n import txt
+from wfp.core.const import MOD_GROUPS, MOD_STATS_LIMIT
 from wfp.core.names import is_listed_mod
+from wfp.core.text import fold_case
 from wfp.store import appdata, gamedata
 
 # 効果テキストを持つ Export のキー -> 区分を決める方法(ExportAvionics はすべてレールジャック)
@@ -56,11 +58,6 @@ def strip_tags(text: str) -> str:
     """表示用の文字列から色タグ(<DT_FIRE_COLOR> など)を消し、改行を \\n にそろえる"""
     text = _TAG_RE.sub("", text).replace("\r\n", "\n").replace("\r", "\n")
     return "\n".join(_SPACE_RE.sub(" ", ln).strip() for ln in text.split("\n")).strip()
-
-
-def fold(text: str) -> str:
-    """検索用に表記をそろえる(全角/半角・大文字/小文字)"""
-    return unicodedata.normalize("NFKC", text).lower()
 
 
 def mod_groups(it: dict, export_key: str = "ExportUpgrades") -> list[str]:
@@ -222,16 +219,16 @@ class ModStats:
         texts = [row["en"], row["ja"], row["desc_en"], row["desc_ja"]]
         texts += [s for lns in row["stats_en"] + row["stats_ja"] for s in lns]
         targets = list(dict.fromkeys(k for ln in lines for k in ln["targets"]))
-        return {**row, "lines": lines, "targets": targets, "_hay": fold("\n".join(texts))}
+        return {**row, "lines": lines, "targets": targets, "_hay": fold_case("\n".join(texts))}
 
     def suggest(self, query: str, limit: int = 10) -> list[dict]:
         """影響先の候補(表示名の ja・en のどちらかに部分一致。完全一致・前方一致を先に、あとは辞書の並び)"""
-        q = fold(query.strip())
+        q = fold_case(query.strip())
         if not q:
             return []
         hits = []
         for idx, (key, ent) in enumerate(self.targets.items()):
-            names = (fold(ent["ja"]), fold(ent["en"]))
+            names = (fold_case(ent["ja"]), fold_case(ent["en"]))
             if any(q in n for n in names):
                 hits.append((q not in names, not any(n.startswith(q) for n in names), idx, key))
         return [{"key": key, "ja": self.targets[key]["ja"], "en": self.targets[key]["en"]} for *_, key in sorted(hits)[:limit]]
@@ -240,7 +237,7 @@ class ModStats:
         """影響先キー(target)か全文(query。部分一致)で探す。どちらも空なら区分の中の全部。groups は区分キー(None は全部)"""
         if target and target not in self.targets:
             raise TextError(txt("err.modstats.target", name=target))
-        q = fold(query.strip())
+        q = fold_case(query.strip())
         rows = [r for r in self.mods
                 if (groups is None or set(r["groups"]) & groups)
                 and (target in r["targets"] if target else (q in r["_hay"] if q else True))]

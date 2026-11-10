@@ -8,9 +8,14 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from wfp.core.common import SPEX_BASE_FILE, SPEX_MODE, SPEX_ROTATION_FILE
-from wfp.core.duviri import check_base, rotation_id, week_start, weeks_since
+from wfp.core.const import SPEX_BASE_FILE, SPEX_MODE, SPEX_ROTATION_FILE
+from wfp.core.rotation import check_base, check_rows, rotation_id, week_start, weeks_since
 from wfp.store import appdata
+
+
+def _item(v: object) -> str | None:
+    """交換の1件の中身: 空でない文字列(デュヴィリと違って配列ではない)"""
+    return v.strip() if isinstance(v, str) and v.strip() else None
 
 
 def check_spex_rotation(j: object) -> list[dict] | None:
@@ -18,23 +23,7 @@ def check_spex_rotation(j: object) -> list[dict] | None:
 
     ID は 1〜件数の連番(並びは問わない)、items は空でない文字列(デュヴィリと違って配列ではない)。
     """
-    rows = j.get("rotation") if isinstance(j, dict) else None
-    if not isinstance(rows, list) or not rows:
-        return None
-    out = []
-    for r in rows:
-        if not isinstance(r, dict):
-            return None
-        rid, item = r.get("id"), r.get("items")
-        if isinstance(rid, bool) or not isinstance(rid, int):
-            return None
-        if not isinstance(item, str) or not item.strip():
-            return None
-        out.append({"id": rid, "item": item.strip()})
-    out.sort(key=lambda r: r["id"])
-    if [r["id"] for r in out] != list(range(1, len(out) + 1)):
-        return None
-    return out
+    return check_rows(j, "item", _item)
 
 
 def _row(rot: list[dict], rid: int, day) -> dict:

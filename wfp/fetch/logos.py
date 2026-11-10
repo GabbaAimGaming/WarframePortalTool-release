@@ -5,8 +5,11 @@ import io
 import zipfile
 from pathlib import Path
 
-from wfp.core.common import FANKIT_LOGOS_URL, FANKIT_PAGE, TextFailure, error_text, say, txt
-from wfp.core import common
+from wfp.core.errors import TextFailure, error_text
+from wfp.core.i18n import txt
+from wfp.core.log import say
+from wfp.core.const import FANKIT_LOGOS_URL, FANKIT_PAGE
+from wfp.core import const
 from wfp.fetch import net
 
 
@@ -18,7 +21,7 @@ LOGO_MAX_BYTES = 300 * 1024 * 1024  # 想定より極端に大きいときは止
 
 def logos_dirs(d: Path | None = None) -> list[Path]:
     """ロゴ素材の置き場の候補(優先順)。ツールのフォルダに書けなければデータ置き場を使う"""
-    dirs = [common.APP_DIR / "assets" / "Logos"]
+    dirs = [const.APP_DIR / "assets" / "Logos"]
     if d is not None:
         dirs.append(d / "Logos")
     return dirs

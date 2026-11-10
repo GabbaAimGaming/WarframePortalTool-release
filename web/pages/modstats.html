@@ -1,0 +1,138 @@
+<!-- ページ「MOD 効果検索」(id modstats): 表示部(view = <section id="view-modstats">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- MOD 効果検索 -->
+      <section id="view-modstats" hidden>
+        <h2 data-i18n="page.modstats">MOD 効果検索</h2>
+        <p class="lead" data-i18n="modstats.lead">影響先(例: 威力・効率)を入力すると、その数値を変える MOD をランク0〜最大の効果つきで一覧にします。候補を選ばずに Enter で、効果テキストの全文検索になります。</p>
+        <div class="row">
+          <input type="text" class="search" id="mfx-q" data-i18n-placeholder="modstats.placeholder" placeholder="例: 威力 / 効率 / Multishot" autocomplete="off">
+        </div>
+        <!-- 区分のチェック(並び・キーは wfp/core/common.py の MOD_GROUPS と同じ。tests/test_modstats.py が検査) -->
+        <div class="row" id="mfx-groups" role="group" data-i18n-aria="modstats.groups" aria-label="区分">
+          <label class="chk"><input type="checkbox" data-group="warframe" checked> <span data-i18n="mod.group.warframe">Warframe</span></label>
+          <label class="chk"><input type="checkbox" data-group="primary" checked> <span data-i18n="mod.group.primary">プライマリ</span></label>
+          <label class="chk"><input type="checkbox" data-group="secondary" checked> <span data-i18n="mod.group.secondary">セカンダリ</span></label>
+          <label class="chk"><input type="checkbox" data-group="melee" checked> <span data-i18n="mod.group.melee">近接</span></label>
+          <label class="chk"><input type="checkbox" data-group="necramech" checked> <span data-i18n="mod.group.necramech">ネクロメカ</span></label>
+          <label class="chk"><input type="checkbox" data-group="archwing" checked> <span data-i18n="mod.group.archwing">アークウイング</span></label>
+          <label class="chk"><input type="checkbox" data-group="archgun" checked> <span data-i18n="mod.group.archgun">アークウイングガン</span></label>
+          <label class="chk"><input type="checkbox" data-group="archmelee" checked> <span data-i18n="mod.group.archmelee">アークウイング近接</span></label>
+          <label class="chk"><input type="checkbox" data-group="kdrive" checked> <span data-i18n="mod.group.kdrive">K-ドライブ</span></label>
+          <label class="chk"><input type="checkbox" data-group="robotic" checked> <span data-i18n="mod.group.robotic">ロボティック</span></label>
+          <label class="chk"><input type="checkbox" data-group="beast" checked> <span data-i18n="mod.group.beast">ビースト</span></label>
+          <label class="chk"><input type="checkbox" data-group="comp_weapon" checked> <span data-i18n="mod.group.comp_weapon">コンパニオン武器</span></label>
+          <label class="chk"><input type="checkbox" data-group="parazon" checked> <span data-i18n="mod.group.parazon">パラゾン</span></label>
+          <label class="chk"><input type="checkbox" data-group="amp" checked> <span data-i18n="mod.group.amp">オペレーター/アンプ</span></label>
+          <label class="chk"><input type="checkbox" data-group="railjack" checked> <span data-i18n="mod.group.railjack">レールジャック</span></label>
+          <label class="chk"><input type="checkbox" data-group="other" checked> <span data-i18n="mod.group.other">その他</span></label>
+        </div>
+        <div class="row">
+          <button type="button" class="btn ghost" id="mfx-all" data-i18n="modstats.all">すべて選ぶ</button>
+          <button type="button" class="btn ghost" id="mfx-none" data-i18n="modstats.clear">すべて外す</button>
+        </div>
+        <div class="chips" id="mfx-chips"></div>
+        <div id="mfx-out"></div>
+      </section>
+<!-- PART:script -->
+/* ---------- MOD 効果検索 ---------- */
+/* 入力に部分一致する影響先(data/mod_stats/targets.json の表示名)を候補に出し、選んだ影響先の MOD を /api/modstats で一覧にする。
+   1つに決まれば(完全一致・候補が1件)すぐ探し、候補が無ければ効果テキストの全文検索。Enter か「全文で探す」でも全文検索。
+   区分のチェックは localStorage(wf-modstats-groups)に覚える(覚えていなければ全部)。効果テキストは画面の言語(ja が無ければ en) */
+let mfxCands = [], mfxPick = null, mfxRes = null, mfxMsg = "modstats.empty";  // 候補・選んだもの({target} か {text})・結果・結果が無いときの案内
+const mfxBoxes = () => [...document.querySelectorAll("#mfx-groups input[data-group]")];
+const mfxGroups = () => mfxBoxes().filter(x => x.checked).map(x => x.dataset.group);
+(() => {
+  const saved = pref.json("wf-modstats-groups");
+  if (Array.isArray(saved)) mfxBoxes().forEach(x => { x.checked = saved.includes(x.dataset.group); });
+})();
+const mfxNote = key => { mfxRes = null; mfxMsg = key; $("#mfx-out").innerHTML = `<div class="empty">${esc(t(key))}</div>`; };
+function renderMfxChips() {
+  const q = $("#mfx-q").value.trim();
+  $("#mfx-chips").innerHTML = mfxCands.map(c =>
+    `<button class="chip" data-mfxtarget="${esc(c.key)}" aria-pressed="${!!mfxPick && mfxPick.target === c.key}">${esc(nameByLang(c))}</button>`).join("")
+    + (q ? `<button class="chip" data-mfxtext="1" aria-pressed="${!!mfxPick && "text" in mfxPick}">${esc(fmt("modstats.fulltext", { q }))}</button>` : "");
+}
+function mfxCard(row, target, names) {
+  const sub = lang === "ja" && row.ja && row.ja !== row.en ? row.en : "";
+  const compat = row.compat && row.compat !== row.compat.toUpperCase()
+    ? `<span class="tag-mini">${esc(fmt("modstats.compat", { name: hasText("mod.compat." + row.compat) ? t("mod.compat." + row.compat) : row.compat }))}</span>` : "";
+  const head = `<div class="mfx-head"><b>${esc(nameByLang(row))}</b>${sub ? `<span class="en">${esc(sub)}</span>` : ""}${
+    row.groups.map(g => `<span class="tag-mini">${esc(t("mod.group." + g))}</span>`).join("")}${compat}</div>`;
+  const ranks = lang === "ja" && row.stats_ja.length ? row.stats_ja : row.stats_en;
+  if (!ranks.length) return `<div class="mfx-card">${head}<p class="mfx-desc">${esc(nameByLang(row, "desc_ja", "desc_en"))}</p></div>`;
+  // 列の見出し = その行の影響先(最大ランクの en で判定)。選んだ影響先の列は強調、条件付きは印を付ける
+  const cols = row.lines.map(ln => ({
+    hit: !!target && ln.targets.includes(target), cond: ln.cond,
+    label: ln.targets.map(k => (names[k] ? nameByLang(names[k]) : k)).join(" / ") || "-" }));
+  const cls = j => (cols[j] && cols[j].hit ? ` class="hit"` : "");
+  return `<div class="mfx-card">${head}<div class="tablewrap"><table>
+    <thead><tr><th class="rk">${esc(t("modstats.rank"))}</th>${cols.map((c, j) =>
+      `<th${cls(j)}>${esc(c.label)}${c.cond ? `<span class="tag-cond">${esc(t("modstats.cond"))}</span>` : ""}</th>`).join("")}</tr></thead>
+    <tbody>${ranks.map((lns, i) => `<tr><td class="rk">${i}</td>${lns.map((s, j) => `<td${cls(j)}>${esc(s)}</td>`).join("")}</tr>`).join("")}</tbody>
+  </table></div></div>`;
+}
+function renderMfxResult() {
+  const r = mfxRes; if (!r) return;
+  const title = r.target ? fmt("modstats.target", { name: nameByLang(r.target) }) : fmt("modstats.text", { q: r.query });
+  const key = r.target && r.target.key;
+  $("#mfx-out").innerHTML = `<div class="result-head"><h3>${esc(title)}</h3><span class="count">${esc(fmt("modstats.count", { n: r.total }))}</span>${
+      r.updated ? `<span class="note">${esc(fmt("modstats.updated", { at: r.updated }))}</span>` : ""}</div>
+    ${r.total > r.rows.length ? `<p class="note">${esc(fmt("modstats.more", { n: r.rows.length }))}</p>` : ""}
+    ${r.rows.length ? r.rows.map(row => mfxCard(row, key, r.names)).join("") : `<div class="empty">${esc(t("modstats.nomatch"))}</div>`}`;
+}
+async function mfxFetch() {
+  if (!mfxPick) return;
+  const groups = mfxGroups();
+  if (!groups.length) { mfxNote("modstats.nogroup"); return; }
+  const pick = mfxPick, qs = pick.target ? `target=${encodeURIComponent(pick.target)}` : `q=${encodeURIComponent(pick.text)}`;
+  try {
+    const res = await api(`/api/modstats?${qs}&groups=${groups.join(",")}`);
+    if (pick !== mfxPick) return;  // 待っている間に選び直していたら捨てる
+    mfxRes = { ...res, query: pick.text || "" };
+    renderMfxResult();
+  } catch (e) { mfxRes = null; $("#mfx-out").innerHTML = noData(e.message); }
+}
+async function mfxSearch() {
+  const q = $("#mfx-q").value.trim();
+  mfxPick = null;
+  if (!q) { mfxCands = []; renderMfxChips(); mfxNote("modstats.empty"); return; }
+  let cands = [];
+  try { cands = (await api(`/api/modstats/suggest?q=${encodeURIComponent(q)}`)).items; } catch (e) {}
+  if ($("#mfx-q").value.trim() !== q) return;  // 入力が変わっていたら捨てる
+  mfxCands = cands;
+  const exact = cands.find(c => [c.ja, c.en].some(n => n.toLowerCase() === q.toLowerCase()));
+  if (exact || cands.length === 1) mfxPick = { target: (exact || cands[0]).key };
+  else if (!cands.length) mfxPick = { text: q };
+  renderMfxChips();
+  if (mfxPick) await mfxFetch(); else mfxNote("modstats.pick");
+}
+function mfxPickText() {
+  const q = $("#mfx-q").value.trim(); if (!q) return;
+  mfxPick = { text: q }; renderMfxChips(); mfxFetch();
+}
+$("#mfx-q").addEventListener("input", debounce(mfxSearch, 250));
+$("#mfx-q").addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); mfxPickText(); } });
+$("#mfx-chips").addEventListener("click", e => {
+  const c = e.target.closest(".chip"); if (!c) return;
+  if (c.dataset.mfxtext) { mfxPickText(); return; }
+  mfxPick = { target: c.dataset.mfxtarget }; renderMfxChips(); mfxFetch();
+});
+const mfxGroupsChanged = () => {
+  pref.setJson("wf-modstats-groups", mfxGroups());
+  if (mfxPick) mfxFetch();
+};
+$("#mfx-groups").addEventListener("change", e => { if (e.target.dataset.group) mfxGroupsChanged(); });
+$("#mfx-all").addEventListener("click", () => { mfxBoxes().forEach(x => { x.checked = true; }); mfxGroupsChanged(); });
+$("#mfx-none").addEventListener("click", () => { mfxBoxes().forEach(x => { x.checked = false; }); mfxGroupsChanged(); });
+/* 開いたとき: データの有無だけ確かめる(結果と入力は残す。データ更新の後に開き直せば読み直す) */
+loaders.modstats = async () => {
+  applyViewText("modstats");
+  try {
+    const res = await api("/api/modstats/suggest?q=");
+    if (!res.has_data) { mfxCands = []; renderMfxChips(); mfxNote("modstats.nodata"); return; }
+  } catch (e) { $("#mfx-out").innerHTML = noData(e.message); return; }
+  if (mfxPick) await mfxFetch(); else mfxNote(mfxMsg === "modstats.nodata" ? "modstats.empty" : mfxMsg);
+};
+relabel.modstats = () => { applyViewText("modstats"); renderMfxChips(); if (mfxRes) renderMfxResult(); else mfxNote(mfxMsg); };

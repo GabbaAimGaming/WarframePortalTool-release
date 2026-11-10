@@ -14,14 +14,14 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import wfportal_builder as wb
-from wfp.api import admin, info, pages, personal, qa, search, sim, tips
+from wfp.api import admin, info, ocr, pages, personal, qa, search, sim, tips
 from wfp.api.store import ApiError, Raw, Store
 from wfp.core import common
-from wfp.core.common import txt
+from wfp.core.i18n import txt
 from wfp.fetch import logos
-from wfp.store import build_images, datadir
+from wfp.store import build_images, datadir, userdb
 
-GROUPS = (search, personal, info, admin, tips, sim, qa)
+GROUPS = (search, personal, info, admin, tips, sim, qa, ocr)
 
 
 def collect_routes(groups=GROUPS) -> tuple[dict, dict]:
@@ -157,6 +157,8 @@ def make_handler(store: Store, tips_dir: Path | None = None):
                 self._json(e.payload(), e.status)
             except wb.BuilderError as e:
                 self._json({"error": str(e), "text": e.text}, e.status)
+            except userdb.UserDbError as e:  # 利用者データが壊れていて戻せない・新しい版で作られている
+                self._json({"error": str(e), "text": e.text}, 500)
             except (BrokenPipeError, ConnectionResetError):
                 pass  # ブラウザ側が先に接続を閉じた
             except Exception as e:  # noqa: BLE001
@@ -183,6 +185,11 @@ def main(argv: list[str] | None = None) -> None:
     args = ap.parse_args(argv)
 
     store = Store(datadir.data_dir(args.data_dir))
+    try:  # 起動したときに1回: 利用者データの検査・引っ越し・バックアップ。使えなければ知らせて、利用者データを使わないページは動かす
+        userdb.ready(store.d)
+    except userdb.UserDbError as e:
+        print(f"[注意] {e}")
+    userdb.start_backup_timer(store.d)
     server = None
     for port in range(args.port, args.port + 10):
         try:

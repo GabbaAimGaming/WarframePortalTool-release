@@ -10,7 +10,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from wfp.core.common import MASTERY_CATS, MASTERY_EXTRA_FILE, MASTERY_FOUNDER, render_ja, txt
+from wfp.core.i18n import render_ja, txt
+from wfp.core.const import MASTERY_CATS, MASTERY_EXTRA_FILE, MASTERY_FOUNDER
 from wfp.core.names import Names
 from wfp.store import appdata
 

@@ -19,7 +19,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from wfp.core.common import QUEST_CATS, QUEST_FLOW_FILE, QUEST_JUNCTION_PREFIX, TextError, name_txt, txt
+from wfp.core.errors import TextError
+from wfp.core.i18n import name_txt, txt
+from wfp.core.const import QUEST_CATS, QUEST_FLOW_FILE, QUEST_JUNCTION_PREFIX
 from wfp.core.names import Names
 from wfp.store import appdata
 

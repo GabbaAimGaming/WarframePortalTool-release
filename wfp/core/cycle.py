@@ -5,7 +5,10 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from wfp.core.common import CETUS_PERIOD, CYCLES, TextError, fmt_clock, txt
+from wfp.core.common import fmt_clock
+from wfp.core.errors import TextError
+from wfp.core.i18n import txt
+from wfp.core.const import CETUS_PERIOD, CYCLES
 from wfp.store import userdata
 
 
@@ -70,22 +73,20 @@ def set_manual_cycle(d: Path, key: str, phase: str | None, remaining: float, now
     """ゲーム内で見た残り時間で時刻合わせして保存する。保存後の cycles.json の中身を返す"""
     if key not in CYCLES or not CYCLES[key]["manual"]:
         raise TextError(txt("err.cycle.manual"))
-    store = userdata.load_cycles(d)
-    now = (time.time() if now is None else now) + clock_offset(store)
-    store[key] = {"anchor": cycle_anchor(key, phase, remaining, now), "source": "manual", "synced_at": now}
-    userdata.save_cycles(d, store)
+    with userdata.editing(d, "cycles") as store:
+        now = (time.time() if now is None else now) + clock_offset(store)
+        store[key] = {"anchor": cycle_anchor(key, phase, remaining, now), "source": "manual", "synced_at": now}
     return store
 
 
 def apply_worldstate_cycles(d: Path, cetus_expiry: float, offset: float, now: float | None = None) -> dict:
     """World State の値で基準時刻と時計のずれを保存する。手動の時刻合わせは公式データで上書きする"""
-    store = userdata.load_cycles(d)
     now = time.time() if now is None else now
-    for key, c in CYCLES.items():
-        if c.get("sync") == "cetus":
-            store[key] = {"anchor": anchor_from_cetus_expiry(key, cetus_expiry), "source": "worldstate", "synced_at": now}
-    store["_clock"] = {"offset": offset, "synced_at": now}
-    userdata.save_cycles(d, store)
+    with userdata.editing(d, "cycles") as store:
+        for key, c in CYCLES.items():
+            if c.get("sync") == "cetus":
+                store[key] = {"anchor": anchor_from_cetus_expiry(key, cetus_expiry), "source": "worldstate", "synced_at": now}
+        store["_clock"] = {"offset": offset, "synced_at": now}
     return store
 
 

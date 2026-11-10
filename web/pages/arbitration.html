@@ -1,0 +1,69 @@
+<!-- ページ「仲裁」(id arbitration): 表示部(view = <section id="view-arbitration">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- 仲裁 -->
+      <section id="view-arbitration" hidden>
+        <h2 data-i18n="page.arbitration">仲裁</h2>
+        <p class="lead" data-i18n="arby.lead">いま開催中の仲裁と、次の 12 時間ぶんの予定です。</p>
+        <div class="cyc-sync">
+          <button class="btn" type="button" id="arb-sync" data-i18n="arby.sync">スケジュールを取り直す</button>
+          <span class="note" id="arb-info" role="status"></span>
+        </div>
+        <div class="err" id="arb-err" role="alert"></div>
+        <div id="arb-out"></div>
+        <p class="note" data-i18n="arby.note">スケジュールは browse.wf のデータを使っています。</p>
+      </section>
+<!-- PART:script -->
+/* ---------- 仲裁 ---------- */
+/* 今の枠と次の枠は API(Python)側で作る。ここは表示・残り時間・取り直しだけ。文字はすべて I18N(t)から。
+   残り時間は API の now(PC の時計のずれは補正済み)に、受け取ってからの経過を足して数える。今の枠が終わったら読み直す */
+let arb = null, arbAt = 0;
+const arbNow = () => arb.now + (Date.now() - arbAt) / 1000;
+const arbClock = sec => new Date(sec * 1000).toLocaleString(locale(), { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+const arbHour = sec => new Date(sec * 1000).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+/* 種類・勢力: キーが無ければ「不明」(番号があれば番号も)。キーに I18N が無ければキーのまま */
+const arbName = (prefix, key, index) => key ? tName(prefix, key) : index != null ? fmt("arby.unknown.n", { n: index }) : t("arby.unknown");
+function arbRow(r) {
+  const ja = lang === "ja", node = ja ? r.node_ja : r.node_name, planet = ja ? r.planet_ja : r.planet;
+  const left = r.current ? `<span class="arb-left" data-end="${r.end}">${esc(fmt("arby.current", { left: dur(r.end - arbNow()) }))}</span>` : "";
+  const fac = r.faction ? `<span class="inv-fac ${esc(r.faction)}">${esc(arbName("faction.", r.faction))}</span>` : esc(arbName("faction.", null, r.faction_index));
+  const cls = [r.current ? "now" : "", r.pick ? "pick" : ""].filter(Boolean).join(" ");  // pick: 目立たせる仲裁(条件は Python の ARBY_PICK)
+  return `<tr class="${cls}"><td>${esc(fmt("arby.time", { start: arbClock(r.start), end: arbHour(r.end) }))}${left}</td>
+    <td>${esc(planet ? fmt("invasion.node", { node, planet }) : node)}</td><td>${esc(arbName("mode.", r.mission, r.mission_index))}</td><td>${fac}</td></tr>`;
+}
+function renderArbitration() {
+  applyViewText("arbitration");
+  if (!arb) return;
+  $("#arb-info").textContent = arb.fetched_at ? fmt("arby.fetched", { at: arbClock(arb.fetched_at) }) : "";
+  if (!arb.has_schedule) { $("#arb-out").innerHTML = noData(t("arby.nodata")); return; }
+  if (arb.out_of_range) { $("#arb-out").innerHTML = noData(t("arby.range")); return; }
+  const warn = !arb.regions_ok ? t("arby.noregions") : arb.regions_old ? t("arby.oldregions") : "";
+  const head = ["time", "node", "mission", "faction"].map(c => `<th>${esc(t("arby.col." + c))}</th>`).join("");
+  $("#arb-out").innerHTML = (warn ? `<p class="note">${esc(warn)}</p>` : "") +
+    `<div class="tablewrap"><table><thead><tr>${head}</tr></thead><tbody>${arb.rows.map(arbRow).join("")}</tbody></table></div>`;
+}
+async function loadArbitration() {
+  applyViewText("arbitration");
+  if (!arb) $("#arb-out").innerHTML = `<div class="empty">${esc(t("arby.loading"))}</div>`;
+  try { arb = await api("/api/arbitration"); arbAt = Date.now(); renderArbitration(); }
+  catch (e) { $("#arb-out").innerHTML = noData(e.message); }
+}
+$("#arb-sync").addEventListener("click", async () => {
+  const btn = $("#arb-sync");
+  btn.disabled = true; $("#arb-err").textContent = ""; $("#arb-info").textContent = t("arby.syncing");
+  try { arb = await api("/api/arbitration/update", { method: "POST", body: {} }); arbAt = Date.now(); renderArbitration(); }
+  catch (e) { $("#arb-err").textContent = e.message; renderArbitration(); }
+  btn.disabled = false;
+});
+relabel.arbitration = renderArbitration;
+loaders.arbitration = loadArbitration;  // 開くたびに読み直す(データ更新で取り直した結果も反映)
+/* 開いている間は残り時間を数え、先頭の枠が終わった(始まった)ら読み直す。読み直しは同じ枠で1回だけ(失敗しても毎秒は呼ばない) */
+let arbReloaded = null;
+setInterval(async () => {
+  if ($("#view-arbitration").hidden || !arb || !arb.rows || !arb.rows.length) return;
+  const now = arbNow(), cur = arb.rows[0], edge = cur.current ? cur.end : cur.start;
+  if (now >= edge) { if (arbReloaded !== edge) { arbReloaded = edge; await loadArbitration(); } return; }
+  const el = $("#arb-out .arb-left");
+  if (el) el.textContent = fmt("arby.current", { left: dur(Number(el.dataset.end) - now) });
+}, 1000);

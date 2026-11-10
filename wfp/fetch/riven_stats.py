@@ -1,7 +1,7 @@
 """Riven 相場(公式の週次統計)の取得と形の統一"""
 from __future__ import annotations
 
-from wfp.core.common import RIVENS_URLS
+from wfp.core.const import RIVENS_URLS
 from wfp.fetch import decode, net
 
 

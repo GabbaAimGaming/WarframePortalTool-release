@@ -12,24 +12,19 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from wfp.core.common import DUVIRI_BASE_FILE, DUVIRI_MODES, TextError, txt
-from wfp.core.cycle import clock_offset, next_weekly_reset
+from wfp.core.errors import TextError
+from wfp.core.i18n import txt
+from wfp.core.const import DUVIRI_BASE_FILE, DUVIRI_MODES
+from wfp.core.cycle import clock_offset
+from wfp.core.rotation import check_base, check_rows, rotation_id, week_start, weeks_since
 from wfp.store import appdata, userdata
 
 
-def week_start(now: datetime) -> date:
-    """now を含む週の月曜(UTC)の日付"""
-    return (next_weekly_reset(now) - timedelta(days=7)).date()
-
-
-def weeks_since(base: date, now: datetime) -> int:
-    """基準の週(月曜の日付)から now までに跨いだ月曜 0:00 UTC の回数。基準より前なら負"""
-    return (week_start(now) - base).days // 7
-
-
-def rotation_id(base_id: int, weeks: int, count: int) -> int:
-    """基準の ID から weeks 週進んだ ID(1〜count で折り返す。weeks が負でも正しく折り返す)"""
-    return (base_id - 1 + weeks) % count + 1
+def _items(v: object) -> list[str] | None:
+    """デュヴィリの1件の中身: 空でない文字列の配列(前後の空白を除く)"""
+    if not isinstance(v, list) or not all(isinstance(i, str) and i.strip() for i in v):
+        return None
+    return [i.strip() for i in v]
 
 
 def check_rotation(j: object) -> list[dict] | None:
@@ -37,40 +32,7 @@ def check_rotation(j: object) -> list[dict] | None:
 
     ID は 1〜件数の連番(並びは問わない)、items は空でない文字列の配列。
     """
-    rows = j.get("rotation") if isinstance(j, dict) else None
-    if not isinstance(rows, list) or not rows:
-        return None
-    out = []
-    for r in rows:
-        if not isinstance(r, dict):
-            return None
-        rid, items = r.get("id"), r.get("items")
-        if isinstance(rid, bool) or not isinstance(rid, int):
-            return None
-        if not isinstance(items, list) or not all(isinstance(i, str) and i.strip() for i in items):
-            return None
-        out.append({"id": rid, "items": [i.strip() for i in items]})
-    out.sort(key=lambda r: r["id"])
-    if [r["id"] for r in out] != list(range(1, len(out) + 1)):
-        return None
-    return out
-
-
-def check_base(j: object, mode: str, count: int) -> dict | None:
-    """rotate.json の mode の基準 {id, week(date)}。id が 1〜count でない・week が月曜の日付でなければ None"""
-    v = j.get(mode) if isinstance(j, dict) else None
-    if not isinstance(v, dict):
-        return None
-    bid = v.get("id")
-    if isinstance(bid, bool) or not isinstance(bid, int) or not 1 <= bid <= count:
-        return None
-    try:
-        week = date.fromisoformat(str(v.get("week")))
-    except ValueError:
-        return None
-    if week.weekday() != 0:
-        return None
-    return {"id": bid, "week": week}
+    return check_rows(j, "items", _items)
 
 
 def base_of(adjust: dict, bundled: object, mode: str, count: int) -> tuple[dict | None, bool]:
@@ -100,19 +62,18 @@ def set_duviri_adjust(d: Path, mode: str, rid: object, now: float | None = None,
     if isinstance(rid, bool) or not isinstance(rid, int) or not 1 <= rid <= len(rot):
         raise TextError(txt("err.duviri.id", max=str(len(rot))))
     t = _now(d, now)
-    adjust = userdata.load_duviri_adjust(d)
-    adjust[mode] = {"id": rid, "week": week_start(datetime.fromtimestamp(t, timezone.utc)).isoformat(), "set_at": int(t)}
-    userdata.save_duviri_adjust(d, adjust)
+    with userdata.editing(d, "duviri_adjust") as adjust:
+        adjust[mode] = {"id": rid, "week": week_start(datetime.fromtimestamp(t, timezone.utc)).isoformat(), "set_at": int(t)}
 
 
 def clear_duviri_adjust(d: Path, mode: str) -> None:
     """そのモードの手動調整を消す(同梱の設定に戻す)。調整が無くてもエラーにしない"""
     if mode not in DUVIRI_MODES:
         raise TextError(txt("err.duviri.mode"))
-    adjust = userdata.load_duviri_adjust(d)
-    if mode in adjust:
-        del adjust[mode]
-        userdata.save_duviri_adjust(d, adjust)
+    if mode not in userdata.load_duviri_adjust(d):  # 調整が無ければ書かない(バックアップの差分を増やさない)
+        return
+    with userdata.editing(d, "duviri_adjust") as adjust:
+        adjust.pop(mode, None)
 
 
 def _row(rot: list[dict], rid: int, day: date) -> dict:

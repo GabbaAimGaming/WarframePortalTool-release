@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import urllib.request
 
-from wfp.core.common import say, txt
+from wfp.core.i18n import txt
+from wfp.core.log import say
 from wfp.fetch import decode
 
 

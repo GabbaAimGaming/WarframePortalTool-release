@@ -21,11 +21,10 @@ import random
 import re
 from dataclasses import dataclass, field
 
-from wfp.core.common import QA_KINDS, QA_LORE_LINES, QA_LORE_TYPES, QA_NEEDS_MARK, norm
+from wfp.core.text import norm
+from wfp.core.const import QA_KINDS, QA_LORE_LINES, QA_LORE_TYPES, QA_NEEDS_MARK
 from wfp.core.quests import check_flow
 
-# 解説の項目の並び(読み込み後の形)
-_LORE_KEYS = ("id", "type", "about", "mentions", "title", "words", "shared", "needs", "requires", "group", "stage", "prefix", "source", "text")
 NEEDS_MIN_GROUPS = 2  # needs のまとまりの最小数(1つなら words で足りる)
 
 
@@ -259,16 +258,6 @@ def check_lore(lore_raw: object, talk_raw: object, flow_raw: object, intent_word
     if data.topics and (not data.license or not data.credit):
         problems.append("lore: license・credit が無い(出典を出せない)")
     return problems
-
-
-def lore_notes(data: LoreData, entity_keys: set[str], label_keys: set[str]) -> list[str]:
-    """注意だけ(手元のデータで変わるので検査の失敗にはしない): about・mentions が名前の索引に無い・words が索引の名前と同じ"""
-    notes = []
-    for t in data.topics:
-        notes += [f"{t['id']}: about {a} が名前の索引に無い(選択肢から出せない)" for a in t["about"] if norm(a) not in entity_keys]
-        notes += [f"{t['id']}: mentions {a} が名前の索引に無い(選択肢から出せない)" for a in t["mentions"] if norm(a) not in entity_keys]
-        notes += [f"{t['id']}: 語 {w} が名前の索引にもある(解説が先に答える)" for w in t["words"] if norm(w) in label_keys]
-    return notes
 
 
 # --------------------------------------------------------------------------

@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import re
 
-from wfp.core.common import ARCHON_SLOTS, ARCHON_VALUE_KEYS, TextError, txt
+from wfp.core.errors import TextError
+from wfp.core.i18n import txt
+from wfp.core.const import ARCHON_SLOTS, ARCHON_VALUE_KEYS
 
 # 文の中の差し込み({v} {max} {per})と、値の項目の対応
 _HOLE_KEYS = {"v": "value", "max": "max", "per": "per"}

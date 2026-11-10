@@ -1,7 +1,7 @@
 """ビルド管理"""
 from __future__ import annotations
 
-from wfp.core.common import norm
+from wfp.core.text import norm
 
 
 def find_build(builds: list[dict], name: str) -> dict | None:

@@ -1,0 +1,105 @@
+<!-- ページ「アルケイン所持一覧」(id arcane): 表示部(view = <section id="view-arcane">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- アルケイン所持 -->
+      <section id="view-arcane" hidden>
+        <h2 data-i18n="ac.title">アルケイン所持</h2>
+        <p class="lead" data-i18n="ac.lead">公式データ(ExportRelicArcane.json)のアルケインを装備先ごとに一覧にします。左端のチェックで所持として記録し、ランクを選べます(この PC に保存)。名前とレア度はカタカナで表示します(英語名でも絞り込めます)。</p>
+        <div class="seg" id="ac-cats" role="group" data-i18n-aria="mods.col.type" aria-label="種類"></div>
+        <div class="row">
+          <input type="text" class="search" id="ac-q" data-i18n-placeholder="ac.placeholder" placeholder="名前で絞り込み(例: Energize / エナージャイズ)" autocomplete="off">
+          <select id="ac-state" data-i18n-aria="common.state" aria-label="状態"><option value="" data-i18n="mods.own.all">所持・未所持</option><option value="owned" data-i18n="ac.state.owned">所持のみ</option>
+            <option value="unowned" data-i18n="mods.own.no">未所持のみ</option><option value="maxed" data-i18n="ac.state.maxed">ランク最大のみ</option><option value="notmax" data-i18n="ac.state.notmax">所持していてランク最大でないもの</option></select>
+          <button class="btn ghost" type="button" id="ac-csv" data-i18n="common.csv">CSVで保存</button>
+        </div>
+        <div class="summary" id="ac-summary"></div>
+        <div id="ac-out"></div>
+        <p class="note" data-i18n="ac.note">種類(装備先)は名前から判定しています(Arcane・Molt・Theorem は Warframe、Magus・Emergence はオペレーター、Virtuos・Eternal はアンプ、Pax・Residual は Kitgun、Exodia は Zaw など)。判定できない新しいアルケインは「その他」に入ります。テクトリストアーティファクト用の Zid-An は、公式データにまだ無いためドロップ表から補います(英語名・レア度なし・最大ランク 5。公式データに入ればそちらを使います)。公式データにあってもゲームに実装されていない 7 件(Arcane Survival・Shield・Defense・Detoxifier・Liquid・Protection・Temperance)は載せません。チェックを外すとランクも消えます。新しいアルケインはゲームのアップデートで増えるので、「データ更新」で取り直してください。</p>
+      </section>
+<!-- PART:script -->
+/* ---------- アルケイン所持 ---------- */
+let arcanes = null, acCat = "warframe";
+const acSort = { key: "name", dir: "asc" };
+const AC_RARITY = { Legendary: 4, Rare: 3, Uncommon: 2, Common: 1 };
+const acGetters = {
+  owned: r => (r.owned ? 1 : 0), name: r => nameByLang(r).toLowerCase(),
+  rarity: r => AC_RARITY[r.rarity] || 0, rank: r => (r.owned ? r.rank : -1),
+};
+/* 名前: 日本語の画面は日本語名(無ければ英名)、ほかは英名 */
+function acFilter(inCat) {
+  const q = $("#ac-q").value.trim().toLowerCase(), st = $("#ac-state").value;
+  return inCat.filter(r => (!q || [r.en, r.ja].some(x => (x || "").toLowerCase().includes(q))) &&
+    (!st || (st === "owned" && r.owned) || (st === "unowned" && !r.owned) ||
+     (st === "maxed" && r.owned && r.rank === r.max_rank) || (st === "notmax" && r.owned && r.rank < r.max_rank)));
+}
+function acSummary() {
+  const sm = { all: { total: 0, owned: 0, maxed: 0 } };
+  arcanes.cats.forEach(c => sm[c] = { total: 0, owned: 0, maxed: 0 });
+  arcanes.rows.forEach(r => [sm[r.cat], sm.all].forEach(o => { if (!o) return; o.total++; if (r.owned) { o.owned++; if (r.rank === r.max_rank) o.maxed++; } }));
+  return sm;
+}
+const acRankHtml = r => r.owned
+  ? `<select class="arc-rank" aria-label="${esc(fmt("ac.name.aria", { name: nameByLang(r) }))}">${Array.from({ length: r.max_rank + 1 }, (_, i) =>
+      `<option value="${i}"${i === r.rank ? " selected" : ""}>${i}</option>`).join("")}</select><span class="arc-max">/ ${r.max_rank}</span>`
+  : `<span class="none">-</span><span class="arc-max">/ ${r.max_rank}</span>`;
+function renderArcanes() {
+  if (!arcanes) return;
+  const sm = acSummary();
+  // Riven 性質と同じく、アルケインがあるカテゴリーだけをタブにする
+  const cats = arcanes.cats.filter(k => sm[k] && sm[k].total);
+  if (!(sm[acCat] && sm[acCat].total) && cats.length) acCat = cats[0];
+  $("#ac-cats").innerHTML = cats.map(k =>
+    `<button class="chip" data-acat="${esc(k)}" aria-pressed="${acCat === k}">${esc(tName("arcane.cat.", k))}<small>${sm[k].owned} / ${sm[k].total}</small></button>`).join("");
+  const inCat = arcanes.rows.filter(r => r.cat === acCat);
+  const list = sortRows(acFilter(inCat), acSort, acGetters);
+  const cur = sm[acCat] || { total: 0, owned: 0, maxed: 0 }, pct = cur.total ? cur.owned / cur.total * 100 : 0;
+  $("#ac-summary").innerHTML = `<span><b class="count">${esc(tName("arcane.cat.", acCat))}</b> ${esc(fmt("ac.summary", { owned: cur.owned, total: cur.total, pct: pct.toFixed(1) }))}</span>
+    <span class="progress" aria-hidden="true"><i style="--w:${pct.toFixed(1)}%"></i></span>
+    <span>${esc(fmt("ac.maxed", { n: cur.maxed }))}</span><span>${esc(fmt("ac.overall", { owned: sm.all.owned, total: sm.all.total, maxed: sm.all.maxed }))}</span><span>${esc(fmt("common.shown", { n: list.length }))}</span>`;
+  $("#ac-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
+    <thead><tr>${th(esc(t("mods.col.own")), "owned", acSort, "chk")}${th(esc(t("ms.col.name")), "name", acSort)}${th(esc(t("src.col.rarity")), "rarity", acSort)}${th(esc(t("ac.col.rank")), "rank", acSort, "num")}</tr></thead>
+    <tbody>${list.map(r => `<tr class="${r.owned ? "owned" : ""}" data-en="${esc(r.en)}">
+      <td class="chk"><input type="checkbox" class="own" ${r.owned ? "checked" : ""} aria-label="${esc(fmt("ac.own.aria", { name: nameByLang(r) }))}"></td>
+      <td>${esc(nameByLang(r))}</td>
+      <td>${r.rarity ? rarity(r.rarity) : `<span class="none">-</span>`}</td><td class="num">${acRankHtml(r)}</td></tr>`).join("")}</tbody></table></div>`
+    : noData(t("ac.none"));
+}
+async function setArcane(en, owned, rank) {
+  const r = arcanes.rows.find(x => x.en === en); if (!r) return;
+  const before = { owned: r.owned, rank: r.rank };
+  // サーバーと同じ決め方: 外すとランクも消える / 付けたときにランクの指定が無ければ 0
+  r.owned = owned; r.rank = owned ? (rank ?? r.rank ?? 0) : null; renderArcanes();
+  const body = { en, owned }; if (owned && rank !== undefined) body.rank = rank;
+  try { await api("/api/arcanes/owned", { method: "POST", body }); }
+  catch (e) { Object.assign(r, before); renderArcanes(); $("#ac-summary").insertAdjacentHTML("beforeend", `<span class="err">${esc(e.message)}</span>`); }
+}
+$("#ac-cats").addEventListener("click", e => { const c = e.target.closest("[data-acat]"); if (!c) return; acCat = c.dataset.acat; pref.set("wf-arcane-cat", acCat); renderArcanes(); });
+$("#ac-out").addEventListener("change", e => {
+  const tr = e.target.closest("tr[data-en]"); if (!tr) return;
+  if (e.target.matches("input.own")) setArcane(tr.dataset.en, e.target.checked);
+  else if (e.target.matches("select.arc-rank")) setArcane(tr.dataset.en, true, +e.target.value);
+});
+onSortClick($("#ac-out"), acSort, renderArcanes, ["owned", "rarity", "rank"]);
+$("#ac-q").addEventListener("input", debounce(renderArcanes, 150));
+$("#ac-state").addEventListener("change", renderArcanes);
+$("#ac-csv").addEventListener("click", () => {
+  if (!arcanes) return;
+  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const rows = sortRows(acFilter(arcanes.rows.filter(r => r.cat === acCat)), acSort, acGetters);
+  const lines = [[t("mods.col.own"), t("ms.col.name"), t("ac.csv.cat"), t("src.col.rarity"), t("ac.col.rank"), t("ac.csv.max")].map(q).join(",")]
+    .concat(rows.map(r => [r.owned ? "○" : "", nameByLang(r), tName("arcane.cat.", r.cat), r.rarity ? tName("rarity.", r.rarity) : "", r.owned ? r.rank : "", r.max_rank].map(q).join(",")));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv" }));
+  a.download = `${t("ac.csv.file")}_${tName("arcane.cat.", acCat)}_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+loaders.arcane = async () => {
+  applyViewText("arcane");
+  if (arcanes) { renderArcanes(); return; }
+  acCat = pref.get("wf-arcane-cat", acCat);
+  $("#ac-out").innerHTML = `<div class="empty">${esc(t("common.loading"))}</div>`;
+  try { arcanes = await api("/api/arcanes"); renderArcanes(); }
+  catch (e) { $("#ac-cats").innerHTML = ""; $("#ac-summary").innerHTML = ""; $("#ac-out").innerHTML = noData(e.message); }
+};
+relabel.arcane = () => { applyViewText("arcane"); renderArcanes(); };
+dataResets.arcane = () => { arcanes = null; };

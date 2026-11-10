@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from wfp.core.common import CLAN_FILE, OTHER_FILE
+from wfp.core.const import CLAN_FILE, OTHER_FILE
 from wfp.core.names import Names
 from wfp.drops.tables import Drops, Sources
 from wfp.fetch import riven_stats

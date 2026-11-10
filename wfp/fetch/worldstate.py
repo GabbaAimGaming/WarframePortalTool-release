@@ -1,46 +1,23 @@
-#!/usr/bin/env python3
-"""wfportal_worldstate - 公式の World State を取得して、必要な分だけ取り出す (標準ライブラリのみ)
+"""公式の World State の取得と、使う項目だけの取り出し(標準ライブラリのみ)。
 
 World State は、ゲームの「いまの状態」(サイクル・バロ・侵略など)を公式が JSON で公開しているもの。
 ドキュメントは公開されておらず、予告なく変わることがあるため、使う項目だけを取り出し、
 取れなかった項目は無いものとして扱う(ツール全体は止めない)。
 
-- 取得は利用者が操作したときだけ(サイクルの時刻合わせ・バロ情報の更新・侵略の更新)。常に問い合わせることはしない。
-- 公式の CDN は 60 秒ほどキャッシュするため、前回の取得から COOLDOWN 秒以内は前回の結果を使う。
-- 本文の Time はキャッシュされた時点の時刻なので、PC の時計のずれは HTTP の Date ヘッダーから求める。
-- 保存するのは取り出した結果だけ (worldstate.json)。取得した全文は保存しない。
+- 本文の Time はキャッシュされた時点の時刻なので、PC の時計のずれは HTTP の Date ヘッダーから求める
+- 保存・取り直しの間隔・サイクルへの反映は wfp/core/worldstate の sync、保存は wfp/store/gamedata の save_worldstate
+- 2026-11-10 に wfportal_worldstate から移した(D4)
 
 非公式のファンツールです。Digital Extremes Ltd. とは関係ありません。
 """
 from __future__ import annotations
 
-import json
 import time
 import urllib.request
 from email.utils import parsedate_to_datetime
-from pathlib import Path
 
-from wfp.core.common import name_txt, render_ja, txt
-from wfp.core.cycle import apply_worldstate_cycles, clock_offset
+from wfp.core.const import WORLDSTATE_CLOCK_TOLERANCE, WORLDSTATE_URLS
 from wfp.fetch import decode, net
-from wfp.store import userdata
-
-# 新しい URL を先に試し、だめなら以前の URL。URL にクエリを付けると中身が空で返る(2026-10 時点)ので付けない
-WORLDSTATE_URLS = [
-    "https://api.warframe.com/cdn/worldState.php",
-    "https://content.warframe.com/dynamic/worldState.php",
-]
-COOLDOWN = 60          # 秒。CDN のキャッシュ (max-age 60) と同じ
-CLOCK_TOLERANCE = 2.0  # 秒。Date ヘッダーは 1 秒単位なので、これ未満のずれは 0 とみなす
-SNAPSHOT_FILE = "worldstate.json"
-
-# バロ(Void 商人)が来る中継地点
-RELAYS = {
-    "MercuryHUB": ("Larunda Relay", "Mercury"), "VenusHUB": ("Vesper Relay", "Venus"),
-    "EarthHUB": ("Strata Relay", "Earth"), "SaturnHUB": ("Kronia Relay", "Saturn"),
-    "ErisHUB": ("Kuiper Relay", "Eris"), "EuropaHUB": ("Leonov Relay", "Europa"),
-    "PlutoHUB": ("Orcus Relay", "Pluto"), "TennoConHUB2": ("TennoCon Relay", ""),
-}
 
 
 class WorldStateError(RuntimeError):
@@ -79,7 +56,7 @@ def clock_offset_from_headers(headers: dict, local_mid: float) -> float | None:
     except (KeyError, TypeError, ValueError):
         return None
     off = server - local_mid
-    return 0.0 if abs(off) < CLOCK_TOLERANCE else round(off, 1)
+    return 0.0 if abs(off) < WORLDSTATE_CLOCK_TOLERANCE else round(off, 1)
 
 
 def extract(ws: dict) -> dict:
@@ -168,49 +145,3 @@ def fetch(fetcher=None) -> tuple[dict, float | None]:
         snap["source"] = url
         return snap, clock_offset_from_headers(headers, local_mid)
     raise WorldStateError(" / ".join(errors))
-
-
-def load_snapshot(d: Path) -> dict | None:
-    f = d / SNAPSHOT_FILE
-    try:
-        j = json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
-    except ValueError:
-        return None
-    return j if isinstance(j, dict) and isinstance(j.get("fetched_at"), (int, float)) else None
-
-
-def sync(d: Path, force: bool = False, verbose: bool = False, fetcher=None, now: float | None = None) -> dict:
-    """World State を取得して保存し、サイクルの基準時刻と時計のずれを更新する。
-
-    前回の取得から COOLDOWN 秒以内なら取得せず前回の結果を返す(cached=True)。force=True で必ず取得する。
-    取得に失敗したら WorldStateError(保存済みのデータは変えない)。
-    """
-    now = time.time() if now is None else now
-    prev = load_snapshot(d)
-    if prev and not force and 0 <= now - prev["fetched_at"] < COOLDOWN:
-        return {**prev, "cached": True}
-    if verbose:
-        print("公式データ(World State)を取得中...")
-    snap, offset = fetch(fetcher)
-    if offset is None:  # ずれが分からないときは前回の値を使う
-        offset = clock_offset(userdata.load_cycles(d))
-    snap.update(fetched_at=now, offset=offset)
-    (d / SNAPSHOT_FILE).write_text(json.dumps(snap, ensure_ascii=False), encoding="utf-8")
-    if snap["cetus"]:
-        apply_worldstate_cycles(d, snap["cetus"]["expiry"], offset, now)
-    elif verbose:
-        print("  サイクルの情報が見つかりませんでした(基準時刻からの計算を続けます)")
-    if verbose:
-        print(f"  取得元: {snap['source']}")
-    return {**snap, "cached": False}
-
-
-def relay_txt(node: str):
-    """バロが来るリレーのテキスト指定(「Orcus Relay(冥王星)」。惑星の無いリレー・知らないノードは名前だけ)"""
-    name, planet = RELAYS.get(node, (node, ""))
-    return txt("baro.relay", name=name, planet=name_txt("planet.", planet)) if planet else name
-
-
-def relay_label(node: str) -> str:
-    """リレーの日本語の表示名(CLI 用)"""
-    return render_ja(relay_txt(node))

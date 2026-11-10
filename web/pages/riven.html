@@ -1,0 +1,84 @@
+<!-- ページ「Riven相場」(id riven): 表示部(view = <section id="view-riven">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <section id="view-riven" hidden>
+        <h2 data-i18n="page.riven">Riven相場</h2>
+        <p class="lead" data-i18n="riv.lead">公式が毎週公開している PC 版の Riven MOD 取引統計です。単位はプラチナ。</p>
+        <div class="row">
+          <input type="text" class="search" id="riv-q" data-i18n-placeholder="riv.placeholder" placeholder="武器名(例: Rubico / ルビコ)" autocomplete="off">
+          <select id="riv-type" data-i18n-aria="riv.col.type" aria-label="武器種"></select>
+          <label class="chk"><input type="checkbox" id="riv-veiled" checked> <span data-i18n="riv.veiled.include">未開封(ヴェール)を含む</span></label>
+          <button class="btn ghost" type="button" id="riv-update" data-i18n="riv.update">Riven相場だけ更新</button>
+        </div>
+        <pre class="log" id="riv-log" hidden></pre>
+        <div class="summary" id="riv-summary"></div>
+        <div id="riv-out"></div>
+        <p class="note" data-i18n="riv.note">極端な出品価格が混ざるため、平均より中央値が目安になります。件数が少ない武器は振れ幅が大きくなります。</p>
+      </section>
+<!-- PART:script -->
+/* ---------- Riven 相場 ---------- */
+let rivens = null;
+const rivSort = { key: "um", dir: "desc" };
+const rivGetters = {
+  w: r => r.veiled ? "" : rivWeapon(r).toLowerCase(), t: r => rivType(r.type),
+  um: r => r.unrolled ? r.unrolled.median : null, ua: r => r.unrolled ? r.unrolled.avg : null, up: r => r.unrolled ? r.unrolled.pop : null,
+  rm: r => r.rerolled ? r.rerolled.median : null, ra: r => r.rerolled ? r.rerolled.avg : null, rp: r => r.rerolled ? r.rerolled.pop : null,
+};
+const plat = v => Math.round(v).toLocaleString(locale());
+/* 武器種(I18N の riven.type.<英語名>。表に無ければ " Riven Mod" を除いた英語名)・武器名(日本語の画面は日本語名) */
+const rivType = k => (hasText("riven.type." + k) ? t("riven.type." + k) : k.replace(" Riven Mod", ""));
+const rivWeapon = r => (r.veiled ? t("riv.veiled") : nameByLang(r, "weapon_ja", "weapon_en"));
+function rivCells(st) {
+  if (!st) return `<td class="num none">—</td><td class="num none">—</td><td class="num none">—</td><td class="num none">—</td>`;
+  return `<td class="num med">${plat(st.median)}</td><td class="num">${plat(st.avg)}</td><td class="num mini">${esc(fmt("common.range", { a: plat(st.min), b: plat(st.max) }))}</td><td class="num">${Math.round(st.pop)}</td>`;
+}
+function renderRivens() {
+  if (!rivens) return;
+  const q = $("#riv-q").value.trim().toLowerCase(), ty = $("#riv-type").value, veiled = $("#riv-veiled").checked;
+  const list = sortRows(rivens.rows.filter(r => (!ty || r.type === ty) && (veiled || !r.veiled) &&
+    (!q || [r.weapon_ja, r.weapon_en, rivType(r.type)].some(x => (x || "").toLowerCase().includes(q)))), rivSort, rivGetters);
+  $("#riv-summary").innerHTML = `<span>${fmt("riv.summary", { shown: `<b class="count">${list.length}</b>`, total: rivens.rows.length })}</span><span>${esc(fmt("riv.updated", { at: rivens.updated }))}</span>`;
+  $("#riv-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
+    <thead class="stack"><tr><th rowspan="2" class="sort" data-sort="w" aria-sort="${rivSort.key === "w" ? (rivSort.dir === "asc" ? "ascending" : "descending") : "none"}" tabindex="0">${esc(t("riv.col.weapon"))}</th>
+      <th rowspan="2" class="sort" data-sort="t" aria-sort="${rivSort.key === "t" ? (rivSort.dir === "asc" ? "ascending" : "descending") : "none"}" tabindex="0">${esc(t("riv.col.type"))}</th>
+      <th colspan="4" class="num">${esc(t("riv.unrolled"))}</th><th colspan="4" class="num">${esc(t("riv.rerolled"))}</th></tr>
+      <tr>${["u", "r"].map(p => `${th(esc(t("riv.median")), p + "m", rivSort, "num")}${th(esc(t("riv.avg")), p + "a", rivSort, "num")}<th class="num">${esc(t("riv.range"))}</th>${th(esc(t("riv.pop")), p + "p", rivSort, "num")}`).join("")}</tr></thead>
+    <tbody>${list.map(r => `<tr><td class="${r.veiled ? "veiled" : ""}">${esc(rivWeapon(r))}${r.veiled ? "" : subEn(r, "weapon_ja", "weapon_en")}</td>
+      <td>${esc(rivType(r.type))}</td>${rivCells(r.unrolled)}${rivCells(r.rerolled)}</tr>`).join("")}</tbody></table></div>`
+    : noData(t("riv.none"));
+}
+onSortClick($("#riv-out"), rivSort, renderRivens, ["um", "ua", "up", "rm", "ra", "rp"]);
+$("#riv-q").addEventListener("input", debounce(renderRivens, 150));
+$("#riv-type").addEventListener("change", renderRivens);
+$("#riv-veiled").addEventListener("change", renderRivens);
+/* 武器種の選択肢(言語を切り替えたら作り直す。選んでいる値は残す) */
+function renderRivenTypes() {
+  const keep = $("#riv-type").value, types = [...new Set(rivens.rows.map(r => r.type))];
+  $("#riv-type").innerHTML = `<option value="">${esc(t("riv.type.all"))}</option>` + types.map(k => `<option value="${esc(k)}">${esc(rivType(k))}</option>`).join("");
+  $("#riv-type").value = keep;
+}
+loaders.riven = async () => {
+  applyViewText("riven");
+  if (rivens) { renderRivenTypes(); renderRivens(); return; }
+  try {
+    rivens = await api("/api/rivens");
+    renderRivenTypes(); renderRivens();
+  } catch (e) { $("#riv-summary").innerHTML = ""; $("#riv-out").innerHTML = noData(e.message); }
+};
+relabel.riven = () => { applyViewText("riven"); relabelLogs(); if (rivens) { renderRivenTypes(); renderRivens(); } };
+dataResets.riven = () => { rivens = null; };
+
+/* ---------- Riven 相場だけ更新 ---------- */
+async function updateRivensOnly(btn, log) {
+  btn.disabled = true; const label = btn.textContent; btn.textContent = t("riv.fetching");
+  log.hidden = false; log.textContent = t("riv.fetching.log");
+  try {
+    const r = await api("/api/update-rivens", { method: "POST", body: {} });
+    showLog(log, r);
+    if (r.ok) { rivens = null; if (!$("#view-riven").hidden) await loaders.riven(); }
+  } catch (e) { log.textContent = e.message; }
+  btn.disabled = false; btn.textContent = label; refreshStatus();
+}
+$("#riv-update").addEventListener("click", () => updateRivensOnly($("#riv-update"), $("#riv-log")));
+$("#update-riv-btn").addEventListener("click", () => updateRivensOnly($("#update-riv-btn"), $("#update-log")));

@@ -25,13 +25,15 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import unicodedata
-from difflib import SequenceMatcher
 from pathlib import Path
 
-from wfp.core.common import BUILD_TYPES, POLARITY_EN, TextError, txt
+from wfp.core.errors import TextError
+from wfp.core.i18n import txt
+from wfp.core.const import BUILD_TYPES, POLARITY_EN
 from wfp.core.loader import load_names
+from wfp.core.matcher import NameMatcher
 from wfp.core.names import Names
+from wfp.core.text import ocr_key
 from wfp.store import build_images
 
 HERE = Path(__file__).resolve().parent
@@ -126,58 +128,6 @@ def run_ocr_bytes(data: bytes, cache_dir: Path | None = None, **kw) -> dict:
 # --------------------------------------------------------------------------
 # 2. 名前一覧との照合
 # --------------------------------------------------------------------------
-
-_CONFUSE = str.maketrans({"0": "o", "1": "l", "i": "l", "|": "l", "5": "s", "8": "b", "$": "s"})
-
-
-def name_key(s: str) -> str:
-    """照合用のキー: 大文字小文字・記号・空白を無視し、OCR で取り違えやすい文字(0/o, 1/l/i, 5/s)をそろえる"""
-    s = unicodedata.normalize("NFKC", s).lower()
-    # 英数字に加えて、かな・漢字(日本語表示のアルケイン名)も残す。長音記号の揺れ(ー/－/-)もそろえる
-    s = re.sub(r"[\-‐－―]", "ー", s)
-    return re.sub(r"[^a-z0-9&\u3040-\u30ff\u4e00-\u9fff]", "", s).translate(_CONFUSE)
-
-
-class NameMatcher:
-    """名前一覧に対するあいまい一致。長さの近い候補だけを比べるので 1000 件程度なら十分速い"""
-
-    def __init__(self, entries: list[tuple[str, str, object]]):  # (種類, 名前, 付随情報)
-        self.exact: dict[str, tuple] = {}
-        self.by_len: dict[int, list[tuple]] = {}
-        for kind, name, info in entries:
-            k = name_key(name)
-            if len(k) < 3 or k in self.exact:
-                continue
-            self.exact[k] = (kind, name, info)
-            self.by_len.setdefault(len(k), []).append((k, kind, name, info))
-
-    @staticmethod
-    def threshold(n: int) -> float:
-        return 1.01 if n <= 4 else 0.9 if n <= 7 else 0.86  # 短い名前は完全一致のみ
-
-    def match(self, text: str):
-        k = name_key(text)
-        if len(k) < 3:
-            return None
-        if k in self.exact:
-            kind, name, info = self.exact[k]
-            return 1.0, kind, name, info, k
-        need = self.threshold(len(k))
-        if need > 1:
-            return None
-        sm = SequenceMatcher(autojunk=False)
-        sm.set_seq2(k)
-        best = None
-        for n in range(int(len(k) * 0.8), int(len(k) * 1.25) + 2):
-            for kk, kind, name, info in self.by_len.get(n, ()):
-                sm.set_seq1(kk)
-                if sm.real_quick_ratio() < need or sm.quick_ratio() < need:
-                    continue
-                r = sm.ratio()
-                if r >= need and (best is None or r > best[0]):
-                    best = (r, kind, name, info, kk)
-        return best
-
 
 def build_matcher(names: Names) -> NameMatcher:
     entries = [("mod", m["en"], m) for m in names.mods]

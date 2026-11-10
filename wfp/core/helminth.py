@@ -5,7 +5,9 @@
 """
 from __future__ import annotations
 
-from wfp.core.common import HELMINTH_SLOTS, TextError, txt
+from wfp.core.errors import TextError
+from wfp.core.i18n import txt
+from wfp.core.const import HELMINTH_SLOTS
 
 
 def subsume_list(raw: object) -> list[dict]:

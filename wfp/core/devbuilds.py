@@ -9,8 +9,9 @@ from __future__ import annotations
 from datetime import date
 
 from wfp.core.archon import clean_shards, find_effect, shard_text
-from wfp.core.common import (BUILD_TYPES, DEV_BUILD_KEYS, DEV_BUILD_LANGS, DEV_BUILD_NOTE, DEV_BUILD_VARIANTS, DEV_BUILDS_TAG,
-                             TextError, norm)
+from wfp.core.errors import TextError
+from wfp.core.text import norm
+from wfp.core.const import BUILD_TYPES, DEV_BUILD_KEYS, DEV_BUILD_LANGS, DEV_BUILD_NOTE, DEV_BUILD_VARIANTS, DEV_BUILDS_TAG
 from wfp.core.helminth import clean_helminth, subsume_frame
 
 

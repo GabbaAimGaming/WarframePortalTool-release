@@ -1,7 +1,9 @@
 """仲裁(Arbitration)のスケジュールの取得(browse.wf の arbys.txt)"""
 from __future__ import annotations
 
-from wfp.core.common import ARBYS_URL, say, txt
+from wfp.core.i18n import txt
+from wfp.core.log import say
+from wfp.core.const import ARBYS_URL
 from wfp.fetch import net
 
 

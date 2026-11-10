@@ -14,7 +14,8 @@ import random
 import re
 from dataclasses import dataclass, field
 
-from wfp.core.common import QA_MENU_TOP, norm
+from wfp.core.text import norm
+from wfp.core.const import QA_MENU_TOP
 
 # ボタンの種類(1つのボタンにどれか1つ)。q は例文(label は任意。無ければ例文)、ほかは label が要る。
 # lore = 解説の id・menu = メニューの分類の id(QA_MENU_TOP で分類の一覧)・talk = talk.json の話の id・page = 画面のページの id

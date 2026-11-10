@@ -1,0 +1,134 @@
+<!-- ページ「バロ吉入手一覧」(id baro): 表示部(view = <section id="view-baro">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- Riven 相場 -->
+      <!-- バロ吉入手一覧 -->
+      <section id="view-baro" hidden>
+        <h2 data-i18n="page.baro">バロ吉入手一覧</h2>
+        <p class="lead" data-i18n="baro.lead">Void 商人(Baro Ki'Teer)が今回持ってきた品物と、これまでに持ってきた品物を、自分の所持と照合します。MOD は「MOD入手一覧」の所持、武器は「マスター一覧」のマスター済みで判定し、装飾・外装などはこのページでチェックします(この PC に保存)。</p>
+        <div class="cyc-sync">
+          <button class="btn" type="button" id="baro-update" data-i18n="baro.update">バロ情報を更新</button>
+          <span class="note" id="baro-info" role="status"></span>
+        </div>
+        <div class="err" id="baro-err" role="alert"></div>
+        <div id="baro-now"></div>
+        <h3 class="baro-h" data-i18n="baro.history">履歴リスト(これまでに持ってきた品物)</h3>
+        <div class="seg" id="baro-kinds" role="group" data-i18n-aria="mods.col.type" aria-label="種類"></div>
+        <div class="row">
+          <input type="text" class="search" id="baro-q" data-i18n-placeholder="baro.placeholder" placeholder="名前で絞り込み(例: Primed / プライムド)" autocomplete="off">
+          <select id="baro-state" data-i18n-aria="common.state" aria-label="状態"><option value="" data-i18n="mods.own.all">所持・未所持</option><option value="unowned" data-i18n="mods.own.no">未所持のみ</option><option value="owned" data-i18n="ac.state.owned">所持のみ</option></select>
+        </div>
+        <div class="summary" id="baro-summary"></div>
+        <div id="baro-out"></div>
+        <p class="note" data-i18n="baro.note">履歴リストは、公式データ(「データ更新」で取得)から作る初期リスト(名前が Prisma で始まる武器など・名前が Primed で始まるレジェンダリーの MOD・Primed Chamber)に、この PC で記録したバロの来訪を足したものです。今回の品物は「バロ情報を更新」を押したときだけ公式の World State に問い合わせて取得し、バロが来ていれば来訪を記録します(リストに無い品物は追加し、ある品物は「最後に来た日」「回数」を更新)。過去の日付は分からないため、「最後に来た日」「回数」はこの PC で記録した来訪だけで数えます(TennoCon の来訪は記録しません)。名前が Skin で終わるものは装飾・外装として扱います。消耗品・ブースター・レリックなど何度でも買えるものは照合しません。初期リストから外す Primed MOD・追加する品物は、ツールのフォルダの data/baro_rules.json で変えられます。</p>
+      </section>
+<!-- PART:script -->
+/* ---------- バロ吉入手一覧 ---------- */
+let baro = null, baroAt = 0, baroKind = "";
+const baroSort = { key: "last", dir: "desc" };
+const baroGetters = {
+  owned: r => (r.owned === true ? 2 : r.owned === false ? 1 : 0), name: r => (r.ja || r.name).toLowerCase(),
+  kind: r => tName("baro.kind.", r.kind), last: r => r.last, count: r => r.count, ducats: r => r.ducats, credits: r => r.credits,
+};
+const jstTime = sec => new Date(sec * 1000).toLocaleString(locale(), { timeZone: "Asia/Tokyo", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+const num = v => (v === null || v === undefined ? `<span class="none">-</span>` : Number(v).toLocaleString(locale()));
+/* 品物名: 日本語の画面は日本語名(下に英名)、ほかは英名 */
+const baroLabel = r => nameByLang(r, "ja", "name");
+const baroName = r => `${esc(baroLabel(r))}${subEn(r, "ja", "name")}`;
+const baroCheckBy = r => fmt("baro.checkby", { by: t("baro.check." + r.kind) });
+/* 所持の欄: 装飾・外装などはチェック、MOD・武器はほかの一覧の結果を表示、消耗品などは照合しない */
+function baroOwnedCell(r) {
+  if (r.kind === "manual") return `<input type="checkbox" class="own" ${r.owned ? "checked" : ""} aria-label="${esc(fmt("mods.own.aria", { name: baroLabel(r) }))}">`;
+  if (r.owned === null) return `<span class="none" title="${esc(baroCheckBy(r))}">-</span>`;
+  return r.owned ? `<span class="baro-mark" title="${esc(baroCheckBy(r))}">✓</span>` : `<span class="none" title="${esc(baroCheckBy(r))}">×</span>`;
+}
+function baroFilter(rows) {
+  const q = $("#baro-q").value.trim().toLowerCase(), st = $("#baro-state").value;
+  return rows.filter(r => (!baroKind || r.kind === baroKind) && (!q || [r.name, r.ja].some(x => (x || "").toLowerCase().includes(q))) &&
+    (!st || (st === "owned" && r.owned === true) || (st === "unowned" && r.owned === false)));
+}
+function renderBaroNow() {
+  const cur = baro && baro.current, box = $("#baro-now");
+  if (!cur) { box.innerHTML = `<p class="note">${esc(t("baro.notyet"))}</p>`; return; }
+  const el = (Date.now() - baroAt) / 1000, now = baro.now + el;
+  const label = t("baro.state." + cur.state);
+  const items = cur.items.length ? `<div class="tablewrap"><table>
+    <thead><tr><th class="chk">${esc(t("mods.col.own"))}</th><th>${esc(t("baro.col.item"))}</th><th>${esc(t("mods.col.type"))}</th><th class="num">${esc(t("baro.col.ducats"))}</th><th class="num">${esc(t("baro.col.credits"))}</th><th class="num" title="${esc(t("baro.col.times.title"))}">${esc(t("baro.col.times"))}</th></tr></thead>
+    <tbody>${cur.items.map(r => `<tr class="${r.owned ? "owned" : ""}" data-name="${esc(r.name)}">
+      <td class="chk">${baroOwnedCell(r)}</td><td>${baroName(r)}${r.limit ? `<span class="tag-mini">${esc(fmt("baro.limit", { n: r.limit }))}</span>` : ""}</td>
+      <td>${esc(tName("baro.kind.", r.kind))}</td><td class="num">${num(r.ducats)}</td><td class="num">${num(r.credits)}</td>
+      <td class="num">${r.count ? num(r.count) : `<span class="none">${esc(t("baro.first"))}</span>`}</td></tr>`).join("")}</tbody></table></div>`
+    : `<div class="pad"><span class="note">${esc(t(cur.state === "here" ? "baro.noitems" : "baro.hidden"))}</span></div>`;
+  const unnamed = cur.items.some(r => !r.named) && !baro.has_paths ? `<p class="note">${esc(t("baro.unnamed"))}</p>` : "";
+  box.innerHTML = `<div class="card"><header><b>${esc(t("baro.trader"))}</b><span class="baro-state ${esc(cur.state)}">${esc(label)}</span>
+    <span>${esc(renderTxt(cur.relay))} / ${esc(fmt("common.range", { a: jstTime(cur.activation), b: jstTime(cur.expiry) }))} JST</span><span id="baro-count">${esc(baroCount(cur, now))}</span></header>${items}</div>${unnamed}`;
+}
+/* 来るまで・帰るまでの残り時間 */
+const baroCount = (cur, now) => cur.state === "here" ? fmt("baro.leaves", { t: dur(cur.expiry - now) })
+  : cur.state === "coming" ? fmt("baro.arrives", { t: dur(cur.activation - now) }) : "";
+function renderBaroInfo() {
+  const parts = [];
+  if (baro.current && baro.current.fetched_at) parts.push(fmt("baro.fetched", { at: jstTime(baro.current.fetched_at) }));
+  parts.push(baro.visits.count ? fmt("baro.visits", { n: baro.visits.count, latest: baro.visits.latest }) : t("baro.novisits"));
+  $("#baro-info").textContent = parts.join(" / ");
+}
+function renderBaro() {
+  if (!baro) return;
+  renderBaroInfo(); renderBaroNow();
+  if (!baro.rows.length) {
+    $("#baro-kinds").innerHTML = ""; $("#baro-summary").innerHTML = "";
+    $("#baro-out").innerHTML = noData(t(baro.has_names ? "baro.empty" : "baro.nonames")); return;
+  }
+  const sm = baro.summary;
+  const chip = (k, label, o) => `<button class="chip" data-bkind="${esc(k)}" aria-pressed="${baroKind === k}">${esc(label)}<small>${k === "repeat" ? o.total : `${o.owned} / ${o.total}`}</small></button>`;
+  $("#baro-kinds").innerHTML = chip("", t("src.all"), sm.all) + baro.kinds.map(k => chip(k, tName("baro.kind.", k), sm[k])).join("");
+  const list = sortRows(baroFilter(baro.rows), baroSort, baroGetters);
+  const cur = baroKind ? sm[baroKind] : sm.all, p = cur.total ? cur.owned / cur.total * 100 : 0;
+  const shownTxt = `<span>${esc(fmt("common.shown", { n: list.length }))}</span>`;
+  $("#baro-summary").innerHTML = baroKind === "repeat" ? `<span>${esc(fmt("baro.repeat.sum", { n: cur.total }))}</span>${shownTxt}`
+    : `<span><b class="count">${esc(baroKind ? tName("baro.kind.", baroKind) : t("baro.checkable"))}</b> ${esc(fmt("ac.summary", { owned: cur.owned, total: cur.total, pct: p.toFixed(1) }))}</span>
+       <span class="progress" aria-hidden="true"><i style="--w:${p.toFixed(1)}%"></i></span>${shownTxt}`;
+  $("#baro-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
+    <thead><tr>${th(esc(t("mods.col.own")), "owned", baroSort, "chk")}${th(esc(t("baro.col.item")), "name", baroSort)}${th(esc(t("mods.col.type")), "kind", baroSort)}${th(esc(t("baro.col.last")), "last", baroSort)}${th(esc(t("baro.col.count")), "count", baroSort, "num")}${th(esc(t("baro.col.ducats")), "ducats", baroSort, "num")}${th(esc(t("baro.col.credits")), "credits", baroSort, "num")}</tr></thead>
+    <tbody>${list.map(r => `<tr class="${r.owned ? "owned" : ""}" data-name="${esc(r.name)}">
+      <td class="chk">${baroOwnedCell(r)}</td><td>${baroName(r)}${r.seed ? "" : `<span class="tag-mini" title="${esc(t("baro.added.title"))}">${esc(t("baro.added"))}</span>`}</td>
+      <td title="${esc(baroCheckBy(r))}">${esc(tName("baro.kind.", r.kind))}</td><td>${r.last ? esc(r.last) : `<span class="none" title="${esc(t("baro.unrecorded.title"))}">${esc(t("baro.unrecorded"))}</span>`}</td>
+      <td class="num">${r.count ? num(r.count) : `<span class="none">-</span>`}</td><td class="num">${num(r.ducats)}</td><td class="num">${num(r.credits)}</td></tr>`).join("")}</tbody></table></div>`
+    : noData(t("baro.none"));
+}
+async function loadBaro() {
+  try { baro = await api("/api/baro"); baroAt = Date.now(); $("#baro-err").textContent = ""; renderBaro(); }
+  catch (e) { $("#baro-out").innerHTML = noData(e.message); }
+}
+async function setBaroOwned(name, owned) {
+  const rows = [...baro.rows, ...((baro.current && baro.current.items) || [])].filter(r => r.name === name && r.kind === "manual");
+  rows.forEach(r => { r.owned = owned; });
+  try { await api("/api/baro/owned", { method: "POST", body: { name, owned } }); await loadBaro(); }
+  catch (e) { rows.forEach(r => { r.owned = !owned; }); renderBaro(); $("#baro-err").textContent = e.message; }
+}
+$("#baro-update").addEventListener("click", async () => {
+  const btn = $("#baro-update");
+  btn.disabled = true; $("#baro-err").textContent = ""; $("#baro-info").textContent = t("baro.fetching");
+  try {
+    baro = await api("/api/baro/update", { method: "POST", body: {} }); baroAt = Date.now(); renderBaro();
+    if (baro.update.errors.length) $("#baro-err").textContent = baro.update.errors.map(renderTxt).join(" / ");
+  } catch (e) { $("#baro-err").textContent = e.message; if (baro) renderBaroInfo(); }
+  btn.disabled = false;
+});
+["#baro-now", "#baro-out"].forEach(sel => $(sel).addEventListener("change", e => {
+  const tr = e.target.closest("tr[data-name]"); if (tr && e.target.matches("input.own")) setBaroOwned(tr.dataset.name, e.target.checked);
+}));
+$("#baro-kinds").addEventListener("click", e => { const c = e.target.closest("[data-bkind]"); if (!c) return; baroKind = c.dataset.bkind; renderBaro(); });
+onSortClick($("#baro-out"), baroSort, renderBaro, ["owned", "last", "count", "ducats", "credits"]);
+$("#baro-q").addEventListener("input", debounce(renderBaro, 150));
+$("#baro-state").addEventListener("change", renderBaro);
+// 来るまで・帰るまでの時間だけを毎秒更新する(表は作り直さない)
+setInterval(() => {
+  if ($("#view-baro").hidden || !baro || !baro.current || !$("#baro-count")) return;
+  const cur = baro.current, now = baro.now + (Date.now() - baroAt) / 1000;
+  if ((cur.state === "here" && now >= cur.expiry) || (cur.state === "coming" && now >= cur.activation)) { loadBaro(); return; }
+  $("#baro-count").textContent = baroCount(cur, now);
+}, 1000);
+loaders.baro = () => { applyViewText("baro"); return loadBaro(); };
+relabel.baro = () => { applyViewText("baro"); if (baro) renderBaro(); };  // MOD・マスターのチェックはほかのページで変わるので、開くたびに読み直す

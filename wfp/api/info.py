@@ -4,16 +4,21 @@ from __future__ import annotations
 from datetime import datetime
 
 import wfportal_baro as wbaro
-import wfportal_worldstate as ws
 from wfp.api.store import ApiError, JST, Store, mtime_jst
 from wfp.core.arbitration import arbitration_view, update_arbys
-from wfp.core.common import ARBYS_FILE, CYCLES, MOD_STATS_FILE, PHASE_ALIASES, error_text, parse_remaining, txt
+from wfp.core.common import parse_remaining
+from wfp.core.errors import error_text
+from wfp.core.i18n import txt
+from wfp.core.const import ARBYS_FILE, CYCLES, MOD_STATS_FILE, PHASE_ALIASES, RIVENS_FILE
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
 from wfp.core.duviri import clear_duviri_adjust, duviri_view, set_duviri_adjust
 from wfp.core.invasion import invasion_view, set_invasion_part
 from wfp.core.modstats import parse_groups
 from wfp.core.riven import riven_table
 from wfp.core.spexchange import spex_view
+from wfp.core import worldstate
+from wfp.fetch import worldstate as wsfetch
+from wfp.store import gamedata
 
 
 def cycles(store: Store) -> dict:
@@ -47,8 +52,8 @@ def set_cycle(store: Store, body: dict) -> dict:
 def sync_worldstate(store: Store) -> dict:
     """公式データ(World State)で時刻合わせ。前回から 60 秒以内なら前回の結果を使う"""
     try:
-        snap = ws.sync(store.d)
-    except ws.WorldStateError as e:
+        snap = worldstate.sync(store.d)
+    except wsfetch.WorldStateError as e:
         raise ApiError(txt("err.cycle.fetch", e=str(e)), 502)
     return {**cycles(store), "synced": {"cached": snap["cached"], "offset": snap["offset"], "fetched_at": snap["fetched_at"]}}
 
@@ -77,7 +82,7 @@ def rivens_list(store: Store) -> dict:
     raw = store.rivens()
     if raw is None:
         raise ApiError(txt("err.riven.nodata"), 409)
-    return {"rows": riven_table(raw, store.names()), "updated": mtime_jst(store.d / "rivens.json")}
+    return {"rows": riven_table(raw, store.names()), "updated": mtime_jst(store.d / RIVENS_FILE)}
 
 
 # (メソッド, パス) -> 処理。c はリクエスト(wfp/api/server.py の Request)
@@ -110,14 +115,14 @@ def reset_duviri(store: Store, body: dict) -> dict:
 
 def invasions(store: Store) -> dict:
     """侵略サイクル: 保存済みの World State から侵略の一覧と収集表を作る(通信しない)"""
-    return invasion_view(store.d, ws.load_snapshot(store.d), wbaro.load_item_paths(store.d), store.names())
+    return invasion_view(store.d, gamedata.read_worldstate(store.d), gamedata.read_item_paths(store.d), store.names())
 
 
 def sync_invasions(store: Store) -> dict:
     """公式データ(World State)を取り直して侵略の一覧を更新する。前回から 60 秒以内なら前回の結果を使う"""
     try:
-        snap = ws.sync(store.d)
-    except ws.WorldStateError as e:
+        snap = worldstate.sync(store.d)
+    except wsfetch.WorldStateError as e:
         raise ApiError(txt("err.invasion.fetch", e=str(e)), 502)
     return {**invasions(store), "synced": {"cached": snap["cached"], "fetched_at": snap["fetched_at"]}}
 

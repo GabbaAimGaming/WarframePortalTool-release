@@ -1,0 +1,204 @@
+<!-- ページ「マスター一覧」(id mastery): 表示部(view = <section id="view-mastery">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- マスター一覧 -->
+      <section id="view-mastery" hidden>
+        <h2 data-i18n="page.mastery">マスター一覧</h2>
+        <p class="lead" data-i18n="ms.lead">Warframe・武器・コンパニオンなどのマスター状況です。左端のチェックでマスター済みとして記録します(この PC に保存)。</p>
+        <div class="seg" id="ms-cats" role="group" data-i18n-aria="part.cats" aria-label="カテゴリー"></div>
+        <div class="row">
+          <input type="text" class="search" id="ms-q" data-i18n-placeholder="ms.placeholder" placeholder="名前で絞り込み(例: Rhino / Soma)" autocomplete="off">
+          <select id="ms-state" data-i18n-aria="common.state" aria-label="状態"><option value="" data-i18n="ms.state.all">マスター済み・未マスター</option><option value="todo" data-i18n="ms.state.todo">未マスターのみ</option><option value="done" data-i18n="ms.state.done">マスター済みのみ</option></select>
+          <label class="chk"><input type="checkbox" id="ms-founder"> <span data-i18n="mastery.cat.founder">ファウンダー</span></label>
+          <button class="btn ghost" type="button" id="ms-bulk-on" data-i18n="ms.bulk.on">表示中をすべてマスター済みに</button>
+          <button class="btn ghost" type="button" id="ms-bulk-off" data-i18n="ms.bulk.off">表示中のチェックを外す</button>
+          <button class="btn ghost" type="button" id="ms-csv" data-i18n="common.csv">CSVで保存</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn ghost live" id="ms-scan-toggle" type="button" aria-pressed="false">ゲーム画面の読み取り: OFF</button>
+          <button class="btn ghost" id="ms-scan-file-btn" type="button" data-i18n="scan.file">スクリーンショットから読み取る</button>
+          <input type="file" id="ms-scan-files" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
+          <label class="chk"><input type="checkbox" id="ms-scan-confirm"> <span data-i18n="scan.confirm">自動でチェックせず、確認してから付ける</span></label>
+        </div>
+        <div class="scan" id="ms-scan-panel" hidden aria-live="polite">
+          <div class="scan-head"><video id="ms-scan-video" muted playsinline></video>
+            <div><b id="ms-scan-state"></b><div class="mini" id="ms-scan-stats"></div></div></div>
+          <div id="ms-scan-new"></div>
+          <div id="ms-scan-maybe"></div>
+          <div id="ms-scan-unknown"></div>
+          <p class="note" id="ms-scan-hint" data-i18n="msscan.noenglish" hidden>英語の文字認識が入っていないため、英字の名前を日本語の文字認識で読んでいます(I まわりを読み違えやすくなります)。Windows の設定 → 時刻と言語 → 言語と地域 で「English」を追加すると、名前の読み取りが正確になります。</p>
+          <p class="note" data-i18n="msscan.note">ゲームのプロフィール →「エクストラ」の装備一覧を開いてスクロールしていくと、マスター済み(最大ランク・青いバー・右上の月桂冠)のものを読み取ってチェックします(数秒ごと・画面が変わったときだけ)。見た目と表記が食い違うものや、候補が複数あるもの(「すべて」タブの Kitgun など)は「要確認」に出るので、正しければクリックしてください。自動でチェックを外すことはありません。いまは日本語表示のゲーム画面だけに対応しています。</p>
+        </div>
+        <div class="summary" id="ms-summary"></div>
+        <div id="ms-out"></div>
+        <p class="note" data-i18n="ms.note">Kitgun はチェンバー(プライマリ版とセカンダリ版は別々)、Zaw はストライク、アンプはプリズムと Sirocco、MOA・ハウンドは頭(モデル)、K-ドライブはボードの単位で数えます。Excalibur Prime・Skana Prime・Lato Prime は「ファウンダー」にチェックを入れたときだけ、「ファウンダー」の項目に表示して集計します。プレクサスとアンプ本体は「その他」に入ります。マスタリー経験値はランク最大までの値です(Warframe・コンパニオン・センチネル・MOA/ハウンド・アークウイング・ネクラメカ・K-ドライブ・プレクサスは 1 ランク 200、武器は 100。Kuva・Tenet・Coda などとネクラメカはランク 40)。</p>
+      </section>
+<!-- PART:script -->
+/* ---------- マスター一覧 ---------- */
+let mastery = null, msCat = "", msArmed = null;
+// ファウンダー限定品(カテゴリー founder)は、チェック ON のときだけ一覧・件数・経験値の合計に入れる
+let msFounder = false;
+msFounder = pref.flag("wf-mastery-founder");
+$("#ms-founder").checked = msFounder;
+const msRows = () => mastery.rows.filter(r => msFounder || r.cat !== "founder");
+const msCats = () => mastery.cats.filter(k => msFounder || k !== "founder");
+/* 名前: 日本語の画面は日本語名、ほかは英名。Kitgun はプライマリ版・セカンダリ版を区別する(I18N の mastery.variant) */
+const msLabel = r => { const n = nameByLang(r); return r.variant ? fmt("mastery.variant", { name: n, variant: t("mastery.variant." + r.variant) }) : n; };
+const msSort = { key: "cat", dir: "asc" };
+const msGetters = {
+  done: r => (r.done ? 1 : 0), name: r => msLabel(r).toLowerCase(), rank: r => r.rank, xp: r => r.xp,
+  cat: r => mastery.cats.indexOf(r.cat) * 10000 + 0, // 並べ替えの基準: カテゴリー順 -> 名前
+};
+function msFilter() {
+  const q = $("#ms-q").value.trim().toLowerCase(), st = $("#ms-state").value;
+  return msRows().filter(r => (!msCat || r.cat === msCat) && (!st || (st === "done") === r.done) &&
+    (!q || [r.en, r.ja, msLabel(r)].some(x => (x || "").toLowerCase().includes(q))));
+}
+function msSummary() {
+  const sm = { all: { total: 0, done: 0, xp: 0, xp_done: 0 } };
+  mastery.cats.forEach(c => sm[c] = { total: 0, done: 0, xp: 0, xp_done: 0 });
+  msRows().forEach(r => [sm[r.cat], sm.all].forEach(o => { o.total++; o.xp += r.xp; if (r.done) { o.done++; o.xp_done += r.xp; } }));
+  return sm;
+}
+function renderMastery() {
+  if (!mastery) return;
+  const sm = msSummary();
+  $("#ms-cats").innerHTML = [["", t("src.all"), sm.all], ...msCats().map(k => [k, tName("mastery.cat.", k), sm[k]])]
+    .map(([k, v, o]) => `<button class="chip" data-mcat="${k}" aria-pressed="${msCat === k}">${esc(v)}<small>${o.done} / ${o.total}</small></button>`).join("");
+  let list = msFilter();
+  list = sortRows(list, msSort, msGetters);
+  if (msSort.key === "cat") list.sort((a, b) => (msGetters.cat(a) - msGetters.cat(b)) * (msSort.dir === "asc" ? 1 : -1) || msLabel(a).localeCompare(msLabel(b), locale()));
+  const cur = msCat ? sm[msCat] : sm.all, pctDone = cur.total ? cur.done / cur.total * 100 : 0;
+  $("#ms-summary").innerHTML = `<span><b class="count">${esc(msCat ? tName("mastery.cat.", msCat) : t("ms.all"))}</b> ${esc(fmt("ms.summary", { done: cur.done, total: cur.total, pct: pctDone.toFixed(1) }))}</span>
+    <span class="progress" aria-hidden="true"><i style="--w:${pctDone.toFixed(1)}%"></i></span>
+    <span>${esc(fmt("ms.xp", { done: cur.xp_done.toLocaleString(locale()), total: cur.xp.toLocaleString(locale()) }))}</span><span>${esc(fmt("common.shown", { n: list.length }))}</span>`;
+  ["on", "off"].forEach(k => {
+    const b = $(`#ms-bulk-${k}`), label = t("ms.bulk." + k);
+    b.textContent = msArmed === k ? fmt("common.confirm.n", { n: list.length }) : label; b.classList.toggle("danger", msArmed === k); b.classList.toggle("armed", msArmed === k);
+  });
+  $("#ms-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
+    <thead><tr>${th(esc(t("ms.col.done")), "done", msSort, "chk")}${th(esc(t("ms.col.name")), "name", msSort)}${th(esc(t("ms.col.cat")), "cat", msSort)}${th(esc(t("ms.col.rank")), "rank", msSort, "num")}${th(esc(t("ms.col.xp")), "xp", msSort, "num")}</tr></thead>
+    <tbody>${list.map(r => `<tr class="${r.done ? "owned" : ""}" data-id="${esc(r.id)}">
+      <td class="chk"><input type="checkbox" class="own" ${r.done ? "checked" : ""} aria-label="${esc(fmt("ms.done.aria", { name: msLabel(r) }))}"></td>
+      <td>${esc(msLabel(r))}${subEn(r)}</td><td>${esc(tName("mastery.cat.", r.cat))}</td>
+      <td class="num">${r.rank}</td><td class="num">${r.xp.toLocaleString(locale())}</td></tr>`).join("")}</tbody></table></div>`
+    : noData(t("common.none"));
+}
+async function setMastered(ids, done) {
+  const before = mastery.rows.filter(r => ids.includes(r.id)).map(r => [r, r.done]);
+  before.forEach(([r]) => r.done = done); renderMastery();
+  try { await api("/api/mastery", { method: "POST", body: { ids, done } }); }
+  catch (e) { before.forEach(([r, d]) => r.done = d); renderMastery(); $("#ms-summary").insertAdjacentHTML("beforeend", `<span class="err">${esc(e.message)}</span>`); }
+}
+$("#ms-cats").addEventListener("click", e => { const c = e.target.closest("[data-mcat]"); if (!c) return; msCat = c.dataset.mcat; msArmed = null; renderMastery(); });
+$("#ms-out").addEventListener("change", e => { const cb = e.target.closest("input.own"); if (cb) setMastered([cb.closest("tr").dataset.id], cb.checked); });
+onSortClick($("#ms-out"), msSort, renderMastery, ["done", "rank", "xp"]);
+$("#ms-q").addEventListener("input", debounce(() => { msArmed = null; renderMastery(); }, 150));
+$("#ms-state").addEventListener("change", () => { msArmed = null; renderMastery(); });
+$("#ms-founder").addEventListener("change", e => {
+  msFounder = e.target.checked; msArmed = null;
+  if (!msFounder && msCat === "founder") msCat = "";
+  pref.setFlag("wf-mastery-founder", msFounder);
+  renderMastery();
+});
+["on", "off"].forEach(k => $(`#ms-bulk-${k}`).addEventListener("click", () => {
+  if (!mastery) return;
+  if (msArmed !== k) { msArmed = k; renderMastery(); setTimeout(() => { if (msArmed === k) { msArmed = null; renderMastery(); } }, 4000); return; }
+  msArmed = null;
+  const ids = msFilter().filter(r => r.done !== (k === "on")).map(r => r.id);
+  if (ids.length) setMastered(ids, k === "on"); else renderMastery();
+}));
+$("#ms-csv").addEventListener("click", () => {
+  if (!mastery) return;
+  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [[t("ms.csv.done"), t("ms.col.name"), t("ms.csv.en"), t("ms.col.cat"), t("ms.col.rank"), t("ms.col.xp")].map(q).join(",")]
+    .concat(msFilter().map(r => [r.done ? "○" : "", msLabel(r), r.en, tName("mastery.cat.", r.cat), r.rank, r.xp].map(q).join(",")));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv" }));
+  a.download = `${t("ms.csv.file")}_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+loaders.mastery = async () => {
+  applyViewText("mastery");
+  if (mastery) { renderMastery(); return; }
+  $("#ms-out").innerHTML = `<div class="empty">${esc(t("common.loading"))}</div>`;
+  try { mastery = await api("/api/mastery"); renderMastery(); }
+  catch (e) { $("#ms-cats").innerHTML = ""; $("#ms-summary").innerHTML = ""; $("#ms-out").innerHTML = noData(e.message); }
+};
+relabel.mastery = () => { applyViewText("mastery"); renderMastery(); msScanner.label(); if (msScan.reads || msScan.on) msScanRender(); };
+dataResets.mastery = () => { mastery = null; };
+
+/* ---------- マスター一覧: ゲーム画面からの読み取り(結果は MOD 側の scan とは別に持つ。画面共有は createScreenScanner) ----------
+   API(POST /api/mastery/scan)は読み取って判定するだけ。印は POST /api/mastery で付ける。自動では外さない */
+const msScan = { reads: 0, tab: null, english: true,  // 読み取りの結果(画面共有の状態は createScreenScanner が足す)
+                 added: [], maybe: new Map(), seen: new Set(), unknown: new Set() };
+/* 要確認の理由とランクの読み取りを1行に(チップの title) */
+function msScanTitle(row) {
+  const sig = row.signals || {}, mark = flag => (flag ? "○" : "×");
+  const rank = sig.rank_read === "max" ? t("msscan.rank.max") : sig.rank_read == null ? "?" : String(sig.rank_read);
+  return fmt("msscan.signal", { text: row.read, laurel: mark(sig.laurel), bar: mark(sig.bar), rank });
+}
+function msScanRender(state) {
+  $("#ms-scan-panel").hidden = false;
+  if (state !== undefined) $("#ms-scan-state").textContent = state;
+  const tabName = msScan.tab ? t("msscan.tab." + msScan.tab) : t("msscan.tab.none");
+  $("#ms-scan-stats").textContent = fmt("msscan.stats", { reads: msScan.reads, seen: msScan.seen.size, added: msScan.added.length, tab: tabName });
+  $("#ms-scan-new").innerHTML = msScan.added.length ? `<span class="mini">${esc(t("msscan.added"))}</span><div class="chips">${msScan.added.slice(-60).reverse()
+    .map(row => `<button class="chip" data-ms-undo="${esc(row.id)}">${esc(msLabel(row))}<span class="x" aria-hidden="true">×</span></button>`).join("")}</div>` : "";
+  const groups = [...msScan.maybe.entries()].map(([key, row]) => {
+    const why = `<small>${esc(t("msscan.reason." + (row.reason || "confirm")))}</small>`;
+    const cands = row.ids && row.ids.length > 1 ? row.ids : [row];
+    const head = cands.length > 1 ? `<span class="chip-label">${esc(row.read)}:</span>` : "";
+    return head + cands.map(cand => `<button class="chip" data-ms-own="${esc(cand.id)}" data-ms-key="${esc(key)}" title="${esc(msScanTitle(row))}">${esc(msLabel(cand))}${why}</button>`).join("");
+  });
+  $("#ms-scan-maybe").innerHTML = groups.length ? `<span class="mini">${esc(t("msscan.maybe"))}</span><div class="chips">${groups.join("")}</div>` : "";
+  $("#ms-scan-hint").hidden = msScan.english;
+  $("#ms-scan-unknown").innerHTML = msScan.unknown.size ? `<span class="mini">${esc(t("msscan.unknown"))}</span> <span class="mini">${esc([...msScan.unknown].join(" / "))}</span>` : "";
+}
+async function msMark(ids, done) {
+  if (!ids.length) return;
+  await api("/api/mastery", { method: "POST", body: { ids, done } });
+  if (mastery) { const set = new Set(ids); mastery.rows.forEach(row => { if (set.has(row.id)) row.done = done; }); renderMastery(); }
+}
+async function msScanImage(blob) {
+  const body = await apiImage("/api/mastery/scan", blob, "image/png");
+  msScan.reads++;
+  if (body.tab) msScan.tab = body.tab;
+  msScan.english = body.english !== false;  // 英語の文字認識が無いときは、追加をすすめる注意を出す
+  const confirm = $("#ms-scan-confirm").checked, add = [];
+  const addedIds = new Set(msScan.added.map(row => row.id));
+  body.tiles.forEach(row => {
+    msScan.seen.add(row.id);
+    const multi = row.ids && row.ids.length > 1;
+    if (!multi && (row.done || addedIds.has(row.id))) return;
+    if (multi && row.ids.some(cand => cand.done || addedIds.has(cand.id))) return;  // 候補のどれかが済みなら聞かない
+    if (row.state === "done" && !confirm) add.push(row);
+    else msScan.maybe.set(multi ? row.ids.map(cand => cand.id).join("|") : row.id, row);
+  });
+  (body.unknown || []).forEach(text => msScan.unknown.add(text));
+  if (add.length) {
+    await msMark(add.map(row => row.id), true);
+    msScan.added.push(...add); add.forEach(row => msScan.maybe.delete(row.id));
+  }
+  return body.tiles.length;
+}
+/* 画面共有・ファイルの読み取り(createScreenScanner)。サーバーは PNG だけ読むので、ファイルも PNG にそろえて送る */
+const msScanner = createScreenScanner({
+  prefix: "ms-scan", state: msScan, render: msScanRender, read: msScanImage, file: toPng, found: n => fmt("msscan.found", { n }),
+});
+$("#ms-scan-panel").addEventListener("click", async ev => {
+  const undo = ev.target.closest("[data-ms-undo]"), own = ev.target.closest("[data-ms-own]");
+  try {
+    if (undo) {
+      const id = undo.dataset.msUndo;
+      await msMark([id], false); msScan.added = msScan.added.filter(row => row.id !== id); msScanRender();
+    }
+    if (own) {
+      const id = own.dataset.msOwn, row = msScan.maybe.get(own.dataset.msKey);
+      const picked = row && row.ids ? row.ids.find(cand => cand.id === id) : row;
+      await msMark([id], true); msScan.maybe.delete(own.dataset.msKey);
+      if (picked) msScan.added.push(picked);
+      msScanRender();
+    }
+  } catch (err) { msScanRender(err.message); }
+});

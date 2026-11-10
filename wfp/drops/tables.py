@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import re
 
-from wfp.core.common import BOUNTY_JA, CLAN_LABS, NODE_MODES, OTHER_SOURCES, RELIC_STATES, TEXT_JA, name_txt, to_float, txt
+from wfp.core.common import to_float
+from wfp.core.i18n import ja_text, name_txt, txt
+from wfp.core.const import BOUNTY_JA, CLAN_LABS, NODE_MODES, OTHER_SOURCES, RELIC_STATES
 from wfp.core.names import item_key
 
 
@@ -67,7 +69,7 @@ def mission_place(planet: str, node: str) -> dict:
 class Sources:
     """ミッション以外の入手先 (WFCD の各ファイル) を1つの表に展開する。
 
-    rows = [(種類, 入手先, 詳細, ローテーション, 英名, 確率%, レア度)]。入手先・詳細はテキスト指定(wfp/core/common.py の txt)
+    rows = [(種類, 入手先, 詳細, ローテーション, 英名, 確率%, レア度)]。入手先・詳細はテキスト指定(wfp/core/i18n.py の txt)
     確率は「その敵を1体倒す / その報酬を1回引く」ときにその項目が出る割合にそろえる。
     clan / other(同梱の data/parts/clan.json / other.json の中身)を渡すと、クラン研究・Simaris 交換などの行も足す(確率は None)。
     part_owner は extras(設計図ではない作成素材)の {名前(小文字): 本体の英名}。パーツ検索のカテゴリー分けに使う
@@ -152,7 +154,7 @@ def _manual_rows(raw: object, field: str, labels: dict, cat: str | None, prefix:
     本体は "<英名> Blueprint"(body が false なら無し)、部品は "<英名> <部品名> Blueprint"、
     extras(設計図ではない作成素材)は item の名前そのまま。owners を渡すと {extras の名前(小文字): 本体の英名} を書き足す。
     部品・extras のキーを省略すると本体と同じ。部品・extras の詳細は自分の note、無ければ本体と同じ入手先のときだけ本体の note。形が違う行・知らないキーの行は黙って飛ばす(ツールを止めない。同梱データの検査はテストで行う)
-    quest({"en", "ja"})はクエスト名。詳細には TEXT_JA の src.quest.<入手先> の形で出し(例: Simaris 交換は「〜完了後」)、note があれば「クエスト名 / note」。
+    quest({"en", "ja"})はクエスト名。詳細には web/i18n の src.quest.<入手先> の形で出し(例: Simaris 交換は「〜完了後」)、note があれば「クエスト名 / note」。
     部品・extras の quest も note と同じく、自分の quest、無ければ本体と同じ入手先のときだけ本体の quest。形が違う quest は無いものとして扱う
     """
     items = raw.get("items") if isinstance(raw, dict) else None
@@ -179,7 +181,7 @@ def _manual_rows(raw: object, field: str, labels: dict, cat: str | None, prefix:
 
     def detail(src: object, quest, note):
         """詳細欄: クエスト名(入手先ごとの形)と note を「 / 」でつなぐ"""
-        if quest and isinstance(src, str) and f"src.quest.{src}" in TEXT_JA:
+        if quest and isinstance(src, str) and ja_text(f"src.quest.{src}") is not None:
             quest = txt(f"src.quest.{src}", q=quest)
         if quest and note:
             return txt("src.note", a=quest, b=note)

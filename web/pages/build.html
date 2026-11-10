@@ -1,0 +1,485 @@
+<!-- ページ「ビルド」(id build): 表示部(view = <section id="view-build">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- ビルド -->
+      <section id="view-build" hidden>
+        <h2 data-i18n="b.title">ビルド</h2>
+        <p class="lead" data-i18n="b.lead">フレーム・武器のビルドを登録して管理します(この PC に保存)。</p>
+        <details id="build-form-wrap" open>
+          <summary id="build-form-title">ビルドを追加</summary>
+          <form id="build-form">
+            <div class="formgrid">
+              <label class="field"><span data-i18n="b.f.name">ビルド名</span><input type="text" id="b-name" required autocomplete="off"></label>
+              <label class="field"><span data-i18n="mods.col.type">種別</span><select id="b-type"></select></label>
+              <label class="field"><span data-i18n="b.f.target">対象(フレーム名・武器名)</span><input type="text" id="b-target" autocomplete="off"></label>
+              <label class="field"><span data-i18n="b.f.forma">フォーマ数</span><input type="number" id="b-forma" min="0" value="0"></label>
+              <!-- Helminth: 種別が Warframe のときだけ出す(下の helmToggle) -->
+              <div class="field" id="b-helm"><span data-i18n="b.f.helminth">Helminth(置き換えるアビリティ)</span>
+                <div class="row"><select id="b-helm-slot" data-i18n-aria="b.helm.slot" aria-label="置き換える番号"></select>
+                  <input type="text" id="b-helm-ability" list="helminth-list" data-i18n-placeholder="b.helm.pick" placeholder="例: Roar" data-i18n-aria="b.helm.ability" aria-label="入れるアビリティ" autocomplete="off" style="flex:1"></div>
+                <datalist id="helminth-list"></datalist>
+                <span class="mini" id="b-helm-note"></span></div>
+              <!-- アルコンの欠片: 種別が Warframe のときだけ出す(下の shardToggle)。5枠の中身は renderShardSlots が作る -->
+              <div class="field" id="b-shard"><span data-i18n="b.f.shards">アルコンの欠片</span>
+                <div id="b-shard-slots"></div>
+                <span class="mini" id="b-shard-note"></span></div>
+            </div>
+            <div class="formgrid">
+              <label class="field"><span data-i18n="b.f.mods">MOD(1行に1つ)</span><textarea id="b-mods" rows="5"></textarea></label>
+              <div class="field"><span data-i18n="b.f.arcanes">アルケイン(1行に1つ)</span>
+                <textarea id="b-arcanes" rows="2" data-i18n-aria="b.arcanes" aria-label="アルケイン"></textarea>
+                <div class="row"><input type="text" id="b-arc-pick" list="arcane-list" data-i18n-placeholder="b.arc.pick" placeholder="候補から追加(日本語名・英名のどちらでも)" autocomplete="off" style="flex:1">
+                  <button type="button" class="btn ghost" id="b-arc-add" data-i18n="b.arc.add">追加</button></div>
+                <datalist id="arcane-list"></datalist>
+                <span class="mini" id="b-arc-note"></span></div>
+              <div class="field"><label class="field"><span data-i18n="b.f.tags">タグ(カンマ区切り)</span><input type="text" id="b-tags" autocomplete="off"></label>
+                <label class="field"><span data-i18n="b.f.note">メモ</span><textarea id="b-note" rows="2"></textarea></label></div>
+            </div>
+            <div class="field" style="margin-bottom:12px"><span data-i18n="b.f.images">画像(MOD構成のスクリーンショットなど。PNG / JPEG / GIF / WebP)</span>
+              <div class="dropzone" id="b-drop" tabindex="0" role="button" aria-describedby="b-drop-help" data-i18n="b.drop">
+                クリックして選ぶ / ここにドラッグ&ドロップ / Ctrl+V で貼り付け</div>
+              <span class="mini" id="b-drop-help" data-i18n="b.drop.help">大きい画像(4MB超)は保存前に縮小します。保存ボタンを押すと登録されます。</span>
+              <input type="file" id="b-file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
+              <div class="thumbs" id="b-thumbs"></div>
+              <div class="row" style="margin-top:8px"><button type="button" class="btn ghost" id="b-analyze" hidden data-i18n="b.analyze">画像から読み取る(フレーム・MOD・フォーマ)</button>
+                <span class="mini" id="b-ocr-note"></span></div>
+              <div class="ocr" id="b-ocr" hidden aria-live="polite"></div>
+            </div>
+            <div class="row"><button class="btn" type="submit" id="b-save" data-i18n="duviri.adjust.save">保存</button>
+              <button class="btn ghost" type="button" id="b-cancel" hidden data-i18n="b.cancel">編集をやめる</button></div>
+            <div class="err" id="b-err" role="alert"></div>
+          </form>
+        </details>
+        <div class="row" style="margin-top:18px">
+          <input type="text" class="search" id="b-filter" data-i18n-placeholder="b.filter" placeholder="ビルドを絞り込み(名前・対象・タグ・アルケイン)" autocomplete="off">
+          <select id="b-filter-type"></select>
+        </div>
+        <div class="cards" id="build-list"></div>
+        <dialog id="lightbox" data-i18n-aria="lb.aria" aria-label="画像の拡大表示">
+          <img id="lb-img" alt="">
+          <div class="lb-bar"><button class="btn ghost" id="lb-prev" type="button" data-i18n-aria="lb.prev" aria-label="前の画像">◀</button>
+            <span id="lb-count"></span>
+            <button class="btn ghost" id="lb-next" type="button" data-i18n-aria="lb.next" aria-label="次の画像">▶</button>
+            <a class="btn ghost" id="lb-open" target="_blank" rel="noopener" data-i18n="lb.open">原寸で開く</a>
+            <button class="btn ghost" id="lb-close" type="button" data-i18n="lb.close">閉じる</button></div>
+        </dialog>
+      </section>
+<!-- PART:script -->
+/* ---------- ビルド ---------- */
+let builds = [], btypes = [], editing = null, armed = null;
+/* MOD の効果(最大ランク): {英名(小文字): {ja, en}}。名前は英名のまま出し、効果は表示中の言語(ja が無ければ en)。無い MOD は名前だけ */
+let modEffects = {};
+const modEffect = name => { const e = modEffects[String(name || "").trim().toLowerCase()]; return e ? nameByLang(e) : ""; };
+const modItem = name => { const eff = modEffect(name); return `<li>${esc(name)}${eff ? `<span class="mod-eff">${esc(eff)}</span>` : ""}</li>`; };
+/* フォームで編集中の画像: {saved: ファイル名} か {blob, url} (まだ保存していない新しい画像) */
+let formImages = [];
+const imgUrl = name => `/api/build-image/${encodeURIComponent(name)}`;
+function clearFormImages() {
+  formImages.forEach(i => i.url && URL.revokeObjectURL(i.url)); formImages = []; renderFormImages();
+  ocrRun++; ocrResult = null; $("#b-ocr").hidden = true; $("#b-ocr").innerHTML = "";
+}
+function renderFormImages() {
+  updateAnalyzeBtn();
+  $("#b-thumbs").innerHTML = formImages.map((im, i) => `<div class="thumb" data-i="${i}" title="${esc(t("b.thumb.title"))}">
+    <img src="${im.saved ? imgUrl(im.saved) : im.url}" alt="${esc(fmt("b.image.n", { n: i + 1 }))}" loading="lazy">
+    ${im.saved ? "" : `<span class="new">${esc(t("b.unsaved"))}</span>`}
+    <button type="button" class="x" data-rm="${i}" aria-label="${esc(fmt("b.image.remove", { n: i + 1 }))}">×</button></div>`).join("");
+}
+/* ---------- 画像の自動解析 (Windows の文字認識) ---------- */
+let ocrResult = null, ocrRun = 0;
+/* 文字認識が使えるか(共用の loadOcrInfo)を確かめ、ビルド管理の案内と「解析」のボタンを描き直す */
+async function loadBuildOcr() {
+  const info = await loadOcrInfo();
+  renderOcrNote();
+  updateAnalyzeBtn();
+  return info;
+}
+function renderOcrNote() {
+  if (!ocrInfo) return;
+  $("#b-ocr-note").textContent = ocrInfo.available ? t(ocrInfo.english ? "ocr.ready" : "ocr.noenglish") : fmt("ocr.unavailable", { reason: ocrReason(ocrInfo) });
+}
+function updateAnalyzeBtn() { $("#b-analyze").hidden = !(ocrInfo && ocrInfo.available && formImages.length); }
+function mergeOcr(list) {
+  const targets = list.map(r => r.target).filter(Boolean);
+  const target = targets.sort((a, b) => b.score - a.score)[0] || null;
+  const seen = new Set(), mods = [];
+  list.forEach(r => r.mods.forEach(m => { const k = m.en.toLowerCase(); if (!seen.has(k)) { seen.add(k); mods.push(m); } }));
+  const shown = list.filter(r => r.forma.source === "display").map(r => r.forma.value);
+  const polarized = mods.filter(m => m.slot === "match" && m.polarity).map(m => m.polarity);
+  const judged = mods.some(m => m.slot);
+  const disp = list.filter(r => r.forma.source === "display").sort((a, b) => b.forma.value - a.forma.value)[0];
+  const forma = shown.length ? { value: Math.max(...shown), source: "display", rank: disp.forma.rank, estimate: judged ? polarized.length : null, polarized }
+    : judged ? { value: polarized.length, source: "estimate", estimate: polarized.length, polarized } : { value: null, source: null, polarized: [] };
+  return { target, mods, forma, images: list.length, has_items: list.every(r => r.has_items) };
+}
+const polSummary = list => Object.entries(list.reduce((a, p) => (a[p] = (a[p] || 0) + 1, a), {}))
+  .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([p, n]) => `${p}×${n}`).join(", ");
+function renderOcr(r, msg = "") {
+  const box = $("#b-ocr"); box.hidden = false;
+  const f = r.forma, tg = r.target;
+  const check = x => (x.score < 0.95 ? `<span class="check" title="${esc(fmt("scan.read", { text: x.read }))}">${esc(t("ocr.check"))}</span>` : "");
+  box.innerHTML = `<h5>${esc(t("ocr.title"))}<span class="mini">${esc(fmt("ocr.images", { n: r.images }))}</span></h5>
+    <dl class="kv">
+      <dt>${esc(t("ocr.target"))}</dt><dd>${tg ? `${esc(nameByLang(tg))}${subEn(tg)} / ${esc(tName("build.type.", tg.type))}${check(tg)}`
+        : `<span class="none">${esc(t(r.has_items ? "ocr.fail" : "ocr.fail.items"))}</span>`}</dd>
+      <dt>${esc(t("ocr.forma"))}</dt><dd>${f.value === null ? `<span class="none">${esc(t("ocr.fail"))}</span>`
+        : f.source === "display" ? `${esc(fmt("ocr.forma.display", { n: f.value, name: tg ? tg.en.toUpperCase() : t("ocr.forma.gear"), rank: f.rank ?? t("ocr.forma.rank") }))}${f.estimate !== null && f.estimate !== undefined && f.estimate !== f.value ? `<span class="mini">${esc(fmt("ocr.forma.est.also", { n: f.estimate }))}</span>` : ""}`
+        : esc(fmt("ocr.forma.est", { n: f.value }))}</dd>
+      ${f.polarized && f.polarized.length ? `<dt>${esc(t("ocr.pol"))}</dt><dd>${esc(polSummary(f.polarized))}</dd>` : ""}
+      <dt>MOD</dt><dd>${esc(fmt("ocr.mods.n", { n: r.mods.filter(m => m.kind !== "arcane").length }))}</dd>
+      ${r.mods.some(m => m.kind === "arcane") ? `<dt>${esc(t("b.arcanes"))}</dt><dd>${r.mods.filter(m => m.kind === "arcane").map(m => esc(arcLabel(m.en))).join(", ")}</dd>` : ""}
+    </dl>
+    ${r.mods.some(m => m.kind !== "arcane") ? `<ol>${r.mods.filter(m => m.kind !== "arcane").map(m => `<li>${esc(nameByLang(m))}${m.polarity ? `<span class="pol">${esc(m.polarity)}</span>` : ""}
+      ${m.slot ? `<span class="slot ${m.slot}" title="${esc(fmt("ocr.drain", { n: m.drain }))}">${esc(t("ocr.slot." + m.slot))}</span>` : ""}
+      ${check(m)}</li>`).join("")}</ol>` : ""}
+    <div class="row"><button type="button" class="btn" id="ocr-apply">${esc(t("ocr.apply"))}</button><span class="mini">${esc(msg)}</span></div>
+    <p class="note">${esc(t("ocr.note"))}</p>`;
+}
+function applyOcr(r, onlyEmpty) {
+  const filled = [];
+  const set = (id, v, label, empty) => { if (v === null || v === undefined || v === "") return; if (!onlyEmpty || empty) { $(id).value = v; filled.push(label); } };
+  const targetWasEmpty = !$("#b-target").value.trim();
+  if (r.target) {
+    set("#b-target", r.target.en, t("b.lbl.target"), targetWasEmpty);
+    set("#b-type", r.target.type, t("b.lbl.type"), targetWasEmpty);
+    set("#b-name", r.target.en, t("b.lbl.name"), !$("#b-name").value.trim());
+  }
+  const modList = r.mods.filter(m => m.kind !== "arcane"), arcList = r.mods.filter(m => m.kind === "arcane");
+  if (modList.length) set("#b-mods", modList.map(m => m.en).join("\n"), t("b.lbl.mods"), !$("#b-mods").value.trim());
+  if (arcList.length) set("#b-arcanes", arcList.map(m => arcLabel(m.en)).join("\n"), t("b.arcanes"), !$("#b-arcanes").value.trim());
+  // ゲーム内の表示から読めたフォーマ数はそのまま登録する。推定値は空欄(0)のときだけ入れる
+  if (r.forma.value !== null) set("#b-forma", r.forma.value, t("b.lbl.forma"), r.forma.source === "display" || !(+$("#b-forma").value));
+  if (r.forma.polarized && r.forma.polarized.length) {
+    // メモの極性の行は1行だけにする(どの言語で書いた行も置き換える)
+    const heads = Object.keys(I18N).map(c => (I18N[c]["b.pol.line"] || "").split("{list}")[0]).filter(Boolean);
+    const line = fmt("b.pol.line", { list: polSummary(r.forma.polarized) });
+    const note = $("#b-note").value.split("\n").filter(l => !heads.some(h => l.startsWith(h)));
+    $("#b-note").value = [...note.filter(Boolean), line].join("\n"); filled.push(t("b.lbl.memo"));
+  }
+  helmToggle();  // 種別を入れ替えたときに Helminth の欄の出し入れを合わせる
+  return filled;
+}
+async function analyzeImages(list, auto) {
+  if (!list.length) return;
+  const info = await loadBuildOcr();
+  if (!info.available) { if (!auto) { $("#b-ocr").hidden = false; $("#b-ocr").innerHTML = noData(ocrReason(info)); } return; }
+  const run = ++ocrRun, btn = $("#b-analyze"), out = [];
+  btn.disabled = true; $("#b-ocr").hidden = false;
+  try {
+    for (let i = 0; i < list.length; i++) {
+      $("#b-ocr").innerHTML = `<span class="busy">${esc(fmt("ocr.reading", { i: i + 1, n: list.length }))}</span>`;
+      const im = list[i];
+      let r;
+      if (im.saved) r = await api(`/api/build-analyze?image=${encodeURIComponent(im.saved)}`, { method: "POST", body: {} });
+      else {
+        const blob = im.blob.size > 18 * 1024 * 1024 ? await prepareImage(im.blob) : im.blob;
+        r = await apiImage("/api/build-analyze", blob);
+      }
+      out.push(r);
+    }
+    if (run !== ocrRun) return;
+    ocrResult = mergeOcr(out);
+    const filled = auto ? applyOcr(ocrResult, true) : [];
+    renderOcr(ocrResult, auto ? (filled.length ? fmt("ocr.filled", { list: filled.join(t("list.and")) }) : t("ocr.unchanged")) : "");
+  } catch (e) { if (run === ocrRun) $("#b-ocr").innerHTML = `<span class="err">${esc(fmt("ocr.failed", { msg: e.message }))}</span>`; }
+  btn.disabled = false;
+}
+$("#b-analyze").addEventListener("click", () => analyzeImages(formImages, false));
+$("#b-ocr").addEventListener("click", e => {
+  if (!e.target.closest("#ocr-apply") || !ocrResult) return;
+  const filled = applyOcr(ocrResult, false);
+  renderOcr(ocrResult, fmt("ocr.applied", { list: filled.join(t("list.and")) }));
+});
+
+/** 大きい画像(4MB超)は縮小してから送る。GIF はアニメーションを壊さないようそのまま */
+async function prepareImage(file) {
+  if (file.size <= 4 * 1024 * 1024 || file.type === "image/gif" || !window.createImageBitmap) return file;
+  try {
+    const bmp = await createImageBitmap(file), scale = Math.min(1, 2560 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas"); c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, "image/webp", 0.92));
+    return blob && blob.type === "image/webp" ? blob : await new Promise(r => c.toBlob(r, "image/jpeg", 0.92));
+  } catch (e) { return file; }
+}
+function addImageFiles(files) {
+  const ok = [...files].filter(f => /^image\/(png|jpeg|gif|webp)$/.test(f.type));
+  if (!ok.length) { $("#b-err").textContent = t("b.pick.images"); return; }
+  $("#b-err").textContent = "";
+  const added = ok.map(f => ({ blob: f, url: URL.createObjectURL(f) }));
+  formImages.push(...added);
+  renderFormImages(); $("#build-form-wrap").open = true;
+  analyzeImages(added, true);  // 追加した画像を自動で読み取り、空欄に入力する
+}
+function resetBuildForm() {
+  editing = null; $("#build-form").reset(); $("#b-forma").value = 0; clearFormImages(); $("#b-arc-note").textContent = ""; helmToggle();
+  renderShardSlots([]); shardToggle();
+  $("#b-cancel").hidden = true; $("#b-err").textContent = ""; renderBuildFormTitle();
+}
+function renderBuildFormTitle() { $("#build-form-title").textContent = editing ? fmt("b.edit", { name: editing }) : t("b.add"); }
+function renderBuilds() {
+  const q = $("#b-filter").value.trim().toLowerCase(), ft = $("#b-filter-type").value;
+  const list = builds.filter(b => (!ft || b.type === ft) &&
+    (!q || [b.name, b.target, ...(b.tags || []), ...(b.arcanes || []).flatMap(arcLabels)].some(x => (x || "").toLowerCase().includes(q))));
+  $("#build-list").innerHTML = list.length ? list.map(b => `
+    <div class="card build"><header><b>${esc(b.name)}</b><span>${esc(tName("build.type.", b.type))}${b.target ? " / " + esc(b.target) : ""}</span></header>
+    <div class="pad"><div class="meta">${esc([fmt("b.meta.forma", { n: b.forma || 0 }), fmt("b.meta.mods", { n: (b.mods || []).length }),
+      ...((b.arcanes || []).length ? [fmt("b.meta.arcanes", { n: b.arcanes.length })] : []), ...((b.images || []).length ? [fmt("b.meta.images", { n: b.images.length })] : [])].join(" / "))}</div>
+      ${(b.mods || []).length ? `<ol class="mods">${b.mods.map(modItem).join("")}</ol>` : ""}
+      ${(b.arcanes || []).length ? `<div class="arcs"><span class="mini">${esc(t("b.arcanes"))}</span> ${b.arcanes.map(a => `<span class="arc">${esc(arcLabel(a))}</span>`).join("")}</div>` : ""}
+      ${b.helminth ? `<div class="helm"><span class="mini">${esc(t("b.helm"))}</span> ${esc(helmText(b.helminth))}</div>` : ""}
+      ${(b.shards || []).some(Boolean) ? `<div class="shards"><span class="mini">${esc(t("b.shard"))}</span><ol>${b.shards.map(sh => `<li>${esc(shardCard(sh))}</li>`).join("")}</ol></div>` : ""}
+      ${b.note ? `<div>${esc(b.note)}</div>` : ""}
+      ${(b.tags || []).length ? `<div class="tags">${b.tags.map(x => `<span>#${esc(x)}</span>`).join("")}</div>` : ""}
+      ${(b.images || []).length ? `<div class="thumbs">${b.images.map((n, i) => `<button type="button" class="thumb" data-view-img="${esc(b.name)}" data-i="${i}" aria-label="${esc(fmt("b.image.enlarge", { name: b.name, n: i + 1 }))}"><img src="${imgUrl(n)}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
+      <div class="acts"><button class="btn ghost" data-edit="${esc(b.name)}">${esc(t("b.edit.btn"))}</button>
+        <button class="btn danger${armed === b.name ? " armed" : ""}" data-del="${esc(b.name)}">${esc(t(armed === b.name ? "b.del.confirm" : "b.del"))}</button></div></div></div>`).join("")
+    : `<div class="empty">${esc(t(builds.length ? "b.none" : "b.empty"))}</div>`;
+}
+/* アルケイン: 候補は [{en, ja}]。保存は英名(サーバーが英名にそろえる)、入力欄・候補・一覧は表示中の言語で出す */
+let arcaneNames = [];
+const ARC_LIMIT = { frame: 2, primary: 1, secondary: 1, melee: 1 };  // ゲーム内で装備できる数
+// 照合の鍵: 全角半角・大文字小文字・ひらがな/カタカナ・空白と区切りを無視(サーバーの norm に合わせる)
+const arcKey = s => (s || "").normalize("NFKC").toLowerCase().replace(/[\u3041-\u3096]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60)).replace(/[\s・･\-_'’,()（）]/g, "");
+const arcHit = name => { const k = arcKey(name); return k ? arcaneNames.find(a => arcKey(a.en) === k || arcKey(a.ja) === k) || null : null; };
+const arcLabel = name => { const a = arcHit(name); return a ? nameByLang(a) : name; };  // 一覧に無い名前は書いたまま
+const arcLabels = name => { const a = arcHit(name); return a ? [a.en, a.ja] : [name]; };  // 絞り込み用(英名・和名の両方)
+const arcLines = () => $("#b-arcanes").value.split("\n").map(x => x.trim()).filter(Boolean);
+function renderArcList() {
+  $("#arcane-list").innerHTML = arcaneNames.map(a => lang === "ja" && a.ja !== a.en
+    ? `<option value="${esc(a.ja)}" label="${esc(a.en)}">` : `<option value="${esc(a.en)}">`).join("");
+}
+function arcNote() {
+  const lines = arcLines();
+  const limit = ARC_LIMIT[$("#b-type").value];
+  const unknown = lines.filter(a => arcaneNames.length && !arcHit(a));
+  const msgs = [];
+  if (limit && lines.length > limit) msgs.push(fmt("b.arc.limit", { type: tName("build.type.", $("#b-type").value), limit, n: lines.length }));
+  if (unknown.length) msgs.push(fmt("b.arc.unknown", { list: unknown.join(", ") }));
+  $("#b-arc-note").textContent = msgs.join(" ");
+  $("#b-arc-note").classList.toggle("err", msgs.length > 0);
+}
+function addArcane() {
+  const v = $("#b-arc-pick").value.trim(); if (!v) return;
+  const hit = arcHit(v), label = arcLabel(v), lines = arcLines();
+  if (!lines.some(x => hit ? arcHit(x) === hit : arcKey(x) === arcKey(v))) lines.push(label);
+  $("#b-arcanes").value = lines.join("\n"); $("#b-arc-pick").value = ""; arcNote();
+}
+$("#b-arc-add").addEventListener("click", addArcane);
+$("#b-arc-pick").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addArcane(); } });
+$("#b-arcanes").addEventListener("input", arcNote);
+$("#b-type").addEventListener("change", arcNote);
+/* Helminth: 候補は同梱の一覧({frame, ability}。英名)。一覧に無い名前でも保存はできる(注意だけ出す) */
+let helmList = [];
+const helmFrame = ability => (helmList.find(h => h.ability.toLowerCase() === (ability || "").trim().toLowerCase()) || {}).frame;
+function helmText(h) {
+  const frame = helmFrame(h.ability);
+  return fmt("b.helm.card", { slot: h.slot, ability: h.ability }) + (frame ? fmt("b.helm.from", { frame }) : "");
+}
+/* 番号の選択肢(言語を切り替えたら作り直す。選んでいる値は残す) */
+function renderHelmSlots() {
+  const cur = $("#b-helm-slot").value;
+  $("#b-helm-slot").innerHTML = `<option value="">${esc(t("b.helm.none"))}</option>` +
+    [1, 2, 3, 4].map(n => `<option value="${n}">${esc(fmt("b.helm.slot.n", { n }))}</option>`).join("");
+  $("#b-helm-slot").value = cur;
+}
+function helmNote() {
+  const slot = $("#b-helm-slot").value, ability = $("#b-helm-ability").value.trim(), msgs = [];
+  if (!!slot !== !!ability) msgs.push(t("b.helm.pair"));
+  if (ability && helmList.length && !helmFrame(ability)) msgs.push(fmt("b.helm.unknown", { name: ability }));
+  $("#b-helm-note").textContent = msgs.join(" ");
+  $("#b-helm-note").classList.toggle("err", msgs.length > 0);
+}
+/* Warframe のビルドだけに出す(ほかの種別では保存しない) */
+function helmToggle() { $("#b-helm").hidden = $("#b-type").value !== "frame"; helmNote(); }
+const helmValue = () => $("#b-type").value === "frame" && ($("#b-helm-slot").value || $("#b-helm-ability").value.trim())
+  ? { slot: $("#b-helm-slot").value, ability: $("#b-helm-ability").value.trim() } : null;
+$("#b-type").addEventListener("change", helmToggle);
+$("#b-helm-slot").addEventListener("change", helmNote);
+$("#b-helm-ability").addEventListener("input", helmNote);
+/* アルコンの欠片: 色と効果は同梱の一覧({tauforged_rate, colors})。5枠それぞれに 色 → 効果(その色のもの)と Tauforged。
+   Tauforged の値は保存せず、文に埋めるときに tauforged_rate を掛ける(効果の tauforged があればその値) */
+let archon = { tauforged_rate: 1.5, colors: [] };
+const shardColor = key => archon.colors.find(c => c.key === key);
+const shardEffect = (key, id) => ((shardColor(key) || {}).effects || []).find(e => e.id === id);
+const shardNum = x => Number(x).toLocaleString(locale(), { maximumFractionDigits: 2, useGrouping: false });
+function shardText(e, tau) {
+  const over = (tau && e.tauforged) || {};
+  return nameByLang(e).replace(/\{(v|max|per)\}/g, (m, k) => {
+    const key = k === "v" ? "value" : k;
+    if (e[key] === undefined) return m;
+    return shardNum(over[key] !== undefined ? over[key] : tau ? Math.round(e[key] * archon.tauforged_rate * 100) / 100 : e[key]);
+  });
+}
+function shardCard(sh) {
+  if (!sh) return t("b.shard.empty");
+  const c = shardColor(sh.color), e = shardEffect(sh.color, sh.effect);
+  if (!e) return fmt("b.shard.unknown", { name: `${sh.color}: ${sh.effect}` });
+  const name = nameByLang(c);
+  return `${sh.tauforged ? fmt("b.shard.tau.name", { name }) : name}: ${shardText(e, sh.tauforged)}`;
+}
+/* 入力中の5枠({color, effect, tauforged}。空の枠は null) */
+const shardRows = () => [...$("#b-shard-slots").querySelectorAll(".shard-row")].map(row => {
+  const color = row.querySelector(".col").value, effect = row.querySelector(".eff").value;
+  return color || effect ? { color, effect, tauforged: row.querySelector(".tau").checked } : null;
+});
+/* 効果の選択肢(その色の効果。一覧に無い値で保存されていたら、その値も残して選べるようにする) */
+function fillShardEffect(row, effect) {
+  const color = row.querySelector(".col").value, tau = row.querySelector(".tau").checked, sel = row.querySelector(".eff");
+  const list = (shardColor(color) || {}).effects || [];
+  const stale = effect && !list.some(e => e.id === effect) ? `<option value="${esc(effect)}">${esc(effect)}</option>` : "";
+  sel.innerHTML = `<option value="">${esc(t("b.shard.pick"))}</option>` + stale +
+    list.map(e => `<option value="${esc(e.id)}">${esc(shardText(e, tau))}</option>`).join("");
+  sel.value = effect || ""; sel.disabled = !color;
+}
+/* 5枠を作り直す(言語の切り替え・読み込み・編集。値を渡さなければ入力中の値を保つ) */
+function renderShardSlots(vals = shardRows()) {
+  const colorOpts = archon.colors.map(c => `<option value="${esc(c.key)}">${esc(nameByLang(c))}</option>`).join("");
+  $("#b-shard-slots").innerHTML = Array.from({ length: 5 }, (_, i) => `<div class="shard-row" data-i="${i}">
+      <span class="no">${esc(fmt("b.shard.slot.n", { n: i + 1 }))}</span>
+      <select class="col" aria-label="${esc(fmt("b.shard.slot.n", { n: i + 1 }) + " " + t("b.shard.color"))}"><option value="">${esc(t("b.shard.none"))}</option>${colorOpts}</select>
+      <select class="eff" aria-label="${esc(fmt("b.shard.slot.n", { n: i + 1 }) + " " + t("b.shard.effect"))}"></select>
+      <label class="mini"><input type="checkbox" class="tau"> ${esc(t("b.shard.tau"))}</label></div>`).join("");
+  $("#b-shard-slots").querySelectorAll(".shard-row").forEach((row, i) => {
+    const v = vals[i];
+    if (v && v.color && !shardColor(v.color)) row.querySelector(".col").insertAdjacentHTML("beforeend", `<option value="${esc(v.color)}">${esc(v.color)}</option>`);
+    row.querySelector(".col").value = v ? v.color : ""; row.querySelector(".tau").checked = !!(v && v.tauforged);
+    fillShardEffect(row, v ? v.effect : "");
+  });
+  shardNote();
+}
+function shardNote() {
+  const rows = shardRows(), msgs = [];
+  if (rows.some(r => r && (!r.color || !r.effect))) msgs.push(t("b.shard.pair"));
+  const unknown = rows.filter(r => r && r.color && r.effect && archon.colors.length && !shardEffect(r.color, r.effect));
+  if (unknown.length) msgs.push(fmt("b.shard.unknown", { name: unknown.map(r => `${r.color}: ${r.effect}`).join(", ") }));
+  $("#b-shard-note").textContent = msgs.join(" ");
+  $("#b-shard-note").classList.toggle("err", msgs.length > 0);
+}
+function shardToggle() { $("#b-shard").hidden = $("#b-type").value !== "frame"; }
+const shardValue = () => {
+  if ($("#b-type").value !== "frame") return null;
+  const rows = shardRows();
+  return rows.some(Boolean) ? rows : null;
+};
+$("#b-type").addEventListener("change", shardToggle);
+$("#b-shard-slots").addEventListener("change", e => {
+  const row = e.target.closest(".shard-row"); if (!row) return;
+  // 色を変えたら効果を選び直す。Tauforged を変えたら効果の文の値を出し直す(選んでいる効果は保つ)
+  if (e.target.classList.contains("col")) fillShardEffect(row, "");
+  if (e.target.classList.contains("tau")) fillShardEffect(row, row.querySelector(".eff").value);
+  shardNote();
+});
+async function loadBuilds() {
+  const r = await api("/api/builds"); builds = r.builds; modEffects = r.mod_effects || {}; btypes = r.types;
+  arcaneNames = r.arcanes || []; renderArcList();
+  helmList = r.helminth || [];
+  $("#helminth-list").innerHTML = helmList.map(h => `<option value="${esc(h.ability)}" label="${esc(h.frame)}">`).join("");
+  archon = r.archon || archon;
+  renderBuildTypes(); renderHelmSlots(); helmToggle(); renderShardSlots(); shardToggle(); renderBuilds();
+}
+/* 種別の選択肢(言語を切り替えたら作り直す。選んでいる値は残す) */
+function renderBuildTypes() {
+  const opts = btypes.map(k => `<option value="${esc(k)}">${esc(tName("build.type.", k))}</option>`).join("");
+  const cur = $("#b-type").value, curF = $("#b-filter-type").value;
+  $("#b-type").innerHTML = opts; if (cur) $("#b-type").value = cur;
+  $("#b-filter-type").innerHTML = `<option value="">${esc(t("mods.type.all"))}</option>` + opts; $("#b-filter-type").value = curF;
+}
+$("#build-form").addEventListener("submit", async e => {
+  e.preventDefault(); $("#b-err").textContent = "";
+  const btn = $("#b-save"), name = $("#b-name").value.trim();
+  btn.disabled = true;
+  try {
+    const r = await api("/api/builds", { method: "POST", body: {
+      original_name: editing, name, type: $("#b-type").value, target: $("#b-target").value,
+      forma: $("#b-forma").value, mods: $("#b-mods").value, arcanes: $("#b-arcanes").value, tags: $("#b-tags").value, note: $("#b-note").value, helminth: helmValue(), shards: shardValue(),
+      images: formImages.filter(i => i.saved).map(i => i.saved) } });
+    builds = r.builds; modEffects = r.mod_effects || modEffects;
+    // ビルドを保存してから、新しい画像を1枚ずつ送る
+    editing = name;
+    const pending = formImages.filter(i => !i.saved);
+    for (let k = 0; k < pending.length; k++) {
+      $("#b-err").textContent = fmt("b.saving.image", { i: k + 1, n: pending.length });
+      const blob = await prepareImage(pending[k].blob);
+      let data;
+      try { data = await apiImage(`/api/build-image?name=${encodeURIComponent(name)}`, blob); }
+      catch (e) { throw new Error(fmt("b.image.failed", { n: k + 1, msg: e.message })); }
+      builds = data.builds;
+      pending[k].saved = data.builds.find(x => x.name === name).images.slice(-1)[0];
+      URL.revokeObjectURL(pending[k].url); delete pending[k].url; delete pending[k].blob;
+    }
+    resetBuildForm(); renderBuilds();
+  } catch (err) { $("#b-err").textContent = err.message; renderFormImages(); renderBuilds(); }
+  btn.disabled = false;
+});
+/* 画像の追加: クリック / ドラッグ&ドロップ / 貼り付け */
+$("#b-drop").addEventListener("click", () => $("#b-file").click());
+$("#b-drop").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#b-file").click(); } });
+$("#b-file").addEventListener("change", e => { addImageFiles(e.target.files); e.target.value = ""; });
+["dragenter", "dragover"].forEach(ev => $("#b-drop").addEventListener(ev, e => { e.preventDefault(); $("#b-drop").classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => $("#b-drop").addEventListener(ev, () => $("#b-drop").classList.remove("over")));
+$("#b-drop").addEventListener("drop", e => { e.preventDefault(); addImageFiles(e.dataTransfer.files); });
+document.addEventListener("paste", e => {
+  if ($("#view-build").hidden) return;
+  const files = [...(e.clipboardData ? e.clipboardData.files : [])].filter(f => f.type.startsWith("image/"));
+  if (!files.length) return;
+  e.preventDefault(); addImageFiles(files);
+});
+$("#b-thumbs").addEventListener("click", e => {
+  const rm = e.target.closest("[data-rm]");
+  if (rm) { const [im] = formImages.splice(+rm.dataset.rm, 1); if (im.url) URL.revokeObjectURL(im.url); renderFormImages(); return; }
+  const tb = e.target.closest(".thumb"); if (!tb) return;
+  openLightbox(formImages.map(im => im.saved ? imgUrl(im.saved) : im.url), +tb.dataset.i);
+});
+/* 拡大表示 */
+let lb = { urls: [], i: 0 };
+function showLightbox() {
+  const n = lb.urls.length; $("#lb-img").src = lb.urls[lb.i]; $("#lb-open").href = lb.urls[lb.i];
+  $("#lb-count").textContent = `${lb.i + 1} / ${n}`; $("#lb-prev").disabled = $("#lb-next").disabled = n < 2;
+}
+function openLightbox(urls, i) { lb = { urls, i }; showLightbox(); $("#lightbox").showModal(); }
+const lbMove = d => { lb.i = (lb.i + d + lb.urls.length) % lb.urls.length; showLightbox(); };
+$("#lb-prev").addEventListener("click", () => lbMove(-1));
+$("#lb-next").addEventListener("click", () => lbMove(1));
+$("#lb-close").addEventListener("click", () => $("#lightbox").close());
+$("#lightbox").addEventListener("click", e => { if (e.target.id === "lightbox") $("#lightbox").close(); });
+$("#lightbox").addEventListener("keydown", e => { if (e.key === "ArrowLeft") lbMove(-1); if (e.key === "ArrowRight") lbMove(1); });
+$("#b-cancel").addEventListener("click", resetBuildForm);
+$("#b-filter").addEventListener("input", renderBuilds);
+$("#b-filter-type").addEventListener("change", renderBuilds);
+$("#build-list").addEventListener("click", async e => {
+  const ed = e.target.closest("[data-edit]"), del = e.target.closest("[data-del]"), view = e.target.closest("[data-view-img]");
+  if (view) {
+    const b = builds.find(x => x.name === view.dataset.viewImg);
+    if (b) openLightbox(b.images.map(imgUrl), +view.dataset.i);
+    return;
+  }
+  if (ed) {
+    const b = builds.find(x => x.name === ed.dataset.edit); if (!b) return;
+    editing = b.name; $("#b-name").value = b.name; $("#b-type").value = b.type; $("#b-target").value = b.target || "";
+    $("#b-forma").value = b.forma || 0; $("#b-mods").value = (b.mods || []).join("\n"); $("#b-arcanes").value = (b.arcanes || []).map(arcLabel).join("\n"); $("#b-tags").value = (b.tags || []).join(",");
+    $("#b-note").value = b.note || ""; renderBuildFormTitle(); $("#b-cancel").hidden = false;
+    $("#b-helm-slot").value = b.helminth ? String(b.helminth.slot) : ""; $("#b-helm-ability").value = b.helminth ? b.helminth.ability : ""; helmToggle();
+    renderShardSlots(b.shards || []); shardToggle();
+    clearFormImages(); formImages = (b.images || []).map(n => ({ saved: n })); renderFormImages();
+    $("#build-form-wrap").open = true; $("#b-name").focus({ preventScroll: true }); scrollView({ top: 0, behavior: "smooth" });
+  } else if (del) {
+    const name = del.dataset.del;
+    if (armed !== name) { armed = name; renderBuilds(); setTimeout(() => { if (armed === name) { armed = null; renderBuilds(); } }, 4000); return; }
+    armed = null;
+    try { builds = (await api(`/api/builds?name=${encodeURIComponent(name)}`, { method: "DELETE" })).builds; if (editing === name) resetBuildForm(); renderBuilds(); }
+    catch (err) { $("#b-err").textContent = err.message; }
+  }
+});
+loaders.build = () => {
+  applyViewText("build"); renderBuildFormTitle(); loadBuildOcr();
+  return loadBuilds().catch(e => { $("#build-list").innerHTML = noData(e.message); });
+};
+relabel.build = () => {
+  // 入力欄のアルケインは、一覧にある名前だけ新しい言語に置き換える(書きかけの名前はそのまま)
+  if (arcaneNames.length) { $("#b-arcanes").value = arcLines().map(arcLabel).join("\n"); renderArcList(); }
+  applyViewText("build"); renderBuildFormTitle(); renderOcrNote(); renderFormImages(); arcNote();
+  if (btypes.length) { renderBuildTypes(); renderHelmSlots(); helmNote(); renderShardSlots(); renderBuilds(); }
+  if (ocrResult && !$("#b-ocr").hidden) renderOcr(ocrResult);
+};

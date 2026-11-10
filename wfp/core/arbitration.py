@@ -12,7 +12,9 @@ import bisect
 import time
 from pathlib import Path
 
-from wfp.core.common import ARBY_COUNT, ARBY_PICK, ARBY_SLOT, REGION_FACTIONS, REGION_MISSIONS, TextFailure, txt
+from wfp.core.errors import TextFailure
+from wfp.core.i18n import txt
+from wfp.core.const import ARBY_COUNT, ARBY_PICK, ARBY_SLOT, REGION_FACTIONS, REGION_MISSIONS
 from wfp.core.cycle import clock_offset
 from wfp.drops.tables import node_mode
 from wfp.fetch import arbys

@@ -1,11 +1,13 @@
 """画面向け API: Q&A(LLM なし版。答えは日本語のみ)"""
 from __future__ import annotations
 
-import wfportal_builder as wb
 from wfp.api.store import ApiError, Store
 from wfp.core.archon import shard_list
-from wfp.core.common import (DEV_BUILD_SUFFIX, QA_ANSWERS_FILE, QA_INTENTS_FILE, QA_LORE_FILE, QA_LORE_TALK_FILE, QA_MENU_FILE,
-                             QA_MISS_FILE, QA_TALK_FILE, txt)
+from wfp.core.i18n import txt
+from wfp.core.const import (
+    DEV_BUILD_SUFFIX, QA_ANSWERS_FILE, QA_INTENTS_FILE, QA_LORE_FILE, QA_LORE_TALK_FILE, QA_MENU_FILE, QA_MISS_FILE,
+    QA_TALK_FILE,
+)
 from wfp.core.devbuilds import dev_build_list
 from wfp.core.helminth import subsume_list
 from wfp.core.qa import QaContext, QaIndex, answer, load_qa_data, stop_words
@@ -22,7 +24,7 @@ QA_QUESTION_MAX = 200  # 質問の文の長さの上限
 def qa_context(store: Store) -> QaContext:
     """答えに使うデータ。同梱データは毎回読み(小さい・直せばすぐ反映)、名前の索引はデータが変わったときだけ作り直す"""
     data = load_qa_data(appdata.read_qa(QA_INTENTS_FILE), appdata.read_qa(QA_ANSWERS_FILE), appdata.read_qa(QA_MISS_FILE))
-    builder = store._cached(wb.BUILDER_FILE, lambda: wb.load_builder_data(store.d))
+    builder = store.builder()
     drops, sources, names = store.drops(), store.sources(), store.names()
     items = store.all_items() if drops else []
     subsume = subsume_list(appdata.read_helminth())
@@ -31,15 +33,8 @@ def qa_context(store: Store) -> QaContext:
     stops = stop_words(data)
     lore = load_lore(appdata.read_qa(QA_LORE_FILE), appdata.read_qa(QA_LORE_TALK_FILE))  # 索引より先(system の about を名前に足す)
     lore_names = index_names(lore)
-    stamp = (id(builder), id(names), id(items), repr(subsume), repr(dev), repr(summons), repr(sorted(stops)), repr(lore_names))
-    with store._lock:
-        hit = store._cache.get("@qa")
-    if hit and hit[0] == stamp:
-        index = hit[1]
-    else:
-        index = QaIndex(builder, names, items, subsume, dev, stops, summons, lore_names)
-        with store._lock:
-            store._cache["@qa"] = (stamp, index)
+    stamp = (builder, names, items, repr(subsume), repr(dev), repr(summons), repr(sorted(stops)), repr(lore_names))
+    index = store.derived("@qa", stamp, lambda: QaIndex(builder, names, items, subsume, dev, stops, summons, lore_names))
     quest_names = {q["id"]: q["ja"] for q in check_flow(appdata.read_quests()) if q["kind"] == "quest"}
     return QaContext(data, index, builder=builder, drops=drops, sources=sources, items=items, subsume=subsume,
                      archon=shard_list(appdata.read_archon()), dev=dev, mod_stats=store.mod_stats(),

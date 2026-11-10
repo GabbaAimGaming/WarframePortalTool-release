@@ -1,8 +1,22 @@
-<!-- 文字を引く部品: 言語ごとの表(I18N)と、t・fmt・renderTxt などの関数。
+<!-- 文字を引く部品: 言語ごとの表(I18N)と、t・fmt・renderTxt などの関数。ブラウザに覚える設定(pref)・API の応答の読み方(apiRead・apiImage)もここ
+     (メイン画面とシミュレータで共用する部品はこれだけなので)。
      メイン画面(web/ctrl.html)とシミュレータ(web/wfportal_builder.html)の両方に差し込む(wfp/api/pages.py)。
      I18N の中身は web/i18n/<言語>.json。組み立てるとき pages.py が下の目印(I18N:DATA)に差し込む。 -->
 <!-- PART:script -->
 <script>
+/* ---------- ブラウザに覚える設定(localStorage) ---------- */
+/* 使えないブラウザ(プライベートモードなど)でも止まらないよう、読み書きの失敗は黙って無視する(読みは既定値)。
+   localStorage を直接触らずにこれを使う(tests/test_menu.py が検査)。
+   get: 文字列(無い・空なら d)/ flag・setFlag: "1" / "0" のオン・オフ / json・setJson: JSON(無い・壊れていれば d) */
+const pref = {
+  get(k, d = null) { try { const v = localStorage.getItem(k); return v == null || v === "" ? d : v; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} },
+  flag(k) { return this.get(k) === "1"; },
+  setFlag(k, on) { this.set(k, on ? "1" : "0"); },
+  json(k, d = null) { const v = this.get(k); if (v == null) return d; try { return JSON.parse(v); } catch (e) { return d; } },
+  setJson(k, v) { this.set(k, JSON.stringify(v)); },
+};
+
 /* ---------- 表示する文字(言語ごと) ---------- */
 /* 中身は web/i18n/<言語>.json(キー → 文字)。画面を組み立てるとき wfp/api/pages.py が下の目印の行に差し込む。
    言語を足すときは JSON を1つ足すだけ(切り替えのボタンも自動で増える)。各言語の lang.name / lang.short がボタンの文字。
@@ -43,18 +57,40 @@ function renderTxt(x) {
   }
   return String(x);
 }
+/* ゲームの名前など、ja と en の両方を持つ行の表示名: 日本語の画面は和名(空なら英名)、ほかの言語は英名(空なら和名)。
+   キーの名前が違う行は ja・en に渡す(例: nameByLang(r, "weapon_ja", "weapon_en"))。esc はしないので、HTML に入れるときは esc(…) */
+const nameByLang = (x, ja = "ja", en = "en") => (x ? (lang === "ja" ? x[ja] || x[en] : x[en] || x[ja]) || "" : "");
+/* 日本語の画面で和名と英名が違うとき、名前の横に小さく出す英名(<span class="sub-en">。cls で class を変えられる)。
+   ほかの言語・同じ名前・和名が無ければ空。esc は中でする(esc は差し込む側のページの基礎スクリプトにある) */
+const subEn = (x, ja = "ja", en = "en", cls = "sub-en") =>
+  (x && lang === "ja" && x[ja] && x[ja] !== x[en] ? `<span class="${cls}">${esc(x[en])}</span>` : "");
 /* 日付・数値の書式に使うロケール(各言語の lang.locale。無ければ言語コードのまま) */
 const locale = () => (I18N[lang] && I18N[lang]["lang.locale"]) || lang;
-/* データ更新などのログ(API の lines = [{level, text}])を表示中の言語の文にする。lines が無い古い形は log(日本語)のまま */
+/* データ更新などのログ(API の lines = [{level, text}])を表示中の言語の文にする。行が無ければ fallback */
 function renderLog(r, fallback = "") {
   if (r && Array.isArray(r.lines) && r.lines.length) return r.lines.map(l => "  ".repeat(l.level || 0) + renderTxt(l.text)).join("\n");
-  return (r && r.log) || fallback;
+  return fallback;
+}
+/* ---------- API の応答(メイン画面とシミュレータで共用) ---------- */
+/* 応答を読む: JSON(読めなければ {})を返す。エラーの応答なら、テキスト指定(text)があれば表示中の言語の文、無ければ日本語の文(error)、
+   それも無ければ HTTP の番号の文で Error を投げる(e.status に番号) */
+async function apiRead(res) {
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const e = new Error(data.text ? renderTxt(data.text) : (data.error || fmt("err.http", { status: res.status })));
+    e.status = res.status;
+    throw e;
+  }
+  return data;
+}
+/* 画像(Blob / File)を本文にして POST する(文字認識・ビルドの画像)。type を省けば blob の種類、それも無ければ PNG */
+async function apiImage(path, blob, type) {
+  return apiRead(await fetch(path, { method: "POST", headers: { "Content-Type": type || blob.type || "image/png" }, body: blob }));
 }
 /* 最初に表示する言語: URL の ?lang=、無ければこの PC に覚えた言語(localStorage の wf-lang)、無ければ日本語 */
 function initialLang() {
   const q = new URLSearchParams(location.search).get("lang");
-  let saved = null;
-  try { saved = localStorage.getItem("wf-lang"); } catch (e) {}
+  const saved = pref.get("wf-lang");
   return q && I18N[q] ? q : (saved && I18N[saved] ? saved : "ja");
 }
 /* ページのマークアップの文字を表示中の言語にする: data-i18n(中身)・data-i18n-placeholder(入力欄の例)・

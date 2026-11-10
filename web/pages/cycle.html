@@ -1,0 +1,112 @@
+<!-- ページ「サイクル」(id cycle): 表示部(view = <section id="view-cycle">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- サイクル -->
+      <section id="view-cycle" hidden>
+        <h2 data-i18n="page.cycle">サイクル</h2>
+        <p class="lead" data-i18n="cyc.lead">昼夜などの切り替えと、デイリー・ウィークリーのリセットまでの時間です。周期から計算するので、通信しなくても表示できます。</p>
+        <div class="cyc-sync">
+          <button class="btn" type="button" id="cyc-sync" data-i18n="cyc.sync">公式データで時刻合わせ</button>
+          <span class="note" id="cyc-sync-info" role="status"></span>
+        </div>
+        <div class="err" id="cyc-sync-err" role="alert"></div>
+        <!-- 左: 昼夜・リセットのカード / 右: 鋼の道のり交換のカード(広い画面だけ2カラム。狭い画面は下に並ぶ) -->
+        <div id="cycle-layout">
+          <div class="cards" id="cycle-cards"></div>
+          <div id="cycle-spex"></div>
+        </div>
+        <p class="note" data-i18n="cyc.note">「公式データで時刻合わせ」は、押したときだけ公式の World State に問い合わせて、平原・ZARIMANの切り替わりと PC の時計のずれを合わせます(60 秒以内に押し直したときは前回の結果を使います)。オーブ峡谷・デュヴィリは公式データに手がかりが無いため、基準時刻から計算します。</p>
+        <details id="cycle-setup">
+          <summary data-i18n="cyc.manual">手動で時刻合わせ(公式データが取れないとき)</summary>
+          <form id="cycle-form" class="formgrid" style="margin-top:12px">
+            <label class="field"><span data-i18n="cyc.f.key">対象</span><select id="cf-key"></select></label>
+            <label class="field"><span data-i18n="cyc.f.phase">いまのフェーズ</span><select id="cf-phase"></select></label>
+            <label class="field"><span data-i18n="cyc.f.rem">そのフェーズの残り時間(例 45:30 / 分だけでも可)</span>
+              <input type="text" id="cf-rem" placeholder="45:30" autocomplete="off"></label>
+            <div class="field"><span>&nbsp;</span><button class="btn" type="submit" data-i18n="duviri.adjust.save">保存</button></div>
+          </form>
+          <div class="err" id="cf-err" role="alert"></div>
+          <p class="note" data-i18n="cyc.f.note">ゲーム内で見た残り時間を入れると、以降はそこから計算して表示します。あとで「公式データで時刻合わせ」をすると、公式データの方で上書きします。</p>
+        </details>
+      </section>
+<!-- PART:script -->
+/* ---------- サイクル ---------- */
+let cyc = null, cycAt = 0, cycTimer = null;
+function renderCycles() {
+  if (!cyc) return;
+  const el = (Date.now() - cycAt) / 1000;
+  const cards = cyc.cycles.map(c => {
+    const left = c.left - el;
+    return `<div class="card"><header><b>${esc(t("cycle.name." + c.key))}</b><span class="cyc-src ${esc(c.source)}">${esc(t("cycle.src." + c.source))}</span></header><div class="pad">
+      <span class="cyc-phase ${esc(c.phase_key)}">${esc(t("cycle.phase." + c.phase_key))}</span><span class="clock">${dur(left)}</span>
+      <span class="note">${esc(t("cyc.left"))} <span class="cyc-next">${esc(fmt("cyc.next", { phase: t("cycle.phase." + c.next_key) }))}</span>${c.cambion ? ` / ${esc(fmt("cyc.cambion", { phase: t("cycle.cambion." + c.cambion) }))}` : ""}</span></div></div>`;
+  });
+  cards.push(`<div class="card"><header><b>${esc(t("cyc.daily"))}</b><span>${esc(cyc.daily.at)} JST</span></header><div class="pad"><span class="clock">${dur(cyc.daily.left - el)}</span></div></div>`);
+  cards.push(`<div class="card"><header><b>${esc(t("cyc.weekly"))}</b><span>${esc(cyc.weekly.at)} JST</span></header><div class="pad"><span class="clock">${dur(cyc.weekly.left - el)}</span></div></div>`);
+  $("#cycle-cards").innerHTML = cards.join("");
+  // どれかのフェーズが切り替わったら取得し直す
+  if (cyc.cycles.some(c => c.left - el < 0) || cyc.daily.left - el < 0) loadCycles();
+}
+/* 鋼の道のり交換: 毎秒の再描画(renderCycles)とは分け、データを取り直したときだけ描く(一覧のスクロール位置を保つため) */
+const spexDate = iso => iso.replace(/-/g, "/");
+/* 報酬名は JSON の綴りのまま。表示中の言語の表(I18N の spex.item.<小文字の名前>)にあるものだけ置き換える。
+   t() は日本語にフォールバックするので使わない(英語の画面では英語のまま出す)。末尾の数量(" x3")は残す */
+function spexItem(name) {
+  const m = /^(.*?)( x\d+)?$/.exec(name);
+  const own = I18N[lang] && I18N[lang]["spex.item." + m[1].toLowerCase()];
+  return (own || m[1]) + (m[2] || "");
+}
+function renderSpex() {
+  const s = cyc && cyc.sp_exchange;
+  const head = `<header><b>${esc(t("spex.title"))}</b></header>`;
+  if (!s || !s.ok) { $("#cycle-spex").innerHTML = `<div class="card spex">${head}${noData(t("spex.broken"))}</div>`; return; }
+  $("#cycle-spex").innerHTML = `<div class="card spex">${head}
+    <div class="pad"><span class="spex-now">${esc(t("spex.current"))}${esc(spexItem(s.current.item))}</span></div>
+    <div class="tablewrap"><table><thead><tr><th>${esc(t("spex.date"))}</th><th>${esc(t("spex.item"))}</th></tr></thead>
+    <tbody>${s.upcoming.map(r => `<tr><td>${esc(spexDate(r.date))}</td><td>${esc(spexItem(r.item))}</td></tr>`).join("")}</tbody></table></div></div>`;
+}
+function renderCycleSyncInfo() {
+  const at = cyc && cyc.clock_synced_at;
+  if (!at) { $("#cyc-sync-info").textContent = t("cyc.nosync"); return; }
+  const d = new Date(at * 1000), off = cyc.offset;
+  $("#cyc-sync-info").textContent = fmt("cyc.synced", {
+    at: d.toLocaleString(locale(), { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }),
+    off: off ? fmt("cyc.offset", { sec: `${off > 0 ? "+" : ""}${off}` }) : t("cyc.offset.none") });
+}
+async function loadCycles() {
+  try { cyc = await api("/api/cycles"); cycAt = Date.now(); renderCycles(); renderSpex(); renderCycleSyncInfo(); fillCycleKeys(); }
+  catch (e) { $("#cycle-cards").innerHTML = noData(e.message); }
+}
+/* 手動の時刻合わせ: 対象とフェーズの選択肢はサーバーの定義(manual のもの)から作る */
+function fillCycleKeys() {
+  const sel = $("#cf-key"), keep = sel.value, manual = cyc.cycles.filter(c => c.manual);
+  sel.innerHTML = manual.map(c => `<option value="${esc(c.key)}">${esc(t("cycle.name." + c.key))}</option>`).join("");
+  if (manual.some(c => c.key === keep)) sel.value = keep;
+  fillPhaseOptions();
+}
+function fillPhaseOptions() {
+  const c = cyc && cyc.cycles.find(x => x.key === $("#cf-key").value), keep = $("#cf-phase").value;
+  $("#cf-phase").innerHTML = c ? c.phase_keys.map(p => `<option value="${esc(p)}">${esc(t("cycle.phase." + p))}</option>`).join("") : "";
+  if (c && c.phase_keys.includes(keep)) $("#cf-phase").value = keep;
+}
+$("#cf-key").addEventListener("change", fillPhaseOptions);
+$("#cyc-sync").addEventListener("click", async () => {
+  const btn = $("#cyc-sync");
+  btn.disabled = true; $("#cyc-sync-err").textContent = ""; $("#cyc-sync-info").textContent = t("cyc.fetching");
+  try {
+    cyc = await api("/api/cycles/sync", { method: "POST", body: {} }); cycAt = Date.now(); renderCycles(); renderSpex(); renderCycleSyncInfo();
+    if (cyc.synced && cyc.synced.cached) $("#cyc-sync-info").textContent += t("invasion.cached");
+  } catch (e) { $("#cyc-sync-err").textContent = e.message; renderCycleSyncInfo(); }
+  btn.disabled = false;
+});
+$("#cycle-form").addEventListener("submit", async e => {
+  e.preventDefault(); $("#cf-err").textContent = "";
+  try {
+    cyc = await api("/api/cycles", { method: "POST", body: { key: $("#cf-key").value, phase: $("#cf-phase").value, remaining: $("#cf-rem").value } });
+    cycAt = Date.now(); renderCycles(); renderSpex(); $("#cf-rem").value = "";
+  } catch (err) { $("#cf-err").textContent = err.message; }
+});
+loaders.cycle = () => { applyViewText("cycle"); return loadCycles(); };
+relabel.cycle = () => { applyViewText("cycle"); if (cyc) { renderCycles(); renderSpex(); renderCycleSyncInfo(); fillCycleKeys(); } };
+setInterval(() => { if (!$("#view-cycle").hidden) renderCycles(); }, 1000);

@@ -22,9 +22,7 @@ from __future__ import annotations
 import re
 import unicodedata
 
-import wfportal_ocr as ocr
-from wfportal_builder import RIVEN_STAT_INDEX
-from wfportal_msscan import fold
+from wfp.core.text import fold_ocr, ocr_key
 
 # --------------------------------------------------------------------------
 # 定数(ゲームの表示が変わったら、ここを直す)
@@ -45,10 +43,11 @@ _DRAIN = re.compile(r"(?<!\d)(\d{2})(?!\d)")
 
 
 class WordTable:
-    """効果名の辞書(data/riven/stat_words.json)。照合は fold した文字で、位置ごとにいちばん長い語"""
+    """効果名の辞書(data/riven/stat_words.json)。照合は fold_ocr した文字で、位置ごとにいちばん長い語。
+    stat_keys は効果のキーの一覧(wfportal_builder の RIVEN_STAT_INDEX。知らないキーを誤りにする。呼ぶ側(api)が渡す)"""
 
-    def __init__(self, raw: object):
-        self.words: list[tuple[str, str]] = []   # (fold した語, 効果のキー)。長い順
+    def __init__(self, raw: object, stat_keys):
+        self.words: list[tuple[str, str]] = []   # (fold_ocr した語, 効果のキー)。長い順
         self.errors: list[str] = []
         stats = raw.get("stats") if isinstance(raw, dict) else None
         if not isinstance(stats, dict):
@@ -56,7 +55,7 @@ class WordTable:
             return
         seen: dict[str, str] = {}
         for key, langs in stats.items():
-            if key not in RIVEN_STAT_INDEX:
+            if key not in stat_keys:
                 self.errors.append(f"知らない効果のキー: {key}")
                 continue
             if not isinstance(langs, dict):
@@ -64,7 +63,7 @@ class WordTable:
                 continue
             for lang_words in langs.values():
                 for word in lang_words if isinstance(lang_words, list) else []:
-                    k = fold(str(word))
+                    k = fold_ocr(str(word))
                     if not k:
                         continue
                     if k in seen and seen[k] != key:
@@ -73,7 +72,7 @@ class WordTable:
         self.words = sorted(seen.items(), key=lambda kv: -len(kv[0]))
 
     def find(self, text: str) -> list[tuple[int, str, str]]:
-        """fold した文字の中の効果名を左から拾う。[(位置, キー, 語)]"""
+        """fold_ocr した文字の中の効果名を左から拾う。[(位置, キー, 語)]"""
         out, i = [], 0
         while i < len(text):
             hit = next(((w, k) for w, k in self.words if text.startswith(w, i)), None)
@@ -85,7 +84,7 @@ class WordTable:
         return out
 
     def starts(self, text: str) -> bool:
-        t = fold(text)
+        t = fold_ocr(text)
         return any(t.startswith(w) for w, _ in self.words)
 
 
@@ -124,7 +123,7 @@ def parse_stats(stat_lines: list[str], table: WordTable) -> tuple[list[dict], li
     events: list[tuple[str, object, str]] = []   # ("value", (値, 許容差, 倍率か), 元の字) / ("word", キー, 元の字)
     pos = 0
     for m in _VALUE.finditer(text):
-        for _, key, word in table.find(fold(text[pos:m.start()])):
+        for _, key, word in table.find(fold_ocr(text[pos:m.start()])):
             events.append(("word", key, word))
         if m.group("mul"):
             mul = float(m.group("mul").replace(",", "."))
@@ -133,7 +132,7 @@ def parse_stats(stat_lines: list[str], table: WordTable) -> tuple[list[dict], li
             v = float(m.group("num").replace(",", "."))
             events.append(("value", (-v if m.group("sign") == "-" else v, None, False), m.group(0)))
         pos = m.end()
-    for _, key, word in table.find(fold(text[pos:])):
+    for _, key, word in table.find(fold_ocr(text[pos:])):
         events.append(("word", key, word))
 
     stats, leftover = [], []
@@ -184,10 +183,10 @@ def read_drain(lines: list[str]) -> int | None:
 
 def match_weapon(title_lines: list[str], weapons: list[dict]) -> dict | None:
     """名前の行の頭(どの行から始めてもよい)にいちばん長く一致する武器。Riven の名前は英名なので英名で引く"""
-    keys = sorted(((ocr.name_key(w["en"]), w) for w in weapons if w.get("en")), key=lambda kw: -len(kw[0]))
+    keys = sorted(((ocr_key(w["en"]), w) for w in weapons if w.get("en")), key=lambda kw: -len(kw[0]))
     best = None
     for j in range(len(title_lines)):
-        head = ocr.name_key(" ".join(title_lines[j:]))
+        head = ocr_key(" ".join(title_lines[j:]))
         hit = next(((k, w) for k, w in keys if k and head.startswith(k)), None)
         if hit and (best is None or len(hit[0]) > len(best[0])):
             best = hit

@@ -1,15 +1,15 @@
 """画面向け API: シミュレータ(計算は wfportal_builder)"""
 from __future__ import annotations
 
-import contextlib
-import io
-
 import wfportal_builder as wb
 import wfportal_ocr as ocr
 import wfportal_rivenscan as rscan
-from wfp.api.personal import ocr_info
-from wfp.api.store import ApiError, Store
-from wfp.core.common import collect_log, error_text, txt
+from wfp.api.ocr import need_ocr, run_ocr
+from wfp.api.store import ApiError, Store, file_stamp
+from wfp.core.i18n import txt
+from wfp.core.log import collect_log
+from wfp.core.const import RIVEN_WORDS_FILE
+from wfp.core import simdata
 from wfp.core.riven import dispo_table
 from wfp.store import appdata, build_images
 
@@ -21,39 +21,30 @@ def sim_dispo_rows(store: Store) -> list[dict]:
 
 
 def run_update_sim(store: Store) -> dict:
-    """シミュレータ用データだけ取り直す。log は日本語のログ、lines は同じ行のテキスト指定(画面が表示中の言語で出す)"""
-    buf = io.StringIO()
-    with contextlib.redirect_stdout(buf), collect_log() as lines:
-        ok = wb.update_builder_data(store.d)
-    return {"ok": ok, "log": buf.getvalue(), "lines": lines}
+    """シミュレータ用データだけ取り直す。lines は進み具合の行のテキスト指定(collect_log。画面が表示中の言語で出す)"""
+    with collect_log() as lines:
+        ok = simdata.update_builder_data(store.d)
+    return {"ok": ok, "lines": lines}
 
 
 def riven_words(store: Store) -> rscan.WordTable:
-    """効果名の辞書(同梱の data/riven/stat_words.json)。読めなければ 500"""
-    with store._lock:
-        table = store._cache.get("@rivenwords")
-    if table is None:
-        table = rscan.WordTable(appdata.read_riven_words())
+    """効果名の辞書(同梱の data/riven/stat_words.json。直せば読み直す)。読めなければ 500(覚えない)"""
+    def build() -> rscan.WordTable:
+        table = rscan.WordTable(appdata.read_riven_words(), wb.RIVEN_STAT_INDEX)
         if not table.words:
             raise ApiError(txt("err.sim.scan.words"), 500)
-        with store._lock:
-            store._cache["@rivenwords"] = table
-    return table
+        return table
+    return store.derived("@rivenwords", file_stamp(appdata.riven_dir() / RIVEN_WORDS_FILE), build)
 
 
 def scan_riven(store: Store, data: bytes) -> dict:
     """Riven の画像から武器・ランク(推定)・効果の値を読む。グレードは画面が直したあとに /api/builder/riven/grade で出す"""
-    info = ocr_info()
-    if not info["available"]:
-        raise ApiError(info["reason"] or txt("err.ocr.none"), 501)
+    need_ocr()
     if not data or build_images.image_ext(data) not in ("png", "jpg"):
         raise ApiError(txt("err.sim.scan.image"), 415)
     table = riven_words(store)
-    try:
-        raw = ocr.run_ocr_bytes(data, cache_dir=None, langs=ocr.DEFAULT_LANGS)
-    except ocr.OcrUnavailable as err:
-        raise ApiError(error_text(err), 502)
-    builder = wb.load_builder_data(store.d)
+    raw = run_ocr(data, cache_dir=None, langs=ocr.DEFAULT_LANGS)
+    builder = store.builder()
     res = rscan.parse_riven(raw, table, builder["weapons"] if builder else [])
     group = None
     if res["weapon"] and builder:

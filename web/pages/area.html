@@ -1,0 +1,80 @@
+<!-- ページ「エリアから探す」(id area): 表示部(view = <section id="view-area">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- エリアから探す -->
+      <section id="view-area" hidden>
+        <h2 data-i18n="page.area">エリアから探す</h2>
+        <p class="lead" data-i18n="area.lead">惑星またはノード名を選ぶと、出現ステージごとに素材と確率を表示します。</p>
+        <div class="row">
+          <input type="text" class="search" id="area-q" data-i18n-placeholder="area.placeholder" placeholder="例: 地球 / Cervantes" autocomplete="off">
+          <label class="chk"><input type="checkbox" id="area-ev"> <span data-i18n="src.events">イベント限定を含む</span></label>
+        </div>
+        <!-- 種類のチェック: 中身は web/parts.html の kindChecks が core/const の AREA_KINDS の並びで作る(初期のチェックは AREA_KIND_DEFAULT・覚えない) -->
+        <div class="row" id="area-kinds"></div>
+        <div class="chips" id="area-chips"></div>
+        <div id="area-out"></div>
+      </section>
+<!-- PART:script -->
+/* ---------- エリアから探す ---------- */
+let areaSel = null, areaList = null, areaRes = null;  // 候補・結果は言語の切り替えで描き直すため手元に残す
+function renderAreaChips() {
+  const list = areaList || [];
+  $("#area-chips").innerHTML = list.length ? list.map(i =>
+    `<button class="chip" data-type="${i.type}" data-key="${esc(i.key)}" aria-pressed="${areaSel && areaSel.key === i.key && areaSel.type === i.type}">${esc(renderTxt(i.name))}${i.sub ? `<small>${esc(renderTxt(i.sub))}</small>` : ""}</button>`).join("")
+    : `<span class="note">${esc(t("area.nomatch"))}</span>`;
+}
+// 選んでいる種類(AREA_KINDS のキー。初期は AREA_KIND_DEFAULT。覚えない)
+const areaKinds = kindChecks("area", CONST.AREA_KIND_DEFAULT);
+async function loadAreaChips() {
+  try {
+    areaList = await api(`/api/suggest/area?q=${encodeURIComponent($("#area-q").value)}`);
+    renderAreaChips();
+    return areaList;
+  } catch (e) { areaList = null; $("#area-out").innerHTML = noData(e.message); return []; }
+}
+function renderAreaResult() {
+  const r = areaRes;
+  if (!areaSel || !r) { if (!areaSel) $("#area-out").innerHTML = `<div class="empty">${esc(t("area.pick"))}</div>`; return; }
+  const title = esc(renderTxt(r.title));
+  if (!r.nodes.length) { $("#area-out").innerHTML = `<div class="result-head"><h3>${title}</h3></div>` + noData(t("area.none")); return; }
+  const head = ["stage", "item", "chance", "rarity"].map(c => `<th>${esc(t("area.col." + c))}</th>`).join("");
+  $("#area-out").innerHTML = `<div class="result-head"><h3>${title}</h3><span class="count">${esc(fmt("area.count", { n: r.nodes.length }))}</span></div>
+    <div class="cards">${r.nodes.map(n => {
+      const max = Math.max(1, ...n.stages.flatMap(s => s.items.map(i => i.chance)));
+      const rows = n.stages.flatMap(s => s.items.map((i, k) => `<tr><td>${k === 0 ? esc(renderTxt(s.stage)) : ""}</td><td>${esc(nameByLang(i))}<span class="tag-mini">${esc(t("area.kind." + i.kind))}</span></td>
+        <td><div class="chance" style="min-width:150px"><div class="bar"><i style="--w:${(i.chance / max * 100).toFixed(1)}%"></i></div><b>${pct(i.chance)}</b></div></td>
+        <td>${rarity(i.rarity)}</td></tr>`)).join("");
+      return `<div class="card"><header><b>${esc(n.node)}</b><span>${esc(renderTxt(n.planet))} / ${esc(renderTxt(n.mode))}${n.event ? `<span class="tag-event">${esc(t("src.event"))}</span>` : ""}</span></header>
+        ${rows ? `<div class="tablewrap"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty">${esc(t("area.nomaterial"))}</div>`}</div>`;
+    }).join("")}</div>`;
+}
+async function loadAreaResult() {
+  areaRes = null;
+  if (!areaSel) { renderAreaResult(); return; }
+  const kinds = areaKinds();
+  if (!kinds.length) { areaRes = null; $("#area-out").innerHTML = `<div class="empty">${esc(t("area.nokind"))}</div>`; return; }
+  try {
+    areaRes = await api(`/api/area?type=${areaSel.type}&key=${encodeURIComponent(areaSel.key)}&kinds=${kinds.join(",")}&events=${$("#area-ev").checked ? 1 : 0}`);
+    renderAreaResult();
+  } catch (e) { $("#area-out").innerHTML = noData(e.message); }
+}
+$("#area-q").addEventListener("input", debounce(async () => {
+  const list = await loadAreaChips(); const q = $("#area-q").value.trim();
+  if (q && list && list.length === 1) { areaSel = { type: list[0].type, key: list[0].key }; await loadAreaChips(); loadAreaResult(); }
+}));
+$("#area-kinds").addEventListener("change", e => { if (e.target.dataset.kind) loadAreaResult(); });
+$("#area-ev").addEventListener("change", loadAreaResult);
+$("#area-chips").addEventListener("click", e => {
+  const c = e.target.closest(".chip"); if (!c) return;
+  areaSel = { type: c.dataset.type, key: c.dataset.key };
+  $("#area-chips").querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x === c));
+  loadAreaResult();
+});
+loaders.area = async () => {
+  applyViewText("area");
+  const s = await refreshStatus();
+  if (!s || !s.has_drops) { $("#area-chips").innerHTML = ""; $("#area-out").innerHTML = noData(t("area.nodata")); return; }
+  await loadAreaChips(); await loadAreaResult();
+};
+relabel.area = () => { applyViewText("area"); if (areaList) renderAreaChips(); renderAreaResult(); };

@@ -5,7 +5,12 @@ import sys
 
 from wfp.cli.common import need_drops
 from wfp.cli.table import print_table
-from wfp.core.common import AREA_KIND_DEFAULT, AREA_KINDS, ENEMY_KIND_DEFAULT, ITEM_KIND_DEFAULT, MODES_JA, PLANETS_JA, RARITY_JA, SOURCE_CATS, norm, pct, rank, render_ja
+from wfp.core.common import pct, rank
+from wfp.core.i18n import render_ja
+from wfp.core.text import norm
+from wfp.core.const import (
+    AREA_KIND_DEFAULT, AREA_KINDS, ENEMY_KIND_DEFAULT, ITEM_KIND_DEFAULT, MODES_JA, PLANETS_JA, RARITY_JA, SOURCE_CATS,
+)
 from wfp.core.loader import load_names, load_sources
 from wfp.drops.search import all_item_names, area_stages, enemy_drops, find_sources, group_candidates, pick_candidates, pick_enemies
 from wfp.drops.tables import stage_label

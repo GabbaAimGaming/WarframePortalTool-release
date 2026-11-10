@@ -3,22 +3,10 @@ from __future__ import annotations
 
 import re
 
-from wfp.core.common import (
-    ARCANE_CATS,
-    ARCANE_PREFIX_CAT,
-    ARCANE_UNRELEASED,
-    DISPO_CATS,
-    ERA_JA,
-    ITEM_TYPES,
-    MASTERY_CATS,
-    MASTERY_FOUNDER,
-    MASTERY_MAX_RANK,
-    MOD_TYPES,
-    PART_JA,
-    PART_QUALIFIERS,
-    PART_SKIP_CATS,
-    PART_WORDS,
-    rank,
+from wfp.core.common import rank
+from wfp.core.const import (
+    ARCANE_CATS, ARCANE_PREFIX_CAT, ARCANE_UNRELEASED, DISPO_CATS, ERA_JA, ITEM_TYPES, MASTERY_CATS, MASTERY_FOUNDER,
+    MASTERY_MAX_RANK, MOD_TYPES, PART_JA, PART_QUALIFIERS, PART_SKIP_CATS, PART_WORDS,
 )
 
 
@@ -412,3 +400,25 @@ class Names:
 def item_key(name: str) -> str:
     """数量違い(例: 2X Neurodes / Neurodes)や大文字小文字の違いを同じ項目として扱うためのキー"""
     return Names.split_qty(name)[1].lower()
+
+
+# 内部パス → 英語名(item_paths.json。データ更新で作り、バロ吉・侵略サイクルで World State の内部パスを名前にする。
+# 2026-11-10 に wfportal_baro から移した)
+def item_paths_from_exports(en_docs: list[dict]) -> dict:
+    """{内部パス: 英語名}。設計図 (ExportRecipes) は「作れるものの名前 + Blueprint」"""
+    names, recipes = {}, {}
+    for doc in en_docs:
+        for key, val in doc.items():
+            if not isinstance(val, list):
+                continue
+            for it in val:
+                if not isinstance(it, dict) or not isinstance(it.get("uniqueName"), str):
+                    continue
+                if it.get("name"):
+                    names.setdefault(it["uniqueName"], it["name"])
+                elif key == "ExportRecipes" and isinstance(it.get("resultType"), str):
+                    recipes[it["uniqueName"]] = it["resultType"]
+    for uid, result in recipes.items():
+        if result in names:
+            names.setdefault(uid, f"{names[result]} Blueprint")
+    return names

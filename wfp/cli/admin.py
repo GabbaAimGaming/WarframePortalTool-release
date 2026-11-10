@@ -4,7 +4,7 @@ from __future__ import annotations
 import sys
 
 from wfp.core import update
-from wfp.core.common import EXPORT_EXTRA_LANGS
+from wfp.core.const import EXPORT_EXTRA_LANGS
 from wfp.fetch import logos
 from wfp.store import datadir
 

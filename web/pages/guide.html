@@ -1,0 +1,18 @@
+<!-- ページ「ページ説明」(id guide): 表示部(view = <section id="view-guide">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- ページ説明(中身は MENU と I18N の guide.○○ から作る: 下の renderGuide) -->
+      <section id="view-guide" hidden>
+        <h2 data-i18n="page.guide">ページ説明</h2>
+        <p class="lead" data-i18n="guide.lead">各ページでできることの説明です。「開く」でそのページに移動します。</p>
+        <div id="guide-list"></div>
+      </section>
+<!-- PART:script -->
+/* ---------- ページ説明 ---------- */
+function renderGuide() {
+  applyViewText("guide");
+  $("#guide-list").innerHTML = menuSections().map(s => `<h3 class="guide-h">${esc(s.label)}</h3><div class="cards">${
+    s.items.filter(v => v !== "guide").map(v => `<div class="card"><header><b>${esc(t("page." + v))}</b>${betaTag(v)}<button type="button" class="btn ghost guide-go" data-go="${esc(v)}">${esc(t("guide.open"))}</button></header><p class="guide-text">${esc(t("guide." + v))}</p></div>`).join("")}</div>`).join("");
+}
+loaders.guide = relabel.guide = renderGuide;

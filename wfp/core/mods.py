@@ -1,7 +1,8 @@
 """MOD 入手一覧"""
 from __future__ import annotations
 
-from wfp.core.common import POLARITY_EN, SOURCE_CATS, name_txt
+from wfp.core.i18n import name_txt
+from wfp.core.const import POLARITY_EN, SOURCE_CATS
 from wfp.core.names import Names, item_key
 from wfp.drops.tables import Drops, Sources, mission_place, stage_label
 

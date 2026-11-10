@@ -1,0 +1,44 @@
+<!-- ページ「シミュレータ」(id sim): 表示部(view = <section id="view-sim">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- シミュレータ (web/wfportal_builder.html を中に表示する) -->
+      <section id="view-sim" hidden>
+        <h2 data-i18n="page.sim">シミュレータ</h2>
+        <p class="lead" data-i18n="sim.lead">フレームの耐久・アビリティ性能、武器のダメージと DPS、Riven の効果の振れ幅を計算します。値はすべて参考値です。</p>
+        <iframe id="sim-frame" class="sim-frame" data-i18n-title="page.sim" title="シミュレータ"></iframe>
+      </section>
+<!-- PART:script -->
+/* ---------- シミュレータ ---------- */
+/* 計算画面は web/wfportal_builder.html (/builder)。初めて開いたときに読み込み、配色と高さをポータルに合わせる */
+const SIM_VARS = ["--bg", "--panel", "--panel-2", "--line", "--ink", "--mute", "--primary", "--primary-bg", "--on-primary",
+  "--secondary", "--on-secondary", "--accent", "--accent-bg", "--danger", "--font", "--mono"];
+let simObserver = null;
+function simDoc() { try { return $("#sim-frame").contentDocument; } catch (e) { return null; } }
+function simTheme() {
+  const doc = simDoc(); if (!doc || !doc.documentElement) return;
+  const cs = getComputedStyle(document.documentElement);
+  SIM_VARS.forEach(v => { const x = cs.getPropertyValue(v).trim(); if (x) doc.documentElement.style.setProperty(v, x); });
+  const scheme = cs.getPropertyValue("color-scheme").trim();
+  if (scheme) doc.documentElement.style.colorScheme = scheme;
+}
+function simFit() {
+  // 中身(.wrap)の高さに合わせる。文書全体の高さは iframe の高さ以下にならないので、縮むときのために中身で測る
+  const doc = simDoc(), wrap = doc && doc.querySelector(".wrap"); if (!wrap) return;
+  $("#sim-frame").style.height = Math.max(420, Math.ceil(wrap.getBoundingClientRect().height) + 8) + "px";
+}
+$("#sim-frame").addEventListener("load", () => {
+  simTheme(); simFit();
+  const doc = simDoc();
+  if (doc && window.ResizeObserver) { simObserver?.disconnect(); simObserver = new ResizeObserver(simFit); simObserver.observe(doc.querySelector(".wrap") || doc.body); }
+});
+try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => setTimeout(simTheme, 0)); } catch (e) {}
+relabel.sim = () => applyViewText("sim");  // 中の計算画面は setLang が wfSetLang で伝える
+loaders.sim = () => {
+  applyViewText("sim");
+  const f = $("#sim-frame");
+  if (!f.getAttribute("src")) f.setAttribute("src", "/builder?lang=" + encodeURIComponent(lang));  // 言語はポータルに合わせる
+  else simFit();
+};
+function simReload() { try { const w = $("#sim-frame").contentWindow; if (w && w.wfReload) w.wfReload(); } catch (e) {} }
+dataResets.sim = simReload;  // シミュレータ用データも「データ更新」で作り直すので、開いていれば読み直す

@@ -1,0 +1,83 @@
+<!-- ページ「アイテムから探す」(id item): 表示部(view = <section id="view-item">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- アイテムから探す(素材・パーツ・MOD などをまとめて探す。エリアから探すの逆向き) -->
+      <section id="view-item" hidden>
+        <h2 data-i18n="page.item">アイテムから探す</h2>
+        <p class="lead" data-i18n="item.lead">アイテム名(日本語・英語・ひらがな)を入力すると、ミッション・敵・バウンティ・レリックなどの入手先と確率を一覧にします。</p>
+        <div class="row">
+          <input type="text" class="search" id="item-q" data-i18n-placeholder="item.placeholder" placeholder="例: ニューロード / Rhino / Vitality" autocomplete="off">
+          <label class="chk"><input type="checkbox" id="item-ev"> <span data-i18n="src.events">イベント限定を含む</span></label>
+        </div>
+        <!-- 種類のチェック: 中身は web/parts.html の kindChecks が core/const の AREA_KINDS の並びで作る(初期のチェックは ITEM_KIND_DEFAULT・覚える(wf-item-kinds)) -->
+        <div class="row" id="item-kinds"></div>
+        <!-- パーツ・設計図だけに効く絞り込み(パーツにチェックがあるときだけ出す) -->
+        <div id="item-partopt" hidden>
+          <div class="row">
+            <label class="chk"><input type="checkbox" id="item-noprime"> <span data-i18n="part.noprime">Prime を除外する</span></label>
+          </div>
+          <div class="seg" id="item-cats" role="group" data-i18n-aria="part.cats" aria-label="パーツのカテゴリー"></div>
+        </div>
+        <div class="chips" id="item-chips"></div>
+        <div id="item-out"></div>
+      </section>
+<!-- PART:script -->
+/* ---------- アイテムから探す ---------- */
+/* 素材・パーツ/設計図・MOD・レリック・その他(AREA_KINDS)を種類のチェックで選んで探す。エリアから探すの逆向き。
+   種類のチェックは localStorage(wf-item-kinds)に覚える。覚えていなければ ITEM_KIND_DEFAULT と同じ初期値。
+   カテゴリー(マスター一覧と同じ分け方)と「Prime を除外する」はパーツだけに効く(パーツにチェックがあるときだけ出す) */
+const itemKinds = kindChecks("item", CONST.ITEM_KIND_DEFAULT, "wf-item-kinds");
+const itemHasPart = () => itemKinds().includes("part");
+const showItemPartOpt = () => { $("#item-partopt").hidden = !itemHasPart(); };
+showItemPartOpt();
+// パーツのカテゴリーと「Prime を除外する」(以前のパーツ検索で覚えたものを引き継ぐ)
+let itemCat = "";
+itemCat = pref.get("wf-part-cat", "");
+if (itemCat && !hasText("mastery.cat." + itemCat)) itemCat = "";  // 今は無いカテゴリーが残っていたら外す
+$("#item-noprime").checked = pref.flag("wf-part-noprime");
+const itemSearch = sourceSearch({
+  id: "item",
+  suggest: q => {
+    const part = itemHasPart();
+    return `/api/suggest/item?q=${encodeURIComponent(q)}&kinds=${itemKinds().join(",")}`
+      + `&cat=${encodeURIComponent(part ? itemCat : "")}&noprime=${part && $("#item-noprime").checked ? 1 : 0}`;
+  },
+  list: res => res.items,
+  tag: i => `<span class="tag-mini">${esc(t("area.kind." + i.kind))}</span>`,
+  // 種類を1つも選んでいないときは候補を取らない(空の kinds はサーバーで「指定なし = 既定」になるため)
+  blocked: () => (itemKinds().length ? "" : t("item.nokind")),
+  onSuggest: res => {
+    if (!res || !itemHasPart()) { $("#item-cats").innerHTML = ""; return; }
+    const all = res.cats.reduce((n, c) => n + c.n, 0);
+    // 選んでいるカテゴリーに名前の合う候補が無いときも、ボタンは 0 件で残す(押し直して外せるように)
+    const cats = itemCat && !res.cats.some(c => c.key === itemCat) ? [...res.cats, { key: itemCat, n: 0 }] : res.cats;
+    $("#item-cats").innerHTML = `<button class="chip" data-pcat="" aria-pressed="${!itemCat}">${esc(t("part.cat.all"))}<small>${all}</small></button>`
+      + cats.map(c => `<button class="chip" data-pcat="${esc(c.key)}" aria-pressed="${itemCat === c.key}">${esc(tName("mastery.cat.", c.key))}<small>${c.n}</small></button>`).join("");
+  },
+  more: (res, items) => res.total > items.length ? `<span class="note">${esc(fmt("item.more", { n: res.total - items.length }))}</span>` : "",
+  msg: {
+    noMatch: () => t("item.nomatch"),
+    pick: () => t("item.pick"),
+    empty: () => t("item.empty"),
+    noData: () => t("item.nodata"),
+  },
+});
+$("#item-kinds").addEventListener("change", e => {  // 種類を変えたら(覚えるのは kindChecks)、候補を取り直す
+  if (!e.target.dataset.kind) return;
+  showItemPartOpt();
+  itemSearch.search(false);
+});
+$("#item-cats").addEventListener("click", e => {
+  const c = e.target.closest("[data-pcat]"); if (!c) return;
+  itemCat = c.dataset.pcat;
+  pref.set("wf-part-cat", itemCat);
+  itemSearch.search(false);
+});
+$("#item-noprime").addEventListener("change", e => {  // 入手先がレリックのパーツ(Prime)を候補から外す。この PC に覚えさせる
+  pref.setFlag("wf-part-noprime", e.target.checked);
+  itemSearch.search(false);
+});
+loaders.item = () => { applyViewText("item"); return itemSearch.load(); };
+relabel.item = itemSearch.relabel;
+dataResets.item = () => itemSearch.reset();

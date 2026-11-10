@@ -6,9 +6,13 @@ import threading
 
 import wfportal_msscan as msscan
 import wfportal_ocr as ocr
+from wfp.api.ocr import need_ocr, run_ocr
 from wfp.api.store import ApiError, Raw, Store
 from wfp.core.arcane import ArcaneNotFound, arcane_summary, arcane_table, set_arcanes_owned
-from wfp.core.common import ARCANE_CATS, BUILD_TYPES, MASTERY_CATS, MOD_TYPES, POLARITY_EN, QUEST_CATS, SOURCE_CATS, error_text, norm, txt
+from wfp.core.errors import error_text
+from wfp.core.i18n import txt
+from wfp.core.text import norm
+from wfp.core.const import ARCANE_CATS, BUILD_TYPES, MASTERY_CATS, MOD_TYPES, POLARITY_EN, QUEST_CATS, SOURCE_CATS
 from wfp.core.archon import clean_shards, shard_list
 from wfp.core.build import arcane_pairs, canon_arcanes
 from wfp.core.devbuilds import adopt_entry, dev_build_list, find_dev_build
@@ -34,13 +38,12 @@ def set_owned(store: Store, body: dict) -> dict:
     valid = {m["en"].lower() for m in names.mods}
     targets = body.get("en")
     targets = [targets] if isinstance(targets, str) else list(targets or [])
-    owned = userdata.load_owned(store.d)
-    for en in targets:
-        k = str(en).lower()
-        if k not in valid:
-            raise ApiError(txt("err.mods.unknown", name=str(en)), 404)
-        (owned.add if body.get("owned") else owned.discard)(k)
-    userdata.save_owned(store.d, owned)
+    with userdata.editing(store.d, "mods_owned") as owned:
+        for en in targets:
+            k = str(en).lower()
+            if k not in valid:
+                raise ApiError(txt("err.mods.unknown", name=str(en)), 404)
+            (owned.add if body.get("owned") else owned.discard)(k)
     return {"owned": len(owned)}
 
 
@@ -57,12 +60,11 @@ def set_mastered(store: Store, body: dict) -> dict:
     ids = body.get("ids")
     ids = [ids] if isinstance(ids, str) else list(ids or [])
     valid = {m["id"] for m in mastery_items(store.names())}
-    done = userdata.load_mastered(store.d)
-    for i in ids:
-        if i not in valid:
-            raise ApiError(txt("err.mastery.unknown", id=str(i)), 404)
-        (done.add if body.get("done") else done.discard)(i)
-    userdata.save_mastered(store.d, done)
+    with userdata.editing(store.d, "mastered") as done:
+        for i in ids:
+            if i not in valid:
+                raise ApiError(txt("err.mastery.unknown", id=str(i)), 404)
+            (done.add if body.get("done") else done.discard)(i)
     rows = mastery_table(store.names(), done)
     return {"summary": mastery_summary(rows)}
 
@@ -79,11 +81,13 @@ def set_quests(store: Store, body: dict) -> dict:
     ids = body.get("ids")
     ids = [ids] if isinstance(ids, str) else list(ids or [])
     names = store.names()
-    try:
-        done = set_quests_done(quest_items(names), userdata.load_quests_done(store.d), [str(i) for i in ids], bool(body.get("done")))
-    except ValueError as e:
-        raise ApiError(error_text(e), 404 if isinstance(e, QuestNotFound) else 409)
-    userdata.save_quests_done(store.d, done)
+    with userdata.editing(store.d, "quests_done") as done:  # 前提の検査と書き込みの間に、ほかの変更が割り込まない
+        try:
+            new = set_quests_done(quest_items(names), done, [str(i) for i in ids], bool(body.get("done")))
+        except ValueError as e:
+            raise ApiError(error_text(e), 404 if isinstance(e, QuestNotFound) else 409)
+        done.clear()
+        done.update(new)
     rows = quest_table(names, done)  # 状態は前提の完了で変わるので、一覧ごと返す
     return {"rows": rows, "summary": quest_summary(rows)}
 
@@ -105,12 +109,11 @@ def set_arcanes(store: Store, body: dict) -> dict:
     if rank is not None and (isinstance(rank, bool) or not isinstance(rank, int)):
         raise ApiError(txt("err.arcane.rank", rank=str(rank)))
     names = store.names()
-    owned = userdata.load_arcanes_owned(store.d)
-    try:
-        set_arcanes_owned(names, owned, targets, bool(body.get("owned")), rank, store.all_items())
-    except ValueError as e:
-        raise ApiError(error_text(e), 404 if isinstance(e, ArcaneNotFound) else 400)
-    userdata.save_arcanes_owned(store.d, owned)
+    with userdata.editing(store.d, "arcanes_owned") as owned:
+        try:
+            set_arcanes_owned(names, owned, targets, bool(body.get("owned")), rank, store.all_items())
+        except ValueError as e:
+            raise ApiError(error_text(e), 404 if isinstance(e, ArcaneNotFound) else 400)
     return {"summary": arcane_summary(arcane_table(names, owned, store.all_items()))}
 
 
@@ -163,43 +166,41 @@ def clean_build(body: dict, names) -> dict:
 
 def save_build(store: Store, body: dict) -> list[dict]:
     entry = clean_build(body, store.names())
-    builds = userdata.load_builds(store.d)
     original = str(body.get("original_name") or "")
     same = lambda b, n: norm(b["name"]) == norm(n)
-    if original:
-        idx = next((i for i, b in enumerate(builds) if same(b, original)), None)
-        if idx is None:
-            raise ApiError(txt("err.build.original"), 404)
-        if not same(entry, original) and any(same(b, entry["name"]) for b in builds):
-            raise ApiError(txt("err.build.dup"))
-        # 画像は「元のビルドに付いていたもの」だけ残せる。外されたものはファイルも消す
-        before = builds[idx].get("images", [])
-        entry["images"] = [x for x in entry["images"] if x in before]
-        removed = [x for x in before if x not in entry["images"]]
-        builds[idx] = entry
-    else:
-        if any(same(b, entry["name"]) for b in builds):
-            raise ApiError(txt("err.build.dup"))
-        entry["images"], removed = [], []
-        builds.append(entry)
-    userdata.save_builds(store.d, builds)
-    build_images.delete_build_images(store.d, removed)
+    with userdata.editing(store.d, "builds") as builds:  # 名前の重なりの検査と書き込みの間に、ほかの変更が割り込まない
+        if original:
+            idx = next((i for i, b in enumerate(builds) if same(b, original)), None)
+            if idx is None:
+                raise ApiError(txt("err.build.original"), 404)
+            if not same(entry, original) and any(same(b, entry["name"]) for b in builds):
+                raise ApiError(txt("err.build.dup"))
+            # 画像は「元のビルドに付いていたもの」だけ残せる。外されたものはファイルも消す
+            before = builds[idx].get("images", [])
+            entry["images"] = [x for x in entry["images"] if x in before]
+            removed = [x for x in before if x not in entry["images"]]
+            builds[idx] = entry
+        else:
+            if any(same(b, entry["name"]) for b in builds):
+                raise ApiError(txt("err.build.dup"))
+            entry["images"], removed = [], []
+            builds.append(entry)
+    build_images.delete_build_images(store.d, removed)  # 画像のファイルは書き込みが確定してから消す
     return builds
 
 
 def add_build_image(store: Store, name: str, data: bytes) -> list[dict]:
-    builds = userdata.load_builds(store.d)
-    b = next((x for x in builds if norm(x["name"]) == norm(name)), None)
-    if b is None:
-        raise ApiError(txt("err.build.none"), 404)
-    if len(b.get("images", [])) >= 30:
-        raise ApiError(txt("err.build.images", n="30"))
-    try:
-        fname = build_images.save_build_image(store.d, data)
-    except ValueError as e:
-        raise ApiError(error_text(e), 415)
-    b.setdefault("images", []).append(fname)
-    userdata.save_builds(store.d, builds)
+    with userdata.editing(store.d, "builds") as builds:
+        b = next((x for x in builds if norm(x["name"]) == norm(name)), None)
+        if b is None:
+            raise ApiError(txt("err.build.none"), 404)
+        if len(b.get("images", [])) >= 30:
+            raise ApiError(txt("err.build.images", n="30"))
+        try:
+            fname = build_images.save_build_image(store.d, data)
+        except ValueError as e:
+            raise ApiError(error_text(e), 415)
+        b.setdefault("images", []).append(fname)
     return builds
 
 
@@ -218,43 +219,19 @@ def adopt_dev_build(store: Store, body: dict) -> dict:
 
 
 def delete_build(store: Store, name: str) -> list[dict]:
-    builds = userdata.load_builds(store.d)
-    keep = [b for b in builds if norm(b["name"]) != norm(name)]
-    if len(keep) == len(builds):
-        raise ApiError(txt("err.build.none"), 404)
-    userdata.save_builds(store.d, keep)
-    for b in builds:
-        if b not in keep:
-            build_images.delete_build_images(store.d, b.get("images", []))
-    return keep
-
-
-_ocr_info: dict | None = None
-
-
-_ocr_lock = threading.Lock()
-
-
-def ocr_info() -> dict:
-    """Windows の文字認識が使えるか(初回だけ調べて覚えておく)。reason は使えない理由のテキスト指定(使えるときは空)"""
-    global _ocr_info
-    with _ocr_lock:
-        if _ocr_info is None:
-            try:
-                langs = ocr.ocr_languages()
-                _ocr_info = {"available": bool(langs), "languages": langs,
-                             "english": any(x.lower().startswith("en") for x in langs),
-                             "reason": "" if langs else txt("err.ocr.nolang")}
-            except ocr.OcrUnavailable as e:
-                _ocr_info = {"available": False, "languages": [], "english": False, "reason": error_text(e)}
-        return _ocr_info
+    with userdata.editing(store.d, "builds") as builds:
+        gone = [b for b in builds if norm(b["name"]) == norm(name)]
+        if not gone:
+            raise ApiError(txt("err.build.none"), 404)
+        builds[:] = [b for b in builds if norm(b["name"]) != norm(name)]
+    for b in gone:  # 画像のファイルは書き込みが確定してから消す
+        build_images.delete_build_images(store.d, b.get("images", []))
+    return builds
 
 
 def analyze_build_image(store: Store, image_name: str, data: bytes | None) -> dict:
     """保存済みの画像(image_name)か、送られてきた画像(data)を解析する"""
-    info = ocr_info()
-    if not info["available"]:
-        raise ApiError(info["reason"] or txt("err.ocr.none"), 501)
+    need_ocr()
     names = store.names()
     if not names.mods:
         raise ApiError(txt("err.mods.nodata"), 409)
@@ -265,41 +242,25 @@ def analyze_build_image(store: Store, image_name: str, data: bytes | None) -> di
         data = p.read_bytes()
     if not data or not build_images.image_ext(data):
         raise ApiError(txt("err.image.format"), 415)
-    try:
-        raw = ocr.run_ocr_bytes(data, cache_dir=store.d / "ocr_cache")
-    except ocr.OcrUnavailable as e:
-        raise ApiError(error_text(e), 502)
-    with store._lock:
-        matcher = store._cache.get("@matcher")
-        if not matcher or matcher[0] is not names:
-            matcher = (names, ocr.build_matcher(names))
-            store._cache["@matcher"] = matcher
-    result = ocr.analyze(raw, names, matcher[1])
+    raw = run_ocr(data, cache_dir=store.d / "ocr_cache")
+    matcher = store.derived("@matcher", (names,), lambda: ocr.build_matcher(names))
+    result = ocr.analyze(raw, names, matcher)
     result["has_items"] = bool(names.items)
     return result
 
 
 def scan_mods(store: Store, data: bytes) -> dict:
     """ゲームの MOD 一覧画面(の画像)から MOD 名を読み取る。所持チェックを付けるかは画面側で決める"""
-    info = ocr_info()
-    if not info["available"]:
-        raise ApiError(info["reason"] or txt("err.ocr.none"), 501)
+    need_ocr()
     names = store.names()
     if not names.mods:
         raise ApiError(txt("err.mods.nodata"), 409)
     if not data or not build_images.image_ext(data):
         raise ApiError(txt("err.image.format"), 415)
-    try:
-        # 何度も読むので、英語だけ・拡大は控えめにして速さを優先する。結果は保存しない
-        raw = ocr.run_ocr_bytes(data, cache_dir=None, langs="en-US", scale=1.5)
-    except ocr.OcrUnavailable as e:
-        raise ApiError(error_text(e), 502)
-    with store._lock:
-        cached = store._cache.get("@modmatcher")
-        if not cached or cached[0] is not names:
-            cached = (names, ocr.NameMatcher([("mod", m["en"], m) for m in names.mods]))
-            store._cache["@modmatcher"] = cached
-    result = ocr.analyze(raw, names, cached[1])
+    # 何度も読むので、英語だけ・拡大は控えめにして速さを優先する。結果は保存しない
+    raw = run_ocr(data, cache_dir=None, langs="en-US", scale=1.5)
+    matcher = store.derived("@modmatcher", (names,), lambda: ocr.NameMatcher([("mod", m["en"], m) for m in names.mods]))
+    result = ocr.analyze(raw, names, matcher)
     owned = userdata.load_owned(store.d)
     found, seen = [], set()
     for m in result["mods"]:
@@ -313,9 +274,7 @@ def scan_mods(store: Store, data: bytes) -> dict:
 def scan_mastery(store: Store, data: bytes) -> dict:
     """ゲームの「プロフィール → エクストラ」の装備一覧(の画像)からマスター済みを読み取る。印を付けるかは画面側で決める
     (付けるときは POST /api/mastery)。ここは何も書き込まない"""
-    info = ocr_info()
-    if not info["available"]:
-        raise ApiError(info["reason"] or txt("err.ocr.none"), 501)
+    need_ocr()
     names = store.names()
     if not names.mastery:
         raise ApiError(txt("err.mastery.nodata"), 409)
@@ -333,19 +292,13 @@ def scan_mastery(store: Store, data: bytes) -> dict:
     worker.start()
     try:
         # 日本語の小さい文字(ランク表記)を読むので、拡大は既定のまま。結果は保存しない
-        raw = ocr.run_ocr_bytes(data, cache_dir=None, langs=ocr.DEFAULT_LANGS)
-    except ocr.OcrUnavailable as err:
-        raise ApiError(error_text(err), 502)
+        raw = run_ocr(data, cache_dir=None, langs=ocr.DEFAULT_LANGS)
     finally:
         worker.join()
     if "error" in decoded:
         raise ApiError(error_text(decoded["error"]), 415)
-    with store._lock:
-        cached = store._cache.get("@msindex")
-        if not cached or cached[0] is not names:
-            cached = (names, msscan.build_index(mastery_items(names)))
-            store._cache["@msindex"] = cached
-    return msscan.analyze_mastery(raw, decoded["png"], cached[1], userdata.load_mastered(store.d))
+    index = store.derived("@msindex", (names,), lambda: msscan.build_index(mastery_items(names)))
+    return msscan.analyze_mastery(raw, decoded["png"], index, userdata.load_mastered(store.d))
 
 
 def build_image(store: Store, name: str) -> Raw:
@@ -376,5 +329,4 @@ ROUTES = {
     ("GET", "/api/build-image/"): lambda c: build_image(c.store, c.path.rsplit("/", 1)[1]),
     ("POST", "/api/build-analyze"): lambda c: analyze_build_image(
         c.store, c.q.get("image", ""), None if c.q.get("image", "") else c.image()),
-    ("GET", "/api/ocr-info"): lambda c: ocr_info(),
 }
