@@ -109,4 +109,4 @@ $("#cycle-form").addEventListener("submit", async e => {
 });
 loaders.cycle = () => { applyViewText("cycle"); return loadCycles(); };
 relabel.cycle = () => { applyViewText("cycle"); if (cyc) { renderCycles(); renderSpex(); renderCycleSyncInfo(); fillCycleKeys(); } };
-setInterval(() => { if (!$("#view-cycle").hidden) renderCycles(); }, 1000);
+everySecond.cycle = renderCycles;  // 残り時間(表示中で、タブが表のあいだだけ。parts.html)

@@ -5,7 +5,8 @@ from wfp.core.errors import TextError, TextFailure, error_text
 from wfp.core.i18n import name_txt, txt
 from wfp.core.log import say
 from wfp.core.const import (
-    EXPORT_BASE, EXPORT_EXTRA_LANGS, EXPORT_GITHUB, EXPORT_PREFIXES, EXPORT_SRC_GITHUB, EXPORT_SRC_OFFICIAL, REGIONS_EXPORT,
+    EXPORT_BASE, EXPORT_EXTRA_LANGS, EXPORT_GITHUB, EXPORT_PREFIXES, EXPORT_SRC_GITHUB, EXPORT_SRC_OFFICIAL, EXPORT_UNLOCALIZED,
+    REGIONS_EXPORT,
 )
 from wfp.core.names import names_by_lang, names_from_exports
 from wfp.fetch import decode, net
@@ -24,12 +25,19 @@ def fetch_export(lang: str, prefixes: tuple = EXPORT_PREFIXES) -> list[dict]:
 
 
 def fetch_export_github(lang: str, prefixes: tuple = EXPORT_PREFIXES) -> list[dict]:
-    """calamity-inc/warframe-public-export (展開済み JSON) から取得する。prefixes のファイルだけ"""
+    """calamity-inc/warframe-public-export (展開済み JSON) から取得する。prefixes のファイルだけ。
+    言語で中身が変わらないもの(EXPORT_UNLOCALIZED)は言語の付かないファイル名(github_file)"""
     docs = []
     for prefix in prefixes:
-        say(txt("log.get", file=f"{prefix}_{lang}.json"), 1)
-        docs.append(decode.parse_export_json(net.http_get(f"{EXPORT_GITHUB}/{prefix}_{lang}.json", timeout=120).decode("utf-8", "replace")))
+        name = github_file(prefix, lang)
+        say(txt("log.get", file=name), 1)
+        docs.append(decode.parse_export_json(net.http_get(f"{EXPORT_GITHUB}/{name}", timeout=120).decode("utf-8", "replace")))
     return docs
+
+
+def github_file(prefix: str, lang: str) -> str:
+    """GitHub(calamity-inc)でのファイル名。ExportRecipes など言語の無いものは「ExportRecipes.json」、ほかは「ExportWeapons_en.json」"""
+    return f"{prefix}.json" if prefix in EXPORT_UNLOCALIZED else f"{prefix}_{lang}.json"
 
 
 def fetch_names(docs_out: dict | None = None) -> dict:

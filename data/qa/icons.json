@@ -1,0 +1,12 @@
+{
+  "default": "cephalon",
+  "menu": {"set": "cephalon", "file": "cephalon_cro.ico"},
+  "sets": [
+    {"id": "cephalon", "label": {"ja": "セファロン体", "en": "Cephalon"},
+     "title": "cephalon_cro.svg",
+     "images": {"default": ["cephalon_cro.svg"]}},
+    {"id": "human", "label": {"ja": "人間体", "en": "Human"},
+     "title": "cro_03.png",
+     "images": {"default": ["cro_01.png", "cro_02.png", "cro_03.png", "cro_04.png", "cro_05.png", "cro_06.png", "cro_07.png", "cro_08.png", "cro_09.png"]}}
+  ]
+}

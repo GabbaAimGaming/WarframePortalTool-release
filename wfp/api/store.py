@@ -9,12 +9,13 @@ from pathlib import Path
 from wfp.core.arbitration import Schedule, load_schedule
 from wfp.core.i18n import render_ja, txt
 from wfp.core.const import (
-    ARBYS_FILE, BUILDER_FILE, CLAN_FILE, DROPS_FILE, MOD_STATS_FILE, MOD_TARGETS_FILE, NAMES_FILE, OTHER_FILE, RIVENS_FILE,
+    ARBYS_FILE, BUILDER_FILE, CLAN_FILE, DROPS_FILE, MOD_STATS_FILE, MOD_TARGETS_FILE, NAMES_FILE, OTHER_FILE, RECIPES_FILE, RIVENS_FILE,
     WFCD_DIR,
 )
-from wfp.core.loader import load_drops, load_names, load_rivens, load_sources
+from wfp.core.loader import load_drops, load_names, load_recipes, load_rivens, load_sources
 from wfp.core.modstats import ModStats, load_mod_stats
 from wfp.core.names import Names
+from wfp.core.recipes import Recipes
 from wfp.drops.search import all_item_names
 from wfp.drops.tables import Drops, Sources
 from wfp.store import appdata, gamedata
@@ -108,6 +109,10 @@ class Store:
         """MOD 効果検索のデータ。mod_stats.json か影響先の辞書(同梱の targets.json)が変われば読み直す"""
         files = (self.d / MOD_STATS_FILE, appdata.mod_stats_dir() / MOD_TARGETS_FILE)
         return self.derived("@mod_stats", file_stamp(*files), lambda: load_mod_stats(self.d))
+
+    def recipes(self) -> Recipes:
+        """要求素材集の設計図(recipes.json が変われば読み直す。無ければ空)"""
+        return self._cached(RECIPES_FILE, lambda: load_recipes(self.d)) or Recipes()
 
     def rivens(self) -> list | None:
         return self._cached(RIVENS_FILE, lambda: load_rivens(self.d))

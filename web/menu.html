@@ -47,7 +47,7 @@ $("#lang-sw") && $("#lang-sw").addEventListener("click", e => {
    ページ(section)がまだ無い項目は表示しない(作ったら自動で出る) */
 const MENU = [
   { page: "home" },
-  { group: "search", items: ["item", "area", "enemy"] },
+  { group: "search", items: ["item", "area", "enemy", "recipe"] },
   { group: "personal", items: ["mastery", "quests", "mods", "arcane", "baro"] },
   { group: "info", items: ["riven", "invasion", "arbitration", "cycle", "duviri", "modstats"] },
   { group: "simulation", items: ["build", "sim"] },
@@ -56,6 +56,8 @@ const MENU = [
   { page: "guide" },
   { page: "update" },
 ];
+/* メニューのボタンに出すアイコン(ページの id → 画像の URL。任意)。読めなければアイコンなしで今までどおり */
+const MENU_ICONS = { qa: "/qa-icon/menu" };
 /* β版のページ: ヘッダーの「β版の機能を使う」がオンのときだけ、メニュー・トップ・ページ説明に出す(メニューの名前に β の札)。
    チェックはこのブラウザに覚える(localStorage の wf-beta。初期値はオフ)。β版の機能を足すときは id をここに足すだけ */
 const BETA_PAGES = ["qa"];
@@ -73,6 +75,12 @@ let openGroup = null;    // 開いているカテゴリー(同時に1つだけ)
 function navButton(view) {
   const b = document.createElement("button");
   b.type = "button"; b.dataset.view = view; b.textContent = t("page." + view);
+  if (MENU_ICONS[view]) {
+    const img = document.createElement("img");
+    img.className = "nav-icon"; img.alt = ""; img.src = MENU_ICONS[view];
+    img.addEventListener("error", () => img.remove());
+    b.prepend(img);
+  }
   if (isBeta(view)) b.insertAdjacentHTML("beforeend", " " + betaTag(view));
   const sub = document.createElement("span");
   sub.className = "sub"; sub.textContent = t("page." + view + ".sub");

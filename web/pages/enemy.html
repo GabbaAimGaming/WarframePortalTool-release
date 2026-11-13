@@ -29,14 +29,19 @@ function renderEnemyChips() {
       + (res.total > res.items.length ? `<span class="note">${esc(fmt("enemy.more", { n: res.total - res.items.length }))}</span>` : "")
     : `<span class="note">${esc(t("enemy.nomatch"))}</span>`;
 }
+const enemyChipsGuard = latestGuard(), enemyResGuard = latestGuard();  // 候補・結果の取得の追い越しの対策(parts.html)
+/* 候補を取り直す。返り値は候補の一覧(取得に失敗したとき・待っている間に次の取得が始まっていたときは null) */
 async function loadEnemyChips() {
+  const fresh = enemyChipsGuard();
   const q = $("#enemy-q").value;
   if (!q.trim()) { enemyList = null; renderEnemyChips(); return []; }  // 敵は千件以上あるので、何か入れるまで候補は出さない
   try {
-    enemyList = await api(`/api/suggest/enemy?q=${encodeURIComponent(q)}`);
+    const res = await api(`/api/suggest/enemy?q=${encodeURIComponent(q)}`);
+    if (!fresh()) return null;
+    enemyList = res;
     renderEnemyChips();
     return enemyList.items;
-  } catch (e) { enemyList = null; $("#enemy-chips").innerHTML = ""; $("#enemy-out").innerHTML = noData(e.message); return null; }
+  } catch (e) { if (fresh()) { enemyList = null; enemyResGuard(); $("#enemy-chips").innerHTML = ""; $("#enemy-out").innerHTML = noData(e.message); } return null; }
 }
 function renderEnemyResult() {
   const r = enemyRes;
@@ -55,18 +60,21 @@ function renderEnemyResult() {
     <p class="note">${esc(t("enemy.footnote"))}</p>`;
 }
 async function loadEnemyResult() {
+  const fresh = enemyResGuard();
   enemyRes = null;
   if (!enemySel) { renderEnemyResult(); return; }
   const kinds = enemyKinds();
   if (!kinds.length) { $("#enemy-out").innerHTML = `<div class="empty">${esc(t("enemy.nokind"))}</div>`; return; }
   try {
-    enemyRes = await api(`/api/enemy?name=${encodeURIComponent(enemySel)}&kinds=${kinds.join(",")}`);
+    const res = await api(`/api/enemy?name=${encodeURIComponent(enemySel)}&kinds=${kinds.join(",")}`);
+    if (!fresh()) return;
+    enemyRes = res;
     renderEnemyResult();
-  } catch (e) { $("#enemy-out").innerHTML = noData(e.message); }
+  } catch (e) { if (fresh()) $("#enemy-out").innerHTML = noData(e.message); }
 }
 async function searchEnemy() {
   const items = await loadEnemyChips();
-  if (items === null) return;  // 取得に失敗(エラーは表示済み)
+  if (items === null) return;  // 取得に失敗(エラーは表示済み)か、次の取得が始まっている
   const q = $("#enemy-q").value.trim().toLowerCase();
   const exact = q && items.find(i => i.name.toLowerCase() === q);
   if (exact || items.length === 1) enemySel = (exact || items[0]).key;

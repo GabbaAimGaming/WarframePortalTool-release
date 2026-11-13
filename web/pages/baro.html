@@ -84,18 +84,18 @@ function renderBaro() {
   const chip = (k, label, o) => `<button class="chip" data-bkind="${esc(k)}" aria-pressed="${baroKind === k}">${esc(label)}<small>${k === "repeat" ? o.total : `${o.owned} / ${o.total}`}</small></button>`;
   $("#baro-kinds").innerHTML = chip("", t("src.all"), sm.all) + baro.kinds.map(k => chip(k, tName("baro.kind.", k), sm[k])).join("");
   const list = sortRows(baroFilter(baro.rows), baroSort, baroGetters);
-  const cur = baroKind ? sm[baroKind] : sm.all, p = cur.total ? cur.owned / cur.total * 100 : 0;
+  const cur = baroKind ? sm[baroKind] : sm.all, p = ratePct(cur.owned, cur.total);
   const shownTxt = `<span>${esc(fmt("common.shown", { n: list.length }))}</span>`;
   $("#baro-summary").innerHTML = baroKind === "repeat" ? `<span>${esc(fmt("baro.repeat.sum", { n: cur.total }))}</span>${shownTxt}`
     : `<span><b class="count">${esc(baroKind ? tName("baro.kind.", baroKind) : t("baro.checkable"))}</b> ${esc(fmt("ac.summary", { owned: cur.owned, total: cur.total, pct: p.toFixed(1) }))}</span>
-       <span class="progress" aria-hidden="true"><i style="--w:${p.toFixed(1)}%"></i></span>${shownTxt}`;
-  $("#baro-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
+       ${progressBar(p)}${shownTxt}`;
+  drawTable($("#baro-out"), list.length ? `<div class="tablewrap tall"><table>
     <thead><tr>${th(esc(t("mods.col.own")), "owned", baroSort, "chk")}${th(esc(t("baro.col.item")), "name", baroSort)}${th(esc(t("mods.col.type")), "kind", baroSort)}${th(esc(t("baro.col.last")), "last", baroSort)}${th(esc(t("baro.col.count")), "count", baroSort, "num")}${th(esc(t("baro.col.ducats")), "ducats", baroSort, "num")}${th(esc(t("baro.col.credits")), "credits", baroSort, "num")}</tr></thead>
     <tbody>${list.map(r => `<tr class="${r.owned ? "owned" : ""}" data-name="${esc(r.name)}">
       <td class="chk">${baroOwnedCell(r)}</td><td>${baroName(r)}${r.seed ? "" : `<span class="tag-mini" title="${esc(t("baro.added.title"))}">${esc(t("baro.added"))}</span>`}</td>
       <td title="${esc(baroCheckBy(r))}">${esc(tName("baro.kind.", r.kind))}</td><td>${r.last ? esc(r.last) : `<span class="none" title="${esc(t("baro.unrecorded.title"))}">${esc(t("baro.unrecorded"))}</span>`}</td>
       <td class="num">${r.count ? num(r.count) : `<span class="none">-</span>`}</td><td class="num">${num(r.ducats)}</td><td class="num">${num(r.credits)}</td></tr>`).join("")}</tbody></table></div>`
-    : noData(t("baro.none"));
+    : noData(t("baro.none")), [baroKind, $("#baro-q").value, $("#baro-state").value, baroSort.key, baroSort.dir]);
 }
 async function loadBaro() {
   try { baro = await api("/api/baro"); baroAt = Date.now(); $("#baro-err").textContent = ""; renderBaro(); }
@@ -124,11 +124,11 @@ onSortClick($("#baro-out"), baroSort, renderBaro, ["owned", "last", "count", "du
 $("#baro-q").addEventListener("input", debounce(renderBaro, 150));
 $("#baro-state").addEventListener("change", renderBaro);
 // 来るまで・帰るまでの時間だけを毎秒更新する(表は作り直さない)
-setInterval(() => {
-  if ($("#view-baro").hidden || !baro || !baro.current || !$("#baro-count")) return;
+everySecond.baro = () => {
+  if (!baro || !baro.current || !$("#baro-count")) return;
   const cur = baro.current, now = baro.now + (Date.now() - baroAt) / 1000;
   if ((cur.state === "here" && now >= cur.expiry) || (cur.state === "coming" && now >= cur.activation)) { loadBaro(); return; }
   $("#baro-count").textContent = baroCount(cur, now);
-}, 1000);
+};
 loaders.baro = () => { applyViewText("baro"); return loadBaro(); };
 relabel.baro = () => { applyViewText("baro"); if (baro) renderBaro(); };  // MOD・マスターのチェックはほかのページで変わるので、開くたびに読み直す

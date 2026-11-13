@@ -4,7 +4,7 @@
 <!-- PART:view -->
       <!-- Q&A(答えは日本語のみ。ページの枠・ボタンは I18N。答えの中身は下の renderQa が API の文をそのまま出す) -->
       <section id="view-qa" hidden>
-        <h2 data-i18n="page.qa">Q&amp;A</h2>
+        <h2 class="qa-title"><img class="qa-icon" id="qa-icon-title" alt="" hidden><span data-i18n="page.qa">Q&amp;A</span></h2>
         <p class="lead qa-lead" data-i18n="qa.lead">あーしはセファロン クロ。
 あーしに聞いてもらえれば、答えられる範囲で答えるよ。全部は無理だけどね
 「教えてクロちゃん」って聞いてくれたら、ざっくりとした話題を出すね
@@ -14,6 +14,8 @@
           <input type="text" class="search" id="qa-q" maxlength="200" data-i18n-placeholder="qa.placeholder" placeholder="例: Rhino のアーマーは? / Jade のおすすめビルドは?" autocomplete="off">
           <button class="btn" type="submit" data-i18n="qa.ask">聞く</button>
           <button class="btn ghost" type="button" id="qa-clear" data-i18n="qa.clear">履歴を消す</button>
+          <label class="qa-icon-pick" id="qa-icon-pick" hidden><span data-i18n="qa.icon.label">アイコン</span>
+            <select id="qa-icon-sel"></select></label>
         </form>
         <div id="qa-log" aria-live="polite"></div>
         <dialog class="tips-dlg" id="qa-dlg" data-i18n-aria="qa.adopt.title" aria-label="ビルド管理に追加">
@@ -31,7 +33,42 @@
 /* 答えの文は API(Python)が日本語で作る(Q&A は日本語のみ)。ここは表示とボタンだけ。枠の文字(ボタン・見出し)は I18N(t)から。
    履歴は新しいものを上に QA_LOG_MAX 件まで(ページを離れても残す。データは取り直さない) */
 const QA_LOG_MAX = 20;
-let qaLog = [];  // [{res, done}] done = ビルド管理に追加した名前 {ビルド名: 保存した名前}
+let qaLog = [];  // [{res, done, icons}] done = ビルド管理に追加した名前 {ビルド名: 保存した名前}、icons = 姿の id → 選んだ画像
+/* アイコン(セファロン クロの姿。data/qa/icons.json)。一覧は /api/qa/icons を1回だけ読む(無い・読めなければアイコンなし)。
+   姿は利用者が選ぶ(localStorage の wf-qa-icon。無くなっていたら一覧の default)。答えの画像は応答の scene(場面)の一覧
+   (無ければ default)からランダムに1枚選び、履歴の項目に姿ごとに覚える(描き直しても変わらない) */
+let qaIcons = null;  // {default, menu, sets: [{id, label, title, images: {場面: [ファイル]}}]}。読む前は null
+const qaIconUrl = (sid, file) => `/qa-icon/${encodeURIComponent(sid)}/${encodeURIComponent(file)}`;
+function qaIconSet() {
+  const sets = (qaIcons && qaIcons.sets) || [];
+  return sets.find(s => s.id === pref.get("wf-qa-icon")) || sets.find(s => s.id === qaIcons.default) || sets[0] || null;
+}
+function qaIconFor(entry) {
+  const set = qaIconSet();
+  if (!set || !entry.res) return "";
+  entry.icons = entry.icons || {};
+  if (!entry.icons[set.id]) {
+    const list = set.images[entry.res.scene] || set.images.default;
+    entry.icons[set.id] = list[Math.floor(Math.random() * list.length)];
+  }
+  return qaIconUrl(set.id, entry.icons[set.id]);
+}
+/* タイトルの横の1枚と、姿の切り替え(姿が2つ以上のときだけ出す。切り替えのマークアップが無ければ飛ばす) */
+function renderQaIcons() {
+  const set = qaIconSet(), sets = (qaIcons && qaIcons.sets) || [];
+  const title = $("#qa-icon-title");
+  title.hidden = !set;
+  if (set) title.src = qaIconUrl(set.id, set.title);
+  if (!$("#qa-icon-sel")) return;
+  $("#qa-icon-pick").hidden = sets.length < 2;
+  $("#qa-icon-sel").innerHTML = sets.map(s =>
+    `<option value="${esc(s.id)}"${set && s.id === set.id ? " selected" : ""}>${esc(nameByLang(s.label))}</option>`).join("");
+}
+async function loadQaIcons() {
+  if (qaIcons) return;
+  try { qaIcons = await api("/api/qa/icons"); } catch (e) { qaIcons = { sets: [] }; }
+  renderQaIcons(); renderQa();
+}
 async function qaAsk(params) {
   const qs = new URLSearchParams(params).toString();
   try {
@@ -81,7 +118,8 @@ function qaItem(entry, idx) {
   if (entry.err) return `<div class="qa-item"><div class="qa-q">${esc(entry.q)}</div><div class="err">${esc(entry.err)}</div></div>`;
   const r = entry.res;
   const q = r.q || (r.name ? r.name.ja : r.lore ? r.lore.title : r.spoiler ? r.spoiler.title : r.menu ? r.menu.title : r.talk ? r.talk.title : "");
-  let h = `<div class="qa-item" data-qaidx="${idx}"><div class="qa-q">${esc(t("qa.you"))} ${esc(q)}</div>`;
+  const head = `<div class="qa-item" data-qaidx="${idx}"><div class="qa-q">${esc(t("qa.you"))} ${esc(q)}</div>`;
+  let h = "";
   if (r.miss && r.miss.text) h += `<p class="qa-a qa-miss">${esc(r.miss.text)}</p>`;
   if (r.text) h += `<p class="qa-a"><b>${esc(r.text)}</b></p>`;
   if (r.spoiler) h += entry.declined ? `<p class="qa-a">${esc(r.spoiler.declined)}</p>`
@@ -99,7 +137,8 @@ function qaItem(entry, idx) {
   if (r.candidates.length) h += `<div class="qa-chips"><span>${esc(t("qa.maybe"))}</span>${r.candidates.map(c => qaChip(c.ja, { name: c.key, intent: r.intent })).join("")}</div>`;
   if (r.options.length) h += `<div class="qa-chips"><span>${esc(r.options_title)}</span>${r.options.map(qaOption).join("")}</div>`;
   if (r.basis) h += `<div class="qa-basis">${esc(r.basis)}</div>`;
-  return h + `</div>`;
+  const icon = qaIconFor(entry);  // 左 = アイコン / 右 = 答えの中身
+  return `${head}<div class="qa-body">${icon ? `<img class="qa-icon" src="${esc(icon)}" alt="">` : ""}<div class="qa-main">${h}</div></div></div>`;
 }
 function renderQa() {
   $("#qa-jaonly").hidden = lang === "ja";
@@ -113,6 +152,9 @@ $("#qa-form").addEventListener("submit", e => {
   qaAsk({ q });
 });
 $("#qa-clear").addEventListener("click", () => { qaLog = []; renderQa(); });
+$("#qa-icon-sel")?.addEventListener("change", e => { pref.set("wf-qa-icon", e.target.value); renderQaIcons(); renderQa(); });
+$("#qa-icon-title").addEventListener("error", e => { e.target.hidden = true; });
+$("#qa-log").addEventListener("error", e => { if (e.target.matches && e.target.matches("img.qa-icon")) e.target.remove(); }, true);  // 読めない画像は出さない
 /* ビルド管理に追加: 名前を入れる小窓(初期値は「名前_dev」)。同じ名前があれば小窓のまま入れ直してもらう(上書きしない) */
 let qaAdopt = null;  // {idx, build}
 $("#qa-log").addEventListener("click", e => {
@@ -149,5 +191,5 @@ $("#qa-dlg-form").addEventListener("submit", async e => {
     $("#qa-dlg").close(); renderQa();
   } catch (err) { $("#qa-dlg-err").textContent = err.message; }
 });
-loaders.qa = () => { applyViewText("qa"); renderQa(); };
-relabel.qa = () => { applyViewText("qa"); renderQa(); };
+loaders.qa = () => { applyViewText("qa"); renderQa(); loadQaIcons(); };
+relabel.qa = () => { applyViewText("qa"); if (qaIcons) renderQaIcons(); renderQa(); };

@@ -337,7 +337,7 @@ const byName = (a, b) => nameByLang(a).localeCompare(nameByLang(b), locale());
 
 async function api(path, body) {
   const init = body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
-  return apiRead(await fetch(path, init));  // エラーの文の決め方は i18n.html の apiRead
+  return apiRead(await apiFetch(path, init));  // 届かないとき・エラーの文の決め方は i18n.html の apiFetch・apiRead
 }
 /* シミュレータの入力の記憶(キーの頭に wf-builder- を付けて JSON で。読み書きは i18n.html の pref) */
 const store = {

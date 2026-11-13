@@ -74,6 +74,12 @@ function renderLog(r, fallback = "") {
 /* ---------- API の応答(メイン画面とシミュレータで共用) ---------- */
 /* 応答を読む: JSON(読めなければ {})を返す。エラーの応答なら、テキスト指定(text)があれば表示中の言語の文、無ければ日本語の文(error)、
    それも無ければ HTTP の番号の文で Error を投げる(e.status に番号) */
+/* サーバーに要求を送る(fetch を呼ぶのはここだけ)。届かないとき(ツールを閉じた後・通信が切れた)は、
+   ブラウザの生の文("Failed to fetch" など)ではなく I18N の文(err.offline)のエラーにする。e.offline = true */
+async function apiFetch(path, init) {
+  try { return await fetch(path, init); }
+  catch (cause) { const e = new Error(t("err.offline")); e.offline = true; e.cause = cause; throw e; }
+}
 async function apiRead(res) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -85,7 +91,7 @@ async function apiRead(res) {
 }
 /* 画像(Blob / File)を本文にして POST する(文字認識・ビルドの画像)。type を省けば blob の種類、それも無ければ PNG */
 async function apiImage(path, blob, type) {
-  return apiRead(await fetch(path, { method: "POST", headers: { "Content-Type": type || blob.type || "image/png" }, body: blob }));
+  return apiRead(await apiFetch(path, { method: "POST", headers: { "Content-Type": type || blob.type || "image/png" }, body: blob }));
 }
 /* 最初に表示する言語: URL の ?lang=、無ければこの PC に覚えた言語(localStorage の wf-lang)、無ければ日本語 */
 function initialLang() {

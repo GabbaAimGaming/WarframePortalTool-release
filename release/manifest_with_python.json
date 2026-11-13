@@ -1,5 +1,5 @@
 {
-  "version": "2.24",
+  "version": "2.25",
   "edition": "with_python",
   "files": {
     "LICENSE": {
@@ -8,8 +8,8 @@
       "src": "build/bundled/LICENSE"
     },
     "README.md": {
-      "sha256": "1ee2b6ffe33546ecd95e60f181818e3fa8a0fb477f57d62fdee403c8707c8f02",
-      "size": 64239,
+      "sha256": "3d7b6054cffbfda41567ddfcfccb1511ad71b449339e5d7b6a485d4298112581",
+      "size": 65485,
       "src": "build/bundled/README.md"
     },
     "data/archon/shards.json": {
@@ -76,6 +76,66 @@
       "sha256": "bdc70b79adef702cc799bb55706ed1a35ec78269ca6a14c3b965f6db917914eb",
       "size": 3011,
       "src": "data/qa/answers.json"
+    },
+    "data/qa/icons.json": {
+      "sha256": "d6e3c5d59381983d78f1353543fc9fb1d426e27d2329536b671b02af2d4c86dd",
+      "size": 518,
+      "src": "data/qa/icons.json"
+    },
+    "data/qa/icons/cephalon/cephalon_cro.ico": {
+      "sha256": "d6d217739a188a47a7d59c9c8bb22df5d37a94ee5a159642bebae1464a4d38aa",
+      "size": 54648,
+      "src": "data/qa/icons/cephalon/cephalon_cro.ico"
+    },
+    "data/qa/icons/cephalon/cephalon_cro.svg": {
+      "sha256": "0fd263d39f2e8e00ca8d91e12d25e64b2ef5057b445f0a07be392718701a7d9e",
+      "size": 4708,
+      "src": "data/qa/icons/cephalon/cephalon_cro.svg"
+    },
+    "data/qa/icons/human/cro_01.png": {
+      "sha256": "e4d5f5c99e5ca4b9ff845a73cfa9b10a8c94549633ce998a02731d0c22f5296c",
+      "size": 97573,
+      "src": "data/qa/icons/human/cro_01.png"
+    },
+    "data/qa/icons/human/cro_02.png": {
+      "sha256": "a4820c4a4cecf54f9c292d447998a69c7cdf2e35e4667a6d71d6cdef301e6d01",
+      "size": 98681,
+      "src": "data/qa/icons/human/cro_02.png"
+    },
+    "data/qa/icons/human/cro_03.png": {
+      "sha256": "6feb2723e0d0e778a21a9041d88014fb962c567fc4e432b5f32f122e9cc394c7",
+      "size": 96688,
+      "src": "data/qa/icons/human/cro_03.png"
+    },
+    "data/qa/icons/human/cro_04.png": {
+      "sha256": "e5328e5f9f11864b014f3f914fbc5ef9cab0b25249d185dc34672337b6259565",
+      "size": 97984,
+      "src": "data/qa/icons/human/cro_04.png"
+    },
+    "data/qa/icons/human/cro_05.png": {
+      "sha256": "375e2c55c52d2d271f5b86837dd197ea85bceb378a4d1a041307a6fecd893f98",
+      "size": 97489,
+      "src": "data/qa/icons/human/cro_05.png"
+    },
+    "data/qa/icons/human/cro_06.png": {
+      "sha256": "4a2703127c64e3da91d9d91fd55f559f75d0e658749e6d3d1ddde1e5865e6bb8",
+      "size": 98735,
+      "src": "data/qa/icons/human/cro_06.png"
+    },
+    "data/qa/icons/human/cro_07.png": {
+      "sha256": "814877d0862cac92f73ad2876489b127e6a5ecc48c14d9083ac070e85681e896",
+      "size": 93465,
+      "src": "data/qa/icons/human/cro_07.png"
+    },
+    "data/qa/icons/human/cro_08.png": {
+      "sha256": "6540b411e49250f51126a298128e45f8a079c7acc23e4db82b5e478aca699003",
+      "size": 96007,
+      "src": "data/qa/icons/human/cro_08.png"
+    },
+    "data/qa/icons/human/cro_09.png": {
+      "sha256": "6938e188ffe0ab1aff2a026b3a4c106b5f2644c44430a6d1060c2e642b1f80e3",
+      "size": 96076,
+      "src": "data/qa/icons/human/cro_09.png"
     },
     "data/qa/intents.json": {
       "sha256": "a910bc645e42090fec911d87910edf13903fcc9645642c20faf2afe625af1116",
@@ -168,58 +228,58 @@
       "src": "uninstall.bat"
     },
     "web/ctrl.html": {
-      "sha256": "df276442826e0ba7120aa99f55a8ca464f4b01211c72a6b436c3412c37c72ab5",
-      "size": 9276,
+      "sha256": "afd7cd27d0039e88b51cb77e20744c467be287dc3c4b05371b6cbd20d78bb35b",
+      "size": 10195,
       "src": "web/ctrl.html"
     },
     "web/i18n.html": {
-      "sha256": "899f6f9bb038b757139e1953f107cd5253ca0e0ba4347930555ac5b9145a6807",
-      "size": 7760,
+      "sha256": "44edac8acd8156d549086822223b7bc6cce20c604145256fc0eb84653d8c5a65",
+      "size": 8225,
       "src": "web/i18n.html"
     },
     "web/i18n/en.json": {
-      "sha256": "219b8fb52a60874fd60171aefd1ffc2efe371abf49d6353c133d3777bd75898a",
-      "size": 70350,
+      "sha256": "55dfd470c3a4072e4f6ba73ded8e990f52a35761554c26384411490acb9cc248",
+      "size": 73288,
       "src": "web/i18n/en.json"
     },
     "web/i18n/ja.json": {
-      "sha256": "44861196fffabad268fe7b24bb9c0766c4c0517c255d0b3cac85acab81c8513b",
-      "size": 86557,
+      "sha256": "6da25c982ff9a02a75cdb048dcc8d4226b6a1829343d07f046eaba0a671f8551",
+      "size": 90165,
       "src": "web/i18n/ja.json"
     },
     "web/menu.html": {
-      "sha256": "179db0183a8341b9b18b3743c11d34f38c1400f5e4a96752669d58339712fff9",
-      "size": 8828,
+      "sha256": "4f6cf04463f3192809cfccbd83fa99624cb96b7caab437b22151e4e1b09c08dc",
+      "size": 9264,
       "src": "web/menu.html"
     },
     "web/pages/arbitration.html": {
-      "sha256": "5df4485ff0325172aa36c63703a87de6220f182660aa7543aa086a1daa308482",
-      "size": 5303,
+      "sha256": "0070c23695d016a6e863cd3d9f6a4fca65d59476ee01ffd70d528ab3ef221c5a",
+      "size": 5277,
       "src": "web/pages/arbitration.html"
     },
     "web/pages/arcane.html": {
-      "sha256": "4db77398b94979ee59d8a40ebc9e2fc30554dac019eb02601d31b9f2064c776e",
-      "size": 9306,
+      "sha256": "0e3c7b4dd5943ab93d36c8074688e2d4b567a1c0ea0c1c7f70781b2ea35ca79b",
+      "size": 9053,
       "src": "web/pages/arcane.html"
     },
     "web/pages/area.html": {
-      "sha256": "dcfa630984347a86811d6dffe2fdd65dce24bd43e6f587a4f47f0f45d7833128",
-      "size": 5656,
+      "sha256": "2d1760d454ef7a38cabf01dc69cabd60c4ba8cb1e0217447123c3bb758e8d5cc",
+      "size": 6192,
       "src": "web/pages/area.html"
     },
     "web/pages/baro.html": {
-      "sha256": "63f287af114d3d424603bbd826f01151bdbd8f9a946eb04f086b0c55f27c4689",
-      "size": 12630,
+      "sha256": "432bcd95d298d9794cbd106a9440c6d571c9d8ee3c18a66b29ea8e42dc92a7ee",
+      "size": 12606,
       "src": "web/pages/baro.html"
     },
     "web/pages/build.html": {
-      "sha256": "7afbfbd4d174cd0630d040363fa6404dd4913d937d42869f2fe4d9a8b043648e",
-      "size": 36091,
+      "sha256": "1c5f00789f019a7e704aca59db2e0aa9b5a1b5ae14c3aac2834be590f5d296ba",
+      "size": 36151,
       "src": "web/pages/build.html"
     },
     "web/pages/cycle.html": {
-      "sha256": "1de379d5f20ed8c7b2f13bdda59627db6f0e3a72d0a4d0b290c7244c1801ff6e",
-      "size": 8638,
+      "sha256": "441a8447137a6f8529b0c27198e9ca83694c2c7462fc34c4a7fdfd86d8770205",
+      "size": 8673,
       "src": "web/pages/cycle.html"
     },
     "web/pages/duviri.html": {
@@ -228,8 +288,8 @@
       "src": "web/pages/duviri.html"
     },
     "web/pages/enemy.html": {
-      "sha256": "6f577f58d8696f5daa82284dc540a618327881c9bb4761f387eb5f738e979e46",
-      "size": 6552,
+      "sha256": "98b9e71e27d7c336164b087931102170702544570424fe5ad35ad368662b8de8",
+      "size": 7098,
       "src": "web/pages/enemy.html"
     },
     "web/pages/guide.html": {
@@ -253,33 +313,38 @@
       "src": "web/pages/item.html"
     },
     "web/pages/mastery.html": {
-      "sha256": "e8016c871003324a7dae1cbfa8884015b2a7b011898e48b397d41f136a3c1984",
-      "size": 16865,
+      "sha256": "f4c03d5898bad490b493e6d8ebc2fe3f2d923fb6b4ba53467b6246b47c66b015",
+      "size": 16585,
       "src": "web/pages/mastery.html"
     },
     "web/pages/mods.html": {
-      "sha256": "0226bec7c2d565d3cc46470a930f9d125eecd068e6b5ee5b0ffa548150226ffe",
-      "size": 15045,
+      "sha256": "71075d38d8c716c6a8449469f4cdc57cdc7218a63999de17ca5c9f532d4ec4b4",
+      "size": 14803,
       "src": "web/pages/mods.html"
     },
     "web/pages/modstats.html": {
-      "sha256": "59a70f7759ee008f80dc40515bc51a8b9e92937a719ef8ed09fb7c897b38aa6d",
-      "size": 11157,
+      "sha256": "07cefca58bc5b207ba0895f76777d858caa0e5187ad2a5bd6f839c32b61b9b97",
+      "size": 11428,
       "src": "web/pages/modstats.html"
     },
     "web/pages/qa.html": {
-      "sha256": "0291ebb53aad7d69f8c8eab7de15db9ddf712705c096e8d3cd68ca364569c91a",
-      "size": 11413,
+      "sha256": "ab4942d0a1c6f9740a9b936fc6644c6160d1d83aca75feaf0824ff855b605224",
+      "size": 14374,
       "src": "web/pages/qa.html"
     },
     "web/pages/quests.html": {
-      "sha256": "a65b80d5ec463616f82eb5baf9d46f9c2e00214b746ebeeda5013aa26ea5645f",
-      "size": 9726,
+      "sha256": "0d7b7689f7c107cbcdfd81187ed425e56a14aa323882f4ff18951046e7ff7198",
+      "size": 9719,
       "src": "web/pages/quests.html"
     },
+    "web/pages/recipe.html": {
+      "sha256": "7e109e53441c534709ce9d88658b0402f464282ffa517d0a45998116f526f6cf",
+      "size": 6870,
+      "src": "web/pages/recipe.html"
+    },
     "web/pages/riven.html": {
-      "sha256": "c5baeed6d17a3347de641a03df20c66634fe34ba522d0bab60dceebce758a52a",
-      "size": 6594,
+      "sha256": "bd37e023d3a896fae8c69e2585ee816961b6ee68fb19f5f00a8e1f713976d427",
+      "size": 6348,
       "src": "web/pages/riven.html"
     },
     "web/pages/sim.html": {
@@ -288,8 +353,8 @@
       "src": "web/pages/sim.html"
     },
     "web/pages/tips.html": {
-      "sha256": "fa293882d0d50a69b816f63154572d54aa04d7a3ca65ec831861c3c57fcb9a41",
-      "size": 30244,
+      "sha256": "f820960be389ebc08b67986b50c4b47c0c338cd79f7af7e5b1c022d4fcf609b5",
+      "size": 31942,
       "src": "web/pages/tips.html"
     },
     "web/pages/update.html": {
@@ -298,18 +363,18 @@
       "src": "web/pages/update.html"
     },
     "web/parts.html": {
-      "sha256": "441f4cbaf8b3d2962a6e6008098cdade9ddb5e946e1005ab4ab4bb2b503f4b7a",
-      "size": 15130,
+      "sha256": "b169f9735b17ddf2882636b568dfef13f98fcf1c837aa1bd1d6ba336bfed0fdb",
+      "size": 21276,
       "src": "web/parts.html"
     },
     "web/view.html": {
-      "sha256": "08f4a82168d38766c9c1570850e9212f5cda2077eefe317dd1c0609011e1bf34",
-      "size": 38603,
+      "sha256": "fbeb1a63b20e2931ef18d50d1348874d5980007322e17f867791757e6adde489",
+      "size": 40533,
       "src": "web/view.html"
     },
     "web/wfportal_builder.html": {
-      "sha256": "6d63e460f3e6462e9295df6fdca9a869e7cde1351417cdc9717fcc965490e986",
-      "size": 59817,
+      "sha256": "baf6ec27aba85301fa3555c7b809373795070b6a69856de874487a78e0786b01",
+      "size": 59852,
       "src": "web/wfportal_builder.html"
     },
     "wfp/__init__.py": {
@@ -338,8 +403,8 @@
       "src": "wfp/api/ocr.py"
     },
     "wfp/api/pages.py": {
-      "sha256": "bf6e29af159798793d128c6f8bca353af32f201cfb417b803946c7272e623179",
-      "size": 11107,
+      "sha256": "7fa7661d47a68c246cce6bc513943cbd8de4f8e9fc399c3b8353ee13bd81ecab",
+      "size": 11117,
       "src": "wfp/api/pages.py"
     },
     "wfp/api/personal.py": {
@@ -348,18 +413,18 @@
       "src": "wfp/api/personal.py"
     },
     "wfp/api/qa.py": {
-      "sha256": "841d20552cf02231dc17d0266ea7597335788ebe98608f27781d8aab78783027",
-      "size": 4052,
+      "sha256": "021c86daf0a4a7a8333e396a6b7fd978f0357ec7760892fedd035591927600c9",
+      "size": 5387,
       "src": "wfp/api/qa.py"
     },
     "wfp/api/search.py": {
-      "sha256": "d72fae4102ffde40b6834c180fc51f3491404116dee82163d12f749640ec95e1",
-      "size": 8497,
+      "sha256": "7670ae56d95a7c7444d961ba779c29d235716cd956101f96e124dbbae4343176",
+      "size": 10589,
       "src": "wfp/api/search.py"
     },
     "wfp/api/server.py": {
-      "sha256": "b8ca60a4e357e040517326dcbba976830ef1062af9ebda739e64e3fb492cf785",
-      "size": 8905,
+      "sha256": "40e061f5fe75301b289270e932c6e976aa07e670526d4a06886d5f750aa7864e",
+      "size": 10140,
       "src": "wfp/api/server.py"
     },
     "wfp/api/sim.py": {
@@ -368,8 +433,8 @@
       "src": "wfp/api/sim.py"
     },
     "wfp/api/store.py": {
-      "sha256": "f3de8ccd060e9f055a0fa25997bec42230ecbec07f997980a5dbae546fbebe1c",
-      "size": 6719,
+      "sha256": "9476cb089caf81d20e1c870ba5d5e94e96bd6754518519f752818a764f25c835",
+      "size": 7006,
       "src": "wfp/api/store.py"
     },
     "wfp/api/tips.py": {
@@ -398,8 +463,8 @@
       "src": "wfp/cli/info.py"
     },
     "wfp/cli/main.py": {
-      "sha256": "8c0dcc6074549613bf0d0ff81226bc358acef9e3657b24573fdf9308d8d6ac86",
-      "size": 2062,
+      "sha256": "f499c09e6043ddabf7b9739e2433e64e234945988f45dd135b6e332b4ce84534",
+      "size": 2072,
       "src": "wfp/cli/main.py"
     },
     "wfp/cli/personal.py": {
@@ -408,8 +473,8 @@
       "src": "wfp/cli/personal.py"
     },
     "wfp/cli/search.py": {
-      "sha256": "7e06505dac1e6cb44561c19162bb49d6d8929cf3b9b09170f8d8450964bff77c",
-      "size": 9272,
+      "sha256": "9e009b2436514b2e8b9395330b17b97664974baf69ee7f87c16c7660e88d7320",
+      "size": 13579,
       "src": "wfp/cli/search.py"
     },
     "wfp/cli/table.py": {
@@ -448,8 +513,8 @@
       "src": "wfp/core/common.py"
     },
     "wfp/core/const.py": {
-      "sha256": "a7d4c606ad24583de3a8e8d163e17777dfd741c4f2ccde071620408cc77f4cd6",
-      "size": 40254,
+      "sha256": "9f295de8c63b28f1a3faa624538a730524cab3699403a9f40c8d9b79ad026251",
+      "size": 44002,
       "src": "wfp/core/const.py"
     },
     "wfp/core/cycle.py": {
@@ -488,8 +553,8 @@
       "src": "wfp/core/invasion.py"
     },
     "wfp/core/loader.py": {
-      "sha256": "b415f21746589632bb00ba83f91bd64febf2f8848a68578ba5014b5b3d2bc75f",
-      "size": 1585,
+      "sha256": "b4b906cccf0d0cdf07ffb6ca420098fc4c46d97a0ce727c6ade45683cd2d78bd",
+      "size": 1843,
       "src": "wfp/core/loader.py"
     },
     "wfp/core/log.py": {
@@ -532,6 +597,11 @@
       "size": 52714,
       "src": "wfp/core/qa.py"
     },
+    "wfp/core/qaicon.py": {
+      "sha256": "54fb1b8979a6696f1766ad63034835854342646de6374f7ae807ba3560c3a6a6",
+      "size": 7344,
+      "src": "wfp/core/qaicon.py"
+    },
     "wfp/core/qalore.py": {
       "sha256": "62a113de86506d7ee8c1aa977d44ff92c8418cd13eccfd0195c5e6cfc00f921c",
       "size": 19470,
@@ -551,6 +621,11 @@
       "sha256": "08985040f5d5cdca4d091d5b79a938ce5fa6b2d1bfabbff126053b7306da5fa4",
       "size": 12248,
       "src": "wfp/core/quests.py"
+    },
+    "wfp/core/recipes.py": {
+      "sha256": "5fcad4dd957fd6640bfc07abf7d81e0df993e9fd5e8ffbbcb189ca70d241ea69",
+      "size": 11121,
+      "src": "wfp/core/recipes.py"
     },
     "wfp/core/riven.py": {
       "sha256": "b00480873c037e41604df33d833afcdf849609650e79ecc841892183f7fc2f78",
@@ -583,8 +658,8 @@
       "src": "wfp/core/text.py"
     },
     "wfp/core/update.py": {
-      "sha256": "ec3b869bc847c10376f9af5a654564f88e3f5084a5e20a5958c0176a9be35bf2",
-      "size": 7900,
+      "sha256": "783c601c976532c3c06dbbc9a7153725e71f78317d1b5e8b421b017a2c87f35c",
+      "size": 8389,
       "src": "wfp/core/update.py"
     },
     "wfp/core/worldstate.py": {
@@ -623,8 +698,8 @@
       "src": "wfp/fetch/decode.py"
     },
     "wfp/fetch/exports.py": {
-      "sha256": "f8d63050f13814704bd8d7280e92493f4708d429538714152714b64848c56591",
-      "size": 4698,
+      "sha256": "2141c6873bb803b21280ac699e42fa9e50a9811196922c517c7df9ea6056582e",
+      "size": 5150,
       "src": "wfp/fetch/exports.py"
     },
     "wfp/fetch/logos.py": {
@@ -653,8 +728,8 @@
       "src": "wfp/store/__init__.py"
     },
     "wfp/store/appdata.py": {
-      "sha256": "246d120e0b1b8489be6b87a880ec585211bb4b8e913d4d03e4b5cfe4c79be08b",
-      "size": 6411,
+      "sha256": "dd28305be084bb36f233619612695fcedfda1ceefa553478664788db9f51f54c",
+      "size": 6991,
       "src": "wfp/store/appdata.py"
     },
     "wfp/store/build_images.py": {
@@ -668,8 +743,8 @@
       "src": "wfp/store/datadir.py"
     },
     "wfp/store/gamedata.py": {
-      "sha256": "cee1c2e6fb6bc5b53666e7ab6e8390a83fd329fe62746b5d639ae4f285a389ac",
-      "size": 7359,
+      "sha256": "633a06db39361e6a415d5e123a7430bceafe2756a98b96d122c190aa27ac77bd",
+      "size": 7863,
       "src": "wfp/store/gamedata.py"
     },
     "wfp/store/userdata.py": {

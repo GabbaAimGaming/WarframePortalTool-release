@@ -67,7 +67,8 @@
       </section>
 <!-- PART:script -->
 /* ---------- ビルド ---------- */
-let builds = [], btypes = [], editing = null, armed = null;
+let builds = [], btypes = [], editing = null;
+const buildArming = createArming(() => renderBuilds());  // 削除の2段階の確認(parts.html)
 /* MOD の効果(最大ランク): {英名(小文字): {ja, en}}。名前は英名のまま出し、効果は表示中の言語(ja が無ければ en)。無い MOD は名前だけ */
 let modEffects = {};
 const modEffect = name => { const e = modEffects[String(name || "").trim().toLowerCase()]; return e ? nameByLang(e) : ""; };
@@ -234,7 +235,7 @@ function renderBuilds() {
       ${(b.tags || []).length ? `<div class="tags">${b.tags.map(x => `<span>#${esc(x)}</span>`).join("")}</div>` : ""}
       ${(b.images || []).length ? `<div class="thumbs">${b.images.map((n, i) => `<button type="button" class="thumb" data-view-img="${esc(b.name)}" data-i="${i}" aria-label="${esc(fmt("b.image.enlarge", { name: b.name, n: i + 1 }))}"><img src="${imgUrl(n)}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
       <div class="acts"><button class="btn ghost" data-edit="${esc(b.name)}">${esc(t("b.edit.btn"))}</button>
-        <button class="btn danger${armed === b.name ? " armed" : ""}" data-del="${esc(b.name)}">${esc(t(armed === b.name ? "b.del.confirm" : "b.del"))}</button></div></div></div>`).join("")
+        <button class="btn danger${buildArming.is(b.name) ? " armed" : ""}" data-del="${esc(b.name)}">${esc(t(buildArming.is(b.name) ? "b.del.confirm" : "b.del"))}</button></div></div></div>`).join("")
     : `<div class="empty">${esc(t(builds.length ? "b.none" : "b.empty"))}</div>`;
 }
 /* アルケイン: 候補は [{en, ja}]。保存は英名(サーバーが英名にそろえる)、入力欄・候補・一覧は表示中の言語で出す */
@@ -267,7 +268,7 @@ function addArcane() {
   $("#b-arcanes").value = lines.join("\n"); $("#b-arc-pick").value = ""; arcNote();
 }
 $("#b-arc-add").addEventListener("click", addArcane);
-$("#b-arc-pick").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addArcane(); } });
+$("#b-arc-pick").addEventListener("keydown", e => { if (isEnter(e)) { e.preventDefault(); addArcane(); } });
 $("#b-arcanes").addEventListener("input", arcNote);
 $("#b-type").addEventListener("change", arcNote);
 /* Helminth: 候補は同梱の一覧({frame, ability}。英名)。一覧に無い名前でも保存はできる(注意だけ出す) */
@@ -466,10 +467,9 @@ $("#build-list").addEventListener("click", async e => {
     $("#build-form-wrap").open = true; $("#b-name").focus({ preventScroll: true }); scrollView({ top: 0, behavior: "smooth" });
   } else if (del) {
     const name = del.dataset.del;
-    if (armed !== name) { armed = name; renderBuilds(); setTimeout(() => { if (armed === name) { armed = null; renderBuilds(); } }, 4000); return; }
-    armed = null;
+    if (!buildArming.press(name)) return;  // 1回目は確認の見た目にするだけ
     try { builds = (await api(`/api/builds?name=${encodeURIComponent(name)}`, { method: "DELETE" })).builds; if (editing === name) resetBuildForm(); renderBuilds(); }
-    catch (err) { $("#b-err").textContent = err.message; }
+    catch (err) { renderBuilds(); $("#b-err").textContent = err.message; }  // 確認の見た目を戻す
   }
 });
 loaders.build = () => {

@@ -47,6 +47,7 @@ const mfxGroups = () => mfxBoxes().filter(x => x.checked).map(x => x.dataset.gro
   const saved = pref.json("wf-modstats-groups");
   if (Array.isArray(saved)) mfxBoxes().forEach(x => { x.checked = saved.includes(x.dataset.group); });
 })();
+const mfxCandGuard = latestGuard(), mfxResGuard = latestGuard();  // 候補・結果の取得の追い越しの対策(parts.html)
 const mfxNote = key => { mfxRes = null; mfxMsg = key; $("#mfx-out").innerHTML = `<div class="empty">${esc(t(key))}</div>`; };
 function renderMfxChips() {
   const q = $("#mfx-q").value.trim();
@@ -84,23 +85,24 @@ function renderMfxResult() {
 }
 async function mfxFetch() {
   if (!mfxPick) return;
+  const fresh = mfxResGuard();
   const groups = mfxGroups();
   if (!groups.length) { mfxNote("modstats.nogroup"); return; }
   const pick = mfxPick, qs = pick.target ? `target=${encodeURIComponent(pick.target)}` : `q=${encodeURIComponent(pick.text)}`;
   try {
     const res = await api(`/api/modstats?${qs}&groups=${groups.join(",")}`);
-    if (pick !== mfxPick) return;  // 待っている間に選び直していたら捨てる
+    if (!fresh()) return;  // 待っている間に選び直した・区分を変えた・入力を変えたら捨てる
     mfxRes = { ...res, query: pick.text || "" };
     renderMfxResult();
-  } catch (e) { mfxRes = null; $("#mfx-out").innerHTML = noData(e.message); }
+  } catch (e) { if (!fresh()) return; mfxRes = null; $("#mfx-out").innerHTML = noData(e.message); }
 }
 async function mfxSearch() {
-  const q = $("#mfx-q").value.trim();
-  mfxPick = null;
+  const q = $("#mfx-q").value.trim(), fresh = mfxCandGuard();
+  mfxPick = null; mfxResGuard();  // 前の結果の取得が待っていても、もう出さない
   if (!q) { mfxCands = []; renderMfxChips(); mfxNote("modstats.empty"); return; }
   let cands = [];
   try { cands = (await api(`/api/modstats/suggest?q=${encodeURIComponent(q)}`)).items; } catch (e) {}
-  if ($("#mfx-q").value.trim() !== q) return;  // 入力が変わっていたら捨てる
+  if (!fresh()) return;  // 入力が変わっていたら捨てる
   mfxCands = cands;
   const exact = cands.find(c => [c.ja, c.en].some(n => n.toLowerCase() === q.toLowerCase()));
   if (exact || cands.length === 1) mfxPick = { target: (exact || cands[0]).key };
@@ -113,7 +115,7 @@ function mfxPickText() {
   mfxPick = { text: q }; renderMfxChips(); mfxFetch();
 }
 $("#mfx-q").addEventListener("input", debounce(mfxSearch, 250));
-$("#mfx-q").addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); mfxPickText(); } });
+$("#mfx-q").addEventListener("keydown", e => { if (isEnter(e)) { e.preventDefault(); mfxPickText(); } });
 $("#mfx-chips").addEventListener("click", e => {
   const c = e.target.closest(".chip"); if (!c) return;
   if (c.dataset.mfxtext) { mfxPickText(); return; }

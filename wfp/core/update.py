@@ -1,4 +1,4 @@
-"""データ更新: ドロップ表・入手先・Riven 相場・名前辞書と、同じ Export から作るシミュレータ用データ・バロ用の辞書・MOD 効果検索のデータ、侵略用のノード名
+"""データ更新: ドロップ表・入手先・Riven 相場・名前辞書と、同じ Export から作るシミュレータ用データ・バロ用の辞書・MOD 効果検索のデータ・要求素材集のデータ、侵略用のノード名
 (シミュレータ用データは core/simdata、内部パスの辞書は core/names の item_paths_from_exports。2026-11-10 に wfp の外から移した)
 """
 from __future__ import annotations
@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
-from wfp.core import arbitration, invasion, modstats, riven, simdata
+from wfp.core import arbitration, invasion, modstats, recipes, riven, simdata
 from wfp.core.common import export_lang
 from wfp.core.errors import TextFailure, error_text
 from wfp.core.i18n import name_txt, txt
@@ -54,6 +54,15 @@ def _stage_modstats(c: _StageCtx) -> dict:
     return txt("log.modstats.done", n=str(len(mod_data["mods"])))
 
 
+def _stage_recipes(c: _StageCtx) -> dict:
+    """要求素材集のデータ(設計図と素材)。同じ Export(ExportRecipes)から作る"""
+    data = recipes.make_recipes(c.docs["en"], c.docs["source"], c.updated)
+    if not data["recipes"]:
+        raise TextFailure(txt("err.recipes.none"))
+    gamedata.save_recipes(c.d, data)
+    return txt("log.recipes.done", n=str(len(data["recipes"])))
+
+
 def _stage_regions(c: _StageCtx) -> dict:
     """侵略サイクル・仲裁のノード名(SolNode… → ノード名・惑星名)。名前辞書とは別に取る(names.json に混ぜないため)"""
     en_doc, ja_doc, src = exports.fetch_regions()
@@ -76,6 +85,7 @@ _FOLLOW_STAGES: tuple[tuple[str | None, Callable[[_StageCtx], dict], str], ...] 
     (None, _stage_sim, "log.sim.failed"),
     (None, _stage_paths, "log.paths.failed"),
     (None, _stage_modstats, "log.modstats.failed"),
+    (None, _stage_recipes, "log.recipes.failed"),
     ("log.fetching.regions", _stage_regions, "log.regions.failed"),
     ("log.fetching.arbys", _stage_arbys, "log.arbys.failed"),
 )

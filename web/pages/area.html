@@ -26,12 +26,17 @@ function renderAreaChips() {
 }
 // 選んでいる種類(AREA_KINDS のキー。初期は AREA_KIND_DEFAULT。覚えない)
 const areaKinds = kindChecks("area", CONST.AREA_KIND_DEFAULT);
+const areaChipsGuard = latestGuard(), areaResGuard = latestGuard();  // 候補・結果の取得の追い越しの対策(parts.html)
+/* 候補を取り直す。返り値は候補の一覧(待っている間に次の取得が始まっていたら null) */
 async function loadAreaChips() {
+  const fresh = areaChipsGuard();
   try {
-    areaList = await api(`/api/suggest/area?q=${encodeURIComponent($("#area-q").value)}`);
+    const list = await api(`/api/suggest/area?q=${encodeURIComponent($("#area-q").value)}`);
+    if (!fresh()) return null;
+    areaList = list;
     renderAreaChips();
     return areaList;
-  } catch (e) { areaList = null; $("#area-out").innerHTML = noData(e.message); return []; }
+  } catch (e) { if (!fresh()) return null; areaList = null; areaResGuard(); $("#area-out").innerHTML = noData(e.message); return []; }
 }
 function renderAreaResult() {
   const r = areaRes;
@@ -50,18 +55,21 @@ function renderAreaResult() {
     }).join("")}</div>`;
 }
 async function loadAreaResult() {
+  const fresh = areaResGuard();
   areaRes = null;
   if (!areaSel) { renderAreaResult(); return; }
   const kinds = areaKinds();
   if (!kinds.length) { areaRes = null; $("#area-out").innerHTML = `<div class="empty">${esc(t("area.nokind"))}</div>`; return; }
   try {
-    areaRes = await api(`/api/area?type=${areaSel.type}&key=${encodeURIComponent(areaSel.key)}&kinds=${kinds.join(",")}&events=${$("#area-ev").checked ? 1 : 0}`);
+    const res = await api(`/api/area?type=${areaSel.type}&key=${encodeURIComponent(areaSel.key)}&kinds=${kinds.join(",")}&events=${$("#area-ev").checked ? 1 : 0}`);
+    if (!fresh()) return;
+    areaRes = res;
     renderAreaResult();
-  } catch (e) { $("#area-out").innerHTML = noData(e.message); }
+  } catch (e) { if (fresh()) $("#area-out").innerHTML = noData(e.message); }
 }
 $("#area-q").addEventListener("input", debounce(async () => {
   const list = await loadAreaChips(); const q = $("#area-q").value.trim();
-  if (q && list && list.length === 1) { areaSel = { type: list[0].type, key: list[0].key }; await loadAreaChips(); loadAreaResult(); }
+  if (q && list && list.length === 1) { areaSel = { type: list[0].type, key: list[0].key }; renderAreaChips(); loadAreaResult(); }  // 候補は取り直さず、選んだ印だけ付け直す
 }));
 $("#area-kinds").addEventListener("change", e => { if (e.target.dataset.kind) loadAreaResult(); });
 $("#area-ev").addEventListener("change", loadAreaResult);

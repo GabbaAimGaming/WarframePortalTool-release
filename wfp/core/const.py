@@ -50,6 +50,11 @@ EXPORT_SRC_GITHUB = "GitHub (calamity-inc/warframe-public-export)"
 EXPORT_SRC_OFFICIAL = "公式 Public Export"
 
 
+# 言語で中身が変わらない Export(名前を持たないもの)。GitHub(calamity-inc)には言語の付かないファイル名(ExportRecipes.json)で置かれている。
+# 公式 Public Export はほかと同じく言語の付いた名前(ExportRecipes_en.json)。2026-11-13 に GitHub の一覧で確認
+EXPORT_UNLOCALIZED = ("ExportRecipes",)
+
+
 EXPORT_PREFIXES = ("ExportResources", "ExportUpgrades", "ExportGear", "ExportWarframes",
                    "ExportWeapons", "ExportSentinels", "ExportRelicArcane",
                    # バロの在庫(内部パス)を名前にするため: 外装・グリフ・クエスト・ブースター類(ExportOther)・設計図
@@ -265,6 +270,22 @@ RIVEN_WORDS_FILE = "stat_words.json"  # data/riven/ の Riven の効果名の辞
 MOD_STATS_LIMIT = 200
 
 
+# 要求素材集: データ更新で Export(ExportRecipes)から作るファイル(~/.wfportal)
+RECIPES_FILE = "recipes.json"
+RECIPE_EXPORT = "ExportRecipes"
+# 部品として下に開く素材の内部パスの頭(ニューロティック・シャーシ・銃身など = /Lotus/Types/Recipes/…Component・WeaponParts、
+# ネクロメカ・Thanotech のアークガンの部品 = …/InfestedMicroplanet/Resources/Mechs/)。
+# ここに無い素材(Forma・オロキンセル・精錬した鉱石や宝石・素材に使う武器など)は、設計図があっても開かずに末端の素材として出す
+# (2026-11-13 利用者の判断。2026-11-13 の ExportRecipes で確認)
+RECIPE_PART_PREFIXES = ("/Lotus/Types/Recipes/", "/Lotus/Types/Gameplay/InfestedMicroplanet/Resources/Mechs/")
+RECIPE_MAX_DEPTH = 4         # 部品を開く深さの上限(輪になったデータで止まらないように)
+RECIPE_SOURCE_LIMIT = 2      # 末端の素材ごとに出す入手先の数(確率の高い順)
+# 入手先を後ろに回すミッションの種類(MODES_JA のキー)。ほかの入手先があればそちらを先に出し、これしか無ければこれを出す
+# (2026-11-14 利用者の指定: コンクラーヴ)
+RECIPE_SOURCE_LAST_MODES = ("Conclave",)
+RECIPE_SUGGEST_LIMIT = 10    # 候補の最大件数
+
+
 # マスター一覧のカテゴリー
 MASTERY_CATS = {"warframe": "Warframe", "primary": "プライマリ", "secondary": "セカンダリ", "melee": "近接",
                 "kitgun": "Kitgun", "zaw": "Zaw", "robotic": "ロボティック", "companion": "コンパニオン",
@@ -404,6 +425,32 @@ QA_TALK_FILE = "talk.json"
 
 
 QA_TALK_TYPES = ("tool", "chat")
+
+
+# Q&A のアイコン(セファロン クロの姿。core.qaicon)。一覧は data/qa/icons.json、画像は data/qa/icons/<姿の id>/
+QA_ICONS_FILE = "icons.json"
+
+
+QA_ICON_DIR = "icons"
+
+
+# 画像の拡張子 -> Content-Type(この表に無い拡張子は使えない)
+QA_ICON_MIME = {"svg": "image/svg+xml", "png": "image/png", "webp": "image/webp", "ico": "image/x-icon"}
+
+
+# 答えの場面: /api/qa の応答の type -> 場面(icons.json の images のキー)。無い type・姿に無い場面は QA_ICON_DEFAULT_SCENE
+QA_ICON_SCENES = {"menu": "greet", "lore": "lore", "spoiler_ask": "lore", "talk": "talk",
+                  "answer": "answer", "options": "answer", "miss": "miss"}
+
+
+QA_ICON_DEFAULT_SCENE = "default"
+
+
+# アイコンの画像の応答のキャッシュ(更新で差し替わるので immutable にしない)と、メニューのアイコンの URL の名前(/qa-icon/menu)
+QA_ICON_CACHE = "private, max-age=86400"
+
+
+QA_ICON_MENU = "menu"
 
 
 # 名前の種類: フレーム・武器(builder.json)/ アイテム(ドロップ表)/ アビリティ(builder.json と吸収一覧)/
@@ -727,3 +774,17 @@ BARO_RELAYS = {
     "ErisHUB": ("Kuiper Relay", "Eris"), "EuropaHUB": ("Leonov Relay", "Europa"),
     "PlutoHUB": ("Orcus Relay", "Pluto"), "TennoConHUB2": ("TennoCon Relay", ""),
 }
+
+# --- 画面のサーバー(wfp/api/server.py) ---
+# どの応答にも付けるヘッダー。ほかのサイトのページに埋め込ませない(シミュレータの iframe は同じオリジンなので通る)・
+# ほかのサイトから画像やスクリプトとして読み込ませない・中身から種類を推測させない
+SERVER_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Content-Security-Policy": "frame-ancestors 'self'",
+    "Cross-Origin-Resource-Policy": "same-origin",
+}
+# /api/ への要求で通す Sec-Fetch-Site の値(ブラウザが付ける「どこからの要求か」)。same-origin = この画面から・none = アドレス欄などから直接。
+# ほか(cross-site = ほかのサイト・same-site = localhost の別のポートのページ)は断る。ヘッダーが無い要求(古いブラウザ・CLI・curl)は通す
+API_FETCH_SITES = ("same-origin", "none")
+REQUEST_MAX_BYTES = 1_000_000  # JSON の本文の上限(バイト)。画像の上限は store/build_images の IMAGE_MAX_BYTES

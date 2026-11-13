@@ -40,8 +40,8 @@ function renderRivens() {
     (!q || [r.weapon_ja, r.weapon_en, rivType(r.type)].some(x => (x || "").toLowerCase().includes(q)))), rivSort, rivGetters);
   $("#riv-summary").innerHTML = `<span>${fmt("riv.summary", { shown: `<b class="count">${list.length}</b>`, total: rivens.rows.length })}</span><span>${esc(fmt("riv.updated", { at: rivens.updated }))}</span>`;
   $("#riv-out").innerHTML = list.length ? `<div class="tablewrap tall"><table>
-    <thead class="stack"><tr><th rowspan="2" class="sort" data-sort="w" aria-sort="${rivSort.key === "w" ? (rivSort.dir === "asc" ? "ascending" : "descending") : "none"}" tabindex="0">${esc(t("riv.col.weapon"))}</th>
-      <th rowspan="2" class="sort" data-sort="t" aria-sort="${rivSort.key === "t" ? (rivSort.dir === "asc" ? "ascending" : "descending") : "none"}" tabindex="0">${esc(t("riv.col.type"))}</th>
+    <thead class="stack"><tr>${th(esc(t("riv.col.weapon")), "w", rivSort, "", 'rowspan="2"')}
+      ${th(esc(t("riv.col.type")), "t", rivSort, "", 'rowspan="2"')}
       <th colspan="4" class="num">${esc(t("riv.unrolled"))}</th><th colspan="4" class="num">${esc(t("riv.rerolled"))}</th></tr>
       <tr>${["u", "r"].map(p => `${th(esc(t("riv.median")), p + "m", rivSort, "num")}${th(esc(t("riv.avg")), p + "a", rivSort, "num")}<th class="num">${esc(t("riv.range"))}</th>${th(esc(t("riv.pop")), p + "p", rivSort, "num")}`).join("")}</tr></thead>
     <tbody>${list.map(r => `<tr><td class="${r.veiled ? "veiled" : ""}">${esc(rivWeapon(r))}${r.veiled ? "" : subEn(r, "weapon_ja", "weapon_en")}</td>

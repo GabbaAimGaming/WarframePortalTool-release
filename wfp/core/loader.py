@@ -1,10 +1,11 @@
-"""データ置き場から読み込んで、名前辞書・ドロップ表・入手先・Riven 相場を組み立てる"""
+"""データ置き場から読み込んで、名前辞書・ドロップ表・入手先・Riven 相場・要求素材集の設計図を組み立てる"""
 from __future__ import annotations
 
 from pathlib import Path
 
 from wfp.core.const import CLAN_FILE, OTHER_FILE
 from wfp.core.names import Names
+from wfp.core.recipes import Recipes, check_recipes
 from wfp.drops.tables import Drops, Sources
 from wfp.fetch import riven_stats
 from wfp.store import appdata, gamedata
@@ -33,6 +34,11 @@ def load_drops(d: Path) -> Drops:
 def load_sources(d: Path) -> Sources:
     """ミッション以外の入手先(wfcd/ 以下)と、同梱のクラン研究・Simaris 交換など(data/parts/clan.json / other.json)"""
     return Sources(gamedata.read_wfcd(d), appdata.read_parts(CLAN_FILE), appdata.read_parts(OTHER_FILE))
+
+
+def load_recipes(d: Path) -> Recipes:
+    """要求素材集の設計図(recipes.json)。無い・読めなければ空"""
+    return check_recipes(gamedata.read_recipes(d))
 
 
 def load_rivens(d: Path) -> list[dict] | None:

@@ -2,6 +2,16 @@
      トップとページ説明の分類)。ctrl.html の INCLUDE:parts.html#script で、基礎スクリプトのあと・各ページの処理の前に入る。
      メイン画面だけで使う(シミュレータと共用のものは web/i18n.html) -->
 <!-- PART:script -->
+/* ---------- 取得の追い越しの対策(候補・結果を取りに行く検索のページと Tips で共用) ---------- */
+/* 同じ欄に出す取得が重なったとき、後から始めたものだけを画面に出す(古い応答が遅れて届いても、新しい結果を上書きしない)。
+   欄ごとに1つ作る: const guard = latestGuard();
+   取りに行くたびに: const fresh = guard(); … await api(…); if (!fresh()) return;  // 待っている間に次が始まっていたら捨てる
+   取得をせずに欄を書き換えるときも guard() を呼ぶ(待っている取得が後から上書きしないように) */
+function latestGuard() {
+  let turn_now = 0;
+  return () => { const turn_mine = ++turn_now; return () => turn_mine === turn_now; };
+}
+
 /* ---------- 入手先の検索(素材から探す・パーツ検索で共用) ---------- */
 /** 入手先の名前。敵の行(API の enemy に英名)は押すと敵から探すで開く(openEnemy) */
 const placeCell = x => x.enemy
@@ -23,28 +33,35 @@ function sourceTable(rows) {
  * o.onSuggest(res): 候補を受け取ったとき(カテゴリーの描画など。o.blocked で止めたときは null) / o.more(res, list): 候補の後ろに足す HTML / o.tag(item): 候補の名前の後ろに足す HTML(種類のラベルなど)
  * o.blocked(): 候補を取らずに止めるときの文字(例: 種類を1つも選んでいない)。止めないときは "" を返す(省略可)
  * o.msg: noMatch(res) 候補なし / pick 候補から選ぶ / empty 何も入っていない / noData データなし(どれも文字を返す関数)
+ * o.result(key): 選んだ項目の結果を取る URL(省略時は /api/item。#<id>-ev のイベント限定を見る)
+ * o.render(data, nameOf, subOf): 結果の HTML(省略時は入手先の表。要求素材集のように結果の形が違うページが渡す。#<id>-ev は無くてよい)
  * 返り値: load(ページを開いたとき) / search(autoPick)(候補を取り直す) / reset(データ更新の後)
  */
 function sourceSearch(o) {
   const el = part => $(`#${o.id}-${part}`);
   const list = o.list || (res => res);
   let key = null, cat = "", data = null;
+  const chipsGuard = latestGuard(), resultGuard = latestGuard();  // 候補・結果の取得の追い越しの対策
   // 候補の名前: 日本語の画面は日本語名(下に英名)、ほかの言語は英名(ゲームの名前は Export の英語・日本語の2つだけ)
   const nameOf = i => nameByLang(i), subOf = i => (lang === "ja" && i.ja && i.ja !== i.en ? i.en : "");
   const chip = i => `<button class="chip" data-key="${esc(i.key)}" aria-pressed="${i.key === key}">${esc(nameOf(i))}${subOf(i) ? `<small>${esc(subOf(i))}</small>` : ""}${o.tag ? o.tag(i) : ""}</button>`;
+  /* 候補を取り直す。返り値は候補の一覧(待っている間に次の取得が始まっていたら null = 何もしない) */
   async function loadChips() {
+    const fresh = chipsGuard();
     const stop = o.blocked ? o.blocked() : "";
     if (stop) { el("chips").innerHTML = `<span class="note">${esc(stop)}</span>`; if (o.onSuggest) o.onSuggest(null); return []; }
     try {
       const res = await api(o.suggest(el("q").value)), items = list(res);
+      if (!fresh()) return null;
       if (o.onSuggest) o.onSuggest(res);
       el("chips").innerHTML = items.length ? items.map(chip).join("") + (o.more ? o.more(res, items) : "")
         : `<span class="note">${esc(o.msg.noMatch(res))}</span>`;
       return items;
-    } catch (e) { el("chips").innerHTML = ""; el("out").innerHTML = noData(e.message); return []; }
+    } catch (e) { if (!fresh()) return null; resultGuard(); el("chips").innerHTML = ""; el("out").innerHTML = noData(e.message); return []; }
   }
   function renderResult() {
     const r = data; if (!r) return;
+    if (o.render) { el("out").innerHTML = o.render(r, nameOf, subOf); return; }
     if (cat && !r.cats.some(c => c.key === cat)) cat = "";
     const rows = cat ? r.rows.filter(x => x.cat === cat) : r.rows;
     el("out").innerHTML = `
@@ -56,23 +73,27 @@ function sourceSearch(o) {
     <p class="note">${esc(t("src.footnote"))}</p>`;
   }
   async function loadResult() {
+    const fresh = resultGuard();
     if (!key) { el("out").innerHTML = ""; return; }
     try {
-      data = await api(`/api/item?key=${encodeURIComponent(key)}&events=${el("ev").checked ? 1 : 0}`);
+      const res = await api(o.result ? o.result(key) : `/api/item?key=${encodeURIComponent(key)}&events=${el("ev").checked ? 1 : 0}`);
+      if (!fresh()) return;
+      data = res;
       renderResult();
-    } catch (e) { data = null; el("out").innerHTML = noData(e.message); }
+    } catch (e) { if (!fresh()) return; data = null; el("out").innerHTML = noData(e.message); }
   }
   const markChips = () => el("chips").querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c.dataset.key === key));
   async function search(autoPick) {
     const items = await loadChips();
-    if (!items || !items.length) { key = null; el("out").innerHTML = ""; return; }
+    if (items === null) return;
+    if (!items.length) { key = null; resultGuard(); el("out").innerHTML = ""; return; }
     const q = el("q").value.trim();
     if (autoPick || !items.some(i => i.key === key)) {
       const exact = q && items.find(i => [i.ja, i.en].some(n => n.toLowerCase() === q.toLowerCase()));
       key = exact ? exact.key : (q && items.length === 1 ? items[0].key : (q ? null : key));
       if (key) markChips();
     }
-    if (!key) el("out").innerHTML = `<div class="empty">${esc(q ? o.msg.pick() : o.msg.empty())}</div>`;
+    if (!key) { resultGuard(); el("out").innerHTML = `<div class="empty">${esc(q ? o.msg.pick() : o.msg.empty())}</div>`; }
     else await loadResult();
   }
   el("out").addEventListener("click", e => {
@@ -80,7 +101,7 @@ function sourceSearch(o) {
     cat = c.dataset.cat; renderResult();
   });
   el("q").addEventListener("input", debounce(() => search(true)));
-  el("ev").addEventListener("change", loadResult);
+  if (el("ev")) el("ev").addEventListener("change", loadResult);
   el("chips").addEventListener("click", e => {
     const c = e.target.closest(".chip[data-key]"); if (!c) return;
     key = c.dataset.key; cat = "";
@@ -94,10 +115,75 @@ function sourceSearch(o) {
       if (!s || !s.has_drops) { el("chips").innerHTML = ""; el("out").innerHTML = noData(o.msg.noData()); return; }
       if (!el("chips").children.length || !key) await search(true);
     },
-    reset() { key = null; data = null; el("chips").innerHTML = ""; },
+    reset() { key = null; data = null; chipsGuard(); resultGuard(); el("chips").innerHTML = ""; },
     // 言語を切り替えたとき: 候補と結果を手元のデータで描き直す(取り直さない)
     relabel() { applyViewText(o.id); if (data) renderResult(); return el("chips").children.length ? loadChips() : null; },
   };
+}
+
+/* ---------- 一覧の表の描き直し(MOD・マスター・クエスト・アルケイン・バロ吉の一覧で共用) ---------- */
+/* box の中身を html に置き換える。表の枠(.tablewrap)の中のスクロール位置は、見ている一覧が同じあいだは保つ
+   (チェックを付けたとき・行を開いたときに先頭へ戻さない)。view_key = 一覧の見え方を決める値の並び
+   (カテゴリー・絞り込み・並べ替え)。前と違えば別の一覧なので先頭から */
+const tableViews = new WeakMap();
+function drawTable(box, html, view_key) {
+  const key = JSON.stringify(view_key), wrap_old = box.querySelector(".tablewrap");
+  const keep = wrap_old && tableViews.get(box) === key ? { top: wrap_old.scrollTop, left: wrap_old.scrollLeft } : null;
+  tableViews.set(box, key);
+  box.innerHTML = html;
+  const wrap_new = box.querySelector(".tablewrap");
+  if (keep && wrap_new) { wrap_new.scrollTop = keep.top; wrap_new.scrollLeft = keep.left; }
+}
+
+/* ---------- 毎秒の更新(サイクル・バロ吉・仲裁の残り時間で共用) ---------- */
+/* everySecond.<ページの id> = 関数 と登録すると、そのページを表示中で、ブラウザのタブが表のあいだだけ毎秒呼ぶ(タイマーは全体で1本)。
+   タブが裏のあいだは呼ばず、表に戻ったときにすぐ1回呼ぶ(止まっていた残り時間を合わせる)。ページごとに setInterval を作らない */
+const everySecond = {};
+const SECOND_TICK = 1000;  // ミリ秒
+function tickSecond() {
+  if (document.hidden) return;
+  const tick = everySecond[currentView];
+  if (tick) tick();
+}
+setInterval(tickSecond, SECOND_TICK);
+document.addEventListener("visibilitychange", tickSecond);
+
+/* ---------- 進み具合(MOD・マスター・クエスト・アルケイン・バロ吉の一覧の集計欄で共用) ---------- */
+/* ratePct = 割合(%。全体が 0 件なら 0)。progressBar = その割合のバー(飾りなので読み上げない。数字は文のほうに出す) */
+const ratePct = (count, total) => (total ? count / total * 100 : 0);
+const progressBar = rate => `<span class="progress" aria-hidden="true"><i style="--w:${rate.toFixed(1)}%"></i></span>`;
+
+/* ---------- 2段階の確認ボタン(ビルド管理の削除・マスター一覧のまとめて付け外し・クエスト一覧の導線で共用) ---------- */
+/* 1回目に押すと「構え」(ボタンを確認の見た目に変える)、ARM_WAIT ミリ秒のうちにもう1回押すと実行。過ぎたら元に戻る。
+   draw = 構えが変わったときにボタンを描き直す関数(ページの render)。ページごとに1つ作る: const arming = createArming(render);
+   返り値: is(key) そのボタンが構えているか / press(key) 押した(2回目なら true = 実行してよい。1回目は構えて false)/
+           clear() 構えを解く(描き直しは呼ぶ側。一覧の見え方を変えたときなど) */
+const ARM_WAIT = 4000;
+function createArming(draw) {
+  let key_now = null, timer = null;
+  const hold = key => { clearTimeout(timer); timer = null; key_now = key; };
+  return {
+    is: key => key_now !== null && key_now === key,
+    clear() { hold(null); },
+    press(key) {
+      if (key_now === key) { hold(null); return true; }
+      hold(key); draw();
+      timer = setTimeout(() => { hold(null); draw(); }, ARM_WAIT);
+      return false;
+    },
+  };
+}
+
+/* ---------- CSV の書き出し(MOD・マスター・アルケインの一覧で共用) ---------- */
+/* 表を CSV のファイルにしてダウンロードさせる。file_base = ファイル名の頭(後ろに _日付.csv が付く)、head = 見出しの行、rows = 行の一覧(値の配列)。
+   値は全部 "…" で囲み(中の " は "")、行は CRLF、頭に BOM を付ける(Excel で開いても文字化けしない) */
+function saveCsv(file_base, head, rows) {
+  const cell = val => `"${String(val ?? "").replace(/"/g, '""')}"`;
+  const text = [head, ...rows].map(row => row.map(cell).join(",")).join("\r\n");
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob(["\ufeff" + text], { type: "text/csv" }));
+  link.download = `${file_base}_${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 2000);
 }
 
 /* ---------- 種類のチェック(アイテム・エリア・敵から探すで共用) ---------- */

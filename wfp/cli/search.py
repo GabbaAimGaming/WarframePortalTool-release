@@ -1,4 +1,4 @@
-"""CLI: 検索(item・area・enemy)"""
+"""CLI: 検索(item・area・enemy・recipe)"""
 from __future__ import annotations
 
 import sys
@@ -9,9 +9,11 @@ from wfp.core.common import pct, rank
 from wfp.core.i18n import render_ja
 from wfp.core.text import norm
 from wfp.core.const import (
-    AREA_KIND_DEFAULT, AREA_KINDS, ENEMY_KIND_DEFAULT, ITEM_KIND_DEFAULT, MODES_JA, PLANETS_JA, RARITY_JA, SOURCE_CATS,
+    AREA_KIND_DEFAULT, AREA_KINDS, ENEMY_KIND_DEFAULT, ITEM_KIND_DEFAULT, MASTERY_CATS, MODES_JA, PLANETS_JA, RARITY_JA,
+    RECIPE_SOURCE_LIMIT, SOURCE_CATS,
 )
-from wfp.core.loader import load_names, load_sources
+from wfp.core.loader import DropsMissing, load_drops, load_names, load_recipes, load_sources
+from wfp.core.recipes import pick_tops, sort_sources
 from wfp.drops.search import all_item_names, area_stages, enemy_drops, find_sources, group_candidates, pick_candidates, pick_enemies
 from wfp.drops.tables import stage_label
 from wfp.store import datadir
@@ -142,6 +144,78 @@ def add_item(sub) -> None:
     s.add_argument("--cat", action="append", choices=list(SOURCE_CATS), help="入手先の種類で絞り込み (複数回指定可)")
     s.set_defaults(fn=cmd_item)
 
+def _recipe_time(sec: int) -> str:
+    """作成時間の表示(日・時間・分。秒は1分未満のときだけ)"""
+    d, rem = divmod(sec, 86400)
+    h, rem = divmod(rem, 3600)
+    m, s = divmod(rem, 60)
+    out = (f"{d}日" if d else "") + (f"{h}時間" if h else "") + (f"{m}分" if m else "")
+    return out or f"{s}秒"
+
+
+def _print_recipe_parts(parts: list[dict], depth: int) -> None:
+    """要求素材集の入れ子を字下げで出す(部品は下に開く。末端の素材は入手先を RECIPE_SOURCE_LIMIT 件まで)"""
+    pad = "  " * depth
+    for p in parts:
+        if p["kind"] == "part":
+            print(f"{pad}{p['ja']} ×{p['count']:,}  [{p['credits']:,} クレジット / {_recipe_time(p['time'])}]")
+            _print_recipe_parts(p["parts"], depth + 1)
+            continue
+        print(f"{pad}{p['ja']} ×{p['count']:,}")
+        src = p.get("sources") or {"rows": [], "total": 0}
+        for r in src["rows"]:
+            stage = "" if r["stage"] == "—" else render_ja(r["stage"])  # ローテーションの無い入手先は出さない
+            print(f"{pad}    - {render_ja(r['place'])} / {render_ja(r['detail'])}{' / ' + stage if stage else ''}  {pct(r['chance'])}")
+        if not src["rows"]:
+            print(f"{pad}    - (入手先が見つかりません)")
+        elif src["total"] > len(src["rows"]):
+            print(f"{pad}    (ほか {src['total'] - len(src['rows'])} か所。item コマンドで全部見られます)")
+
+
+def cmd_recipe(args):
+    d = datadir.data_dir(args.data_dir)
+    recipes, names = load_recipes(d), load_names(d)
+    if not recipes:
+        sys.exit("要求素材集のデータがありません。先に `python wfportal.py update` を実行してください。")
+    query = " ".join(args.query)
+    cands = pick_tops(query, recipes.tops(names))
+    if not cands:
+        sys.exit(f"「{query}」に一致する Warframe・武器などがありません。")
+    exact = [c for c in cands if norm(query) in (norm(c["en"]), norm(c["ja"]))]
+    if exact:
+        cands = exact[:1]
+    elif len(cands) > 1 and not args.pick:
+        print(f"「{query}」の候補が {len(cands)} 件あります。--pick 番号 で選ぶか、もう少し具体的に入力してください。")
+        for i, c in enumerate(cands[:30], 1):
+            print(f"  {i:>2}. {c['ja']}  ({c['en']} / {MASTERY_CATS.get(c['cat'], c['cat'])})")
+        return
+    if args.pick:
+        if not 1 <= args.pick <= len(cands):
+            sys.exit("--pick の番号が範囲外です。")
+        cands = [cands[args.pick - 1]]
+    try:
+        drops = load_drops(d)
+    except DropsMissing:
+        drops = None  # ドロップ表がまだ無ければ入手先なしで素材だけ出す
+    sources = load_sources(d)
+
+    def sources_of(en: str) -> dict:
+        rows = sort_sources(find_sources(en, drops, sources, names)) if drops else []
+        return {"rows": rows[:RECIPE_SOURCE_LIMIT], "total": len(rows)}
+
+    view = recipes.view(cands[0]["key"], names, sources_of)
+    print(f"■ {view['ja']}  ({view['en']})")
+    for i, rec in enumerate(view["recipes"], 1):
+        if len(view["recipes"]) > 1:
+            print(f"\n― 作り方 {i}/{len(view['recipes'])}")
+        print(f"\n{rec['bp_ja']}  [{rec['credits']:,} クレジット / {_recipe_time(rec['time'])}]")
+        _print_recipe_parts(rec["parts"], 1)
+        print("\n  合計(末端の素材)")
+        print_table(["素材", "数"], [[x["ja"], f"{x['count']:,}"] for x in rec["total"]["items"]], right_cols=(1,))
+        print(f"  クレジットの合計: {rec['total']['credits']:,}")
+    if drops is None:
+        print("\n(ドロップ表がまだ無いので入手先は出していません。`python wfportal.py update` で取れます)")
+
 
 def add_area(sub) -> None:
     s = sub.add_parser("area", help="エリア(惑星/ノード) -> ステージごとの素材と確率")
@@ -163,5 +237,12 @@ def add_enemy(sub) -> None:
     s.set_defaults(fn=cmd_enemy)
 
 
+def add_recipe(sub) -> None:
+    s = sub.add_parser("recipe", help="Warframe・武器などの名前 -> 作るのに要る素材(部品ごと)・クレジット・作成時間・素材の入手先")
+    s.add_argument("query", nargs="+")
+    s.add_argument("--pick", type=int, help="候補が複数のとき番号で選ぶ")
+    s.set_defaults(fn=cmd_recipe)
+
+
 # このグループのコマンド: 名前 -> parser に登録する関数(並び順は wfp/cli/main.py の ORDER)
-COMMANDS = {"item": add_item, "area": add_area, "enemy": add_enemy}
+COMMANDS = {"item": add_item, "area": add_area, "enemy": add_enemy, "recipe": add_recipe}

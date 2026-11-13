@@ -11,7 +11,7 @@ from wfp.core.errors import TextError
 from wfp.core.i18n import txt
 from wfp.core.const import (
     ARBYS_FILE, BUILDER_FILE, DROPS_FILE, EXPORT_EXTRA_LANGS, ITEM_PATHS_FILE, LANG_NAMES_FILE, MOD_STATS_FILE, NAMES_FILE,
-    REGIONS_FILE, RIVENS_FILE, WFCD_DIR, WFCD_EXTRA, WORLDSTATE_FILE,
+    RECIPES_FILE, REGIONS_FILE, RIVENS_FILE, WFCD_DIR, WFCD_EXTRA, WORLDSTATE_FILE,
 )
 from wfp.store import datadir
 
@@ -116,6 +116,19 @@ def read_mod_stats(d: Path) -> dict | None:
 
 def save_mod_stats(d: Path, data: dict) -> None:
     _write_json(d / MOD_STATS_FILE, data)
+
+
+def read_recipes(d: Path) -> dict | None:
+    """recipes.json(要求素材集用。データ更新で Export の ExportRecipes から作る)。無い・読めなければ None(形の検査は core.recipes で行う)"""
+    try:
+        j = json.loads((d / RECIPES_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return j if isinstance(j, dict) else None
+
+
+def save_recipes(d: Path, data: dict) -> None:
+    _write_json(d / RECIPES_FILE, data)
 
 
 def _lang_names_path(d: Path, lang: str) -> Path:

@@ -151,6 +151,19 @@ def read_qa(name: str, src: Path | None = None) -> object | None:
     return read_bundled("qa", name, qa_dir() if src is None else src)
 
 
+def qa_icon_path(set_id: str, name: str, src: Path | None = None) -> Path:
+    """Q&A のアイコンの画像の場所(data/qa/icons/<姿の id>/<ファイル>)。名前の検査は使う側(core.qaicon の safe_name)"""
+    return (qa_dir() if src is None else src) / const.QA_ICON_DIR / set_id / name
+
+
+def read_qa_icon(set_id: str, name: str, src: Path | None = None) -> bytes | None:
+    """Q&A のアイコンの画像のバイト列。読めなければ None"""
+    try:
+        return qa_icon_path(set_id, name, src).read_bytes()
+    except OSError:
+        return None
+
+
 def read_riven_words(name: str | None = None, src: Path | None = None) -> object | None:
     return read_bundled("riven", name, riven_dir() if src is None else src)
 

@@ -1,4 +1,4 @@
-"""画面向け API: 検索(アイテムから探す・エリア検索・敵から探す)"""
+"""画面向け API: 検索(アイテムから探す・エリア検索・敵から探す・要求素材集)"""
 from __future__ import annotations
 
 from wfp.api.store import ApiError, Store, need_drops
@@ -6,9 +6,11 @@ from wfp.core.common import rank
 from wfp.core.i18n import name_txt, txt
 from wfp.core.text import norm
 from wfp.core.const import (
-    AREA_KINDS, ENEMY_KIND_DEFAULT, ITEM_KIND_DEFAULT, MASTERY_CATS, PART_SKIP_CATS, PLANETS_JA, SOURCE_CATS,
+    AREA_KINDS, ENEMY_KIND_DEFAULT, ITEM_KIND_DEFAULT, MASTERY_CATS, PART_SKIP_CATS, PLANETS_JA, RECIPE_SOURCE_LIMIT,
+    RECIPE_SUGGEST_LIMIT, SOURCE_CATS,
 )
 from wfp.core.names import item_key
+from wfp.core.recipes import Recipes, pick_tops, sort_sources
 from wfp.drops.search import area_stages, enemy_drops, find_sources, group_candidates, parse_kinds, pick_candidates, pick_enemies
 from wfp.drops.tables import mission_place, stage_label
 
@@ -142,6 +144,44 @@ def lookup_enemy(store: Store, name: str, kinds: set[str]) -> dict:
     }
 
 
+def _need_recipes(store: Store) -> Recipes:
+    """要求素材集の設計図。まだ無ければ(データ更新の前)409"""
+    recipes = store.recipes()
+    if not recipes:
+        raise ApiError(txt("err.recipes.nodata"), 409)
+    return recipes
+
+
+def suggest_recipes(store: Store, q: str) -> dict:
+    """要求素材集の候補(マスター一覧に載っていて設計図があるもの。core/recipes の Recipes.tops)。
+
+    items は候補 [{key: 内部パス, en, ja, cat}](最大 RECIPE_SUGGEST_LIMIT 件)、total は q に合う全件数。cat の名前は画面の I18N(mastery.cat.<キー>)
+    """
+    recipes, names = _need_recipes(store), store.names()
+    tops = store.derived("@recipe_tops", (recipes, names), lambda: recipes.tops(names))
+    cands = pick_tops(q, tops)
+    return {"total": len(cands), "items": cands[:RECIPE_SUGGEST_LIMIT]}
+
+
+def lookup_recipe(store: Store, key: str) -> dict:
+    """要求素材集: key(できる物の内部パス)の素材を部品ごとの入れ子で返す(Recipes.view)。設計図が無ければ 404。
+
+    末端の素材の sources = {rows: 入手先の先頭 RECIPE_SOURCE_LIMIT 件(find_sources の行。確率の高い順。コンクラーヴは sort_sources で後ろ), total: 全件数}。
+    ドロップ表がまだ無ければ入手先は空(素材の一覧は出す)
+    """
+    recipes, names = _need_recipes(store), store.names()
+    drops, src = store.drops(), store.sources()
+
+    def sources_of(en: str) -> dict:
+        rows = sort_sources(find_sources(en, drops, src, names)) if drops else []
+        return {"rows": rows[:RECIPE_SOURCE_LIMIT], "total": len(rows)}
+
+    view = recipes.view(key, names, sources_of)
+    if view is None:
+        raise ApiError(txt("err.recipe.none"), 404)
+    return view
+
+
 # (メソッド, パス) -> 処理。c はリクエスト(wfp/api/server.py の Request)
 ROUTES = {
     ("GET", "/api/suggest/item"): lambda c: suggest_items(c.store, c.q.get("q", ""), parse_kinds(c.q.get("kinds"), ITEM_KIND_DEFAULT),
@@ -151,5 +191,7 @@ ROUTES = {
     ("GET", "/api/area"): lambda c: lookup_area(c.store, c.q.get("type", "planet"), c.q.get("key", ""),
                                                 parse_kinds(c.q.get("kinds")), c.flag("events")),
     ("GET", "/api/suggest/enemy"): lambda c: suggest_enemies(c.store, c.q.get("q", "")),
+    ("GET", "/api/suggest/recipe"): lambda c: suggest_recipes(c.store, c.q.get("q", "")),
+    ("GET", "/api/recipe"): lambda c: lookup_recipe(c.store, c.q.get("key", "")),
     ("GET", "/api/enemy"): lambda c: lookup_enemy(c.store, c.q.get("name", ""), parse_kinds(c.q.get("kinds"), ENEMY_KIND_DEFAULT)),
 }

@@ -1,0 +1,100 @@
+<!-- ページ「要求素材集」(id recipe): 表示部(view = <section id="view-recipe">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html(このページだけの CSS は PART:style に書ける) -->
+<!-- PART:view -->
+      <!-- 要求素材集(Warframe・武器などを作るのに要る素材を、部品ごとの入れ子で出す。データは Export の ExportRecipes) -->
+      <section id="view-recipe" hidden>
+        <h2 data-i18n="page.recipe">要求素材集</h2>
+        <p class="lead" data-i18n="recipe.lead">Warframe・武器などの名前(日本語・英語・ひらがな)を入力すると、作るのに要る素材を部品ごとに表示します。</p>
+        <div class="row">
+          <input type="text" class="search" id="recipe-q" data-i18n-placeholder="recipe.placeholder" placeholder="例: Rhino / Afuris / Voidrig" autocomplete="off">
+        </div>
+        <div class="chips" id="recipe-chips"></div>
+        <div id="recipe-out"></div>
+      </section>
+<!-- PART:style -->
+<style>
+/* 要求素材集: 入れ子の段は字下げ(--depth)。部品の行は少し目立たせる */
+#recipe-out .rc-name { padding-left: calc(0.6em + var(--depth, 0) * 1.4em); }
+#recipe-out tr.rc-top td { font-weight: 700; background: var(--panel-2); }
+#recipe-out tr.rc-part td { font-weight: 600; }
+#recipe-out td.rc-num { text-align: right; white-space: nowrap; }
+#recipe-out td.rc-cost { white-space: nowrap; }
+#recipe-out .rc-src { display: block; font-size: 0.9em; }
+#recipe-out .rc-src + .rc-src { margin-top: 0.15em; }
+#recipe-out h4 { margin: 1.2em 0 0.4em; }
+#recipe-out .rc-total { margin-top: 0.8em; }
+#recipe-out .rc-total .tablewrap { max-width: 36em; }
+</style>
+<!-- PART:script -->
+/* ---------- 要求素材集 ---------- */
+/* 名前で候補(マスター一覧に載っていて設計図があるもの)を出し、選んだものの素材(/api/recipe)を入れ子の表にする。
+   部品(ニューロティック・シャーシなど)は下に開き、末端の素材には入手先を確率の高い順に RECIPE_SOURCE_LIMIT 件まで出す。
+   作り方が2通り以上あるもの(例: Brakk)は全部並べる。末端の素材の合計とクレジットの合計は作り方ごと。
+   候補と結果の取り方・言語の切り替えは parts.html の sourceSearch(結果の取り方と描き方だけこのページで渡す) */
+const recipeNum = n => Number(n).toLocaleString(locale());
+/* 作成時間(秒)→「1日 12時間」のように(秒は1分未満のときだけ) */
+function recipeTime(sec) {
+  const days = Math.floor(sec / 86400), hours = Math.floor(sec % 86400 / 3600), mins = Math.floor(sec % 3600 / 60);
+  const out = [];
+  if (days) out.push(fmt("recipe.time.d", { n: days }));
+  if (hours) out.push(fmt("recipe.time.h", { n: hours }));
+  if (mins) out.push(fmt("recipe.time.m", { n: mins }));
+  return out.length ? out.join(" ") : fmt("recipe.time.s", { n: sec % 60 });
+}
+const recipeCost = x => esc(fmt("recipe.cost", { cr: recipeNum(x.credits), time: recipeTime(x.time) }));
+/* 末端の素材の入手先(先頭の数件。残りは「ほか n か所」) */
+function recipeSources(src) {
+  if (!src || !src.rows.length) return `<span class="note">${esc(t("recipe.nosrc"))}</span>`;
+  const line = r => {
+    const stage = r.stage === "—" ? "" : renderTxt(r.stage);  // ローテーションの無い入手先は「—」なので出さない
+    const where = [renderTxt(r.place), renderTxt(r.detail), stage].filter(Boolean).join(" / ");
+    return `<span class="rc-src">${esc(where)} <b>${r.chance == null ? "—" : esc(fmtPct(r.chance))}</b></span>`;
+  };
+  return src.rows.map(line).join("")
+    + (src.total > src.rows.length ? `<span class="rc-src note">${esc(fmt("recipe.more", { n: src.total - src.rows.length }))}</span>` : "");
+}
+/* 入れ子の行(部品は下の行を続けて出す) */
+function recipeRows(parts, depth) {
+  return parts.map(p => {
+    const name = `<td class="rc-name" style="--depth:${depth}">${esc(nameByLang(p))}</td>`;
+    const num = `<td class="rc-num">${esc(fmt("recipe.count", { n: recipeNum(p.count) }))}</td>`;
+    if (p.kind === "part") {
+      return `<tr class="rc-part">${name}${num}<td class="rc-cost">${recipeCost(p)}</td><td></td></tr>` + recipeRows(p.parts, depth + 1);
+    }
+    return `<tr>${name}${num}<td></td><td>${recipeSources(p.sources)}</td></tr>`;
+  }).join("");
+}
+function recipeBlock(rec, idx, all) {
+  const head = all > 1 ? `<h4>${esc(fmt("recipe.variant", { i: idx + 1, n: all }))}</h4>` : "";
+  const cols = ["name", "count", "cost", "src"].map(c => `<th scope="col">${esc(t("recipe.col." + c))}</th>`).join("");
+  const top = `<tr class="rc-top"><td class="rc-name" style="--depth:0">${esc(nameByLang({ ja: rec.bp_ja, en: rec.bp_en }))}</td>`
+    + `<td class="rc-num"></td><td class="rc-cost">${recipeCost(rec)}</td><td></td></tr>`;
+  const totals = rec.total.items.map(x => `<tr><td>${esc(nameByLang(x))}</td><td class="rc-num">${esc(recipeNum(x.count))}</td></tr>`).join("");
+  return `${head}<div class="tablewrap"><table><thead><tr>${cols}</tr></thead><tbody>${top}${recipeRows(rec.parts, 1)}</tbody></table></div>
+    <div class="rc-total"><h4>${esc(t("recipe.total"))}</h4>
+      <div class="tablewrap"><table><thead><tr><th scope="col">${esc(t("recipe.col.item"))}</th><th scope="col">${esc(t("recipe.col.sum"))}</th></tr></thead>
+      <tbody>${totals}</tbody></table></div>
+      <p>${esc(fmt("recipe.credits", { cr: recipeNum(rec.total.credits) }))}</p></div>`;
+}
+const recipeSearch = sourceSearch({
+  id: "recipe",
+  suggest: q => `/api/suggest/recipe?q=${encodeURIComponent(q)}`,
+  list: res => res.items,
+  tag: i => i.cat ? `<span class="tag-mini">${esc(tName("mastery.cat.", i.cat))}</span>` : "",
+  more: (res, items) => res.total > items.length ? `<span class="note">${esc(fmt("recipe.morecand", { n: res.total - items.length }))}</span>` : "",
+  result: key => `/api/recipe?key=${encodeURIComponent(key)}`,
+  render: (r, nameOf, subOf) => `
+    <div class="result-head"><h3>${esc(nameOf(r))}</h3>${subOf(r) ? `<span class="en">${esc(subOf(r))}</span>` : ""}${r.cat ? `<span class="tag-mini">${esc(tName("mastery.cat.", r.cat))}</span>` : ""}</div>
+    ${r.recipes.map((rec, i) => recipeBlock(rec, i, r.recipes.length)).join("")}
+    <p class="note">${esc(t("recipe.footnote"))}</p>`,
+  msg: {
+    noMatch: () => t("recipe.nomatch"),
+    pick: () => t("recipe.pick"),
+    empty: () => t("recipe.empty"),
+    noData: () => t("recipe.nodata"),
+  },
+});
+loaders.recipe = () => { applyViewText("recipe"); return recipeSearch.load(); };
+relabel.recipe = recipeSearch.relabel;
+dataResets.recipe = () => recipeSearch.reset();

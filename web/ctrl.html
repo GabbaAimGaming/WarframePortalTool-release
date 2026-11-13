@@ -52,10 +52,13 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 async function api(path, opts = {}) {
   const init = { method: opts.method || "GET", headers: {} };
   if (opts.body !== undefined) { init.headers["Content-Type"] = "application/json"; init.body = JSON.stringify(opts.body); }
-  return apiRead(await fetch(path, init));  // エラーの文の決め方は i18n.html の apiRead
+  return apiRead(await apiFetch(path, init));  // 届かないとき・エラーの文の決め方は i18n.html の apiFetch・apiRead
 }
 /* Python の定数(wfp/core/const。差し込む名前は wfp/api/pages.py の PAGE_CONSTS)。画面で手で写さない */
 const CONST = /* CONST:DATA */ {};
+/* 入力欄の Enter(確定の操作)かどうか。日本語などの変換を確定する Enter は数えない
+   (isComposing。Safari は変換の確定で isComposing が false のまま届くので keyCode 229 も見る) */
+const isEnter = e => e.key === "Enter" && !e.isComposing && e.keyCode !== 229;
 const debounce = (fn, ms = 180) => { let timer; return (...a) => { clearTimeout(timer); timer = setTimeout(() => fn(...a), ms); }; };
 const pct = x => x.toFixed(2) + "%";
 const dur = sec => {
@@ -77,22 +80,24 @@ function sortRows(rows, state, getters) {
     if (x === y) return 0;
     if (x === null || x === undefined) return 1;
     if (y === null || y === undefined) return -1;
-    return (typeof x === "string" ? x.localeCompare(y, "ja") : x - y) * dir;
+    return (typeof x === "string" ? x.localeCompare(y, locale()) : x - y) * dir;  // 文字は表示中の言語の並び(i18n.html の locale)
   });
 }
-const th = (label, key, state, cls = "") =>
-  `<th class="sort ${cls}" data-sort="${key}" aria-sort="${state.key === key ? (state.dir === "asc" ? "ascending" : "descending") : "none"}" tabindex="0">${label}</th>`;
+/* 並べ替えできる見出し: <th scope="col"> の中の <button> を押す(Enter・Space も button が受ける)。
+   aria-sort は並べ替え中の列にだけ付ける(ほかの列には付けない)。cls = th のクラス(chk・num)、attrs = th に足す属性(rowspan など) */
+const th = (label, key, state, cls = "", attrs = "") =>
+  `<th scope="col" class="sort ${cls}"${attrs ? " " + attrs : ""}${state.key === key ? ` aria-sort="${state.dir === "asc" ? "ascending" : "descending"}"` : ""}><button type="button" data-sort="${key}">${label}</button></th>`;
 function onSortClick(container, state, render, numericKeys = []) {
-  const handler = e => {
-    const h = e.target.closest("th[data-sort]"); if (!h) return;
-    if (e.type === "keydown" && e.key !== "Enter" && e.key !== " ") return;
-    e.preventDefault();
-    const k = h.dataset.sort;
-    if (state.key === k) state.dir = state.dir === "asc" ? "desc" : "asc";
-    else { state.key = k; state.dir = numericKeys.includes(k) ? "desc" : "asc"; }
+  container.addEventListener("click", e => {
+    const btn = e.target.closest("button[data-sort]"); if (!btn) return;
+    const key = btn.dataset.sort;
+    if (state.key === key) state.dir = state.dir === "asc" ? "desc" : "asc";
+    else { state.key = key; state.dir = numericKeys.includes(key) ? "desc" : "asc"; }
     render();
-  };
-  container.addEventListener("click", handler); container.addEventListener("keydown", handler);
+    // 表を描き直すとボタンも作り直されるので、同じ列のボタンにフォーカスを戻す(キーボードで続けて押せるように)
+    const again = container.querySelector(`button[data-sort="${CSS.escape(key)}"]`);
+    if (again) again.focus({ preventScroll: true });
+  });
 }
 
 </script>

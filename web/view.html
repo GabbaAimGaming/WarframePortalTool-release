@@ -167,6 +167,7 @@ nav .nav-cat.has-current { border-left-color: var(--primary-bg); color: var(--pr
 nav .nav-cat.has-current::before { border-left-color: var(--primary-bg); }
 nav .nav-items { display: flex; flex-direction: column; gap: 6px; padding-left: 12px; }
 nav .nav-items[hidden] { display: none; }
+nav button .nav-icon { width: 18px; height: 18px; vertical-align: -4px; margin-right: 6px; }
 
 main { background: var(--panel); border: 1px solid var(--line); padding: 20px 22px 44px; min-height: 0; min-width: 0; overflow-y: auto; }  /* 下の余白は右下の非公式表記のぶん。スクロールの戻しは ctrl.html の scrollView */
 main h2 { margin: 0 0 4px; font-size: 18px; }
@@ -385,6 +386,16 @@ ol.mods .mod-eff { display: block; font-size: 12px; color: var(--mute); white-sp
 .qa-build dt { color: var(--accent); }
 .qa-build dd { margin: 0; overflow-wrap: anywhere; white-space: pre-line; }
 .qa-build .row { margin: 0 12px 10px; }
+/* Q&A のアイコン(タイトルの横・答えの左) */
+.qa-title { display: flex; align-items: center; gap: 8px; }
+.qa-title .qa-icon { width: 36px; height: 36px; }
+.qa-icon { object-fit: cover; border-radius: 6px; flex: none; }
+.qa-item .qa-body { display: flex; gap: 12px; align-items: flex-start; }
+.qa-item .qa-body > .qa-icon { width: 56px; height: 56px; }
+.qa-item .qa-main { flex: 1; min-width: 0; }
+.qa-icon-pick { display: flex; align-items: center; gap: 6px; color: var(--mute); font-size: 13px; }
+.qa-icon-pick[hidden] { display: none; }
+@media (max-width: 760px) { .qa-item .qa-body > .qa-icon { width: 40px; height: 40px; } }
 #qa-dlg .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
 .mfx-card .mfx-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 8px 12px; background: var(--panel-2); }
 .mfx-card .mfx-head b { font-size: 15px; }
@@ -399,15 +410,25 @@ ol.mods .mod-eff { display: block; font-size: 12px; color: var(--mute); white-sp
 .tag-cond { font-size: 11px; color: var(--accent); border: 1px solid var(--accent); padding: 0 5px; margin-left: 6px; white-space: nowrap; letter-spacing: 0; }
 
 /* 表: 並べ替えできる見出し */
-th.sort { cursor: pointer; user-select: none; }
-th.sort:hover { color: var(--ink); }
-th.sort[aria-sort="ascending"]::after { content: " ▲"; }
-th.sort[aria-sort="descending"]::after { content: " ▼"; }
+/* 押すのは th の中の button。見た目はセルと同じにし(余白はセルから button に移す)、文字の寄せ・字間は th のまま。
+   押せる範囲とフォーカスの枠は button::before をセルいっぱいに広げて作る(2段ぶんの高さのセルでも、セルのどこを押してもよい) */
+th.sort { padding: 0; user-select: none; position: relative; }
+th.sort > button {
+  display: block; width: 100%; margin: 0; padding: 7px 12px; border: 0; background: none;
+  font: inherit; color: inherit; letter-spacing: inherit; text-align: inherit; white-space: inherit; cursor: pointer;
+}
+th.sort > button::before { content: ""; position: absolute; inset: 0; }
+th.sort > button:hover { color: var(--ink); }
+th.sort > button:focus-visible { outline: none; }
+th.sort > button:focus-visible::before { outline: 2px solid var(--accent); outline-offset: -2px; }  /* 枠はセルの内側(スクロールの枠で切れない) */
+th.sort[aria-sort="ascending"] > button::after { content: " ▲"; }
+th.sort[aria-sort="descending"] > button::after { content: " ▼"; }
 .tablewrap.tall { max-height: 68vh; overflow: auto; }
 .tablewrap.tall thead th { position: sticky; top: 0; z-index: 1; }
 /* 見出しが2段の表: セルごとではなく thead ごと固定する(セルごとだと2段目が1段目に重なる) */
 .tablewrap.tall thead.stack { position: sticky; top: 0; z-index: 1; }
 .tablewrap.tall thead.stack th { position: static; }
+.tablewrap.tall thead.stack th.sort { position: relative; }  /* button::before の基準(static だと thead 全体に広がる) */
 
 /* MOD 一覧 */
 .summary { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 12px 0 8px; color: var(--mute); }
@@ -490,6 +511,8 @@ dialog.tips-dlg { border: 1px solid var(--line); background: var(--bg); color: v
 dialog.tips-dlg::backdrop { background: rgba(0, 0, 0, .55); }
 dialog.tips-dlg p { margin: 0 0 16px; white-space: pre-line; overflow-wrap: anywhere; }
 dialog.tips-dlg .row { justify-content: flex-end; }
+dialog.tips-dlg input[type="text"] { display: block; width: 100%; min-width: min(360px, 80vw); margin: 0 0 16px; }
+dialog.tips-dlg input[hidden] { display: none; }
 .tips-body { border: 1px solid var(--line); background: var(--bg); padding: 16px 20px 22px; min-width: 0; min-height: 240px; overflow-wrap: anywhere; }
 .tips-body .tip-meta { font-size: 12px; color: var(--mute); margin: 0 0 10px; }
 .tips-body h1 { font-size: 20px; margin: 0 0 12px; }

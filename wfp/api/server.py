@@ -17,6 +17,7 @@ import wfportal_builder as wb
 from wfp.api import admin, info, ocr, pages, personal, qa, search, sim, tips
 from wfp.api.store import ApiError, Raw, Store
 from wfp.core import common
+from wfp.core.const import API_FETCH_SITES, REQUEST_MAX_BYTES, SERVER_HEADERS
 from wfp.core.i18n import txt
 from wfp.fetch import logos
 from wfp.store import build_images, datadir, userdb
@@ -76,15 +77,23 @@ class Request:
     def flag(self, k: str, default: bool = False) -> bool:
         return self.q.get(k, "1" if default else "0") == "1"
 
+    def _length(self, limit: int, too_large) -> int:
+        """本文の長さ(Content-Length。無ければ 0)。数字でない・負の数は 400、limit を超えたら too_large(テキスト指定)で 413"""
+        raw = (self.handler.headers.get("Content-Length") or "0").strip()
+        if not (raw.isascii() and raw.isdigit()):  # int() は "-1" "+5" "1_0" も通すので、数字だけかを先に見る
+            raise ApiError(txt("err.req.bad_length"), 400)
+        size = int(raw)
+        if size > limit:
+            raise ApiError(too_large, 413)
+        return size
+
     def body(self) -> dict:
         h = self.handler.headers
         if "application/json" not in (h.get("Content-Type") or ""):
             raise ApiError(txt("err.req.json_type"), 415)
-        n = int(h.get("Content-Length") or 0)
-        if n > 1_000_000:
-            raise ApiError(txt("err.req.too_large"), 413)
+        size = self._length(REQUEST_MAX_BYTES, txt("err.req.too_large"))
         try:
-            return json.loads(self.handler.rfile.read(n) or b"{}")
+            return json.loads(self.handler.rfile.read(size) or b"{}")
         except json.JSONDecodeError:
             raise ApiError(txt("err.req.bad_json"))
 
@@ -96,10 +105,8 @@ class Request:
         h = self.handler.headers
         if not (h.get("Content-Type") or "").startswith("image/"):
             raise ApiError(txt("err.req.image_type"), 415)
-        n = int(h.get("Content-Length") or 0)
-        if n > build_images.IMAGE_MAX_BYTES:
-            raise ApiError(txt("err.req.image_large", mb=str(build_images.IMAGE_MAX_BYTES // 1024 // 1024)), 413)
-        return self.handler.rfile.read(n)
+        size = self._length(build_images.IMAGE_MAX_BYTES, txt("err.req.image_large", mb=str(build_images.IMAGE_MAX_BYTES // 1024 // 1024)))
+        return self.handler.rfile.read(size)
 
 
 def make_handler(store: Store, tips_dir: Path | None = None):
@@ -122,22 +129,32 @@ def make_handler(store: Store, tips_dir: Path | None = None):
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", cache)
-            self.send_header("X-Content-Type-Options", "nosniff")
+            for name, value in SERVER_HEADERS.items():
+                self.send_header(name, value)
             self.end_headers()
             self.wfile.write(body)
 
         def _json(self, obj, code: int = 200):
             self._send(code, json.dumps(obj, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
 
+        def _error(self, text, code: int):
+            """サーバーの共通のエラー(経路の処理の外)。text はテキスト指定。応答の形は ApiError と同じ"""
+            self._json(ApiError(text, code).payload(), code)
+
         def _guard(self) -> bool:
             """DNSリバインディング/他サイトからの操作を防ぐ"""
             host = (self.headers.get("Host") or "").rsplit(":", 1)[0].strip("[]")
             if host not in ("127.0.0.1", "localhost"):
-                self._json({"error": "forbidden"}, 403)
+                self._error(txt("err.req.forbidden"), 403)
                 return False
             origin = self.headers.get("Origin")
             if origin and urlparse(origin).netloc != self.headers.get("Host"):
-                self._json({"error": "forbidden"}, 403)
+                self._error(txt("err.req.forbidden"), 403)
+                return False
+            # ほかのサイトのページからの API の呼び出し(Origin が付かない GET も)。画面のページへの移動は止めない
+            site = self.headers.get("Sec-Fetch-Site")
+            if site and site not in API_FETCH_SITES and urlparse(self.path).path.startswith("/api/"):
+                self._error(txt("err.req.forbidden"), 403)
                 return False
             return True
 
@@ -148,7 +165,7 @@ def make_handler(store: Store, tips_dir: Path | None = None):
                 req = Request(self, store, tips_path)
                 fn = find(method, req.path)
                 if fn is None:
-                    return self._json({"error": "not found"}, 404)
+                    return self._error(txt("err.req.no_route"), 404)
                 out = fn(req)
                 if isinstance(out, Raw):
                     return self._send(200, out.body, out.ctype, out.cache)
@@ -163,7 +180,7 @@ def make_handler(store: Store, tips_dir: Path | None = None):
                 pass  # ブラウザ側が先に接続を閉じた
             except Exception as e:  # noqa: BLE001
                 print(f"[エラー] {method} {self.path}: {e!r}")  # 起動した画面にも残す
-                self._json({"error": f"内部エラー: {e}"}, 500)
+                self._error(txt("err.internal", msg=str(e)), 500)
 
         def do_GET(self):
             self._dispatch("GET")

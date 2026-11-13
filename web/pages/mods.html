@@ -31,6 +31,7 @@
           <p class="note" data-i18n="scan.note">ゲームの MOD 画面を開いてスクロールしていくと、映った MOD 名を読み取って所持にチェックします(数秒ごと・画面が変わったときだけ)。一致度が低いものは「要確認」に出るので、正しければクリックしてください。読み取りは Windows の文字認識を使います。排他的フルスクリーンでは映らないことがあるので、その場合はボーダーレス(ウィンドウ)表示にするか、スクリーンショットから読み取ってください。</p>
         </div>
         <div class="summary" id="mods-summary"></div>
+        <div class="err" id="mods-err" role="alert"></div>
         <div id="mods-out"></div>
         <p class="note" data-i18n="mods.note">確率: ミッション/バウンティは報酬1回の抽選、敵は1体倒したとき、レリックは開けたときに出る割合です。「記載なし」は公式ドロップ表に無いもの(シンジケート・バロ・ナイトウェーブ・クエスト報酬など)です。</p>
       </section>
@@ -56,13 +57,13 @@ function modFilter() {
 function renderMods() {
   if (!mods) return;
   const list = sortRows(modFilter(), modSort, modGetters);
-  const owned = mods.filter(m => m.owned).length, shownOwned = list.filter(m => m.owned).length;
+  const owned = mods.filter(m => m.owned).length, shownOwned = list.filter(m => m.owned).length, ownedPct = ratePct(owned, mods.length);
   $("#mods-summary").innerHTML = `<span>${fmt("mods.summary", { shown: `<b class="count">${list.length}</b>`, total: mods.length, owned: shownOwned })}</span>
-    <span>${esc(fmt("mods.summary.all", { owned, total: mods.length, pct: (owned / mods.length * 100).toFixed(1) }))}</span>
-    <span class="progress" aria-hidden="true"><i style="--w:${(owned / mods.length * 100).toFixed(1)}%"></i></span>`;
+    <span>${esc(fmt("mods.summary.all", { owned, total: mods.length, pct: ownedPct.toFixed(1) }))}</span>
+    ${progressBar(ownedPct)}`;
   if (!list.length) { $("#mods-out").innerHTML = noData(t("mods.none")); return; }
   const shown = list.slice(0, 600);
-  $("#mods-out").innerHTML = `<div class="tablewrap tall"><table>
+  drawTable($("#mods-out"), `<div class="tablewrap tall"><table>
     <thead><tr>${th(esc(t("mods.col.own")), "own", modSort, "chk")}${th(esc(t("mods.col.mod")), "ja", modSort)}${th(esc(t("mods.col.type")), "type", modSort)}${th(esc(t("mods.col.pol")), "pol", modSort)}${th(esc(t("src.col.rarity")), "rar", modSort)}
       ${th(esc(t("mods.col.total")), "total", modSort)}${th(esc(t("mods.col.best")), "best", modSort)}</tr></thead>
     <tbody>${shown.map(m => `<tr class="mod-row${m.owned ? " owned" : ""}" data-en="${esc(m.en)}" aria-expanded="${modOpen === m.en}">
@@ -72,7 +73,8 @@ function renderMods() {
       <td>${m.total ? `<div class="badges">${Object.entries(m.counts).map(([c, n]) => catTag(c, `${tName("src.cat.", c)} ${n}`)).join("")}</div>` : `<span class="none">${esc(t("mods.unlisted"))}</span>`}</td>
       <td class="wrap">${m.best ? `${catTag(m.best.cat)} ${esc(renderTxt(m.best.place))} <b>${fmtPct(m.best.chance)}</b>` : ""}</td></tr>
       ${modOpen === m.en ? `<tr class="detail"><td colspan="7" id="mod-detail">${esc(t("common.loading"))}</td></tr>` : ""}`).join("")}</tbody></table></div>
-    ${list.length > shown.length ? `<p class="note">${esc(fmt("mods.first", { n: shown.length }))}</p>` : ""}`;
+    ${list.length > shown.length ? `<p class="note">${esc(fmt("mods.first", { n: shown.length }))}</p>` : ""}`,
+    [$("#mods-q").value, $("#mods-type").value, $("#mods-rar").value, $("#mods-src").value, $("#mods-own").value, modSort.key, modSort.dir]);
   if (modOpen && list.some(m => m.en === modOpen)) loadModDetail(modOpen);
 }
 async function loadModDetail(en) {
@@ -86,9 +88,9 @@ async function loadModDetail(en) {
 $("#mods-out").addEventListener("change", async e => {
   const cb = e.target.closest("input.own"); if (!cb) return;
   const en = cb.closest("tr").dataset.en, m = mods.find(x => x.en === en);
-  m.owned = cb.checked; cb.closest("tr").classList.toggle("owned", m.owned);
+  m.owned = cb.checked; cb.closest("tr").classList.toggle("owned", m.owned); $("#mods-err").textContent = "";
   try { await api("/api/mods/owned", { method: "POST", body: { en, owned: m.owned } }); renderMods(); }
-  catch (err) { m.owned = !m.owned; cb.checked = m.owned; alertBox(err.message); }
+  catch (err) { m.owned = !m.owned; cb.checked = m.owned; cb.closest("tr").classList.toggle("owned", m.owned); $("#mods-err").textContent = err.message; }
 });
 $("#mods-out").addEventListener("click", e => {
   if (e.target.closest("input, th, a, button")) return;
@@ -98,20 +100,15 @@ $("#mods-out").addEventListener("click", e => {
 onSortClick($("#mods-out"), modSort, renderMods, ["total", "best", "rar", "own"]);
 ["#mods-type", "#mods-rar", "#mods-src", "#mods-own"].forEach(id => $(id).addEventListener("change", renderMods));
 $("#mods-q").addEventListener("input", debounce(renderMods, 150));
-function alertBox(msg) { $("#mods-summary").insertAdjacentHTML("beforeend", `<span class="err">${esc(msg)}</span>`); }
 $("#mods-csv").addEventListener("click", () => {
   if (!mods) return;
   const cats = modMeta.cats;  // 入手先の種類(キーの並び)
   const head = [t("mods.col.own"), t("mods.col.mod"), t("mods.csv.en"), t("mods.csv.compat"), t("mods.col.type"), t("mods.col.pol"), t("src.col.rarity"),
     ...cats.map(c => fmt("mods.csv.count", { cat: tName("src.cat.", c) })), t("mods.col.best"), t("mods.csv.chance")];
-  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const lines = [head.map(q).join(",")].concat(sortRows(modFilter(), modSort, modGetters).map(m => [
+  saveCsv(t("mods.csv.file"), head, sortRows(modFilter(), modSort, modGetters).map(m => [
     m.owned ? "○" : "", nameByLang(m), m.en, m.compat ? modCompat(m) : "", tName("mod.type.", m.type), m.polarity_name, m.rarity ? tName("rarity.", m.rarity) : "",
     ...cats.map(c => m.counts[c] || 0),
-    m.best ? `${tName("src.cat.", m.best.cat)}: ${renderTxt(m.best.place)} ${renderTxt(m.best.detail)} ${renderTxt(m.best.stage)}` : t("mods.unlisted"), m.best ? m.best.chance.toFixed(4) : ""].map(q).join(",")));
-  const blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv" });
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-  a.download = `${t("mods.csv.file")}_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    m.best ? `${tName("src.cat.", m.best.cat)}: ${renderTxt(m.best.place)} ${renderTxt(m.best.detail)} ${renderTxt(m.best.stage)}` : t("mods.unlisted"), m.best ? m.best.chance.toFixed(4) : ""]));
 });
 /* 種別・入手先の絞り込みの選択肢(言語を切り替えたら作り直す。選んでいる値は残す) */
 function renderModOptions() {
@@ -132,7 +129,7 @@ loaders.mods = async () => {
     renderModOptions(); renderMods();
   } catch (e) { $("#mods-summary").innerHTML = ""; $("#mods-out").innerHTML = noData(e.message); }
 };
-relabel.mods = () => { applyViewText("mods"); modScanner.label(); if (scan.reads || scan.on) scanRender(); if (mods) { renderModOptions(); renderMods(); } };
+relabel.mods = () => { applyViewText("mods"); $("#mods-err").textContent = ""; modScanner.label(); if (scan.reads || scan.on) scanRender(); if (mods) { renderModOptions(); renderMods(); } };
 dataResets.mods = () => { mods = null; modOpen = null; };
 
 /* ---------- ゲーム画面から MOD を読み取って所持チェック ---------- */

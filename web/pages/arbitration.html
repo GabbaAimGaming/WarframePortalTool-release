@@ -60,10 +60,10 @@ relabel.arbitration = renderArbitration;
 loaders.arbitration = loadArbitration;  // 開くたびに読み直す(データ更新で取り直した結果も反映)
 /* 開いている間は残り時間を数え、先頭の枠が終わった(始まった)ら読み直す。読み直しは同じ枠で1回だけ(失敗しても毎秒は呼ばない) */
 let arbReloaded = null;
-setInterval(async () => {
-  if ($("#view-arbitration").hidden || !arb || !arb.rows || !arb.rows.length) return;
+everySecond.arbitration = async () => {
+  if (!arb || !arb.rows || !arb.rows.length) return;
   const now = arbNow(), cur = arb.rows[0], edge = cur.current ? cur.end : cur.start;
   if (now >= edge) { if (arbReloaded !== edge) { arbReloaded = edge; await loadArbitration(); } return; }
   const el = $("#arb-out .arb-left");
   if (el) el.textContent = fmt("arby.current", { left: dur(Number(el.dataset.end) - now) });
-}, 1000);
+};
