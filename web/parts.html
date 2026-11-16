@@ -140,8 +140,11 @@ function drawTable(box, html, view_key) {
    タブが裏のあいだは呼ばず、表に戻ったときにすぐ1回呼ぶ(止まっていた残り時間を合わせる)。ページごとに setInterval を作らない */
 const everySecond = {};
 const SECOND_TICK = 1000;  // ミリ秒
+/* everySecondAlways.<名前> = 関数 は、表示中のページに関係なく毎秒呼ぶ(ヘッダーの ToDo など、ページの外のもの。同じタイマー) */
+const everySecondAlways = {};
 function tickSecond() {
   if (document.hidden) return;
+  Object.values(everySecondAlways).forEach(f => f());
   const tick = everySecond[currentView];
   if (tick) tick();
 }
@@ -305,6 +308,105 @@ function showLog(el, r) { shownLogs.set(el, r); el.textContent = renderLog(r, t(
 function relabelLogs() { shownLogs.forEach((r, el) => { el.textContent = renderLog(r, t(r.ok ? "common.done" : "common.failed")); }); }
 
 /* どちらも MENU から組み立てる(ページを足すと自動で載る)。ノンカテゴリのページ(トップ自身を除く)は「その他」にまとめる */
+/* ---------- ToDo(ToDo ページとヘッダーの小窓で共用) ---------- */
+/* 一覧・完了かどうか・次のリセットは API(core/todo)が決める。ここは取得と変更と、変わったことの知らせだけ。
+   変えたら応答の一覧で持ち直して onChange の関数を全部呼ぶ(ページと小窓の両方が描き直す)。
+   残り時間は API の now に受け取ってからの経過を足して数え、リセットを過ぎたら読み直す(同じリセットで1回だけ。everySecondAlways) */
+const todoShared = (() => {
+  let data = null, at = 0, reloadedEdge = null;
+  const guard = latestGuard(), listeners = new Set();
+  const take = r => { data = r; at = Date.now(); listeners.forEach(f => f()); return true; };
+  const now = () => data.now + (Date.now() - at) / 1000;
+  return {
+    get data() { return data; },
+    now,
+    onChange(fn) { listeners.add(fn); },
+    /** 読み直す(失敗は投げる。追い越されたら何もしない) */
+    async load() { const fresh = guard(); const r = await api("/api/todo"); if (fresh()) take(r); },
+    /** 変える(body.action は Python の TODO_ACTIONS)。成功なら true、追い越されたら false、失敗は投げる */
+    async change(body) { const fresh = guard(); const r = await api("/api/todo", { method: "POST", body }); return fresh() ? take(r) : false; },
+    /** 次のリセットまでの残り(1日以上は日数を付ける)。リセットの無い種類(long)は todo.noreset */
+    left(kind, at_now = now()) {
+      if (data.resets[kind] === undefined) return t("todo.noreset");
+      const sec = Math.max(0, data.resets[kind] - at_now), days = Math.floor(sec / 86400);
+      return fmt("todo.reset", { left: days ? fmt("todo.days", { d: days, t: dur(sec - days * 86400) }) : dur(sec) });
+    },
+    /** 小窓に出す種類(float_kinds)の未完了の数 */
+    remaining() { return data ? data.items.filter(it => data.float_kinds.includes(it.kind) && !it.done).length : 0; },
+    tick() {
+      if (!data) return;
+      const due = Object.values(data.resets).filter(r => now() >= r);
+      if (!due.length) return;
+      const edge = Math.min(...due);
+      if (reloadedEdge !== edge) { reloadedEdge = edge; this.load().catch(() => {}); }
+    },
+  };
+})();
+everySecondAlways.todo = () => todoShared.tick();
+
+/* ヘッダーの右上の ToDo の小窓(web/ctrl.html の #todo-float-btn・#todo-float)。どのページでも開ける。
+   開いた状態は覚えない(読み込みのたびに閉じた状態。利用者の指定)。出すのは float_kinds(デイリー・ウィークリー)だけで、
+   できるのはチェックのつけ外しだけ(追加・編集は ToDo ページ)。ボタンの数は float_kinds の未完了の合計 */
+const todoFloat = (() => {
+  const btn = $("#todo-float-btn"), box = $("#todo-float");
+  if (!btn || !box) return null;
+  let open = false, err = "";
+  const drawButton = () => {
+    btn.querySelector("[data-tf-label]").textContent = t("todo.float.btn");
+    const n = todoShared.remaining(), badge = btn.querySelector("[data-tf-count]");
+    badge.textContent = todoShared.data ? String(n) : "";
+    badge.hidden = !todoShared.data;
+    btn.setAttribute("aria-label", todoShared.data ? fmt("todo.float.aria", { n }) : t("todo.float.btn"));
+    btn.title = t("todo.float.title");
+  };
+  const draw = () => {
+    drawButton();
+    if (!open) return;
+    const d = todoShared.data;
+    const head = `<div class="tf-head"><strong id="todo-float-title">${esc(t("todo.float.title"))}</strong>
+      <button class="tf-close" type="button" data-tf-close aria-label="${esc(t("todo.float.close"))}">×</button></div>
+      <div class="err" role="alert">${esc(err)}</div>`;
+    let body;
+    if (!d) body = noData(t("common.loading"));
+    else {
+      const groups = d.float_kinds.map(k => {
+        const rows = d.items.filter(it => it.kind === k);
+        if (!rows.length) return "";
+        const done = rows.filter(it => it.done).length;
+        return `<div class="tf-group"><div class="tf-gh"><span>${esc(tName("todo.kind.", k))} ${esc(fmt("todo.count", { done, total: rows.length }))}</span>
+          <span class="tf-left" data-tf-reset="${esc(k)}">${esc(todoShared.left(k))}</span></div>
+          <ul class="tf-list">${rows.map(it => `<li class="${it.done ? "done" : ""}"><label><input type="checkbox" data-tf-check="${esc(it.id)}"${it.done ? " checked" : ""}>
+            <span>${esc(it.name)}</span></label></li>`).join("")}</ul></div>`;
+      }).join("");
+      body = groups || noData(t("todo.float.empty"));
+    }
+    box.innerHTML = head + body + `<div class="tf-foot"><button class="btn ghost" type="button" data-go="todo" data-tf-close>${esc(t("todo.float.page"))}</button></div>`;
+  };
+  const setOpen = on => {
+    open = on; err = "";
+    box.hidden = !on; btn.setAttribute("aria-expanded", String(on));
+    if (on) { draw(); todoShared.load().catch(e => { err = e.message; draw(); }); }  // 開くたびに読み直す
+  };
+  btn.addEventListener("click", () => setOpen(!open));
+  box.addEventListener("click", e => { if (e.target.closest("[data-tf-close]")) { setOpen(false); btn.focus(); } });
+  box.addEventListener("change", async e => {
+    const c = e.target.closest("[data-tf-check]"); if (!c) return;
+    err = "";
+    try { await todoShared.change({ action: "check", id: c.dataset.tfCheck, done: c.checked }); }
+    catch (x) { err = x.message; draw(); }
+  });
+  document.addEventListener("keydown", e => { if (open && e.key === "Escape") { setOpen(false); btn.focus(); } });
+  todoShared.onChange(draw);
+  relabelAlways.todoFloat = draw;
+  everySecondAlways.todoFloat = () => {
+    if (!open || !todoShared.data) return;
+    box.querySelectorAll("[data-tf-reset]").forEach(el => { el.textContent = todoShared.left(el.dataset.tfReset); });
+  };
+  drawButton();
+  todoShared.load().catch(() => {});  // ボタンの数のために最初に1回読む(失敗しても数を出さないだけ)
+  return { setOpen };
+})();
+
 function menuSections() {
   const out = [], other = [];
   MENU.forEach(e => {

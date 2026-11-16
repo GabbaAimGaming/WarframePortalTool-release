@@ -8,6 +8,8 @@
    切り替えたときは、メニューと表示中のページを描き直す。ページは relabel.<id> に描き直しの関数を登録する
    (データを取り直さず、手元の結果と入力を保ったまま文字だけ変えるもの)。登録の無いページは次に開いたときに反映される */
 const relabel = {};
+/* ページ以外で言語を切り替えたときに描き直すもの(名前 → 関数。ヘッダーの ToDo の小窓など。web/parts.html が登録する) */
+const relabelAlways = {};
 function renderLangSwitch() {
   const box = $("#lang-sw");
   if (!box) return;
@@ -32,6 +34,7 @@ function setLang(code, remember = true) {
   renderMenu();
   if (typeof renderStatus === "function") renderStatus();  // ヘッダーのデータの状態(ページ処理の部品。読み込み前は無い)
   if (currentView && relabel[currentView]) relabel[currentView]();
+  Object.values(relabelAlways).forEach(f => f());
   // シミュレータ(iframe の別ページ)にも伝える。まだ開いていなければ、開いたときに覚えた言語で表示される
   const sim = document.querySelector("#view-sim iframe");
   try { if (sim && sim.contentWindow && sim.contentWindow.wfSetLang) sim.contentWindow.wfSetLang(code); } catch (e) {}
@@ -48,7 +51,7 @@ $("#lang-sw") && $("#lang-sw").addEventListener("click", e => {
 const MENU = [
   { page: "home" },
   { group: "search", items: ["item", "area", "enemy", "recipe"] },
-  { group: "personal", items: ["mastery", "quests", "mods", "arcane", "baro"] },
+  { group: "personal", items: ["mastery", "quests", "mods", "arcane", "baro", "todo"] },
   { group: "info", items: ["riven", "invasion", "arbitration", "cycle", "duviri", "modstats"] },
   { group: "simulation", items: ["build", "sim"] },
   { page: "tips" },

@@ -92,6 +92,18 @@ def _ranks(it: dict) -> list[list[str]]:
     return out
 
 
+def mod_set(it: dict) -> dict:
+    """セット MOD(Umbra など)の印: {"set": Export の modSet, "set_values": modSetValues(2枚・3枚…の増加率。小数4桁)}。
+    セットでなければ空(シミュレータのプリセットの倍率に使う)"""
+    set_id, values = it.get("modSet"), it.get("modSetValues")
+    if not isinstance(set_id, str) or not set_id:
+        return {}
+    out = {"set": set_id}
+    if isinstance(values, list) and values and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in values):
+        out["set_values"] = [round(float(v), 4) for v in values]
+    return out
+
+
 def same_shape(ranks_en: list, ranks_ja: list) -> bool:
     """ja の効果テキストが en と同じランク数・行数か(違えば表示に使わない)"""
     return isinstance(ranks_ja, list) and len(ranks_ja) == len(ranks_en) and all(
@@ -127,6 +139,7 @@ def build_mod_stats(en_docs: list[dict], ja_docs: list[dict]) -> list[dict]:
                     "max_rank": len(ranks_en) - 1 if ranks_en else (it.get("fusionLimit") or 0),
                     "stats_en": ranks_en, "stats_ja": ranks_ja if same_shape(ranks_en, ranks_ja) else [],
                     "desc_en": desc_en, "desc_ja": _desc(ja_it) if desc_en else "",
+                    **mod_set(it),
                 })
     return sorted(rows, key=lambda r: r["en"].lower())
 
@@ -187,8 +200,15 @@ class ModStats:
         self._terms = [(re.compile(r"(?<![A-Za-z])" + re.escape(w) + r"(?![A-Za-z])", re.I), key) for w, key in terms]
         self.mods = [self._analyze(row) for row in mods]
         self._by_en = {}
+        self._by_uid = {}
         for row in self.mods:
             self._by_en.setdefault(row["en"].lower(), row)
+            if isinstance(row.get("uid"), str):
+                self._by_uid.setdefault(row["uid"], row)
+
+    def by_uids(self, uids) -> dict[str, dict]:
+        """内部パスの一覧 -> {内部パス: 行}(stats_en・set・set_values など)。無い MOD は入れない(シミュレータのプリセット用)"""
+        return {u: self._by_uid[u] for u in uids if u in self._by_uid}
 
     def effect(self, name: str, lang: str = "ja") -> str:
         """MOD(英名。大文字小文字は区別しない)の最大ランクの効果の文(lang が無ければ英語)。無い MOD は空"""

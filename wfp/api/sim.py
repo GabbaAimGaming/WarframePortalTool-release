@@ -20,6 +20,12 @@ def sim_dispo_rows(store: Store) -> list[dict]:
     return dispo_table(names, store.rivens()) if names.dispo else []
 
 
+def preset_mod_rows(store: Store) -> dict[str, dict] | None:
+    """シミュレータの MOD のプリセットの値に使う mod_stats.json の行(内部パス -> 行)。無ければ None(予備の値になる)"""
+    mods = store.mod_stats()
+    return mods.by_uids(wb.preset_uids()) if mods else None
+
+
 def run_update_sim(store: Store) -> dict:
     """シミュレータ用データだけ取り直す。lines は進み具合の行のテキスト指定(collect_log。画面が表示中の言語で出す)"""
     with collect_log() as lines:
@@ -55,7 +61,7 @@ def scan_riven(store: Store, data: bytes) -> dict:
 
 # (メソッド, パス) -> 処理。c はリクエスト(wfp/api/server.py の Request)
 ROUTES = {
-    ("GET", "/api/builder/data"): lambda c: wb.api_data(c.store.d, sim_dispo_rows(c.store)),
+    ("GET", "/api/builder/data"): lambda c: wb.api_data(c.store.d, sim_dispo_rows(c.store), preset_mod_rows(c.store)),
     ("POST", "/api/builder/frame"): lambda c: wb.api_frame(c.store.d, c.body()),
     ("POST", "/api/builder/weapon"): lambda c: wb.api_weapon(c.store.d, c.body(), sim_dispo_rows(c.store)),
     ("POST", "/api/builder/riven"): lambda c: wb.api_riven(c.store.d, c.body(), sim_dispo_rows(c.store)),

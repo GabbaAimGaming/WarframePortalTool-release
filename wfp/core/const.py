@@ -788,3 +788,13 @@ SERVER_HEADERS = {
 # ほか(cross-site = ほかのサイト・same-site = localhost の別のポートのページ)は断る。ヘッダーが無い要求(古いブラウザ・CLI・curl)は通す
 API_FETCH_SITES = ("same-origin", "none")
 REQUEST_MAX_BYTES = 1_000_000  # JSON の本文の上限(バイト)。画像の上限は store/build_images の IMAGE_MAX_BYTES
+
+# ToDo(core/todo。利用者データの todo)。種類 = いつ未完了に戻るか: daily は毎日 0:00 UTC、weekly は月曜 0:00 UTC、
+# long(ロングタスク)は戻らない(外すまで完了のまま。2026-11-16 利用者の指定)。表示名は画面の I18N の todo.kind.<キー>。
+# TODO_FLOAT_KINDS はヘッダーの小窓と未完了の数に出す種類(long は入れない。利用者の指定)。
+# 名前の長さ・項目の数の上限、項目の id の長さ(16 進の文字数の半分)
+TODO_KINDS = ("daily", "weekly", "long")
+TODO_FLOAT_KINDS = ("daily", "weekly")
+TODO_NAME_MAX = 80
+TODO_MAX = 200
+TODO_ID_BYTES = 6

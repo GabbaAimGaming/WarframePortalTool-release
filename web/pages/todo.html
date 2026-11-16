@@ -1,0 +1,136 @@
+<!-- ページ「ToDo」(id todo): 表示部(view = <section id="view-todo">)と処理(script)とこのページだけの CSS(style)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script / pages#style に差し込まれる。
+     複数のページで使う部品は web/parts.html、全体の CSS は web/view.html -->
+<!-- PART:view -->
+      <!-- ToDo(文字は I18N の data-i18n で差し替え。中の日本語は読み込み前の表示) -->
+      <section id="view-todo" hidden>
+        <h2 data-i18n="page.todo">ToDo</h2>
+        <p class="lead" data-i18n="todo.lead">やることを自由に足して、終わったらチェックします。リセットを過ぎると自動で未完了に戻ります(この PC に保存)。</p>
+        <div class="row">
+          <input type="text" class="search" id="td-name" data-i18n-placeholder="todo.add.name" placeholder="やること(例: シスターの依頼)" autocomplete="off">
+          <select id="td-kind" data-i18n-aria="todo.add.kind" aria-label="種類"></select>
+          <button class="btn" type="button" id="td-add" data-i18n="todo.add">追加</button>
+        </div>
+        <div class="chips" id="td-tabs" role="group" data-i18n-aria="todo.tabs" aria-label="種類"></div>
+        <div class="err" id="td-err" role="alert"></div>
+        <div id="td-out"></div>
+        <p class="note" data-i18n="todo.note">デイリーは毎日 0:00 UTC(日本時間 9:00)、ウィークリーは月曜 0:00 UTC(日本時間 月曜 9:00)に未完了に戻ります。ロングタスクは未完了に戻りません。種類を変えると未完了に戻ります。</p>
+      </section>
+<!-- PART:style -->
+<style>
+.td-group { margin: 14px 0 18px; }
+.td-group h3 { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0 0 4px; }
+.td-left { font-size: 13px; font-weight: 400; color: var(--mute); }
+.td-list { list-style: none; margin: 0; padding: 0; }
+.td-item { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+.td-item label { display: flex; align-items: center; gap: 8px; flex: 1 1 200px; cursor: pointer; }
+.td-item.done .td-text { color: var(--mute); text-decoration: line-through; }
+.td-item .td-edit { flex: 1 1 200px; }
+.td-tools { display: flex; gap: 4px; flex-wrap: wrap; }
+.td-tools .btn { padding: 3px 10px; font-size: 12px; }
+</style>
+<!-- PART:script -->
+/* ---------- ToDo ---------- */
+/* データ(取得・変更・リセットで読み直し・残り時間)は web/parts.html の todoShared(ヘッダーの小窓と共用)。
+   ここは表示と操作だけ。種類はタブ(デイリー / ウィークリー / ロングタスク)で切り替え、追加の種類は表示中のタブに合わせる */
+let todoTab = null, todoEditing = null;
+const todoArming = createArming(() => renderTodo());  // 削除の2段階の確認(parts.html)
+function todoKindOptions(selected) {
+  const d = todoShared.data;
+  return (d ? d.kinds : []).map(k => `<option value="${esc(k)}"${k === selected ? " selected" : ""}>${esc(tName("todo.kind.", k))}</option>`).join("");
+}
+function todoRow(it, same) {
+  const pos = same.indexOf(it);
+  if (todoEditing === it.id) {
+    return `<li class="td-item" data-td="${esc(it.id)}">
+      <input type="text" class="td-edit" data-td-name value="${esc(it.name)}" maxlength="${todoShared.data.name_max}" aria-label="${esc(t("todo.name"))}">
+      <select data-td-kind aria-label="${esc(t("todo.add.kind"))}">${todoKindOptions(it.kind)}</select>
+      <span class="td-tools"><button class="btn" type="button" data-td-act="save">${esc(t("todo.save"))}</button>
+        <button class="btn ghost" type="button" data-td-act="cancel">${esc(t("todo.cancel"))}</button></span></li>`;
+  }
+  const armed = todoArming.is(it.id);
+  return `<li class="td-item${it.done ? " done" : ""}" data-td="${esc(it.id)}">
+    <label><input type="checkbox" data-td-check${it.done ? " checked" : ""} aria-label="${esc(fmt("todo.check", { name: it.name }))}"><span class="td-text">${esc(it.name)}</span></label>
+    <span class="td-tools">
+      <button class="btn ghost" type="button" data-td-act="up" aria-label="${esc(t("todo.up"))}"${pos === 0 ? " disabled" : ""}>↑</button>
+      <button class="btn ghost" type="button" data-td-act="down" aria-label="${esc(t("todo.down"))}"${pos === same.length - 1 ? " disabled" : ""}>↓</button>
+      <button class="btn ghost" type="button" data-td-act="edit">${esc(t("todo.edit"))}</button>
+      <button class="btn danger${armed ? " armed" : ""}" type="button" data-td-act="delete">${esc(t(armed ? "todo.del.confirm" : "todo.del"))}</button>
+    </span></li>`;
+}
+function renderTodo() {
+  applyViewText("todo");
+  const d = todoShared.data;
+  if (!d) return;
+  if (!d.kinds.includes(todoTab)) todoTab = d.kinds[0];
+  $("#td-tabs").innerHTML = d.kinds.map(k => {
+    const rows = d.items.filter(it => it.kind === k), done = rows.filter(it => it.done).length;
+    return `<button class="chip" type="button" data-td-tab="${esc(k)}" aria-pressed="${k === todoTab}">${esc(tName("todo.kind.", k))} ${esc(fmt("todo.count", { done, total: rows.length }))}</button>`;
+  }).join("");
+  $("#td-kind").innerHTML = todoKindOptions($("#td-kind").value || todoTab);
+  $("#td-name").maxLength = d.name_max;
+  const rows = d.items.filter(it => it.kind === todoTab), done = rows.filter(it => it.done).length;
+  $("#td-out").innerHTML = `<div class="td-group" data-td-group="${esc(todoTab)}">
+    <h3>${esc(tName("todo.kind.", todoTab))}<span class="td-left" data-td-reset="${esc(todoTab)}">${esc(todoShared.left(todoTab))}</span></h3>
+    ${rows.length ? `<div class="summary">${esc(fmt("todo.count", { done, total: rows.length }))}${progressBar(ratePct(done, rows.length))}</div>
+      <ul class="td-list">${rows.map(it => todoRow(it, rows)).join("")}</ul>` : noData(t("todo.empty"))}</div>`;
+  const box = $("#td-out [data-td-name]");
+  if (box && document.activeElement !== box) { box.focus(); box.select(); }
+}
+async function loadTodo() {
+  applyViewText("todo");
+  if (!todoShared.data) $("#td-out").innerHTML = noData(t("common.loading"));
+  try { await todoShared.load(); }  // 開くたびに読み直す(描き直しは onChange)
+  catch (e) { $("#td-out").innerHTML = noData(e.message); }
+}
+/** 変える操作。成功・追い越しなら描き直しは onChange。失敗したらエラーの欄に出して描き直す。成功したかを返す */
+async function changeTodo(body) {
+  $("#td-err").textContent = "";
+  try { return await todoShared.change(body); }
+  catch (e) { $("#td-err").textContent = e.message; renderTodo(); return false; }
+}
+async function addTodo() {
+  const kind = $("#td-kind").value;
+  if (await changeTodo({ action: "add", name: $("#td-name").value, kind })) {
+    $("#td-name").value = ""; todoTab = kind; renderTodo(); $("#td-name").focus();  // 足した種類のタブを出す
+  }
+}
+async function saveTodoEdit(li) {
+  const id = li.dataset.td, name = li.querySelector("[data-td-name]").value, kind = li.querySelector("[data-td-kind]").value;
+  const was = todoEditing; todoEditing = null;
+  if (!(await changeTodo({ action: "edit", id, name, kind }))) { todoEditing = was; renderTodo(); }
+}
+$("#td-add").addEventListener("click", addTodo);
+$("#td-name").addEventListener("keydown", e => { if (isEnter(e)) { e.preventDefault(); addTodo(); } });
+$("#td-tabs").addEventListener("click", e => {
+  const b = e.target.closest("[data-td-tab]"); if (!b) return;
+  todoTab = b.dataset.tdTab; todoEditing = null; todoArming.clear();
+  $("#td-kind").value = todoTab;  // 追加の種類も表示中のタブに合わせる
+  renderTodo();
+});
+$("#td-out").addEventListener("change", e => {
+  const box = e.target.closest("[data-td-check]"); if (!box) return;
+  changeTodo({ action: "check", id: box.closest("[data-td]").dataset.td, done: box.checked });
+});
+$("#td-out").addEventListener("click", e => {
+  const b = e.target.closest("[data-td-act]"); if (!b) return;
+  const li = b.closest("[data-td]"), id = li.dataset.td, act = b.dataset.tdAct;
+  if (act !== "delete") todoArming.clear();
+  if (act === "edit") { todoEditing = id; renderTodo(); }
+  else if (act === "cancel") { todoEditing = null; renderTodo(); }
+  else if (act === "save") saveTodoEdit(li);
+  else if (act === "up" || act === "down") changeTodo({ action: "move", id, step: act === "up" ? -1 : 1 });
+  else if (act === "delete") { if (todoArming.press(id)) changeTodo({ action: "delete", id }); }
+});
+$("#td-out").addEventListener("keydown", e => {
+  const box = e.target.closest("[data-td-name]"); if (!box) return;
+  if (isEnter(e)) { e.preventDefault(); saveTodoEdit(box.closest("[data-td]")); }
+  else if (e.key === "Escape") { todoEditing = null; renderTodo(); }
+});
+todoShared.onChange(() => { if (currentView === "todo") renderTodo(); });  // 小窓でチェックしたときも描き直す
+relabel.todo = renderTodo;
+loaders.todo = loadTodo;
+everySecond.todo = () => {
+  if (!todoShared.data) return;
+  document.querySelectorAll("#td-out [data-td-reset]").forEach(el => { el.textContent = todoShared.left(el.dataset.tdReset); });
+};

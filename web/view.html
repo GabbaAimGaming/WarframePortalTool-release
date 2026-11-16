@@ -115,6 +115,26 @@ header::after {
   color: var(--on-secondary); opacity: .85; font-variant-numeric: tabular-nums;
 }
 .pill.warn { color: var(--danger); border-color: var(--danger); opacity: 1; }
+/* ヘッダー右上の ToDo のボタンと小窓(web/parts.html の todoFloat)。小窓はヘッダーの下に重ねる(レイアウトは動かさない) */
+.todo-btn { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.todo-btn[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); opacity: 1; }
+.todo-badge { min-width: 1.6em; padding: 0 5px; text-align: center; background: var(--accent); color: var(--bg); font-weight: 700; }
+.todo-badge[hidden] { display: none; }
+.todo-float { position: absolute; top: calc(100% + 6px); right: 20px; z-index: 50; width: min(360px, calc(100vw - 24px));
+  max-height: min(70vh, 560px); overflow-y: auto; padding: 10px 12px; background: var(--panel); color: var(--ink);
+  border: 1px solid var(--accent); box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
+.todo-float[hidden] { display: none; }
+.tf-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tf-close { background: none; border: 0; color: inherit; font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 6px; }
+.tf-group { margin-top: 10px; }
+.tf-gh { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 13px; font-weight: 700; }
+.tf-left { font-weight: 400; color: var(--mute); font-variant-numeric: tabular-nums; }
+.tf-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.tf-list li { padding: 4px 0; border-bottom: 1px solid var(--line); }
+.tf-list label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.tf-list li.done span { color: var(--mute); text-decoration: line-through; }
+.tf-foot { margin-top: 10px; text-align: right; }
+@media (max-width: 760px) { .todo-float { right: 12px; left: 12px; width: auto; } }
 /* β版の機能の切り替え(ヘッダー右・言語の切り替えの左) */
 .beta-sw { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--on-secondary); opacity: .85; cursor: pointer; user-select: none; }
 .beta-sw input { margin: 0; accent-color: var(--accent); cursor: pointer; }

@@ -11,7 +11,9 @@
     データ置き場の builder.json に保存する(作るのは wfp/core/simdata、読むのは wfp/store/gamedata の read_builder)。
     「データ更新」のときに名前辞書と同じデータから作る(シミュレータの画面の「シミュレータ用データを取得」でも取得できる。
     取得元は名前辞書と同じ calamity-inc/warframe-public-export -> 失敗したら公式 Public Export から直接)。
-  - Public Export に無いもの(アビリティの数値、MOD の効果量、Riven の基準値)は、
+  - MOD のプリセットの効果量は、データ更新で作る mod_stats.json(Export の levelStats・modSetValues)から取る
+    (preset_values。無ければ下の表の予備の値)。
+  - Public Export に無いもの(アビリティの数値、Riven の基準値)は、
     下の表(WARFRAME Wiki 掲載値をもとにした参考値)を使う。ゲームの更新で変わることがあるので、
     画面では「参考値」と表示し、入力欄で値を直せるようにしている。
 
@@ -19,6 +21,7 @@
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from wfp.core.const import SIM_CATS, SIM_DAMAGE_TYPES
@@ -59,58 +62,105 @@ EFFICIENCY_CAP = 175.0          # アビリティ効率の上限(%)
 
 
 # --------------------------------------------------------------------------
-# MOD のプリセット (最大ランクの値・参考値。画面では入力欄に足し込むだけなので自由に直せる)
+# MOD のプリセット (最大ランクの値。画面では入力欄に足し込むだけなので自由に直せる)
+#   値は公式 Export の levelStats(データ更新で作る mod_stats.json)の最大ランクから取る(preset_values)。
+#   下の add / element は「どの項目に足すか」の指定と、mod_stats.json が無い・行が読めないときの予備の値
+#   (2026-11-16 に Export の値と合わせた)。uid は Export の uniqueName(同じ名前の初心者向けなどと区別する)。
+#   セット MOD(Umbra など)は set(Export の modSet)と set_values(2枚・3枚…つけたときの増加率。Export の modSetValues)。
+#   どちらも Export にあればそちらを使う。画面は ON のセットの枚数で 1 + set_values[枚数 - 2] 倍にする
 # --------------------------------------------------------------------------
 
+_U = "/Lotus/Upgrades/Mods/"
+UMBRA_SET = _U + "Sets/Umbra/UmbraSetMod"
 FRAME_PRESETS = [
-    {"en": "Vitality", "ja": "バイタリティ", "add": {"health_pct": 440}},
-    {"en": "Redirection", "ja": "リダイレクション", "add": {"shield_pct": 440}},
-    {"en": "Steel Fiber", "ja": "スチールファイバー", "add": {"armor_pct": 110}},
-    {"en": "Flow", "ja": "フロー", "add": {"energy_pct": 150}},
-    {"en": "Primed Flow", "ja": "プライム フロー", "add": {"energy_pct": 185}},
-    {"en": "Intensify", "ja": "インテンシファイ", "add": {"strength": 30}},
-    {"en": "Umbral Intensify", "ja": "アンブラル インテンシファイ", "add": {"strength": 44}},
-    {"en": "Transient Fortitude", "ja": "トランジェント フォーティチュード", "add": {"strength": 55, "duration": -27.5}},
-    {"en": "Blind Rage", "ja": "ブラインド レイジ", "add": {"strength": 99, "efficiency": -55}},
-    {"en": "Continuity", "ja": "コンティニュイティ", "add": {"duration": 30}},
-    {"en": "Primed Continuity", "ja": "プライム コンティニュイティ", "add": {"duration": 55}},
-    {"en": "Narrow Minded", "ja": "ナローマインド", "add": {"duration": 99, "range": -66}},
-    {"en": "Stretch", "ja": "ストレッチ", "add": {"range": 45}},
-    {"en": "Augur Reach", "ja": "オーガー リーチ", "add": {"range": 30}},
-    {"en": "Overextended", "ja": "オーバーエクステンド", "add": {"range": 90, "strength": -60}},
-    {"en": "Streamline", "ja": "ストリームライン", "add": {"efficiency": 30}},
-    {"en": "Fleeting Expertise", "ja": "フリーティング エクスパーティーズ", "add": {"efficiency": 60, "duration": -60}},
+    {"en": "Vitality", "ja": "バイタリティ", "uid": _U + "Warframe/AvatarHealthMaxMod", "add": {"health_pct": 100}},
+    {"en": "Umbral Vitality", "ja": "アンブラル バイタリティ", "uid": _U + "Sets/Umbra/WarframeUmbraModA",
+     "add": {"health_pct": 100}, "set": UMBRA_SET, "set_values": [0.3, 0.8]},
+    {"en": "Redirection", "ja": "リダイレクション", "uid": _U + "Warframe/AvatarShieldMaxMod", "add": {"shield_pct": 100}},
+    {"en": "Steel Fiber", "ja": "スチールファイバー", "uid": _U + "Warframe/AvatarArmourMod", "add": {"armor_pct": 100}},
+    {"en": "Umbral Fiber", "ja": "アンブラル ファイバー", "uid": _U + "Sets/Umbra/WarframeUmbraModB",
+     "add": {"armor_pct": 100}, "set": UMBRA_SET, "set_values": [0.3, 0.8]},
+    {"en": "Flow", "ja": "フロー", "uid": _U + "Warframe/AvatarPowerMaxMod", "add": {"energy_pct": 100}},
+    {"en": "Primed Flow", "ja": "プライム フロー", "uid": _U + "Warframe/Expert/AvatarPowerMaxModExpert", "add": {"energy_pct": 185}},
+    {"en": "Intensify", "ja": "インテンシファイ", "uid": _U + "Warframe/AvatarAbilityStrengthMod", "add": {"strength": 30}},
+    {"en": "Umbral Intensify", "ja": "アンブラル インテンシファイ", "uid": _U + "Sets/Umbra/WarframeUmbraModC",
+     "add": {"strength": 44}, "set": UMBRA_SET, "set_values": [0.25, 0.75]},
+    {"en": "Transient Fortitude", "ja": "トランジェント フォーティチュード",
+     "uid": _U + "Warframe/DualStat/CorruptedPowerStrengthPowerDurationWarframe", "add": {"strength": 55, "duration": -27.5}},
+    {"en": "Blind Rage", "ja": "ブラインド レイジ", "uid": _U + "Warframe/DualStat/CorruptedPowerEfficiencyWarframe",
+     "add": {"strength": 99, "efficiency": -55}},
+    {"en": "Continuity", "ja": "コンティニュイティ", "uid": _U + "Warframe/AvatarAbilityDurationMod", "add": {"duration": 30}},
+    {"en": "Primed Continuity", "ja": "プライム コンティニュイティ", "uid": _U + "Warframe/Expert/AvatarAbilityDurationModExpert",
+     "add": {"duration": 55}},
+    {"en": "Narrow Minded", "ja": "ナローマインド", "uid": _U + "Warframe/DualStat/CorruptedDurationRangeWarframe",
+     "add": {"duration": 99, "range": -66}},
+    {"en": "Stretch", "ja": "ストレッチ", "uid": _U + "Warframe/AvatarAbilityRangeMod", "add": {"range": 45}},
+    {"en": "Augur Reach", "ja": "オーガー リーチ", "uid": _U + "Sets/Augur/WarframeAugurReachMod", "add": {"range": 30}},
+    {"en": "Overextended", "ja": "オーバーエクステンド", "uid": _U + "Warframe/DualStat/CorruptedRangePowerWarframe",
+     "add": {"range": 90, "strength": -60}},
+    {"en": "Streamline", "ja": "ストリームライン", "uid": _U + "Warframe/AvatarAbilityEfficiencyMod", "add": {"efficiency": 30}},
+    {"en": "Fleeting Expertise", "ja": "フリーティング エクスパーティーズ",
+     "uid": _U + "Warframe/DualStat/CorruptedEfficiencyDurationWarframe", "add": {"efficiency": 60, "duration": -60}},
 ]
 WEAPON_PRESETS = {
     "primary": [
-        {"en": "Serration", "add": {"damage": 165}}, {"en": "Heavy Caliber", "add": {"damage": 165}},
-        {"en": "Split Chamber", "add": {"multishot": 90}}, {"en": "Vigilante Armaments", "add": {"multishot": 60}},
-        {"en": "Point Strike", "add": {"cc": 150}}, {"en": "Vital Sense", "add": {"cd": 120}},
-        {"en": "Speed Trigger", "add": {"fire_rate": 60}}, {"en": "Rifle Aptitude", "add": {"status": 90}},
-        {"en": "Point Blank", "add": {"damage": 90}}, {"en": "Hell's Chamber", "add": {"multishot": 120}},
-        {"en": "Magazine Warp", "add": {"magazine": 30}}, {"en": "Fast Hands", "add": {"reload": 30}},
-        {"en": "Hellfire", "element": ("heat", 90)}, {"en": "Cryo Rounds", "element": ("cold", 90)},
-        {"en": "Stormbringer", "element": ("electricity", 90)}, {"en": "Infected Clip", "element": ("toxin", 90)},
-        {"en": "Malignant Force", "element": ("toxin", 60), "add": {"status": 60}},
-        {"en": "Bane of Grineer", "add": {"faction": 30}},
+        {"en": "Serration", "uid": _U + "Rifle/WeaponDamageAmountMod", "add": {"damage": 165}},
+        {"en": "Heavy Caliber", "uid": _U + "Rifle/DualStat/CorruptedDamageRecoilRifle", "add": {"damage": 165}},
+        {"en": "Split Chamber", "uid": _U + "Rifle/WeaponFireIterationsMod", "add": {"multishot": 90}},
+        {"en": "Vigilante Armaments", "uid": _U + "Sets/Vigilante/PrimaryVigilanteArmamentsMod", "add": {"multishot": 60}},
+        {"en": "Point Strike", "uid": _U + "Rifle/WeaponCritChanceMod", "add": {"cc": 150}},
+        {"en": "Vital Sense", "uid": _U + "Rifle/WeaponCritDamageMod", "add": {"cd": 120}},
+        {"en": "Speed Trigger", "uid": _U + "Rifle/WeaponFireRateMod", "add": {"fire_rate": 60}},
+        {"en": "Rifle Aptitude", "uid": _U + "Rifle/WeaponStunChanceMod", "add": {"status": 90}},
+        {"en": "Point Blank", "uid": _U + "Shotgun/WeaponDamageAmountMod", "add": {"damage": 90}},
+        {"en": "Hell's Chamber", "uid": _U + "Shotgun/WeaponFireIterationsMod", "add": {"multishot": 120}},
+        {"en": "Magazine Warp", "uid": _U + "Rifle/WeaponClipMaxMod", "add": {"magazine": 30}},
+        {"en": "Fast Hands", "uid": _U + "Rifle/WeaponReloadSpeedMod", "add": {"reload": 30}},
+        {"en": "Hellfire", "uid": _U + "Rifle/WeaponFireDamageMod", "element": ("heat", 90)},
+        {"en": "Cryo Rounds", "uid": _U + "Rifle/WeaponFreezeDamageMod", "element": ("cold", 90)},
+        {"en": "Stormbringer", "uid": _U + "Rifle/WeaponElectricityDamageMod", "element": ("electricity", 90)},
+        {"en": "Infected Clip", "uid": _U + "Rifle/WeaponToxinDamageMod", "element": ("toxin", 90)},
+        {"en": "Malignant Force", "uid": _U + "Rifle/DualStat/PoisonEventRifleMod", "element": ("toxin", 60), "add": {"status": 60}},
+        {"en": "Bane of Grineer", "uid": _U + "Rifle/WeaponFactionDamageGrineer", "add": {"faction": 30}},
     ],
     "secondary": [
-        {"en": "Hornet Strike", "add": {"damage": 220}}, {"en": "Barrel Diffusion", "add": {"multishot": 120}},
-        {"en": "Lethal Torrent", "add": {"multishot": 60, "fire_rate": 60}}, {"en": "Pistol Gambit", "add": {"cc": 120}},
-        {"en": "Target Cracker", "add": {"cd": 60}}, {"en": "Gunslinger", "add": {"fire_rate": 72}},
-        {"en": "Heated Charge", "element": ("heat", 90)}, {"en": "Deep Freeze", "element": ("cold", 90)},
-        {"en": "Convulsion", "element": ("electricity", 90)}, {"en": "Pathogen Rounds", "element": ("toxin", 90)},
+        {"en": "Hornet Strike", "uid": _U + "Pistol/WeaponDamageAmountMod", "add": {"damage": 220}},
+        {"en": "Barrel Diffusion", "uid": _U + "Pistol/WeaponFireIterationsMod", "add": {"multishot": 120}},
+        {"en": "Lethal Torrent", "uid": _U + "Pistol/DualStat/GrinderMod", "add": {"multishot": 60, "fire_rate": 60}},
+        {"en": "Pistol Gambit", "uid": _U + "Pistol/WeaponCritChanceMod", "add": {"cc": 120}},
+        {"en": "Target Cracker", "uid": _U + "Pistol/WeaponCritDamageMod", "add": {"cd": 60}},
+        {"en": "Gunslinger", "uid": _U + "Pistol/WeaponFireRateMod", "add": {"fire_rate": 72}},
+        {"en": "Heated Charge", "uid": _U + "Pistol/WeaponFireDamageMod", "element": ("heat", 90)},
+        {"en": "Deep Freeze", "uid": _U + "Pistol/WeaponFreezeDamageMod", "element": ("cold", 90)},
+        {"en": "Convulsion", "uid": _U + "Pistol/WeaponElectricityDamageMod", "element": ("electricity", 90)},
+        {"en": "Pathogen Rounds", "uid": _U + "Pistol/WeaponToxinDamageMod", "element": ("toxin", 90)},
     ],
     "melee": [
-        {"en": "Pressure Point", "add": {"damage": 120}}, {"en": "Primed Pressure Point", "add": {"damage": 165}},
-        {"en": "True Steel", "add": {"cc": 60}}, {"en": "Organ Shatter", "add": {"cd": 90}},
-        {"en": "Fury", "add": {"fire_rate": 30}}, {"en": "Molten Impact", "element": ("heat", 90)},
-        {"en": "North Wind", "element": ("cold", 90)}, {"en": "Shocking Touch", "element": ("electricity", 90)},
-        {"en": "Fever Strike", "element": ("toxin", 90)},
+        {"en": "Pressure Point", "uid": _U + "Melee/WeaponMeleeDamageMod", "add": {"damage": 120}},
+        {"en": "Primed Pressure Point", "uid": _U + "Melee/Expert/WeaponMeleeDamageModExpert", "add": {"damage": 165}},
+        {"en": "True Steel", "uid": _U + "Melee/WeaponCritChanceMod", "add": {"cc": 120}},
+        {"en": "Organ Shatter", "uid": _U + "Melee/WeaponCritDamageMod", "add": {"cd": 90}},
+        {"en": "Fury", "uid": _U + "Melee/WeaponFireRateMod", "add": {"fire_rate": 30}},
+        {"en": "Molten Impact", "uid": _U + "Melee/WeaponFireDamageMod", "element": ("heat", 90)},
+        {"en": "North Wind", "uid": _U + "Melee/WeaponFreezeDamageMod", "element": ("cold", 90)},
+        {"en": "Shocking Touch", "uid": _U + "Melee/WeaponElectricityDamageMod", "element": ("electricity", 90)},
+        {"en": "Fever Strike", "uid": _U + "Melee/WeaponToxinDamageMod", "element": ("toxin", 90)},
     ],
 }
 WEAPON_PRESETS["archgun"] = WEAPON_PRESETS["primary"]
 WEAPON_PRESETS["robotic"] = WEAPON_PRESETS["primary"]
+
+# Export の効果の行(色タグを消した en)の項目名 -> プリセットのキー。行は「+100% Health」の形(後ろの「(x2 for Bows)」などは無視)。
+# 属性は PRESET_ELEMENT_WORDS、勢力ダメージは「x1.3 Damage to Grineer」の形(倍率 - 1 を % に)。プリセットの add / element に無い項目は使わない
+PRESET_STAT_WORDS = {
+    "health": "health_pct", "shield capacity": "shield_pct", "armor": "armor_pct", "energy max": "energy_pct",
+    "ability strength": "strength", "ability duration": "duration", "ability range": "range", "ability efficiency": "efficiency",
+    "damage": "damage", "melee damage": "damage", "multishot": "multishot", "critical chance": "cc", "critical damage": "cd",
+    "fire rate": "fire_rate", "attack speed": "fire_rate", "status chance": "status", "magazine capacity": "magazine",
+    "reload speed": "reload",
+}
+PRESET_ELEMENT_WORDS = {"heat": "heat", "cold": "cold", "electricity": "electricity", "toxin": "toxin"}
+PRESET_FACTION_KEY = "faction"
 
 
 # --------------------------------------------------------------------------
@@ -500,14 +550,85 @@ def _find(items: list[dict], name: str, cat: str | None = None) -> dict:
     return hits[0]
 
 
-def api_data(d: Path, dispo_rows: list[dict] | None = None) -> dict:
+_STAT_LINE_RE = re.compile(r"^([+-]?\d+(?:\.\d+)?)%\s+(.+?)\s*(?:\(.*\))?$")
+_FACTION_LINE_RE = re.compile(r"^x(\d+(?:\.\d+)?)\s+Damage to\s+\S", re.I)
+
+
+def parse_stat_lines(lines: list[str]) -> tuple[dict[str, float], dict[str, float]]:
+    """効果の行(en)から {プリセットのキー: 値} と {属性: 値} を読む。読めない行・知らない項目は飛ばす(同じキーは最初の行)"""
+    adds: dict[str, float] = {}
+    elems: dict[str, float] = {}
+    for line in lines:
+        line = " ".join(str(line).split())
+        m = _FACTION_LINE_RE.match(line)
+        if m:
+            adds.setdefault(PRESET_FACTION_KEY, round((float(m.group(1)) - 1) * 100, 4))
+            continue
+        m = _STAT_LINE_RE.match(line)
+        if not m:
+            continue
+        value, label = float(m.group(1)), m.group(2).strip().lower()
+        if label in PRESET_ELEMENT_WORDS:
+            elems.setdefault(PRESET_ELEMENT_WORDS[label], value)
+        elif label in PRESET_STAT_WORDS:
+            adds.setdefault(PRESET_STAT_WORDS[label], value)
+    return adds, elems
+
+
+def _set_values(raw) -> list[float] | None:
+    if isinstance(raw, list) and raw and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in raw):
+        return [round(float(v), 4) for v in raw]
+    return None
+
+
+def preset_values(presets: list[dict], mod_rows: dict[str, dict] | None) -> list[dict]:
+    """プリセットの値を mod_stats.json の行(uid -> 行。stats_en の最後 = 最大ランク・set・set_values)で置き換える。
+    置き換えるのはプリセットの add / element にある項目だけ。行が無い・読めない項目は予備の値のまま。
+    from_data は1つでも Export の値を使ったか。uid は画面に渡さない"""
+    out = []
+    for p in presets:
+        row = (mod_rows or {}).get(p.get("uid") or "")
+        ranks = row.get("stats_en") if isinstance(row, dict) else None
+        adds, elems = parse_stat_lines(ranks[-1]) if isinstance(ranks, list) and ranks and isinstance(ranks[-1], list) else ({}, {})
+        res = {k: v for k, v in p.items() if k != "uid"}
+        used = False
+        if p.get("add"):
+            res["add"] = {k: adds.get(k, v) for k, v in p["add"].items()}
+            used = any(k in adds for k in p["add"])
+        if p.get("element"):
+            kind, value = p["element"]
+            res["element"] = (kind, elems.get(kind, value))
+            used = used or kind in elems
+        if p.get("set") and isinstance(row, dict):
+            res["set"] = row.get("set") or p["set"]
+            data_values = _set_values(row.get("set_values"))
+            res["set_values"] = data_values or p["set_values"]
+            used = used or data_values is not None
+        res["from_data"] = used
+        out.append(res)
+    return out
+
+
+def preset_uids() -> list[str]:
+    """プリセットの MOD の内部パス(Export の uniqueName)の一覧"""
+    lists = [FRAME_PRESETS, *WEAPON_PRESETS.values()]
+    return list(dict.fromkeys(p["uid"] for lst in lists for p in lst if p.get("uid")))
+
+
+def api_presets(mod_rows: dict[str, dict] | None) -> dict:
+    """画面に渡すプリセット(フレームとカテゴリーごとの武器)。同じ表を使うカテゴリー(archgun など)も同じ値になる"""
+    weapons = {cat: preset_values(lst, mod_rows) for cat, lst in WEAPON_PRESETS.items()}
+    return {"frame_presets": preset_values(FRAME_PRESETS, mod_rows), "weapon_presets": weapons}
+
+
+def api_data(d: Path, dispo_rows: list[dict] | None = None, mod_rows: dict[str, dict] | None = None) -> dict:
     data = gamedata.read_builder(d)
     # 種類・効果・ダメージの種類・カテゴリーはキーだけ(表示名は画面の I18N の sim.group / sim.stat / sim.dmg / sim.cat)
     riven = {"groups": list(RIVEN_GROUPS), "stats": RIVEN_STATS, "spliced_max": RIVEN_SPLICED_MAX,
              "grades": RIVEN_GRADES, "grade_low": RIVEN_GRADE_LOW,
              "modifiers": [{"buffs": b, "curse": c, "buff": m[0], "curse_m": m[1]} for (b, c), m in RIVEN_MODIFIERS.items()]}
     meta = {"cats": list(CAT_JA), "damage_types": list(DAMAGE_KEYS), "elements": list(PRIMARY_ELEMENTS),
-            "frame_presets": FRAME_PRESETS, "weapon_presets": WEAPON_PRESETS, "rank30_bonus": RANK30_BONUS,
+            **api_presets(mod_rows), "rank30_bonus": RANK30_BONUS,
             "riven": riven, "riven_type_group": RIVEN_TYPE_GROUP}
     if data is None:
         return {"has_data": False, **meta}

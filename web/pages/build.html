@@ -177,9 +177,11 @@ async function analyzeImages(list, auto) {
         const blob = im.blob.size > 18 * 1024 * 1024 ? await prepareImage(im.blob) : im.blob;
         r = await apiImage("/api/build-analyze", blob);
       }
+      if (r.missing) continue;  // 保存済みの画像のファイルが無い: 飛ばす(エラーにも通知にもしない)
       out.push(r);
     }
     if (run !== ocrRun) return;
+    if (!out.length) { $("#b-ocr").hidden = true; btn.disabled = false; return; }  // 読める画像が1枚も無かった
     ocrResult = mergeOcr(out);
     const filled = auto ? applyOcr(ocrResult, true) : [];
     renderOcr(ocrResult, auto ? (filled.length ? fmt("ocr.filled", { list: filled.join(t("list.and")) }) : t("ocr.unchanged")) : "");

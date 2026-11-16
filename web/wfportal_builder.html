@@ -374,6 +374,32 @@ $("#update-btn").addEventListener("click", async () => {
   btn.disabled = false; btn.textContent = t("sim.update");
 });
 
+/* ---------- MOD のプリセット(フレーム・武器で共用) ---------- */
+const round2 = v => Math.round(v * 100) / 100;
+/** セット MOD の倍率: 同じセットを n 枚 ON なら 1 + set_values[n - 2](枚数が表より多ければ最後の値)。セットでなければ 1 */
+function setMult(p, n) {
+  const vals = p.set_values || [];
+  return p.set && n >= 2 && vals.length ? 1 + vals[Math.min(n - 2, vals.length - 1)] : 1;
+}
+/** ON の MOD(英名の一覧)の合計 { add: {キー: 値}, elem: {MOD の英名: 属性の値} }(セットの倍率を掛けたあと) */
+function presetTotals(presets, onNames) {
+  const on = presets.filter(p => onNames.includes(p.en)), cnt = {}, add = {}, elem = {};
+  on.forEach(p => { if (p.set) cnt[p.set] = (cnt[p.set] || 0) + 1; });
+  on.forEach(p => {
+    const mult = setMult(p, cnt[p.set] || 0);
+    Object.entries(p.add || {}).forEach(([k, v]) => { add[k] = round2((add[k] || 0) + v * mult); });
+    if (p.element) elem[p.en] = round2(p.element[1] * mult);
+  });
+  return { add, elem };
+}
+/** ボタンの説明(名前・効果・セットの増加率) */
+function presetTitle(p) {
+  const fx = [...Object.entries(p.add || {}).map(([k, v]) => `${k} ${sign(v)}`), ...(p.element ? [`${p.element[0]} ${sign(p.element[1])}`] : [])];
+  const set = p.set && (p.set_values || []).length
+    ? " / " + fmt("sim.preset.set", { list: p.set_values.map((v, i) => fmt("sim.preset.setn", { n: i + 2, v: sign(round2(v * 100)) })).join(" / ") }) : "";
+  return `${nameByLang(p)}: ${fx.join(" / ")}${set}`;
+}
+
 /* ---------- フレーム ---------- */
 const SCALES = ["none", "strength", "duration", "range", "cost", "inv_duration"];  // 伸び方(表示名は I18N の sim.scale.<キー>)
 let fRefs = store.get("f-refs", {}), fLast = null, wLast = null, rLast = null;  // 最後の計算結果(言語を切り替えたら描き直す)
@@ -388,11 +414,12 @@ function setupFrame() {
   $$("[data-rb]").forEach(i => { if (i.value === "") i.value = META.rank30_bonus[i.dataset.rb]; });
   const saved = store.get("f-mods", {});
   $$("[data-f]").forEach(i => { if (saved[i.dataset.f] !== undefined) i.value = saved[i.dataset.f]; });
+  applyFramePresets(fOn);  // データ更新で MOD の値が変わっていれば、入力欄の足し込み分を今の値にそろえる
   calcFrame();
 }
 function renderFramePresets() {
   $("#f-presets").innerHTML = META.frame_presets.map((p, i) =>
-    `<button class="chip" type="button" data-fp="${i}" aria-pressed="${fOn.includes(p.en)}" title="${esc(nameByLang(p))}: ${esc(Object.entries(p.add).map(([k, v]) => `${k} ${sign(v)}`).join(" / "))}">${esc(p.en)}</button>`).join("");
+    `<button class="chip" type="button" data-fp="${i}" aria-pressed="${fOn.includes(p.en)}" title="${esc(presetTitle(p))}">${esc(p.en)}</button>`).join("");
 }
 function frameMods() {
   const m = {}; $$("[data-f]").forEach(i => { m[i.dataset.f] = +i.value || 0; }); return m;
@@ -450,18 +477,27 @@ $("#f-q").addEventListener("input", () => {
 });
 $("#f-rank30").addEventListener("change", calcFrame);
 $("#tab-frame").addEventListener("input", e => { if (e.target.matches("[data-f], [data-rb]")) calcFrame(); });
-/* MOD ボタンは ON/OFF。ON で入力欄に足し、OFF で引く(手で直した値はそのまま残る) */
-const addTo = (input, v) => { input.value = Math.round(((+input.value || 0) + v) * 100) / 100; };
+/* MOD ボタンは ON/OFF。ON で入力欄に足し、OFF で引く(手で直した値はそのまま残る)。
+   入力欄に足し込んだ合計は f-applied に覚え、ON/OFF・セットの枚数・データの値が変わったら差分だけ足し引きする */
+const addTo = (input, v) => { input.value = round2((+input.value || 0) + v); };
+function applyFramePresets(nextOn) {
+  const before = store.get("f-applied", null), after = presetTotals(META.frame_presets, nextOn).add;
+  if (before) Object.keys({ ...before, ...after }).forEach(k => {
+    const i = $(`[data-f="${k}"]`), diff = (after[k] || 0) - (before[k] || 0);
+    if (i && Math.abs(diff) > 1e-9) addTo(i, diff);
+  });
+  fOn = nextOn; store.set("f-on", fOn); store.set("f-applied", after);
+}
 $("#f-presets").addEventListener("click", e => {
   const c = e.target.closest("[data-fp]"); if (!c) return;
   const p = META.frame_presets[+c.dataset.fp], on = !fOn.includes(p.en);
-  Object.entries(p.add).forEach(([k, v]) => addTo($(`[data-f="${k}"]`), on ? v : -v));
-  fOn = on ? [...fOn, p.en] : fOn.filter(x => x !== p.en); store.set("f-on", fOn);
+  if (!store.get("f-applied", null)) store.set("f-applied", presetTotals(META.frame_presets, fOn).add);
+  applyFramePresets(on ? [...fOn, p.en] : fOn.filter(x => x !== p.en));
   c.setAttribute("aria-pressed", on);
   calcFrame();
 });
 $("#f-reset").addEventListener("click", () => {
-  $$("[data-f]").forEach(i => { i.value = 0; }); fOn = []; store.set("f-on", fOn);
+  $$("[data-f]").forEach(i => { i.value = 0; }); fOn = []; store.set("f-on", fOn); store.set("f-applied", {});
   $$("[data-fp]").forEach(c => c.setAttribute("aria-pressed", "false")); calcFrame();
 });
 
@@ -495,7 +531,8 @@ function fillWeapons(want) {
   const melee = wCat === "melee";
   $$("[data-wf-wrap]").forEach(l => { l.hidden = melee && MELEE_SKIP.has(l.dataset.wfWrap); });
   const presets = META.weapon_presets[wCat] || [];
-  $("#w-presets").innerHTML = presets.map((p, i) => `<button class="chip" type="button" data-wp="${i}" aria-pressed="${wOnList().includes(p.en)}">${esc(p.en)}</button>`).join("") || `<span class="note" style="margin:0">${esc(t("sim.presets.none"))}</span>`;
+  $("#w-presets").innerHTML = presets.map((p, i) => `<button class="chip" type="button" data-wp="${i}" aria-pressed="${wOnList().includes(p.en)}" title="${esc(presetTitle(p))}">${esc(p.en)}</button>`).join("") || `<span class="note" style="margin:0">${esc(t("sim.presets.none"))}</span>`;
+  applyWeaponPresets(wOnList());  // データ更新で MOD の値が変わっていれば、足し込み分を今の値にそろえる
   renderElems(); calcWeapon();
 }
 function renderElems() {
@@ -584,28 +621,53 @@ $("#w-elems").addEventListener("change", e => { if (e.target.matches("select")) 
 $("#w-elems").addEventListener("click", e => {
   const b = e.target.closest("[data-erm]"); if (!b) return;
   const [gone] = wElems.splice(+b.dataset.erm, 1);
-  if (gone && gone.src) {  // MOD ボタンで足した属性を × で消したら、そのボタンも OFF にする
-    Object.keys(wOn).forEach(c => { wOn[c] = wOn[c].filter(x => x !== gone.src); }); store.set("w-on", wOn);
+  if (gone && gone.src) {  // MOD ボタンで足した属性を × で消したら、そのボタンも OFF にする(今のカテゴリーは足し込み分も引く)
+    const all = store.get("w-applied", {});
+    Object.keys(wOn).forEach(c => {
+      if (c === wCat || !wOn[c].includes(gone.src)) return;
+      wOn[c] = wOn[c].filter(x => x !== gone.src); all[c] = presetTotals(META.weapon_presets[c] || [], wOn[c]);
+    });
+    store.set("w-applied", all);
+    if (wOnList().includes(gone.src)) applyWeaponPresets(wOnList().filter(x => x !== gone.src)); else store.set("w-on", wOn);
     $$("[data-wp]").forEach(x => { if (x.textContent === gone.src) x.setAttribute("aria-pressed", "false"); });
   }
   renderElems(); calcWeapon();
 });
+/* 武器の MOD ボタン: 足し込んだ合計はカテゴリーごとに w-applied に覚え、差分だけ足し引きする(フレームと同じ)。
+   属性 MOD は押したときだけ、ON で行を追加し OFF でそのボタンが追加した行(src)を取り除く。
+   セットの枚数・データの値が変わったら、ON の属性の行のうち手で直していない行だけ今の値にする。toggled は押した MOD */
+function applyWeaponPresets(nextOn, toggled = null) {
+  const all = store.get("w-applied", {}), before = all[wCat], after = presetTotals(META.weapon_presets[wCat] || [], nextOn);
+  if (before) {
+    Object.keys({ ...before.add, ...after.add }).forEach(k => {
+      const i = $(`[data-wf="${k}"]`), diff = (after.add[k] || 0) - ((before.add || {})[k] || 0);
+      if (i && Math.abs(diff) > 1e-9) addTo(i, diff);
+    });
+    Object.entries(after.elem).forEach(([src, want]) => {
+      const row = wElems.find(e => e.src === src), prev = (before.elem || {})[src];
+      if (row && prev !== undefined && +row.pct === prev) row.pct = want;
+    });
+  }
+  if (toggled && toggled.element) {
+    const k = wElems.findIndex(e => e.src === toggled.en);
+    if (nextOn.includes(toggled.en)) { if (k < 0) wElems.push({ type: toggled.element[0], pct: after.elem[toggled.en], src: toggled.en }); }
+    else if (k >= 0) wElems.splice(k, 1);
+  }
+  wOn[wCat] = nextOn; store.set("w-on", wOn);
+  all[wCat] = after; store.set("w-applied", all);
+}
 $("#w-presets").addEventListener("click", e => {
   const c = e.target.closest("[data-wp]"); if (!c) return;
   const p = META.weapon_presets[wCat][+c.dataset.wp], on = !wOnList().includes(p.en);
-  Object.entries(p.add || {}).forEach(([k, v]) => { const i = $(`[data-wf="${k}"]`); if (i) addTo(i, on ? v : -v); });
-  if (p.element) {
-    // 属性 MOD は、ON で行を追加し、OFF でそのボタンが追加した行を取り除く
-    if (on) wElems.push({ type: p.element[0], pct: p.element[1], src: p.en });
-    else { const k = wElems.findIndex(e => e.src === p.en); if (k >= 0) wElems.splice(k, 1); }
-    renderElems();
-  }
-  wOn[wCat] = on ? [...wOnList(), p.en] : wOnList().filter(x => x !== p.en); store.set("w-on", wOn);
+  const all = store.get("w-applied", {});
+  if (!all[wCat]) { all[wCat] = presetTotals(META.weapon_presets[wCat], wOnList()); store.set("w-applied", all); }
+  applyWeaponPresets(on ? [...wOnList(), p.en] : wOnList().filter(x => x !== p.en), p);
+  if (p.element) renderElems();
   c.setAttribute("aria-pressed", on);
   calcWeapon();
 });
 $("#w-reset").addEventListener("click", () => {
-  $$("[data-wf]").forEach(i => { i.value = 0; }); wElems = []; wOn = {}; store.set("w-on", wOn);
+  $$("[data-wf]").forEach(i => { i.value = 0; }); wElems = []; wOn = {}; store.set("w-on", wOn); store.set("w-applied", {});
   $$("[data-wp]").forEach(c => c.setAttribute("aria-pressed", "false")); renderElems(); calcWeapon();
 });
 

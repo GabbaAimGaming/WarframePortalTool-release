@@ -1,8 +1,9 @@
-"""画面向け API: 個人データ(MOD 所持・マスター(ゲーム画面からの読み取りを含む)・クエスト・アルケイン・ビルド・画像の文字認識)"""
+"""画面向け API: 個人データ(MOD 所持・マスター(ゲーム画面からの読み取りを含む)・クエスト・アルケイン・ToDo・ビルド・画像の文字認識)"""
 from __future__ import annotations
 
 import re
 import threading
+from datetime import datetime, timezone
 
 import wfportal_msscan as msscan
 import wfportal_ocr as ocr
@@ -20,6 +21,7 @@ from wfp.core.helminth import clean_helminth, subsume_list
 from wfp.core.mastery import mastery_items, mastery_summary, mastery_table
 from wfp.core.mods import mod_table
 from wfp.core.quests import QuestNotFound, quest_items, quest_summary, quest_table, set_quests_done
+from wfp.core import todo
 from wfp.store import appdata, build_images, userdata
 
 
@@ -90,6 +92,42 @@ def set_quests(store: Store, body: dict) -> dict:
         done.update(new)
     rows = quest_table(names, done)  # 状態は前提の完了で変わるので、一覧ごと返す
     return {"rows": rows, "summary": quest_summary(rows)}
+
+
+def _utc_now() -> datetime:
+    """ToDo の今の時刻(テストで差し替える)"""
+    return datetime.now(timezone.utc)
+
+
+def todo_list(store: Store) -> dict:
+    """ToDo の一覧(完了かどうかは最後のリセットより後にチェックしたか。core/todo)"""
+    return todo.todo_view(todo.clean_items(userdata.load_todo(store.d)), _utc_now())
+
+
+# 変える操作: body の action -> (一覧, body, 今) を受けて一覧をその場で変える
+TODO_ACTIONS = {
+    "add": lambda items, b, now: todo.add_item(items, b.get("name"), b.get("kind")),
+    "edit": lambda items, b, now: todo.edit_item(items, b.get("id"), b.get("name"), b.get("kind")),
+    "delete": lambda items, b, now: todo.delete_item(items, b.get("id")),
+    "move": lambda items, b, now: todo.move_item(items, b.get("id"), -1 if b.get("step") == -1 else 1),
+    "check": lambda items, b, now: todo.check_item(items, b.get("id"), bool(b.get("done")), now),
+}
+
+
+def change_todo(store: Store, body: dict) -> dict:
+    """body: {"action": TODO_ACTIONS のキー, ...}。誤りは 400、無い id は 404(何も書かない)。応答は一覧ごと(todo_list と同じ形)"""
+    action = TODO_ACTIONS.get(body.get("action"))
+    if action is None:
+        raise ApiError(txt("err.todo.action", name=str(body.get("action"))), 400)
+    now = _utc_now()
+    with userdata.editing(store.d, "todo") as raw:
+        items = todo.clean_items(raw)
+        try:
+            action(items, body, now)
+        except todo.TodoError as e:
+            raise ApiError(error_text(e), 404 if isinstance(e, todo.TodoNotFound) else 400)
+        raw[:] = items
+    return todo.todo_view(items, now)
 
 
 def arcanes_list(store: Store) -> dict:
@@ -230,7 +268,8 @@ def delete_build(store: Store, name: str) -> list[dict]:
 
 
 def analyze_build_image(store: Store, image_name: str, data: bytes | None) -> dict:
-    """保存済みの画像(image_name)か、送られてきた画像(data)を解析する"""
+    """保存済みの画像(image_name)か、送られてきた画像(data)を解析する。
+    保存済みの画像のファイルが無いときはエラーにせず {"missing": True} を返す(画面はその画像を飛ばす)"""
     need_ocr()
     names = store.names()
     if not names.mods:
@@ -238,7 +277,7 @@ def analyze_build_image(store: Store, image_name: str, data: bytes | None) -> di
     if image_name:
         p = build_images.build_image_path(store.d, image_name)
         if p is None:
-            raise ApiError(txt("err.image.none"), 404)
+            return {"missing": True}
         data = p.read_bytes()
     if not data or not build_images.image_ext(data):
         raise ApiError(txt("err.image.format"), 415)
@@ -319,6 +358,8 @@ ROUTES = {
     ("POST", "/api/mastery/scan"): lambda c: scan_mastery(c.store, c.image()),
     ("GET", "/api/quests"): lambda c: quests_list(c.store),
     ("POST", "/api/quests"): lambda c: set_quests(c.store, c.body()),
+    ("GET", "/api/todo"): lambda c: todo_list(c.store),
+    ("POST", "/api/todo"): lambda c: change_todo(c.store, c.body()),
     ("GET", "/api/arcanes"): lambda c: arcanes_list(c.store),
     ("POST", "/api/arcanes/owned"): lambda c: set_arcanes(c.store, c.body()),
     ("GET", "/api/builds"): lambda c: builds_list(c.store),

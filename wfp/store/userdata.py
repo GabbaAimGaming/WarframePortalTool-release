@@ -56,6 +56,7 @@ _CLEANERS = {
     "mastered": set, "quests_done": set, "invasion_parts": set, "baro_owned": set,
     "arcanes_owned": _clean_ranks,
     "builds": lambda raw: [b for b in raw if isinstance(b, dict)],
+    "todo": lambda raw: [b for b in raw if isinstance(b, dict)],  # 項目の中身の検査は core/todo の clean_items(store は core の機能ロジックを使わない)
     "duviri_adjust": _as_dict, "baro_seen": _as_dict,
 }
 
@@ -111,6 +112,14 @@ def save_arcanes_owned(d: Path, owned: dict[str, int]) -> None:
 
 def load_builds(d: Path) -> list[dict]:
     return _load(d, "builds")
+
+
+def load_todo(d: Path) -> list[dict]:
+    return _load(d, "todo")
+
+
+def save_todo(d: Path, items: list[dict]) -> None:
+    userdb.write_kind(d, "todo", items)
 
 
 def save_builds(d: Path, builds: list[dict]) -> None:

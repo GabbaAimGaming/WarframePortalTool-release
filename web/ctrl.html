@@ -28,6 +28,9 @@
     <!-- 言語の切り替え(ボタンは web/menu.html の renderLangSwitch が I18N の言語から作る) -->
     <div class="lang-sw" id="lang-sw" role="group" hidden></div>
     <span class="pill" id="status-pill" aria-live="polite">データ確認中...</span>
+    <!-- ToDo の小窓(中身・動きは web/parts.html の todoFloat。数はデイリー・ウィークリーの未完了の合計) -->
+    <button class="pill todo-btn" type="button" id="todo-float-btn" aria-expanded="false" aria-controls="todo-float"><span data-tf-label>ToDo</span> <span class="todo-badge" data-tf-count hidden></span></button>
+    <div class="todo-float" id="todo-float" role="dialog" aria-labelledby="todo-float-title" hidden></div>
   </header>
 
   <div class="body">
