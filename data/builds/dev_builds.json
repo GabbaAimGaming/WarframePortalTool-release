@@ -366,8 +366,8 @@
       "forma": 4,
       "mods": [
         "Steel Charge",
-        "Power Drift",
-        "Constitution",
+        "Primed Sure Footed",
+        "Gurdian Armor",
         "Overextended",
         "Umbral Vitality",
         "Umbral Intensify",
@@ -377,15 +377,15 @@
         "Umbral Fiber"
       ],
       "arcanes": [
-        "Arcane Battery",
-        "Molt Augmented"
+        "Arcane Blessing",
+        "Arcane Bellicose"
       ],
       "tags": [
         "Developer"
       ],
       "note": "",
       "helminth": {
-        "slot": 1,
+        "slot": 4,
         "ability": "Brightbonnet"
       },
       "shards": [
@@ -405,8 +405,8 @@
           "tauforged": true
         },
         {
-          "color": "blue",
-          "effect": "WarframeRegen",
+          "color": "violet",
+          "effect": "WarframeElectricDamage",
           "tauforged": true
         },
         {
