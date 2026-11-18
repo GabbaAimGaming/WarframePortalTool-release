@@ -1,5 +1,5 @@
 {
-  "version": "2.28",
+  "version": "2.29",
   "edition": "lite",
   "files": {
     "INSTALL_PYTHON.md": {
@@ -28,7 +28,7 @@
       "src": "data/baro_rules.json"
     },
     "data/builds/dev_builds.json": {
-      "sha256": "66c0a33fa413e7df2cf978d6a7705e779e6c3431d6663a18bd24742e959bb32f",
+      "sha256": "2c0f6c62d2110396f297a57d269911e7909425d11c163b8399860056fa08444d",
       "size": 50332,
       "src": "data/builds/dev_builds.json"
     },
