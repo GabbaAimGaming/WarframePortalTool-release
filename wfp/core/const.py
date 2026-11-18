@@ -5,6 +5,7 @@ core.i18n(テキスト指定・表示名の表 JA_TABLES。日本語の文は we
 """
 from __future__ import annotations
 
+from datetime import timedelta, timezone
 from pathlib import Path
 
 
@@ -136,6 +137,8 @@ NODE_MODES = {
 }
 
 
+# レア度の並び(低い → 高い)。画面の並べ替え(parts.html の rarityRank)にも差し込む(PAGE_CONSTS)
+RARITY_ORDER = ("Common", "Uncommon", "Rare", "Legendary")
 RARITY_JA = {"Common": "コモン", "Uncommon": "アンコモン", "Rare": "レア", "Legendary": "レジェンダリー"}
 
 
@@ -399,8 +402,11 @@ QA_ANSWERS_FILE = "answers.json"
 QA_MISS_FILE = "miss.json"
 
 
-# 解説(設定・ストーリー)と、解説のセリフ(枕詞・ネタバレの確認など)。解説の種類: 設定(クエストと無縁)/ クエストの中身(requires で確認)
-QA_LORE_FILE = "lore.json"
+# 解説(設定・ストーリー・仕組み)と、解説のセリフ(枕詞・ネタバレの確認など)。解説の種類: 設定(クエストと無縁)/ クエストの中身(requires で確認)/ 仕組み。
+# 解説は data/qa/lore/ のファイルに分けて置き、目次(_index.json の files)の順に繋げて読む。目次には as_of・license・credit も書く
+QA_LORE_DIR = "lore"
+QA_LORE_INDEX = "_index.json"
+QA_LORE_PART_RE = r"^[a-z0-9_]+\.json$"   # 解説のファイルの名前(目次の files に書ける形)
 
 
 QA_LORE_TALK_FILE = "lore_talk.json"
@@ -418,6 +424,10 @@ QA_MENU_FILE = "menu.json"
 
 
 QA_MENU_TOP = "top"
+# 分類の中身に自動で足すボタンの種類(menu.json の分類の auto)。dev_frames = 開発者のビルドがある Warframe(英名・ABC 順)
+QA_MENU_AUTO = ("dev_frames",)
+# dev_frames のボタンで聞く文({name} = フレームの英名)。「ビルド」の語で開発者のビルドが出る
+QA_DEV_FRAME_Q = "{name} のビルド"
 
 
 # Warframe と関係ない話(core.qatalk): ツールの使い方 tool / 雑談 chat
@@ -787,7 +797,23 @@ SERVER_HEADERS = {
 # /api/ への要求で通す Sec-Fetch-Site の値(ブラウザが付ける「どこからの要求か」)。same-origin = この画面から・none = アドレス欄などから直接。
 # ほか(cross-site = ほかのサイト・same-site = localhost の別のポートのページ)は断る。ヘッダーが無い要求(古いブラウザ・CLI・curl)は通す
 API_FETCH_SITES = ("same-origin", "none")
-REQUEST_MAX_BYTES = 1_000_000  # JSON の本文の上限(バイト)。画像の上限は store/build_images の IMAGE_MAX_BYTES
+REQUEST_MAX_BYTES = 1_000_000  # JSON の本文の上限(バイト)
+IMAGE_MAX_BYTES = 20 * 1024 * 1024  # 画像の本文・保存するビルド画像の上限(バイト)
+DEFAULT_PORT = 8765  # 画面のサーバーの既定のポート(埋まっていれば +9 まで試す。.bat の説明の文字はそのまま)
+
+# 日本時間(CLI の表示・API の日時の文字列。ゲームのリセットは UTC 基準)
+JST = timezone(timedelta(hours=9))
+
+# ビルド画像(データ置き場の下のフォルダ・1件に付けられる枚数)と、ビルド画像の文字認識の結果を使い回すフォルダ
+BUILD_IMAGE_DIR = "build_images"
+BUILD_IMAGE_MAX = 30
+OCR_CACHE_DIR = "ocr_cache"
+
+# 候補の件数の上限: アイテムから探す(数量違いを束ねた後)・敵から探す(勢力・強化版の違いが多いので多め)・エリア検索(惑星とノード)
+SUGGEST_LIMIT = 10
+ENEMY_SUGGEST_LIMIT = 20
+AREA_SUGGEST_LIMIT = 80
+QA_QUESTION_MAX = 200  # Q&A の質問の文の長さの上限
 
 # ToDo(core/todo。利用者データの todo)。種類 = いつ未完了に戻るか: daily は毎日 0:00 UTC、weekly は月曜 0:00 UTC、
 # long(ロングタスク)は戻らない(外すまで完了のまま。2026-11-16 利用者の指定)。表示名は画面の I18N の todo.kind.<キー>。

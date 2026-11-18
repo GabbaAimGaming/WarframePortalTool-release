@@ -22,10 +22,9 @@
 /* ---------- アルケイン所持 ---------- */
 let arcanes = null, acCat = "warframe";
 const acSort = { key: "name", dir: "asc" };
-const AC_RARITY = { Legendary: 4, Rare: 3, Uncommon: 2, Common: 1 };
 const acGetters = {
   owned: r => (r.owned ? 1 : 0), name: r => nameByLang(r).toLowerCase(),
-  rarity: r => AC_RARITY[r.rarity] || 0, rank: r => (r.owned ? r.rank : -1),
+  rarity: r => rarityRank(r.rarity), rank: r => (r.owned ? r.rank : -1),
 };
 /* 名前: 日本語の画面は日本語名(無ければ英名)、ほかは英名 */
 function acFilter(inCat) {
@@ -69,12 +68,14 @@ function renderArcanes() {
 async function setArcane(en, owned, rank) {
   const r = arcanes.rows.find(x => x.en === en); if (!r) return;
   const before = { owned: r.owned, rank: r.rank };
-  $("#ac-err").textContent = "";
-  // サーバーと同じ決め方: 外すとランクも消える / 付けたときにランクの指定が無ければ 0
-  r.owned = owned; r.rank = owned ? (rank ?? r.rank ?? 0) : null; renderArcanes();
   const body = { en, owned }; if (owned && rank !== undefined) body.rank = rank;
-  try { await api("/api/arcanes/owned", { method: "POST", body }); }
-  catch (e) { Object.assign(r, before); renderArcanes(); $("#ac-err").textContent = e.message; }
+  await optimistic({
+    // サーバーと同じ決め方: 外すとランクも消える / 付けたときにランクの指定が無ければ 0
+    apply: () => { r.owned = owned; r.rank = owned ? (rank ?? r.rank ?? 0) : null; },
+    undo: () => Object.assign(r, before),
+    send: () => api("/api/arcanes/owned", { method: "POST", body }),
+    render: renderArcanes, err_box: $("#ac-err"),
+  });
 }
 $("#ac-cats").addEventListener("click", e => { const c = e.target.closest("[data-acat]"); if (!c) return; acCat = c.dataset.acat; pref.set("wf-arcane-cat", acCat); renderArcanes(); });
 $("#ac-out").addEventListener("change", e => {
@@ -95,9 +96,7 @@ loaders.arcane = async () => {
   applyViewText("arcane");
   if (arcanes) { renderArcanes(); return; }
   acCat = pref.get("wf-arcane-cat", acCat);
-  $("#ac-out").innerHTML = `<div class="empty">${esc(t("common.loading"))}</div>`;
-  try { arcanes = await api("/api/arcanes"); renderArcanes(); }
-  catch (e) { $("#ac-cats").innerHTML = ""; $("#ac-summary").innerHTML = ""; $("#ac-out").innerHTML = noData(e.message); }
+  await loadInto($("#ac-out"), () => api("/api/arcanes"), data => { arcanes = data; renderArcanes(); }, [$("#ac-cats"), $("#ac-summary")]);
 };
 relabel.arcane = () => { applyViewText("arcane"); $("#ac-err").textContent = ""; renderArcanes(); };  // エラー文は前の言語のままになるので消す
 dataResets.arcane = () => { arcanes = null; };

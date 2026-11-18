@@ -8,15 +8,15 @@ from pathlib import Path
 from wfp.cli.common import find_hits, match_rows, split_action
 from wfp.cli.table import pad, print_table
 from wfp.core.arcane import arcane_summary, arcane_table, set_arcanes_owned
-from wfp.core.build import canon_arcanes, find_build
+from wfp.core.build import find_build, make_build
 from wfp.core.common import pct, rank
-from wfp.core.i18n import render_ja
+from wfp.core.i18n import render_ja, txt
 from wfp.core.text import norm
 from wfp.core.const import (
-    ARCANE_CATS, BUILD_TYPES, DROPS_FILE, MASTERY_CATS, MOD_TYPES, QUEST_CATS, QUEST_STATES, RARITY_JA, SOURCE_CATS,
+    ARCANE_CATS, BUILD_IMAGE_DIR, BUILD_IMAGE_MAX, BUILD_TYPES, DROPS_FILE, MASTERY_CATS, MOD_TYPES, QUEST_CATS, QUEST_STATES, RARITY_JA, SOURCE_CATS,
 )
-from wfp.core.archon import clean_shards, find_effect, parse_shard_args, shard_list, shard_text
-from wfp.core.helminth import clean_helminth, parse_helminth_arg, subsume_frame, subsume_list
+from wfp.core.archon import find_effect, parse_shard_args, shard_list, shard_text
+from wfp.core.helminth import parse_helminth_arg, subsume_frame, subsume_list
 from wfp.core.loader import load_drops, load_names, load_sources
 from wfp.core.mastery import mastery_label, mastery_summary, mastery_table
 from wfp.core.mods import mod_table
@@ -211,106 +211,154 @@ def cmd_arcane(args):
 
 
 def cmd_build(args):
-    d = datadir.data_dir(args.data_dir)
-    builds = userdata.load_builds(d)
-    act = args.action
-    if act == "list":
-        rows = [b for b in builds if not args.type or b["type"] == args.type]
-        if args.query:
-            q = " ".join(args.query)
-            rows = [b for b in rows if rank(q, [b["name"], b.get("target", ""), *b.get("tags", [])]) is not None]
-        if not rows:
-            print("ビルドがありません。`build add` で登録できます。")
-            return
-        print_table(["名前", "種別", "対象", "フォーマ", "MOD数", "画像", "タグ"],
-                    [[b["name"], BUILD_TYPES.get(b["type"], b["type"]), b.get("target", ""), str(b.get("forma", 0)),
-                      str(len(b.get("mods", []))), str(len(b.get("images", []))), ",".join(b.get("tags", []))] for b in rows],
-                    right_cols=(3, 4, 5))
-    elif act == "show":
+    """CLI `build`: 動作(list / show / add / rm / export / analyze)ごとの関数を表 _BUILD_ACTIONS から引いて呼ぶ"""
+    _BUILD_ACTIONS[args.action](datadir.data_dir(args.data_dir), args)
+
+
+def _build_list(d, args) -> None:
+    """build list: 一覧(--type で種別・検索語で名前・対象・タグを絞る)"""
+    rows = [b for b in userdata.load_builds(d) if not args.type or b["type"] == args.type]
+    if args.query:
+        q = " ".join(args.query)
+        rows = [b for b in rows if rank(q, [b["name"], b.get("target", ""), *b.get("tags", [])]) is not None]
+    if not rows:
+        print("ビルドがありません。`build add` で登録できます。")
+        return
+    print_table(["名前", "種別", "対象", "フォーマ", "MOD数", "画像", "タグ"],
+                [[b["name"], BUILD_TYPES.get(b["type"], b["type"]), b.get("target", ""), str(b.get("forma", 0)),
+                  str(len(b.get("mods", []))), str(len(b.get("images", []))), ",".join(b.get("tags", []))] for b in rows],
+                right_cols=(3, 4, 5))
+
+
+def _build_show(d, args) -> None:
+    """build show: 1件の中身(MOD・アルケインは和名・Helminth・アルコンの欠片・メモ・タグ・画像の場所)"""
+    b = find_build(userdata.load_builds(d), " ".join(args.query))
+    if not b:
+        sys.exit("該当するビルドが見つからない、または複数あります。")
+    print(f"■ {b['name']}  [{BUILD_TYPES.get(b['type'], b['type'])}]  対象: {b.get('target', '-')}  フォーマ: {b.get('forma', 0)}")
+    for i, m in enumerate(b.get("mods", []), 1):
+        print(f"  {i:>2}. {m}")
+    if b.get("arcanes"):
+        names = load_names(d)  # 保存は英名。CLI は日本語なので和名で出す(和名が無ければ英名)
+        print("アルケイン: " + ", ".join(names.ja(a) for a in b["arcanes"]))
+    if b.get("helminth"):
+        helm = b["helminth"]
+        frame = subsume_frame(subsume_list(appdata.read_helminth()), helm["ability"])
+        print(f"Helminth: {helm['slot']}番 → {helm['ability']}" + (f"({frame})" if frame else ""))
+    if b.get("shards"):
+        _print_shards(b["shards"])
+    if b.get("note"):
+        print(f"\nメモ: {b['note']}")
+    if b.get("tags"):
+        print("タグ: " + ", ".join(b["tags"]))
+    for n in b.get("images", []):
+        print(f"画像: {d / BUILD_IMAGE_DIR / n}")
+
+
+def _print_shards(shards: list) -> None:
+    """アルコンの欠片の5枠を出す(空の枠は「-」・一覧に無い色と効果はそのまま)"""
+    print("アルコンの欠片:")
+    data = shard_list(appdata.read_archon())
+    for i, sh in enumerate(shards, 1):
+        hit = find_effect(data, sh["color"], sh["effect"]) if sh else None
+        if not sh:
+            print(f"  {i}. -")
+        elif hit:
+            head = ("Tauforged " if sh["tauforged"] else "") + hit[0]["ja"]
+            print(f"  {i}. {head}: {shard_text(hit[1], 'ja', sh['tauforged'], data['tauforged_rate'])}")
+        else:
+            print(f"  {i}. {sh['color']}: {sh['effect']}(一覧にありません)")
+
+
+def _build_remove(d, args) -> None:
+    """build rm: 1件を消す(画像のファイルは書き込みが確定してから消す)"""
+    with userdata.editing(d, "builds") as builds:
         b = find_build(builds, " ".join(args.query))
         if not b:
             sys.exit("該当するビルドが見つからない、または複数あります。")
-        print(f"■ {b['name']}  [{BUILD_TYPES.get(b['type'], b['type'])}]  対象: {b.get('target', '-')}  フォーマ: {b.get('forma', 0)}")
-        for i, m in enumerate(b.get("mods", []), 1):
-            print(f"  {i:>2}. {m}")
-        if b.get("arcanes"):
-            names = load_names(d)  # 保存は英名。CLI は日本語なので和名で出す(和名が無ければ英名)
-            print("アルケイン: " + ", ".join(names.ja(a) for a in b["arcanes"]))
-        if b.get("helminth"):
-            h = b["helminth"]
-            frame = subsume_frame(subsume_list(appdata.read_helminth()), h["ability"])
-            print(f"Helminth: {h['slot']}番 → {h['ability']}" + (f"({frame})" if frame else ""))
-        if b.get("shards"):
-            print("アルコンの欠片:")
-            data = shard_list(appdata.read_archon())
-            for i, sh in enumerate(b["shards"], 1):
-                hit = find_effect(data, sh["color"], sh["effect"]) if sh else None
-                if not sh:
-                    print(f"  {i}. -")
-                elif hit:
-                    head = ("Tauforged " if sh["tauforged"] else "") + hit[0]["ja"]
-                    print(f"  {i}. {head}: {shard_text(hit[1], 'ja', sh['tauforged'], data['tauforged_rate'])}")
-                else:
-                    print(f"  {i}. {sh['color']}: {sh['effect']}(一覧にありません)")
-        if b.get("note"):
-            print(f"\nメモ: {b['note']}")
-        if b.get("tags"):
-            print("タグ: " + ", ".join(b["tags"]))
-        for n in b.get("images", []):
-            print(f"画像: {d / build_images.IMAGE_DIR / n}")
-    elif act == "add":
-        name = " ".join(args.query)
-        if not name:
-            sys.exit("ビルド名を指定してください。")
-        with userdata.editing(d, "builds") as builds:  # 同名の検査と書き込みの間に、ほかの変更が割り込まない
-            old = find_build(builds, name)
-            entry = {"name": name, "type": args.type or "frame", "target": args.target or "",
-                     "forma": args.forma or 0, "mods": [m.strip() for m in (args.mods or "").split(",") if m.strip()],
-                     "arcanes": canon_arcanes(load_names(d), [a.strip() for a in (args.arcanes or "").split(",") if a.strip()]),
-                     "tags": [t.strip() for t in (args.tags or "").split(",") if t.strip()], "note": args.note or "",
-                     "images": []}
-            try:
-                helminth = clean_helminth(entry["type"], parse_helminth_arg(args.helminth) if args.helminth else None)
-                shards = clean_shards(entry["type"], parse_shard_args(args.shard), shard_list(appdata.read_archon()))
-            except ValueError as e:
-                sys.exit(str(e))
-            if helminth:
-                entry["helminth"] = helminth
-            if shards:
-                entry["shards"] = shards
-            same = old is not None and norm(old["name"]) == norm(name)
-            if same and not args.update:
-                sys.exit("同名のビルドがあります。上書きするには --update を付けてください。")
-            if same:
-                entry["images"] = list(old.get("images", []))  # 既存の画像は残し、--image の分を追加する
-            for path in args.image or []:
-                try:
-                    entry["images"].append(build_images.save_build_image(d, Path(path).expanduser().read_bytes()))
-                except (OSError, ValueError) as e:
-                    sys.exit(f"画像を追加できませんでした({path}): {e}")
-            if same:
-                builds[builds.index(old)] = entry
-            else:
-                builds.append(entry)
-        print("更新しました。" if same else "追加しました。")  # 書き込みが確定してから出す
-    elif act == "rm":
-        with userdata.editing(d, "builds") as builds:
-            b = find_build(builds, " ".join(args.query))
-            if not b:
-                sys.exit("該当するビルドが見つからない、または複数あります。")
-            builds.remove(b)
-        build_images.delete_build_images(d, b.get("images", []))
-        print(f"削除しました: {b['name']}")
-    elif act == "export":
-        print(json.dumps(builds, ensure_ascii=False, indent=2))
-    elif act == "analyze":
-        import wfportal_ocr  # Windows の文字認識を使う画像解析
-        wfportal_ocr.main_analyze(args.query, d, raw=args.raw, save_ocr=args.save_ocr, ocr_json=args.ocr_json)
+        builds.remove(b)
+    build_images.delete_build_images(d, b.get("images", []))
+    print(f"削除しました: {b['name']}")
+
+
+def _build_export(d, args) -> None:
+    """build export: 全部を JSON で出す"""
+    print(json.dumps(userdata.load_builds(d), ensure_ascii=False, indent=2))
+
+
+def _build_analyze(d, args) -> None:
+    """build analyze: 画像を文字認識してビルドの中身を読む(wfportal_ocr。Windows の文字認識が要る)"""
+    import wfportal_ocr  # 文字認識を使うときだけ読み込む
+    wfportal_ocr.main_analyze(args.query, d, raw=args.raw, save_ocr=args.save_ocr, ocr_json=args.ocr_json)
+
+
+def _build_raw(args, name: str, old_type: str | None) -> dict:
+    """build add の引数を make_build の入力にする(API の本文と同じ形)。--update で --type を省いたら元の種別を引き継ぐ"""
+    return {"name": name, "type": args.type or old_type, "target": args.target, "forma": args.forma, "mods": args.mods,
+            "arcanes": args.arcanes, "tags": args.tags, "note": args.note,
+            "helminth": parse_helminth_arg(args.helminth) if args.helminth else None, "shards": parse_shard_args(args.shard)}
+
+
+def _read_images(paths: list[str]) -> list[bytes]:
+    """--image のファイルを全部読んで検査する(1つでもだめなら何も保存せずに終わる)"""
+    out = []
+    for path in paths:
+        try:
+            data = Path(path).expanduser().read_bytes()
+            build_images.check_build_image(data)
+        except (OSError, ValueError) as e:
+            sys.exit(f"画像を追加できませんでした({path}): {e}")
+        out.append(data)
+    return out
+
+
+def _save_images(d, datas: list[bytes]) -> list[str]:
+    """画像を保存して名前を返す。途中で失敗したら、それまでに保存した分を消して終わる"""
+    saved: list[str] = []
+    for data in datas:
+        try:
+            saved.append(build_images.save_build_image(d, data))
+        except (OSError, ValueError) as e:
+            build_images.delete_build_images(d, saved)
+            sys.exit(f"画像を保存できませんでした: {e}")
+    return saved
+
+
+def _build_add(d, args) -> None:
+    """build add: 新規か、--update で同名を上書き(既存の画像は残し --image の分を足す)。値のそろえ方は core/build の make_build(API と同じ)"""
+    name = " ".join(args.query).strip()
+    if not name:
+        sys.exit(render_ja(txt("err.build.name")))
+    datas = _read_images(args.image or [])  # ファイルの読み込みと検査は書き込みの前に済ませる
+    with userdata.editing(d, "builds") as builds:  # 同名の検査と書き込みの間に、ほかの変更が割り込まない
+        old = find_build(builds, name)
+        same = old is not None and norm(old["name"]) == norm(name)
+        if same and not args.update:
+            sys.exit("同名のビルドがあります。上書きするには --update を付けてください。")
+        kept = list(old.get("images", [])) if same else []
+        if len(kept) + len(datas) > BUILD_IMAGE_MAX:
+            sys.exit(render_ja(txt("err.build.images", n=str(BUILD_IMAGE_MAX))))
+        try:
+            entry = make_build(_build_raw(args, name, old["type"] if same else None), load_names(d),
+                               shard_list(appdata.read_archon()), kept)
+        except ValueError as e:
+            sys.exit(str(e))
+        entry["images"] += _save_images(d, datas)
+        if same:
+            builds[builds.index(old)] = entry
+        else:
+            builds.append(entry)
+    print("更新しました。" if same else "追加しました。")  # 書き込みが確定してから出す
+
+
+# build の動作 -> 関数(引数の選択肢もこの表から作る)
+_BUILD_ACTIONS = {"list": _build_list, "show": _build_show, "add": _build_add, "rm": _build_remove,
+                  "export": _build_export, "analyze": _build_analyze}
 
 
 def add_build(sub) -> None:
     s = sub.add_parser("build", help="ビルド管理")
-    s.add_argument("action", choices=["list", "show", "add", "rm", "export", "analyze"])
+    s.add_argument("action", choices=list(_BUILD_ACTIONS))
     s.add_argument("query", nargs="*", help="ビルド名 / 検索語 / analyze のときは画像ファイル")
     s.add_argument("--type", choices=list(BUILD_TYPES))
     s.add_argument("--target", help="フレーム名・武器名")

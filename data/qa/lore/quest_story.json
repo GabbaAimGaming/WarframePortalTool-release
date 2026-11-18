@@ -1,0 +1,981 @@
+{
+  "_note": "クエストのあらすじ(quest.story.<クエスト>。requires はそのクエスト自身)",
+  "topics": [
+    {
+      "id": "quest.story.awakening",
+      "type": "quest",
+      "about": [],
+      "title": "目覚め のあらすじ",
+      "words": [
+        "目覚め",
+        "Awakening"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/NewPlayerQuest/NewPlayerQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Awakening"
+      ],
+      "text": [
+        "長いあいだ眠ってたテンノを、Lotus がひとりずつ起こして回ってた頃の話。でも Grineer の Vor 船長がいつも先回りしてて、目覚めたばっかで弱いテンノを片っ端から殺してたんだよね。",
+        "地球の Ostron の村の近くで、Vor は眠ってるテンノを見つける。今度は殺さないで、Warframe にアスカリスって装置を付けた。テンノを操って、双子の女王への手土産にするつもり。うまくいけば、テンノの兵隊で Grineer は無敵…って計画。",
+        "テンノは Lotus の声を頼りに Vor の兵から逃げて、武器を拾って、Ordis のいる自分の船にたどり着く。Vor との決着は、ここから始まる感じ。"
+      ]
+    },
+    {
+      "id": "quest.story.vors_prize",
+      "type": "quest",
+      "about": [],
+      "title": "Vorの秘宝 のあらすじ",
+      "words": [
+        "Vorの秘宝",
+        "Vor's Prize"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/VorsPrize/VorsPrizeQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Vor's_Prize"
+      ],
+      "text": [
+        "目覚めの続き。テンノは地球を回って、荒らされたオービター(自分の船)を直すパーツを集める。Ordis の助けで、テンノ寄りだったせいで Grineer に捕まってた Corpus の闇商人 Darvo を助けて、マーケットや鋳造所も使えるようになるよ。",
+        "アスカリスはなんとか止められたけど、外そうとすると爆発する仕掛け付き。解除するには Vor 本人を倒すしかない。",
+        "地球の軌道の採掘場の小惑星で Vor を倒して、アスカリスも解除。Lotus は、Grineer と Corpus に押さえつけられた星系のバランスを取り戻してほしいってテンノに託す。…ここからが本番ってわけ。"
+      ]
+    },
+    {
+      "id": "quest.story.teacher",
+      "type": "quest",
+      "about": [],
+      "title": "師範 のあらすじ",
+      "words": [
+        "師範",
+        "The Teacher"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/ModQuest/ModQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Teacher"
+      ],
+      "text": [
+        "Vor が倒れたあと、Nef Anyo の部下の Corpus が Vor の基地を漁ってて、狙いはオロキンの技術「MOD セグメント」。先に取りに行ったテンノの前に現れたのが、オロキン時代を生き延びた Dax の戦士 Teshin。テンノの帰りを見届けに来たんだって。",
+        "Teshin は Lotus を快く思ってなくて、テンノを捕まえちゃう。Lotus が古の戦争の記憶を封じたことも分かってて、そのかわりに MOD で Warframe や武器を強くするやり方を教えてくれるの。",
+        "訓練の途中で Corpus が来て、Teshin はわざと捕まってテンノを逃がす。助けに行くと、Lotus は逆に Teshin を捕まえて船ごと壊せって言う。Teshin は Lotus と話して、古の戦争は必要だったって認めつつ、記憶はいずれ戻る、今のテンノには師匠と Lotus の両方が要るって言い残すんだよね。"
+      ]
+    },
+    {
+      "id": "quest.story.vox_solaris",
+      "type": "quest",
+      "about": [],
+      "title": "Vox Solaris のあらすじ",
+      "words": [
+        "Vox Solaris",
+        "Vox Solarisのあらすじ",
+        "Vox Solarisのストーリー",
+        "Vox Solarisのクエスト"
+      ],
+      "shared": [
+        "Vox Solaris"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/SolarisQuest/SolarisQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Vox_Solaris_(Quest)"
+      ],
+      "text": [
+        "金星のフォーチュナーで、Nef Anyo への借金に縛られてる Solaris のひとたちの話。親の借金を背負った Thursby は、払えないと機械の体どころか生身の手足まで取り上げられちゃう。で、テンノに Corpus の物資を盗んでって頼むの。",
+        "かつて「Vox Solaris」の名前で Solaris United を率いてた Eudico は、ある事件のあと身を引いてて、Thursby を手伝うなって止める側。The Business は Corpus に K爆弾で一発かましたい派で、やり方をめぐって Eudico ともめたりする。",
+        "最後は、Nef が投資家に見せびらかすつもりの冷却塔をテンノが乗っ取って、オーバーヒート寸前まで追い込む。Vox は投資家の目の前で「谷を動かしてるのは Solaris だ」って突きつけて、Nef は折れるしかなかった。死んだと思われてた Thursby も機械の脚になって生きてて、「Legs」って呼ばれるようになったよ。"
+      ]
+    },
+    {
+      "id": "quest.story.once_awake",
+      "type": "quest",
+      "about": [],
+      "title": "博士の計略 のあらすじ",
+      "words": [
+        "博士の計略",
+        "Once Awake"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/InfestedIntroQuest/InfestedIntroQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Once_Awake"
+      ],
+      "text": [
+        "Grineer の Tengus 博士が生物兵器を研究してて、調べてみたら、それは古の戦争を生き延びた感染体の株だったの。",
+        "実験室の事故で隔離から漏れ出して、水星の Grineer の拠点や船にどんどん広がっちゃう。星系全体が危ないってことで、Lotus は感染を根こそぎ消せって。",
+        "テンノは Void のエネルギーを込めたカスケード爆弾で元を断つ。…でも博士は研究をやめてないから、またどこかで起きるかもね。"
+      ]
+    },
+    {
+      "id": "quest.story.heart_of_deimos",
+      "type": "quest",
+      "about": [],
+      "title": "ダイモスの心臓 のあらすじ",
+      "words": [
+        "ダイモスの心臓",
+        "Heart of Deimos"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/InfestedMicroplanetQuest/InfestedMicroplanetQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Heart_of_Deimos"
+      ],
+      "text": [
+        "ダイモスに呼ばれたテンノは、Loid と Otak に連れられて、オロキンの一家エントラティに会う。Void を研究してた一家で、今は感染体に半分侵されてる。",
+        "母の Mother は、Warframe も含めて星系じゅうの Void の装置を動かしてる「ダイモスの心臓」を直したい。でも家族はバラバラで、Father は手を貸さないし、Daughter と Son は仲が悪い。",
+        "心臓にたどり着いたところで、古の戦争の兵器ネクラメカの暴走機に襲われて、心臓を壊されちゃう。これでやっと家族がまとまって、動かなくなってきた Warframe のかわりに借りたネクラメカに乗って、心臓を直して暴走機を倒すんだよね。"
+      ]
+    },
+    {
+      "id": "quest.story.archwing",
+      "type": "quest",
+      "about": [],
+      "title": "アークウイング のあらすじ",
+      "words": [
+        "アークウイング",
+        "The Archwing"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/ArchwingQuest/ArchwingQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Archwing"
+      ],
+      "text": [
+        "Grineer のフォーモリアン艦隊の旗艦、バロール・フォーモリアンが出てきて、力のバランスが崩れる。Vay Hek は Corpus と Frohd Bek に宣戦布告して、星系を丸ごと取りにくる。",
+        "宇宙で戦うために、テンノはオロキン時代の機械の翼アークウイングと、専用の銃と近接武器を作ることに。部品の設計図は金星のオロキンの書庫に散らばってるから、それを集めて回るの。",
+        "でもいざ仕掛けてみたら、火力が全然足りない。Grineer の戦闘機を落としまくって、ひとまず撤退。本当の決着は「また今度」って終わり方なんだよね。"
+      ]
+    },
+    {
+      "id": "quest.story.duviri_paradox",
+      "type": "quest",
+      "about": [
+        "Drifter"
+      ],
+      "title": "デュヴィリ・パラドックス のあらすじ",
+      "words": [
+        "デュヴィリ・パラドックス",
+        "The Duviri Paradox"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/DuviriQuest/DuviriQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Duviri_Paradox"
+      ],
+      "text": [
+        "Void の中で同じ時間をくり返す世界「デュヴィリ」に閉じ込められた漂流者の話。気まぐれな王 Dominus Thrax に何度も処刑されては時間が巻き戻って、自分が誰かも忘れて、すっかり無気力になってる。",
+        "ある日、刺されたみたいな感覚のあとに不思議な手が現れて、力をくれる。手に導かれて会ったのが老人の Teshin。壁の向こうから助けが来てるって言って、「デュヴィリの物語」って絵本を使いながら、テンノや Warframe のことを教えてくれるの。",
+        "人形の欠片を集めるのが出口の鍵で、欠片を手に入れるたびに、その日の感情にまつわる記憶を見る。Teshin は、それは Thrax の記憶で、空に浮かぶ船 Zariman のテンノかもしれないって。苛立った Thrax は Teshin を殺させて、怒りで感情を取り戻した漂流者はオロワームを乗っ取って玉座に乗り込み、最後の欠片を奪う。",
+        "人形が Thrax だったことで、漂流者は気づく。デュヴィリを作ったのは、Zariman での心の傷を抱えた自分自身だったって。漂流者は世界を巻き戻して Teshin を生き返らせ、Thrax に玉座を返す。もうデュヴィリに縛られない漂流者は、助けてくれた起源星系へ恩返しに行けるようになるよ。"
+      ]
+    },
+    {
+      "id": "quest.story.natah",
+      "type": "quest",
+      "about": [
+        "Lotus"
+      ],
+      "title": "Natah のあらすじ",
+      "words": [
+        "Natah のあらすじ",
+        "Natah のストーリー",
+        "クエストの Natah"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/SentientQuest/SentientQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Natah_(Quest)"
+      ],
+      "text": [
+        "天王星に、何かを…誰かを探してる変なドローンが現れる。Lotus は Corpus のものだと思って地球を調べさせるけど、出てきたのは古の戦争の残骸。そこで Lotus は、それがセンティエントのオキュリストだと気づいて、急に通信を切っちゃう。",
+        "Lotus を怪しんでた Teshin が、手を貸すって名乗り出る。その間に Grineer の Tyl Regor が天王星の深くで古の戦争の墓を掘ってて、戻ってきた Lotus は止めてって頼むけど間に合わない。目覚めたのはセンティエントの Hunhow だった。",
+        "Lotus は、自分のもとの名前が Natah で、古の戦争でテンノを消すために送り込まれたセンティエントだったって明かす。Tau から Void を越えてきたせいで子どもを持てなくなって、戦争が終わりに近づくとテンノを殺す理由もなくなった。我が子が欲しくて、テンノを「二番目の夢」に隠したんだって。",
+        "Hunhow の娘だった Natah は、母になるために自分の種族を裏切ったってこと。Hunhow は、彼女がやり残したテンノの抹殺を終わらせる気でいる。"
+      ]
+    },
+    {
+      "id": "quest.story.second_dream",
+      "type": "quest",
+      "about": [],
+      "title": "二番目の夢 のあらすじ",
+      "words": [
+        "二番目の夢",
+        "The Second Dream"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/OrokinMoonQuest/OrokinMoonQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Second_Dream"
+      ],
+      "text": [
+        "目覚めた Hunhow は、古の戦争の復讐のために Stalker と組んで「空の子宮」を壊そうとする。それがテンノの弱点…Lotus がセンティエントから守るために Void に隠してた、リザーバーのこと。",
+        "思わぬ Alad V の手助けで、天王星の Grineer が掘り出したセンティエントの遺物にたどり着く。でも Lotus が Hunhow の居場所を探ろうとして、逆にリザーバーの場所がバレちゃう。Stalker を追って Void のオロキンの塔に入ると、リザーバーは Void に隠された地球の月、ルアにあるって分かる。",
+        "塔の仕掛けを止めてルアを見つけられるようにしたら、Stalker が Void を崩しにかかる。押し潰される前にルアを Void から引き戻すけど、もう Void には守ってもらえないから、リザーバーを直接守るしかない。",
+        "リザーバーにいたのは、テンノの本当の姿、オペレーター。Warframe は、オペレーターが Void の力で遠くから動かしてたんだよね(トランスファレンス)。オペレーターを見た Stalker は殺すのをためらって、オペレーターは目覚めた Void の力で戦い、最後に Stalker を倒す。初めて直接会った Lotus に運ばれながら、オロキン時代に通ってた学派の記憶を少しだけ取り戻すの。"
+      ]
+    },
+    {
+      "id": "quest.story.war_within",
+      "type": "quest",
+      "about": [],
+      "title": "内なる紛争 のあらすじ",
+      "words": [
+        "内なる紛争",
+        "The War Within"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/WarWithinQuest/WarWithinQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_War_Within"
+      ],
+      "text": [
+        "ルアのリザーバーで異変があって、調べたら入り込んでたのは Teshin。実は双子の女王の二重スパイだったんだよね。Teshin のスペクターを追って小惑星帯を探ると、Grineer の本拠地で女王たちの住まい、クバ要塞が見つかる。動き回ってたから今まで見つからなかったの。",
+        "要塞の奥で、Teshin は女王のクバの笏に従わされてた。Dax はオロキンの血(クバ)に逆らえないように作られてるから。女王たちはクローンをくり返して体がぼろぼろで、「継承」で乗り移る新しい若い体が要る。その器に選ばれたのがテンノ。",
+        "Ordis がトランスファレンスを切ってオペレーターを守るけど、女王は Warframe を通してテンノの心に潜り込んでくる。吹雪の山の幻で、Teshin に導かれながら、Margulis が Void から守るために消してた記憶と、Zariman で本当に何があったかを取り戻していく。",
+        "Warframe なしで Void を操る力が戻ったテンノは要塞に戻って、Teshin を助けて笏を奪う。弱った女王のうち姉の女王を倒して、ワームの女王は逃げる。最後に、奪ったクバをどうするか決めると、頭の中で誰かがささやくんだよね。"
+      ]
+    },
+    {
+      "id": "quest.story.rising_tide",
+      "type": "quest",
+      "about": [],
+      "title": "流転する形勢 のあらすじ",
+      "words": [
+        "流転する形勢",
+        "Rising Tide"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/RailJackBuildQuest/RailjackBuildQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Rising_Tide"
+      ],
+      "text": [
+        "ヴェール・プロキシマ でセンティエントの異変が起きてて、テンノは古の戦争で戦ったオロキン時代のSephalon Cy を組み直す。",
+        "古い軍艦レールジャックの部品を星系じゅうから集めるあいだ、Cy は昔の仲間のフラッシュバックに苦しむ。センティエント艦隊の首を取ろうとして、みんな死んじゃったんだって。",
+        "船を任せられる別のセファロンも探すけど、Cy ほど経験のあるやつはいないって分かる。レールジャックを直して、テンノは ヴェール・プロキシマ のセンティエントに備えるの。"
+      ]
+    },
+    {
+      "id": "quest.story.chains_of_harrow",
+      "type": "quest",
+      "about": [],
+      "title": "Harrowの鎖 のあらすじ",
+      "words": [
+        "Harrowの鎖",
+        "Chains of Harrow"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/PriestFrameQuest/PriestQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Chains_of_Harrow"
+      ],
+      "text": [
+        "打ち捨てられた スティール・メリディアン の船から変な通信が来て、行ってみたら乗組員は皆殺し、血で書いた不気味なメッセージだらけ。そこで会うのが、Red Veil の聖なる語り手 Palladino。Red Veil があがめてたテンノ Rell が神殿からいなくなって、組織がガタガタなんだって。",
+        "Rell はルアで眠らなかったテンノ。Margulis の目を見えなくしたせいで仲間から追放されて、自分の命を捧げて魂を Warframe の Harrow に縛り、壁の中の男をずっと見張ってたの。",
+        "Palladino を スティール・メリディアン の拠点に匿って、遺物を持ち帰って降霊すると、Rell はまだ人の記憶を持ってた。でも壁の中の男に攻められて、トランスファレンスの制御を失って荒れてたんだよね。テンノは Rell の感情のかけらを集めて神殿に返し、Harrow を鎖から解いて Rell を眠らせてあげる。",
+        "…ただ、壁の中の男を抑えてた器はもうない。その後始末はテンノがすることになるって、最後に壁の中の男本人が声をかけてくる。こわ。"
+      ]
+    },
+    {
+      "id": "quest.story.apostasy_prologue",
+      "type": "quest",
+      "about": [],
+      "title": "背信のプロローグ のあらすじ",
+      "words": [
+        "背信のプロローグ",
+        "Apostasy Prologue"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/ApostasyQuest/ApostasyKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Apostasy_Prologue"
+      ],
+      "text": [
+        "オービターの個室の奥に、かすかな紫の光。触れるとルアに飛ばされて、紫の跡をたどって、オペレーターの体を見つけたリザーバーの部屋までの道を戻ることになる。",
+        "その途中で、処刑される前の Margulis の最後の時間を見ていく。跡の終わりには Lotus がいて、そこに Ballas が現れて謝るの。「Margulis」をもう見捨てないって。",
+        "手を取り合った二人は光の中に消えて、オペレーターの手には Lotus の兜のかけらだけが残る。母が子どもたちを置いていっちゃった…って終わり方。"
+      ]
+    },
+    {
+      "id": "quest.story.sacrifice",
+      "type": "quest",
+      "about": [
+        "Excalibur Umbra"
+      ],
+      "title": "サクリファイス のあらすじ",
+      "words": [
+        "サクリファイス",
+        "The Sacrifice"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/SacrificeQuest/SacrificeQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Sacrifice"
+      ],
+      "text": [
+        "置いていかれた Lotus の兜から、かすかなささやき。触れると、ある Warframe が Ballas とセンティエントに捕らえられる幻が見えて、テンノは地球へ。見つかったのは Excalibur Umbra の残骸だけで、Ordis もデータが足りなくて作り直せない。",
+        "痕跡をたどったルアの Ballas の研究室で、記録装置ヴィトルヴィアンを見つける。古の戦争での Ballas の裏切りと、Warframe がどう生まれたかの記録で、これで Umbra を作れるようになる。でも装備したとたん Umbra は暴れ出して、兜を壊して目を見せ、オペレーターを壁に押しつけるの。",
+        "トランスファレンスで心に入ると、Umbra は Ballas を探ってた罰で Warframe にされた Dax の兵士だった。逃げ出した Umbra を追って記憶を開くたびに、Warframe の秘密が明らかになっていく。最後の記憶は、Ballas に操られて、感染体に冒された自分の息子 Isaah を手にかけた瞬間。オペレーターは、ひとりで背負わなくていいって寄り添って、Umbra の心と体がつながる。",
+        "Umbra と一緒に地球で Ballas と対決して、Umbra が Ballas を刺す。Lotus の居場所を問い詰めると、センティエントの戦う姿の Lotus が空から現れて、Ballas を連れて母のもとへ帰っちゃう。…もう、あの優しい母には見えなかったんだよね。"
+      ]
+    },
+    {
+      "id": "quest.story.prelude_to_war",
+      "type": "quest",
+      "about": [],
+      "title": "争いの序曲 のあらすじ",
+      "words": [
+        "争いの序曲",
+        "Prelude to War"
+      ],
+      "requires": [
+        "extra:prelude-to-war"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Prelude_to_War"
+      ],
+      "text": [
+        "新たな大戦の前の、いくつかのミニクエストと作戦をまとめたもの。最初のキメラのプロローグでは、壁の中の男のおかげで、Ballas がサクリファイスを生き延びてアマルガムにされてたって分かる。Ballas はセンティエント殺しの武器パラセシスをテンノのために作るけど、本当の狙いは分からないまま。",
+        "センティエントは Void の弱点をなくそうと、Alad V にアマルガムを作らせてテンノのデータを集めさせる(Alad はこっそりテンノの味方)。Natah もテンノに連絡してきて、オロキンに操られてたのが解けた、戦争を終わらせに戻ったって言う。",
+        "古の戦争の幻では、兄の Erra に「私は Lotus」って答える Lotus と、Erra に Void の光線を浴びせるテンノの姿。今のセンティエントの母艦では、生きてた Erra が元に戻った妹と話してて、Natah の記憶は混乱してるみたい。そのあと Erra は Natah を装置に閉じ込めて、鎖でつないでた Ballas を放すんだよね。",
+        "緋色の槍作戦では、Erra のミュレックス艦隊が ヴェール・プロキシマ を破って地球に降りてきて、Little Duck の指揮でキルコードを流し込んで押し返す。続くオーフィックス・ヴェノム作戦では Warframe を止める波を出すオーフィックスが現れて、Father のネクラメカで対抗。Natah は、オーフィックスに教えたのは自分だって明かしつつ、こっそり「死にかけてる」って信号を送ってくるの。"
+      ]
+    },
+    {
+      "id": "quest.story.new_war",
+      "type": "quest",
+      "about": [],
+      "title": "新たな大戦 のあらすじ",
+      "words": [
+        "新たな大戦",
+        "The New War"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/NewWarQuest/NewWarQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_New_War"
+      ],
+      "text": [
+        "Ballas と Erra が率いるセンティエントの総攻撃。テンノは Grineer・Corpus と手を組んで、Kahl-175、Veso、Teshin もがんばるけど、Ballas に Lotus とオペレーターを Void のポータルへ追放されて、星系は落ちる。Ballas はナルメルで人々を洗脳して、テンノの記憶まで書き換えちゃう。",
+        "ナルメルに抗ってたのが、謎の漂流者。死にかけのエイドロンの姿になった Lotus を連れ戻してて、Hunhow と組んで Erra のアルコンから破片を奪って治そうとする。でも Lotus は漂流者が分からなくて襲いかかってくる。",
+        "Zariman の事故の場面で、オペレーターは壁の中の男の取引を受け入れる。その力が漂流者に渡って、かわりにオペレーターが星系に戻ってくる。落ち着いた Lotus は Ballas と戦いに行って、オペレーターは Void から半分出てきた Zariman で漂流者と会い、漂流者が別の現実の自分だって知るの。",
+        "怒った Ballas は、センティエントの母艦 Praghasa に太陽を食わせて、ひとりで Tau へ逃げようとする。星系の命が全部消えちゃう計画に、Erra まで寝返る。長い戦いの末に Lotus とテンノで Ballas を倒すけど、その直後、壁に埋まった巨大な人の形の壁の中の男が現れて、また消える。ナルメルは揺らいで星系は少しずつ立ち直り、ルアに戻った Lotus は、自分と Natah と Margulis の人格がぶつかってるって明かす。テンノは、誰の声を中心にするか選ぶことになるよ。"
+      ]
+    },
+    {
+      "id": "quest.story.angels_of_zariman",
+      "type": "quest",
+      "about": [],
+      "title": "Zarimanの天使 のあらすじ",
+      "words": [
+        "Zarimanの天使",
+        "Angels of the Zariman"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/ZarimanQuest/ZarimanQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Angels_of_the_Zariman"
+      ],
+      "text": [
+        "新たな大戦の影響で、Zariman Ten Zero が現実の世界に戻ってきた。ワームの女王の Grineer と Parvos Granum の コーパス が狙ってるし、中から聞こえる不思議な歌に、テンノと Lotus も引き寄せられる。",
+        "乗り込むと Grineer が先に来てて、Lotus の信号も途切れる。そこにいたのは、死んだと思われてた乗組員の生き残り、ホールドファスト。Quinn が率いてて、生と死のあいだみたいな姿で、Void そのものからも船を守ってるの。",
+        "Zariman では現実を壊しかねない Void カスケードが起きてて、元ホールドファストの Kira みたいな Void エンジェルがそれを加速させてる。テンノはカスケードを止めて、膜を破られて起きた Void フラッドも封じて、船の動力を守り抜いて Kira を倒し、歌を止める。",
+        "Quinn の提案で、亡くなったみんなの慰霊碑を、Kira の好きだった場所に作るんだよね。Zariman は、テンノにとって Void や敵から身を守る新しい家になるの。"
+      ]
+    },
+    {
+      "id": "quest.story.jade_shadows",
+      "type": "quest",
+      "about": [
+        "Jade",
+        "Stalker"
+      ],
+      "title": "翡翠の影 のあらすじ",
+      "words": [
+        "翡翠の影",
+        "Jade Shadows"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/JadeShadows/JadeShadowQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Jade_Shadows"
+      ],
+      "text": [
+        "最初に言っとくね。母になることにまつわる、つらい話が入ってる。",
+        "崩壊のとき、Stalker はオロキンの下級ガーディアンで、守ってた主たちをテンノに殺されて復讐を誓った。狙われる側になった Stalker を守ってたのが Jade。新たな大戦のあと、Stalker は重い病気になった Jade をずっと看病してる。",
+        "盗んだバイオプラズマは効かなくて、Hunhow のすすめでテンノを頼り、感染体のコーティクロームを使うことに。盗みに気づいた Corpus の Xeto 船長は、Parvos シスターに出世するチャンスだと思って Stalker を追う。",
+        "コーティクロームを使ったら、Jade が身ごもってたって分かる。でも Jade は出産のときに亡くなっちゃう。Stalker は赤ちゃんを守って Xeto の部隊と戦って、傷ついたときに赤ちゃんが泣くと、Xeto は撃つのをやめて通してくれた。Warframe になる前の Stalker の名前は Sorren。オロキンの掟で禁じられてたのに Jade と愛し合って、子を授かってたんだよね。子の名前は Sirius か Orion。"
+      ]
+    },
+    {
+      "id": "quest.story.jade_constellations",
+      "type": "quest",
+      "about": [
+        "Stalker"
+      ],
+      "title": "翡翠の影：星座 のあらすじ",
+      "words": [
+        "翡翠の影：星座",
+        "Jade Shadows: Constellations"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/JadeShadowsPart2Constellations/JadeShadowsPart2QuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Jade_Shadows:_Constellations"
+      ],
+      "text": [
+        "翡翠の影で Stalker が Jade の息子につけた名前は、Sirius か Orion。選ばなかったほうの息子も、Eternalism(恒久主義)のせいで、破滅した未来に存在してる。",
+        "20年後の Sirius と Orion が、それぞれの師匠 Ryoku と Vena を連れて今に来て、自分の目的のために Stalker を引き込もうとする。娘の Natah と息子の Erra を守れなかった Hunhow は、兄弟の争いを止めるのを手伝う。同じく息子を失った父親、Excalibur Umbra も仲間になるよ。",
+        "Stalker は Ryoku と Vena を動けなくして息子たちをおびき寄せ、Void スパークを手に入れる。Hunhow はそれを使って自分の記憶を壁の中の男(Indifference)に差し出して、争いを終わらせる。二つの選択がどっちもある場所ができたんだって。"
+      ]
+    },
+    {
+      "id": "quest.story.whispers_in_walls",
+      "type": "quest",
+      "about": [],
+      "title": "壁の中のササヤキ のあらすじ",
+      "words": [
+        "壁の中のササヤキ",
+        "Whispers in the Walls"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/EntratiLab/EntratiQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Whispers_in_the_Walls"
+      ],
+      "text": [
+        "新たな大戦で Ballas が Void のポータルを大きく開こうとしたせいで、壁の中の男が騒ぎ出す。Loid は「カリモス・シーケンス」って命令を起動して、テンノをダイモスへ呼ぶ。",
+        "エントラティ一家に内緒で、Loid はネクロリスクの下に隠された Albrecht の研究所へ案内する。Albrecht Entrati は、壁の中の男の手先ササヤキとずっと戦ってたの。テンノは人間だったころの Loid 本人「眠り人」を起こして、Void の言葉しか話さない Albrecht の実験動物カビアと出会う。",
+        "Albrecht の作りかけの器(Vessel)を調べるうちに、Albrecht は壁の中の男から逃げて1999年に行ったって分かる。ササヤキの攻撃がどんどん強まって、Loid はピリピリ。",
+        "カビアの言葉を訳すガーゴイルを作ると、カビアが伝えたのは、Loid が捨てた Albrecht の最後のメッセージだった。Loid の献身をたたえる、Loid がずっと欲しかった愛情みたいな言葉で、それが壁の中の男を鎮めるの。Loid は気を取り直して、テンノを1999年へ送る準備を始める。"
+      ]
+    },
+    {
+      "id": "quest.story.lotus_eaters",
+      "type": "quest",
+      "about": [],
+      "title": "ロートパゴス のあらすじ",
+      "words": [
+        "ロートパゴス",
+        "The Lotus Eaters"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/1999PrologueQuest/1999PrologueQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Lotus_Eaters"
+      ],
+      "text": [
+        "サンクタム・アナトミカで、Lotus がオペレーターに言う。自分は壁の中の男の影響を受けてるから、漂流者のパラドックスで過去に行って、壁の中の男より先に Albrecht を見つけてほしいって。",
+        "壁の中の男の倒れた器の向こう、Void の際で、Lotus は歌いながらポケベルを持って待ってる。ポケベルが鳴ると、Lotus はオペレーターじゃなくて漂流者に出させるの。",
+        "漂流者はさびれたモールに飛ばされて、Albrecht のカヴァット Kalymos に導かれて、もうひとつのポケベルへ。今に戻ると、過去とのつながりができたって Lotus。Loid は Albrecht の器を使って、漂流者を1999年のホルバニアに送る準備を進めるよ。"
+      ]
+    },
+    {
+      "id": "quest.story.hex",
+      "type": "quest",
+      "about": [
+        "Drifter"
+      ],
+      "title": "ヘックス のあらすじ",
+      "words": [
+        "ヘックス",
+        "Hex",
+        "ヘックスのあらすじ",
+        "ヘックスのストーリー",
+        "ヘックスのクエスト",
+        "Hex のあらすじ"
+      ],
+      "shared": [
+        "ヘックス",
+        "Hex"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/1999Quest/1999QuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Hex_(Quest)"
+      ],
+      "text": [
+        "2000年の年明け、ホルバニアの原子炉が2000年問題でキノコ雲になって、街ごと消える。その24時間前、プロトフレームのグループ、ヘックス(Arthur・Aoi・Amir・Quincy・Leticia・Eleanor)は、Entrati 博士を探してスカルドラ軍やテックロットと戦ってた。",
+        "漂流者は Helminth の口から Excalibur と一緒に現れて、Arthur にトランスファレンスで未来を見せようとするけど、弾かれて捕まる。話を聞いた Arthur は、それに賭けて手を組むことにするの。博士はスカルドラの Neci Rusalka 少佐と Viktor Vodyanoi 中尉に捕まってて、Rusalka は壁の中の男に取り憑かれてる。",
+        "Kalymos に導かれて見つけた博士の録音によれば、みんなは時間のループに閉じ込められてて、抜け出すには珍しいエネルギーの火花…核爆発が要る。つまりヘックスに爆発を止めさせちゃダメってこと。壁の中の男はオペレーターの姿で漂流者たちを Zariman に連れていって、ヘックスが死ぬ未来を見せる。",
+        "爆発の直前、ヘックスは原子炉へ向かうけど、ひとり、またひとりと死んでいく。博士は Tau へ行って、漂流者はヘックスを救うために残る。でも博士は、絆を結ばないと救えないって言って漂流者を撃つの。死にかけた漂流者はデュヴィリの力で時間を巻き戻して、1999年の初めから新しいループを始める。"
+      ]
+    },
+    {
+      "id": "quest.story.hex_finale",
+      "type": "quest",
+      "about": [
+        "Drifter"
+      ],
+      "title": "ヘックスフィナーレ のあらすじ",
+      "words": [
+        "ヘックスフィナーレ",
+        "The Hex Finale"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/1999Quest/1999QuestGoodEndKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Hex_(Quest)"
+      ],
+      "text": [
+        "ループの中でヘックスのみんなとの絆を深めた漂流者が、もう一度大みそかに挑む話。Zariman で、漂流者は運命に割り込んで、ササヤキがそれを邪魔してくる。",
+        "Eleanor は漂流者の言葉で我に返って、テックロットの集合意識に呑まれずにすむ。そのおかげで Leticia も死なない。Quincy は漂流者の先読みで戦車の弱点を見抜いて止め、Aoi は無理に抑え込むかわりに仕組みのほうを壊して手で差し込む。パニックになった Amir も、漂流者に支えられて深呼吸して、システムを掌握するの。",
+        "最後は漂流者が Arthur にトランスファレンスして、安全なところまで連れ出す。全員生き残って、原子炉も無事。カリモス・シーケンスが完了して、歴史は新しい流れに入る。…壁の中の男に勝ちをひっくり返されないように、ループは保たなきゃいけないって Arthur は分かってるみたい。"
+      ]
+    },
+    {
+      "id": "quest.story.old_peace",
+      "type": "quest",
+      "about": [],
+      "title": "古の同盟 のあらすじ",
+      "words": [
+        "古の同盟",
+        "The Old Peace"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/TauPrequel/TauPrequelQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Old_Peace"
+      ],
+      "text": [
+        "Albrecht が Tau へ逃げたから、Lotus はオペレーターに暗い屈折室で記憶の奥を探らせる。古の戦争のころ、オペレーターは Tau の衛星ペリタにあるタウロン学院の生徒で、センティエントの Adis が親友だったの。",
+        "Tau の植物(ゼノフローラ)はセンティエントに個性を与えて集合意識から切り離すから、そのおかげでセンティエントとオロキンは平和条約を結んでた。それを壊そうとしてたのが、Galastra 率いる分離派のアナーク。オペレーターはアナークと戦って、オロキンの七人のひとり…Ballas を手伝ったりもする。",
+        "卒業のとき、Margulis からアナークの基地を消すキルコード入りのアヤタンを受け取るけど、Ballas がこっそりコードを書き換えてて、ゼノフローラを焼き払う仕掛けになってた。平和はあっという間に崩れて、オロキンはセンティエントに牙をむく。",
+        "怒った Adis とオペレーターは戦うことになって、誤解が解けたときにはもう遅かった。Adis は最後の力でオペレーターを生き返らせて、腕の中で死んじゃう。Ballas を探して学院に乗り込んだオペレーターを待ってたのは Margulis で、Tau での日々を忘れさせて守ったんだって。Lotus は、Tau はもう目の前だけど、覚えてる場所とは違ってるはずって。"
+      ]
+    },
+    {
+      "id": "quest.story.prologue_to_tau",
+      "type": "quest",
+      "about": [],
+      "title": "TAUプロローグ のあらすじ",
+      "words": [
+        "TAUプロローグ",
+        "Tau プロローグ",
+        "Prologue to Tau"
+      ],
+      "requires": [
+        "extra:prologue-to-tau"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Prologue_to_Tau"
+      ],
+      "text": [
+        "Loid にうながされて、漂流者は暗い屈折室でオペレーターと会う。Lotus が自分の記憶に潜ろうとしてて、ついていくのは漂流者。他人の記憶に入った経験があるからね。",
+        "Lotus の記憶の中で見るのは、センティエントに攻められたルアを Void に封じた瞬間。Ballas は Dax の援軍を待てって言うけど、Lotus は Void の力を使って月を Void へ移し始めて、自分は Void に焼かれていく。そこに壁の中の男が現れて、子どものために死ぬかわりに、生きて見守らせてやるって取引を持ちかける。",
+        "漂流者が割って入って、おまえの欲しいものは Tau にあって、Lotus の助けがないと行けないって説得して、幼い姿の Lotus を手放させる。漂流者は Lotus を抱えて戻ってくるの。",
+        "そのあと、テンノは器(Vessel)に乗ってエリスへ。Ballas の計画みたいに太陽を食わせるかわりに、エリスの再生し続ける感染体を Praghasa に食わせて、Tau への道を開くことに。エリスは死ぬけど、星系は助かる。死んだと思われてた Praghasa は娘を手伝うために目覚めて、テンノは燃料を集めて届ける。Praghasa は、Pazuul を偽の預言者と呼んだり、Tau は「あなたのためじゃない」なんて言ったりもしてるよ。"
+      ]
+    },
+    {
+      "id": "quest.story.waverider",
+      "type": "quest",
+      "about": [
+        "Yareli"
+      ],
+      "title": "ウェーブライダー のあらすじ",
+      "words": [
+        "ウェーブライダー",
+        "The Waverider"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/YareliQuest/YareliQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Waverider"
+      ],
+      "text": [
+        "Roky が、K-Drive の始まりになった Yareli が出てくるグラフィカ「Waverider #1」を見つけるけど、開けようとして大けが。Boon がかわりにテンノに頼むの。ページを開いていくと、Yareli が奴隷使いの Vulgran と戦う物語が出てくる。",
+        "Nef Anyo は、ダイモスの買い手にグラフィカを渡すかわりに Ventkids の借金を消すって取引を Roky としてたって明かす。完成させたら、Nef は「買い手はもう要らないって」と手のひら返し。",
+        "でも本当の買い手は Grandmother で、完成品と引き換えに Roky を治す薬をくれて、Ventkids が住んでるベントも買い取って、Nef への借金も消してくれてた。グラフィカの中には、Yareli の設計図が隠されてたんだよね。"
+      ]
+    },
+    {
+      "id": "quest.story.deadlock_protocol",
+      "type": "quest",
+      "about": [
+        "Protea"
+      ],
+      "title": "デッドロック・プロトコル のあらすじ",
+      "words": [
+        "デッドロック・プロトコル",
+        "The Deadlock Protocol"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/ProteaQuest/ProteaQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Deadlock_Protocol"
+      ],
+      "text": [
+        "Corpus の役員会はまとまらなくて、Nef Anyo は自分こそ正統な後継者だって示すために、創設者 Parvos Granum の遺体を探して血のつながりを証明しようとしてる。Parvos の護衛 Protea の痕跡をたどって、グラナム・ヴォイドをのぞくために Solaris の労働者を生贄にしてたの。",
+        "その労働者を追ったテンノは、Parvos がオロキン時代から生きてたって知る。Protea が自分の命と引き換えに、時の止まった Void に Parvos を閉じ込めてたんだって。Parvos はテンノを Void に誘い込んで、Warframe を読み取らせて、Protea をスペクターとして動かそうとしてた。",
+        "Nef はテンノと手を組んで、Corpus のファイルを開く鍵を渡す。Parvos の発明 Xoris を作って Void に戻り、捕まってた Solaris を助けて Protea のスペクターを倒す。でも Parvos は現実に逃げ出して、「Tau からの脅威」を口実に Corpus を作り直す計画。テンノにも交渉の席を用意してるって。"
+      ]
+    },
+    {
+      "id": "quest.story.new_strange",
+      "type": "quest",
+      "about": [
+        "Chroma"
+      ],
+      "title": "新たな怪奇 のあらすじ",
+      "words": [
+        "新たな怪奇",
+        "The New Strange"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/DragonQuest/DragonQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_New_Strange"
+      ],
+      "text": [
+        "データとして生き物を残すSephalon Simaris に頼まれて、Grineer に捕まった歩哨を助けたら、監獄の記録に謎の生体の痕跡。盗まれた夢の最後に出てきた Arcane Machine の声に似てるんだよね。Simaris ははぐらかして、かわりにシンセシス(スキャン)を手伝えって。",
+        "手伝うと、痕跡はテンノ由来だって分かって、追跡用のビーコンを作ることに。ビーコンが拾ったのは Arcane Machine からの通信で、空の子宮は静かで空っぽ…みたいな言葉。その何かは Arcane の写本が見つかった場所を回って、Grineer や Corpus を殺して痕跡を消してたの。",
+        "正体は、どのテンノにも操られてない、暴走した Warframe の Chroma。Arcane Machine で会うけど、機械は壊されて、スキャンも一回で逃げられちゃう。Simaris は自分も写本を持ってたって明かして、別の機械に Chroma をおびき寄せてシンセシスに成功。その機械にはセンティエントの遺物の映像が映ってて、のちの出来事をほのめかしてたんだよね。"
+      ]
+    },
+    {
+      "id": "quest.story.limbo_theorem",
+      "type": "quest",
+      "about": [
+        "Limbo"
+      ],
+      "title": "Limbo セオリム のあらすじ",
+      "words": [
+        "Limbo セオリム",
+        "The Limbo Theorem"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/LimboQuest/LimboQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Limbo_Theorem"
+      ],
+      "text": [
+        "Ordis が、書きかけの「Limbo の定理」を見つけて首をかしげるところから始まる。火星の Grineer の通信塔で Limbo の信号を探して、証明のかけらを集めて鍵を作っていくの。",
+        "Ordis は最初わくわくしてたのに、出てくる「証拠」がナンセンスすぎてうんざり。それでもかけらを集めて、最後はエウロパで Limbo の本体の設計図を掘り当てる。",
+        "定理の続きを読んだ Ordis は、Limbo がとんでもない計算違いをして大惨事になってたって知る。だからこの Warframe は気をつけて扱えって。…不穏。"
+      ]
+    },
+    {
+      "id": "quest.story.octavia_anthem",
+      "type": "quest",
+      "about": [
+        "Octavia"
+      ],
+      "title": "Octaviaの賛美歌 のあらすじ",
+      "words": [
+        "Octaviaの賛美歌",
+        "Octavia's Anthem"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/BardQuest/BardQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Octavia's_Anthem"
+      ],
+      "text": [
+        "リレーのSephalon Suda は音楽に夢中で、テンノに楽器マンダコードを作ってって頼む。Simaris は、音楽なんてデータの無駄、壊れたセファロンは止めちまえって嫌み全開。Suda の話もどこか支離滅裂なんだよね。",
+        "部品を集めて楽器を作り、歌の断片を探していくと、Suda のデータの世界に Hunhow が入り込んでたって分かる。最後は Suda のデータスケープで戦って、Simaris も手を貸して、Hunhow の分身を壊して Suda を解放するの。",
+        "目覚めた Suda は直近のことを忘れてたけど、Ordis と Simaris にお礼を言う。Simaris は、セファロンのつながりを守っただけって苦しい言い訳。お礼に、Octavia の設計図をくれるよ。"
+      ]
+    },
+    {
+      "id": "quest.story.silver_grove",
+      "type": "quest",
+      "about": [
+        "Titania"
+      ],
+      "title": "銀の果樹園 のあらすじ",
+      "words": [
+        "銀の果樹園",
+        "The Silver Grove"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/FairyQuest/FairyQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Silver_Grove"
+      ],
+      "text": [
+        "ニュー・ロカ の Amaryn が、グリニアが地球でいちばん清らかな場所「銀の果樹園」を汚そうとしてるって言って、そこを守る古い仕掛けを目覚めさせる計画を持ちかける。",
+        "テンノは植物を集めてアポシックを作り、祠に捧げていく。そのたびに名前のない研究者の記録が聞こえて、守り手のスペクターと戦うことになるの。",
+        "祠を守り切ると、声の主が Silvana だって分かる。Titania と銀の果樹園を作ったアルキメデアンで、今はトランスファレンスで果樹園に縛られてる。オロキンが資源の横流しに気づいて Dax の部隊に森を焼かせに来たとき、Titania が斬り伏せて、その傷がもとで、自分をいちばん嫌ってた Silvana を守って死んだんだって。",
+        "Amaryn は Titania をもう一度飛ばせてみせるって誓って、ニュー・ロカ も真実を受け入れて教えを変えなきゃって。Titania の設計図がもらえるよ。"
+      ]
+    },
+    {
+      "id": "quest.story.glast_gambit",
+      "type": "quest",
+      "about": [
+        "Nidus"
+      ],
+      "title": "グラスト・ギャンビット のあらすじ",
+      "words": [
+        "グラスト・ギャンビット",
+        "The Glast Gambit"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/IndexQuest/IndexQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Glast_Gambit"
+      ],
+      "text": [
+        "Perrin Sequence の Ergo Glast が語るのは、感染体から素材を採って暮らすマイコナ・コロニーの話。Nef Anyo はコロニーの資源だけじゃなく子どもたちまでさらってて、そのひとりが Neewa。",
+        "まずは感染体に攻められてるコロニーを守る。Lotus は、感染体の包囲を生き延びてるコロニーなんて怪しいって疑ってるけどね。そのあと、Nef の Index で勝負を挑み、Nef のイカサマの出どころを突き止めて、Neewa を取り戻すの。",
+        "Neewa はコロニーで「トリウナ」って役目を背負ってて、コロニーには犠牲をともなうしきたりがあった。Neewa の行く末はテンノが選ぶ。治療して自由にするか、本人に決めさせるか、そのまま帰すか。どれを選んでも、お礼に古の戦争の遺物…Nidus の設計図が届くよ。"
+      ]
+    },
+    {
+      "id": "quest.story.tempestarii",
+      "type": "quest",
+      "about": [
+        "Sevagoth"
+      ],
+      "title": "嵐を呼ぶ者テンペスタリ のあらすじ",
+      "words": [
+        "嵐を呼ぶ者テンペスタリ",
+        "Call of the Tempestarii"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/WraithQuest/WraithQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Call_of_the_Tempestarii"
+      ],
+      "text": [
+        "Sephalon Cy が、ヴェール・プロキシマ で Void の異常を探ってる Corpus の船団を見つけて、テンノと調べに行く。そこで Vala Glarios の艦隊に待ち伏せされて、さらに幽霊船テンペスタリが現れる。船を操ってるのは Sevagoth の影。",
+        "なんとか逃げて Corpus の船に潜り込み、データから幽霊船の由来を知る。Cy は救難信号でテンペスタリを呼んで、話ができるようにするの。",
+        "また来た Vala を影が追い払って、テンノは Vala の旗艦を Void に送り込み、影を元の体に戻してあげる。最後に、グラナム・ヴォイドで Parvos Granum と一緒にいる Vala が映るんだよね。"
+      ]
+    },
+    {
+      "id": "quest.story.hidden_messages",
+      "type": "quest",
+      "about": [
+        "Mirage"
+      ],
+      "title": "隠されたメッセージ のあらすじ",
+      "words": [
+        "隠されたメッセージ",
+        "Hidden Messages"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/MirageQuest/MirageQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Hidden_Messages"
+      ],
+      "text": [
+        "Ordis が、刻まれた謎かけを読み上げるところから始まる。三つの謎かけを解いて、指された場所で Mirage の部品を集めていくクエスト。",
+        "部品を見つけるたび、Lotus は古の戦争のころの通信を受け取る。退けって言われても怯まないで、センティエントと戦い続けた Warframe の声。",
+        "最後の部品と一緒に届くのは、Mirage が Lotus に「嘆かないで」って言い残して、敵に消されるところ。…しんみり。"
+      ]
+    },
+    {
+      "id": "quest.story.jordas_precept",
+      "type": "quest",
+      "about": [
+        "Atlas"
+      ],
+      "title": "Jordas の教訓 のあらすじ",
+      "words": [
+        "Jordas の教訓",
+        "The Jordas Precept"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/GolemQuest/GolemQuestKeyChainItem"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Jordas_Precept"
+      ],
+      "text": [
+        "遭難したSephalon Jordas から、船が動かない、絶滅の危機だって救難信号。セファロン仲間を放っておけない Ordis は、テンノに助けに行かせる。",
+        "Jordas は助けてほしいのか、ほしくないのか、どうも煮え切らない。感染体を払うにはファーリアックの莢が要るって言って、現場には倒れた Warframe の化石の部品もあるって。",
+        "莢を作って試したあと、テンノが倒すことになるのは、感染体に侵されてゴーレムになった Jordas 自身。正気に戻った Jordas は最期にお礼を言って、ゴーレムはほかにもいるって警告するの。Atlas の設計図が手に入るよ。"
+      ]
+    },
+    {
+      "id": "quest.story.sands_of_inaros",
+      "type": "quest",
+      "about": [
+        "Inaros"
+      ],
+      "title": "Inaros の砂嵐 のあらすじ",
+      "words": [
+        "Inaros の砂嵐",
+        "Sands of Inaros"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/MummyQuest/MummyQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Sands_of_Inaros"
+      ],
+      "text": [
+        "Baro Ki'Teer に、火星の墓を掘ってお宝を取ってこいって頼まれる。墓の主は Warframe の Inaros。どこからか聞こえる声によれば、Inaros は火星のコロニーを黄金の天空人や感染体から守って死んで、いつか神王が蘇ると信じた人たちが、その遺体を聖なる器に納めたんだって。",
+        "テンノは器を持ち出して、墓の守り手と戦い、器に刻まれた試練をこなして Inaros の部品を集める。Grineer が神殿を囲むころには、Baro はもうお宝はいい、Inaros を蘇らせたいって言い出すの。",
+        "声の主は、亡くなった Baro の母親だった。幼い Baro にこの話を聞かせてたんだって。祈っても神王は来なくて、コロニーは Grineer に滅ぼされた。過去と向き合えた Baro は、テンノにお礼を言って、神王はまた立ち上がるってつぶやくんだよね。"
+      ]
+    },
+    {
+      "id": "quest.story.mask_of_revenant",
+      "type": "quest",
+      "about": [
+        "Revenant"
+      ],
+      "title": "Revenantの仮面 のあらすじ",
+      "words": [
+        "Revenantの仮面",
+        "Mask of the Revenant"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/RevenantQuest/RevenantQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Mask_of_the_Revenant"
+      ],
+      "text": [
+        "シータス の Nakak が、Onkko から「失われし者の仮面」って変な仮面を受け取る。夜の平原で仮面を付けたオペレーターが湖のほとりで見たのは、地面に消えていくエイドロンの影。",
+        "ウヌムの幻によると、そこは Gara がセンティエントを倒した湖で、蘇らないように番人が置かれてたけど、その番人はもういない。Nakak は、失われし者を作り直してってテンノに頼むの。",
+        "エイドロンは番人の Warframe を足がかりに這い上がろうとして、Warframe は自分ごと湖に身を投げて封じたんだって。現れた Revenant のスペクター…エイドロンの仮面みたいになってたそれを倒すと、エイドロンの力を宿した Revenant が手に入る。Nakak は、新しいエイドロンが出てくる夢を見たって言ってて、この Warframe の力が必要になるみたい。"
+      ]
+    },
+    {
+      "id": "quest.story.veilbreaker",
+      "type": "quest",
+      "about": [
+        "Kahl-175"
+      ],
+      "title": "ベールブレイカー のあらすじ",
+      "words": [
+        "ベールブレイカー",
+        "Veilbreaker"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/KahlQuest/KahlQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Veilbreaker"
+      ],
+      "text": [
+        "ダイモスの上空のミュレックスで、Kahl-175 がナルメルのベールを外す。新たな大戦を生き延びてたんだよね。その救難信号を拾ったのが Daughter で、ナルメルの新しいリーダー Pazuul のことを知りたくて、情報と引き換えに手を貸すの。",
+        "捕まってたひとたちを解放して脱出したあと、Kahl は漂流者のキャンプに拠点を作る。ナルメルに縛られた兄弟たちを自由にする戦いは、ここから始まったばかり。"
+      ]
+    },
+    {
+      "id": "quest.story.sayas_vigil",
+      "type": "quest",
+      "about": [
+        "Gara"
+      ],
+      "title": "Sayaの眼 のあらすじ",
+      "words": [
+        "Sayaの眼",
+        "Saya's Vigil"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/GlassQuest/GlassQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Saya's_Vigil"
+      ],
+      "text": [
+        "シータス の Konzu からの頼みごと。外れに住む Saya の夫 Onkko は5年前にいなくなって、Saya はずっと落ち込んだまま。Grineer が Onkko の手がかりを見つけたって噂があって、Saya が無茶しないか心配なんだって。Saya は夫を探しに行きたがってて、Onkko がいなくなった件には Konzu も関わってるらしく、彼に腹を立ててる。",
+        "平原で グリニア が Onkko の研究を掘り返してて、Vay Hek も邪魔してくる。テンノと Saya はシャッターロックのかけらを集めていって、最後のかけらは夜、エイドロンと Grineer が戦ってる湖のそばの洞窟で見つけるの。",
+        "オービターでシャッターロックを開けると、中にあったのは、昔 Konzu が Saya に贈った鉄の花。5年苦しんだ Saya は、愛した人はもう戻らないって受け入れて、もうひとりの大切な人、Konzu のほうへ心を向ける。Lotus は鍵を調べて、ガラスの戦士 Gara のデータを見つけるよ。"
+      ]
+    },
+    {
+      "id": "quest.story.patient_zero",
+      "type": "quest",
+      "about": [
+        "Mesa"
+      ],
+      "title": "感染起源は誰 のあらすじ",
+      "words": [
+        "感染起源は誰",
+        "Patient Zero"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/InfestedAladVQuest/InfestedAladVQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Patient_Zero"
+      ],
+      "text": [
+        "感染体になった Alad V が、自分の作った生き物を星系じゅうに増やし続けてる。テンノは感染体の船を壊しながら、Alad の居場所を割り出していくの。",
+        "研究所を壊すと、Alad は新作を見せてくる。感染体に操られた Mesa。苦しんでる Mesa を楽にしてあげて、Alad の本当の居場所をつかむ。",
+        "エリスの近くを漂う感染した コーパス の船で、感染体の Alad V を倒す。…それでも Alad は生き延びたけど、感染体を使った実験はもうできないくらいの痛手を負ったんだって。"
+      ]
+    }
+  ]
+}

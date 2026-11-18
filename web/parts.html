@@ -12,6 +12,35 @@ function latestGuard() {
   return () => { const turn_mine = ++turn_now; return () => turn_mine === turn_now; };
 }
 
+/* ---------- 一覧の読み込み(アルケイン・マスター・MOD・クエストの一覧で共用) ---------- */
+/* out_box に「読み込み中」を出して fetch_data()(Promise を返す関数)を待ち、成功したら on_done(結果)。
+   失敗したら clear_boxes(集計・タブなどの欄の一覧)を空にして、out_box にエラーの文。
+   取得の追い越しの対策(latestGuard)を out_box ごとに持つ(後から始めた読み込みの結果だけを使う) */
+const loadGuards = new WeakMap();
+async function loadInto(out_box, fetch_data, on_done, clear_boxes = []) {
+  if (!loadGuards.has(out_box)) loadGuards.set(out_box, latestGuard());
+  const fresh = loadGuards.get(out_box)();
+  out_box.innerHTML = `<div class="empty">${esc(t("common.loading"))}</div>`;
+  try {
+    const result = await fetch_data();
+    if (fresh()) on_done(result);
+  } catch (e) {
+    if (!fresh()) return;
+    clear_boxes.forEach(box => { box.innerHTML = ""; });
+    out_box.innerHTML = noData(e.message);
+  }
+}
+
+/* ---------- 先に変えて、だめなら戻す(アルケイン・マスター・MOD・バロ吉のチェックで共用) ---------- */
+/* o.err_box(エラーの欄)を空に → o.apply()(手元の値を先に変える)→ o.render() → await o.send()(API に送る)。
+   失敗したら o.undo()(値を戻す)→ o.render() → o.err_box にエラーの文。成功したら true、失敗したら false を返す */
+async function optimistic(o) {
+  o.err_box.textContent = "";
+  o.apply(); o.render();
+  try { await o.send(); return true; }
+  catch (e) { o.undo(); o.render(); o.err_box.textContent = e.message; return false; }
+}
+
 /* ---------- 入手先の検索(素材から探す・パーツ検索で共用) ---------- */
 /** 入手先の名前。敵の行(API の enemy に英名)は押すと敵から探すで開く(openEnemy) */
 const placeCell = x => x.enemy
@@ -155,6 +184,10 @@ document.addEventListener("visibilitychange", tickSecond);
 /* ratePct = 割合(%。全体が 0 件なら 0)。progressBar = その割合のバー(飾りなので読み上げない。数字は文のほうに出す) */
 const ratePct = (count, total) => (total ? count / total * 100 : 0);
 const progressBar = rate => `<span class="progress" aria-hidden="true"><i style="--w:${rate.toFixed(1)}%"></i></span>`;
+
+/* ---------- レア度の並べ替え(MOD・アルケインの一覧で共用) ---------- */
+/* レア度のキー(Common など)の並びの位置 + 1(低いほど小さい)。知らないキーは 0。並びは core/const の RARITY_ORDER */
+const rarityRank = key => CONST.RARITY_ORDER.indexOf(key) + 1;
 
 /* ---------- 2段階の確認ボタン(ビルド管理の削除・マスター一覧のまとめて付け外し・クエスト一覧の導線で共用) ---------- */
 /* 1回目に押すと「構え」(ボタンを確認の見た目に変える)、ARM_WAIT ミリ秒のうちにもう1回押すと実行。過ぎたら元に戻る。

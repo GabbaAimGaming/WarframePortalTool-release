@@ -5,6 +5,8 @@
   例文で聞く q・解説 lore・メニューの分類 menu・ツールの使い方や雑談の話 talk(core.qatalk)・画面のページを開く page)。
   talk.json の話のボタンも同じ形
 - 2段目には分類の一覧へ戻るボタン(back。メニューの id は QA_MENU_TOP)も付ける
+- 分類に auto(QA_MENU_AUTO の名前)があれば、呼ぶ側が作ったボタン(例: 開発者のビルドのフレーム)を中身の先頭に足す。
+  ここはボタンの中身を知らない(menu_answer の引数 auto で受け取る)
 - 呼びかけの語のあとに質問が続くとき(「クロちゃん、Rhino のアーマーは?」)は、語を取り除いて普通の質問として答える(menu_rest)
 - 照合の前後(名前・聞きたいこと・解説)は core.qa が行う。ここはデータの形・検査・呼びかけの判定・答えの組み立てだけ
 """
@@ -15,7 +17,7 @@ import re
 from dataclasses import dataclass, field
 
 from wfp.core.text import norm
-from wfp.core.const import QA_MENU_TOP
+from wfp.core.const import QA_MENU_AUTO, QA_MENU_TOP
 
 # ボタンの種類(1つのボタンにどれか1つ)。q は例文(label は任意。無ければ例文)、ほかは label が要る。
 # lore = 解説の id・menu = メニューの分類の id(QA_MENU_TOP で分類の一覧)・talk = talk.json の話の id・page = 画面のページの id
@@ -31,7 +33,7 @@ class MenuData:
     lines: list[dict] = field(default_factory=list)   # 1段目の一言 [{id, ja}]
     title: str = ""                                   # 1段目の見出し(画面の「あなた:」の横。ボタンから聞いたとき)
     back: str = ""                                    # 分類の一覧へ戻るボタンの文字
-    topics: list[dict] = field(default_factory=list)  # [{id, label, lines: [{id, ja}], items: [ボタン(parse_button)]}]
+    topics: list[dict] = field(default_factory=list)  # [{id, label, lines: [{id, ja}], items: [ボタン(parse_button)], auto}]
 
     def topic(self, mid: str) -> dict | None:
         return next((t for t in self.topics if t["id"] == mid), None)
@@ -87,8 +89,10 @@ def load_menu(raw: object) -> MenuData:
         if not isinstance(row, dict) or not isinstance(row.get("id"), str) or not isinstance(row.get("label"), str):
             continue
         items = [it for it in (parse_button(x) for x in row.get("items") or []) if it]
-        if row["id"] != QA_MENU_TOP and items:
-            topics.append({"id": row["id"], "label": row["label"], "lines": _lines(row.get("lines")), "items": items})
+        auto = row.get("auto") if row.get("auto") in QA_MENU_AUTO else None
+        if row["id"] != QA_MENU_TOP and (items or auto):
+            topics.append({"id": row["id"], "label": row["label"], "lines": _lines(row.get("lines")), "items": items,
+                           "auto": auto})
     return MenuData(words, _lines(src.get("lines")), str(src.get("title") or (words[0] if words else "")),
                     str(src.get("back") or ""), topics)
 
@@ -120,6 +124,8 @@ def check_menu(raw: object, refs: dict[str, set[str]], taken_words: dict[str, st
     for row in raw_topics:
         if isinstance(row, dict):
             problems += check_buttons(f"topics.{row.get('id')}.items", row.get("items") or [], refs)
+            if "auto" in row and row["auto"] not in QA_MENU_AUTO:
+                problems.append(f"topics.{row.get('id')}.auto: {row['auto']} は使えない({' / '.join(QA_MENU_AUTO)})")
     return problems
 
 
@@ -166,9 +172,11 @@ def _find(question: str, word: str) -> tuple[int, int] | None:
     return None
 
 
-def menu_answer(menu: MenuData, res: dict, mid: str = QA_MENU_TOP, rng: random.Random | None = None) -> dict | None:
+def menu_answer(menu: MenuData, res: dict, mid: str = QA_MENU_TOP, rng: random.Random | None = None,
+                auto: dict[str, list[dict]] | None = None) -> dict | None:
     """メニューの答え(res を書き換えて返す)。mid = QA_MENU_TOP なら分類の一覧、分類の id ならその中身。知らない id は None。
-    返り値の menu = {id, title}(ボタンから聞いたときの見出し)、options は {label, menu} か {label, q} か {label, lore}"""
+    返り値の menu = {id, title}(ボタンから聞いたときの見出し)、options は {label, menu} か {label, q} か {label, lore}。
+    auto = 自動のボタンの名前(QA_MENU_AUTO)-> ボタンの一覧。分類に auto があれば中身の先頭に足す"""
     rng = rng or random
     if mid == QA_MENU_TOP:
         res.update(type="menu", intent="menu", menu={"id": QA_MENU_TOP, "title": menu.title},
@@ -180,5 +188,6 @@ def menu_answer(menu: MenuData, res: dict, mid: str = QA_MENU_TOP, rng: random.R
         return None
     res.update(type="menu", intent="menu", menu={"id": t["id"], "title": t["label"]},
                text=rng.choice(t["lines"])["ja"] if t["lines"] else "",
-               options=[dict(it) for it in t["items"]] + ([{"label": menu.back, "menu": QA_MENU_TOP}] if menu.back else []))
+               options=[dict(it) for it in (auto or {}).get(t.get("auto"), [])] + [dict(it) for it in t["items"]]
+               + ([{"label": menu.back, "menu": QA_MENU_TOP}] if menu.back else []))
     return res

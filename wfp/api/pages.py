@@ -39,7 +39,7 @@ PART = re.compile(r"^[ \t]*<!-- PART:(\w+) -->[ \t]*$")
 I18N_SLOT = "/* I18N:DATA */ {}"
 CONST_SLOT = "/* CONST:DATA */ {}"
 # 画面(メイン画面の CONST)に差し込む core/const の定数。dict は並びのあるキーの一覧に、tuple は配列にする
-PAGE_CONSTS = ("AREA_KINDS", "AREA_KIND_DEFAULT", "ITEM_KIND_DEFAULT", "ENEMY_KIND_DEFAULT")
+PAGE_CONSTS = ("AREA_KINDS", "AREA_KIND_DEFAULT", "ITEM_KIND_DEFAULT", "ENEMY_KIND_DEFAULT", "RARITY_ORDER")
 LANG_CODE = re.compile(r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$")
 
 

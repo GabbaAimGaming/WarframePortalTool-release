@@ -7,16 +7,12 @@ from wfp.core.i18n import name_txt, txt
 from wfp.core.text import norm
 from wfp.core.const import (
     AREA_KINDS, ENEMY_KIND_DEFAULT, ITEM_KIND_DEFAULT, MASTERY_CATS, PART_SKIP_CATS, PLANETS_JA, RECIPE_SOURCE_LIMIT,
-    RECIPE_SUGGEST_LIMIT, SOURCE_CATS,
+    RECIPE_SUGGEST_LIMIT, SOURCE_CATS, AREA_SUGGEST_LIMIT, ENEMY_SUGGEST_LIMIT, SUGGEST_LIMIT,
 )
 from wfp.core.names import item_key
 from wfp.core.recipes import Recipes, pick_tops, sort_sources
 from wfp.drops.search import area_stages, enemy_drops, find_sources, group_candidates, parse_kinds, pick_candidates, pick_enemies
 from wfp.drops.tables import mission_place, stage_label
-
-
-SUGGEST_LIMIT = 10  # 候補として返す最大件数(数量違いを束ねた後)
-ENEMY_SUGGEST_LIMIT = 20  # 敵から探すの候補の最大件数(同じ敵の勢力・強化版の違いが多いので、アイテムより多め)
 
 
 def suggest_items(store: Store, q: str, kinds: set[str], cat: str = "", no_prime: bool = False) -> dict:
@@ -89,7 +85,7 @@ def suggest_areas(store: Store, q: str) -> list[dict]:
     for planet, node in drops.node_order:
         if rank(q, [node]) is not None:
             out.append({"type": "node", "key": f"{planet}|{node}", "name": node, "sub": name_txt("planet.", planet)})
-    return out[:80]
+    return out[:AREA_SUGGEST_LIMIT]
 
 
 def lookup_area(store: Store, kind: str, key: str, kinds: set[str], events: bool) -> dict:
@@ -105,15 +101,15 @@ def lookup_area(store: Store, kind: str, key: str, kinds: set[str], events: bool
         title = mission_place(planet, node)
     nodes = []
     for planet, node in targets:
-        rows = [r for r in drops.rows if r[0] == planet and r[1] == node]
-        if not rows or (rows[0][3] and not events):
+        rows = drops.node_rows(planet, node)
+        if not rows or (rows[0].event and not events):  # ミッションの種類・イベントかはノードで同じ(先頭の行で見る)
             continue
         stages = [{"stage": stage_label(rot), "items": [{
-            "ja": names.ja(r[5]), "en": r[5], "chance": r[6], "rarity": r[7], "kind": item_kind,
-        } for r, item_kind in lst]} for rot, lst in area_stages(rows, names, kinds).items()]
+            "ja": names.ja(row.item), "en": row.item, "chance": row.chance, "rarity": row.rarity, "kind": item_kind,
+        } for row, item_kind in lst]} for rot, lst in area_stages(rows, names, kinds).items()]
         if stages or kind == "node":
             nodes.append({"planet": name_txt("planet.", planet), "node": node,
-                          "mode": name_txt("mode.", rows[0][2]), "event": rows[0][3], "stages": stages})
+                          "mode": name_txt("mode.", rows[0].mode), "event": rows[0].event, "stages": stages})
     return {"title": title, "nodes": nodes}
 
 

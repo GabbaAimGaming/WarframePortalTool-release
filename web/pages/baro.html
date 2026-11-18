@@ -103,9 +103,11 @@ async function loadBaro() {
 }
 async function setBaroOwned(name, owned) {
   const rows = [...baro.rows, ...((baro.current && baro.current.items) || [])].filter(r => r.name === name && r.kind === "manual");
-  rows.forEach(r => { r.owned = owned; });
-  try { await api("/api/baro/owned", { method: "POST", body: { name, owned } }); await loadBaro(); }
-  catch (e) { rows.forEach(r => { r.owned = !owned; }); renderBaro(); $("#baro-err").textContent = e.message; }
+  await optimistic({
+    apply: () => rows.forEach(r => { r.owned = owned; }), undo: () => rows.forEach(r => { r.owned = !owned; }),
+    send: async () => { await api("/api/baro/owned", { method: "POST", body: { name, owned } }); await loadBaro(); },  // 照合をし直すので読み直す
+    render: renderBaro, err_box: $("#baro-err"),
+  });
 }
 $("#baro-update").addEventListener("click", async () => {
   const btn = $("#baro-update");

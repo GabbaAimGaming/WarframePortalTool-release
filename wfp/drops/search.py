@@ -8,7 +8,7 @@ from wfp.core.i18n import name_txt, render_ja
 from wfp.core.text import norm
 from wfp.core.const import AREA_KIND_DEFAULT, AREA_KINDS, SOURCE_CATS
 from wfp.core.names import Names, item_key
-from wfp.drops.tables import Drops, Sources, mission_place, stage_label
+from wfp.drops.tables import DropRow, Drops, Sources, mission_place, stage_label
 
 
 def find_sources(key: str, drops: "Drops", sources: Sources | None, names: Names, events: bool = False) -> list[dict]:
@@ -65,19 +65,19 @@ def group_candidates(cands: list[str], names: Names) -> dict[str, str]:
     return groups
 
 
-def area_stages(rows: list[tuple], names: Names, kinds: set[str]) -> dict[str, list[tuple]]:
-    """エリア検索: 1ノードのドロップ行(Drops.rows)をローテーションごとに分け、{ローテーション: [(行, 種類)]} で返す。
+def area_stages(rows: list[DropRow], names: Names, kinds: set[str]) -> dict[str, list[tuple[DropRow, str]]]:
+    """エリア検索: 1ノードのドロップ行(Drops.node_rows)をローテーションごとに分け、{ローテーション: [(行, 種類)]} で返す。
 
     kinds は出す種類(AREA_KINDS のキー)の集まり。並びは種類の順(AREA_KINDS の順)→ 確率の高い順。知らないキーは無視する
     """
     order = list(AREA_KINDS)
-    out: dict[str, list[tuple]] = {}
-    for r in rows:
-        kind = names.item_kind(r[5])
+    out: dict[str, list[tuple[DropRow, str]]] = {}
+    for row in rows:
+        kind = names.item_kind(row.item)
         if kind in kinds:
-            out.setdefault(r[4], []).append((r, kind))
+            out.setdefault(row.rot, []).append((row, kind))
     for lst in out.values():
-        lst.sort(key=lambda x: (order.index(x[1]), -x[0][6]))
+        lst.sort(key=lambda pair: (order.index(pair[1]), -pair[0].chance))
     return dict(sorted(out.items()))
 
 

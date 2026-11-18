@@ -8,14 +8,11 @@ from __future__ import annotations
 import re
 from datetime import date
 
+from wfp.core.common import is_num
 from wfp.core.text import norm
 from wfp.core.const import SUMMON_SLOTS, SUMMON_STATS
 
 _EXPORT_PATH = re.compile(r"^/Lotus/[\w/]+$")
-
-
-def _is_num(x: object) -> bool:
-    return isinstance(x, (int, float)) and not isinstance(x, bool)
 
 
 def _text(x: object) -> str:
@@ -46,7 +43,7 @@ def summon_list(raw: object) -> list[dict]:
         abilities = sorted((a for a in map(_clean_ability, row.get("abilities") or []) if a), key=lambda a: a["slot"])
         out.append({"en": _text(row["en"]), "ja": _text(row.get("ja")) or _text(row["en"]), "owner": _text(row["owner"]),
                     "weapon": _text(row.get("weapon")), "as_of": _text(row.get("as_of")),
-                    **{k: stats[k] for k in SUMMON_STATS if _is_num(stats.get(k))}, "abilities": abilities})
+                    **{k: stats[k] for k in SUMMON_STATS if is_num(stats.get(k))}, "abilities": abilities})
     return out
 
 
@@ -76,7 +73,7 @@ def check_summons(raw: object) -> list[str]:
         except ValueError:
             problems.append(f"{where}: as_of が YYYY-MM-DD の日付ではない")
         stats = row.get("stats")
-        if not isinstance(stats, dict) or set(stats) - set(SUMMON_STATS) or not all(_is_num(v) and v > 0 for v in stats.values()):
+        if not isinstance(stats, dict) or set(stats) - set(SUMMON_STATS) or not all(is_num(v) and v > 0 for v in stats.values()):
             problems.append(f"{where}: stats は {list(SUMMON_STATS)} の正の数だけ")
         raw_ab = row.get("abilities") if isinstance(row.get("abilities"), list) else []
         clean = [a for a in map(_clean_ability, raw_ab) if a]

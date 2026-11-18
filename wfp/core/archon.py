@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 
+from wfp.core.common import is_num
 from wfp.core.errors import TextError
 from wfp.core.i18n import txt
 from wfp.core.const import ARCHON_SLOTS, ARCHON_VALUE_KEYS
@@ -18,22 +19,18 @@ _HOLE_RE = re.compile(r"\{(\w+)\}")
 _DEFAULT_RATE = 1.5
 
 
-def _is_num(x: object) -> bool:
-    return isinstance(x, (int, float)) and not isinstance(x, bool)
-
-
 def _clean_effect(raw: object) -> dict | None:
     """効果の行を整える。id・ja・en・value が無い行は None"""
     if not isinstance(raw, dict):
         return None
     eid, ja, en = raw.get("id"), raw.get("ja"), raw.get("en")
-    if not all(isinstance(x, str) and x.strip() for x in (eid, ja, en)) or not _is_num(raw.get("value")):
+    if not all(isinstance(x, str) and x.strip() for x in (eid, ja, en)) or not is_num(raw.get("value")):
         return None
     out = {"id": eid.strip(), "ja": ja, "en": en}
-    out.update({k: raw[k] for k in ARCHON_VALUE_KEYS if _is_num(raw.get(k))})
+    out.update({k: raw[k] for k in ARCHON_VALUE_KEYS if is_num(raw.get(k))})
     over = raw.get("tauforged")
     if isinstance(over, dict):
-        over = {k: v for k, v in over.items() if k in ARCHON_VALUE_KEYS and _is_num(v)}
+        over = {k: v for k, v in over.items() if k in ARCHON_VALUE_KEYS and is_num(v)}
         if over:
             out["tauforged"] = over
     return out
@@ -54,14 +51,14 @@ def shard_list(raw: object) -> dict:
         effects = [e for e in map(_clean_effect, c.get("effects") if isinstance(c.get("effects"), list) else []) if e]
         colors.append({"key": key, "ja": c["ja"], "en": c["en"],
                        "export": c.get("export") if isinstance(c.get("export"), str) else "", "effects": effects})
-    return {"tauforged_rate": rate if _is_num(rate) and rate > 0 else _DEFAULT_RATE, "colors": colors}
+    return {"tauforged_rate": rate if is_num(rate) and rate > 0 else _DEFAULT_RATE, "colors": colors}
 
 
 def check_shards(raw: object) -> list[str]:
     """同梱データの検査(テスト用)。見つかった問題の一覧(無ければ空)"""
     problems: list[str] = []
     data = raw if isinstance(raw, dict) else {}
-    if not _is_num(data.get("tauforged_rate")) or data["tauforged_rate"] <= 1:
+    if not is_num(data.get("tauforged_rate")) or data["tauforged_rate"] <= 1:
         problems.append("tauforged_rate が 1 より大きい数ではない")
     colors = data.get("colors")
     if not isinstance(colors, dict) or not colors:

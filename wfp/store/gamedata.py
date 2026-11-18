@@ -7,13 +7,39 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from wfp.core.errors import TextError
+from wfp.core.errors import TextError, TextFailure
 from wfp.core.i18n import txt
 from wfp.core.const import (
     ARBYS_FILE, BUILDER_FILE, DROPS_FILE, EXPORT_EXTRA_LANGS, ITEM_PATHS_FILE, LANG_NAMES_FILE, MOD_STATS_FILE, NAMES_FILE,
     RECIPES_FILE, REGIONS_FILE, RIVENS_FILE, WFCD_DIR, WFCD_EXTRA, WORLDSTATE_FILE,
 )
 from wfp.store import datadir
+
+
+class DataBroken(TextFailure):
+    """土台のデータ(names.json・missionRewards.json)があるのに読めない・形が違う。データ更新で取り直せば直る。
+    「無い」とは分ける(無いときは None を返し、使う側がデータ更新を案内する)。file は壊れているファイルの名前"""
+
+    def __init__(self, file: str):
+        self.file = file
+        super().__init__(txt("err.data.broken", file=file))
+
+
+def _read_dict(f: Path) -> dict | None:
+    """JSON のファイルの中身(オブジェクト)。無い・読めない・壊れている・オブジェクトでなければ None"""
+    data = datadir.read_json(f)
+    return data if isinstance(data, dict) else None
+
+
+def _read_base(d: Path, name: str, need: str | None = None) -> dict | None:
+    """土台のデータ: 無ければ None、あるのに読めない・オブジェクトでない・need のキー(指定したとき)が無ければ DataBroken"""
+    f = d / name
+    if not f.exists():
+        return None
+    data = _read_dict(f)
+    if data is None or (need is not None and need not in data):
+        raise DataBroken(name)
+    return data
 
 
 def _write_json(f: Path, obj) -> None:
@@ -40,39 +66,28 @@ def save_names(d: Path, names: dict) -> None:
 
 
 def read_names(d: Path) -> dict | None:
-    """names.json の中身。無ければ None"""
-    f = d / NAMES_FILE
-    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
+    """names.json の中身。無ければ None、壊れていれば DataBroken"""
+    return _read_base(d, NAMES_FILE)
 
 
 def read_drops(d: Path) -> dict | None:
-    """missionRewards.json の中身。無ければ None"""
-    f = d / DROPS_FILE
-    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
+    """missionRewards.json の中身。無ければ None、壊れていれば DataBroken"""
+    return _read_base(d, DROPS_FILE, "missionRewards")
 
 
 def read_wfcd(d: Path) -> dict[str, dict]:
     """wfcd/ 以下の各 JSON({ファイル名: 中身})。無い・読めないファイルは飛ばす"""
     files = {}
     for name in WFCD_EXTRA:
-        f = d / WFCD_DIR / f"{name}.json"
-        if f.exists():
-            try:
-                files[name] = json.loads(f.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                pass
+        data = datadir.read_json(d / WFCD_DIR / f"{name}.json")
+        if data is not None:
+            files[name] = data
     return files
 
 
 def read_rivens(d: Path):
     """rivens.json の中身(形はそろえていない)。無い・読めなければ None"""
-    f = d / RIVENS_FILE
-    if not f.exists():
-        return None
-    try:
-        return json.loads(f.read_text(encoding="utf-8-sig"))
-    except (OSError, ValueError):
-        return None
+    return datadir.read_json(d / RIVENS_FILE)
 
 
 def save_rivens(d: Path, rows: list[dict]) -> None:
@@ -81,12 +96,7 @@ def save_rivens(d: Path, rows: list[dict]) -> None:
 
 def read_regions(d: Path) -> dict:
     """regions.json(ノードの内部名 -> 名前)。無い・読めなければ空"""
-    f = d / REGIONS_FILE
-    try:
-        j = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
-    except (OSError, ValueError):
-        return {}
-    return j if isinstance(j, dict) else {}
+    return _read_dict(d / REGIONS_FILE) or {}
 
 
 def save_regions(d: Path, regions: dict) -> None:
@@ -106,12 +116,8 @@ def save_arbys(d: Path, text: str) -> None:
 
 
 def read_mod_stats(d: Path) -> dict | None:
-    """mod_stats.json(MOD 効果検索用。データ更新で Export から作る)。無い・読めなければ None(形の検査は core.modstats で行う)"""
-    try:
-        j = json.loads((d / MOD_STATS_FILE).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    return j if isinstance(j, dict) else None
+    """mod_stats.json(MOD 効果検索用。データ更新で Export から作る)。無い・読めなければ None(形の検査は core.modstats)"""
+    return _read_dict(d / MOD_STATS_FILE)
 
 
 def save_mod_stats(d: Path, data: dict) -> None:
@@ -119,12 +125,8 @@ def save_mod_stats(d: Path, data: dict) -> None:
 
 
 def read_recipes(d: Path) -> dict | None:
-    """recipes.json(要求素材集用。データ更新で Export の ExportRecipes から作る)。無い・読めなければ None(形の検査は core.recipes で行う)"""
-    try:
-        j = json.loads((d / RECIPES_FILE).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    return j if isinstance(j, dict) else None
+    """recipes.json(要求素材集用。データ更新で Export の ExportRecipes から作る)。無い・読めなければ None"""
+    return _read_dict(d / RECIPES_FILE)
 
 
 def save_recipes(d: Path, data: dict) -> None:
@@ -148,12 +150,8 @@ def read_lang_names(d: Path, lang: str) -> dict | None:
     """names_<言語>.json の中身。無い・読めない・形が違う・取れない言語なら None"""
     if lang not in EXPORT_EXTRA_LANGS:
         return None
-    f = _lang_names_path(d, lang)
-    try:
-        body = json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
-    except (OSError, ValueError):
-        return None
-    return body if isinstance(body, dict) and isinstance(body.get("names"), dict) else None
+    body = _read_dict(_lang_names_path(d, lang))
+    return body if body is not None and isinstance(body.get("names"), dict) else None
 
 
 def held_lang_names(d: Path) -> list[str]:
@@ -163,14 +161,8 @@ def held_lang_names(d: Path) -> list[str]:
 
 def read_builder(d: Path) -> dict | None:
     """builder.json(シミュレータ用のフレーム・武器の性能)。無い・読めない・形が違えば None"""
-    f = d / BUILDER_FILE
-    if not f.exists():
-        return None
-    try:
-        data = json.loads(f.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    return data if isinstance(data, dict) and data.get("frames") is not None else None
+    data = _read_dict(d / BUILDER_FILE)
+    return data if data is not None and data.get("frames") is not None else None
 
 
 def save_builder(d: Path, data: dict) -> None:
@@ -179,12 +171,7 @@ def save_builder(d: Path, data: dict) -> None:
 
 def read_item_paths(d: Path) -> dict:
     """item_paths.json(内部パス -> 英語名)。無い・読めなければ空"""
-    f = d / ITEM_PATHS_FILE
-    try:
-        j = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
-    except ValueError:
-        return {}
-    return j if isinstance(j, dict) else {}
+    return _read_dict(d / ITEM_PATHS_FILE) or {}
 
 
 def has_item_paths(d: Path) -> bool:
@@ -197,12 +184,8 @@ def save_item_paths(d: Path, paths: dict) -> None:
 
 def read_worldstate(d: Path) -> dict | None:
     """worldstate.json(World State から取り出した結果と取得した時刻)。無い・読めない・形が違えば None"""
-    f = d / WORLDSTATE_FILE
-    try:
-        j = json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
-    except ValueError:
-        return None
-    return j if isinstance(j, dict) and isinstance(j.get("fetched_at"), (int, float)) else None
+    snap = _read_dict(d / WORLDSTATE_FILE)
+    return snap if snap is not None and isinstance(snap.get("fetched_at"), (int, float)) else None
 
 
 def save_worldstate(d: Path, snap: dict) -> None:

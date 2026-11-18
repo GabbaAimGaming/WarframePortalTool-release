@@ -1,0 +1,356 @@
+{
+  "_note": "勢力(Grineer〜Techrot)の設定と、勢力の成り立ちに関わるクエストの話",
+  "topics": [
+    {
+      "id": "setting.grineer",
+      "type": "setting",
+      "about": [
+        "Grineer"
+      ],
+      "title": "グリニアの成り立ち",
+      "words": [
+        "グリニア",
+        "Grineer"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Grineer"
+      ],
+      "text": [
+        "グリニアってさ、オロキンが働かせるために作ったクローンの奴隷なんだよね。旧大戦では戦闘用のも作られたけど、センティエント相手だと全然歯が立たなかったっぽい。帝国が崩れたあと、助けてくれたオロキンの双子にガチで憧れちゃって、その二人を女王にしたんだって。",
+        "雑なクローン技術でずっと世代つないできたから、遺伝子の欠陥はひどくなる一方。寿命も短いし、ボロボロの体を機械の義肢でどうにか補ってる感じ。本拠は荒れた地球で、セレスとかセドナの工場、天王星の海底研究所あたりも押さえてる。女王はフォーモリアンのエンジンで動く要塞の小惑星に住んでるよ。",
+        "自分たち以外はぜんぶ嫌いで、目標は太陽系をグリニアだけにすること…まぁ極端だよね。戦い方は重装甲と数でゴリ押し。Warframe と戦った一部の兵は、女王から不死をもらってクバ・リッチになる。"
+      ]
+    },
+    {
+      "id": "setting.corpus",
+      "type": "setting",
+      "about": [
+        "Corpus"
+      ],
+      "title": "コーパスの成り立ち",
+      "words": [
+        "コーパス",
+        "Corpus"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Corpus"
+      ],
+      "text": [
+        "コーパスは企業とか商会の集まりで、作ったのは Parvos Granum ってひと。オロキンにこき使われてた農民の出で、「身分とか関係なく、誰でも欲望(デザイア)を追っていい」って言いながら人にお金を貸して、教えを広めて、都市コーポジウムまで建てちゃったんだよね。",
+        "最初はオロキンにも認められてたけど、だんだん揉めて「商人の教団」呼ばわりされるようになる。で、Granum は嫉妬した重役に船の Void ドライブをいじられて、何千年も行方不明…。",
+        "Granum がいない間に、コーパスは内輪もめばっかで、「欲望」より「利益」を拝む組織になっちゃった。クルーマンなんか生まれたときから利益を崇めるように洗脳されてるし。技術はグリニアより上で、MOA とかのプロキシとか、センティエントのまね兵器まで使ってくる。で、そのうち Granum が Void から戻ってきて、またコーパスを仕切ってる感じ。"
+      ]
+    },
+    {
+      "id": "setting.infested",
+      "type": "setting",
+      "about": [
+        "Infested"
+      ],
+      "title": "感染体の成り立ち",
+      "words": [
+        "感染体",
+        "Infested",
+        "Infestation"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Infested"
+      ],
+      "text": [
+        "感染体は、テクノサイト・ウイルスで生き物とか機械が変わり果てたやつ。グリニアもコーパスも機械も、相手かまわず取り込んじゃう。ちゃんと免疫あるのって、Void の力を持つテンノと Warframe、あとセンティエントくらいなんだよね。",
+        "オロキンは一回感染を抑え込んだんだけど、旧大戦でセンティエントに追い詰められて、兵器として研究し直したっぽい。ダイモスで使った生物爆弾は侵攻こそ止めたけど、代わりにダイモスまるごと感染させちゃった…やらかしだよね。この研究から、感染体の一種 Helminth 株を使った Warframe が生まれてる。",
+        "帝国が崩れたら、残ってた感染は誰も管理しないまま広がって進化していった。今はだいたいダークセクターに封じ込めてるけど、ときどきでかい感染が起きてる感じ。"
+      ]
+    },
+    {
+      "id": "setting.orokin",
+      "type": "setting",
+      "about": [
+        "Orokin"
+      ],
+      "title": "オロキン帝国の社会",
+      "words": [
+        "オロキン",
+        "Orokin",
+        "オロキンの滅亡",
+        "オロキンの崩壊",
+        "帝国の崩壊"
+      ],
+      "group": "orokin",
+      "stage": 0,
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Orokin"
+      ],
+      "text": [
+        "オロキンは、むかし太陽系ぜんぶを支配してた支配階級。技術は今のどこよりも進んでて、ソーラーレールみたいに今も使われてる発明もあるんだよね。キラキラと贅沢に取りつかれてて、白と金で飾ったでっかい建物が大好き。",
+        "でも社会はガチで息苦しくて、身分を上がれるのはほんの一握り。工業化できるのに農奴に手作業させたり、グリニアみたいな奴隷まで作ったり。罰もえぐくて、翡翠の光で焼き尽くしたり、セファロンにして永遠に働かせたり…しんど。",
+        "いちばん上には皇帝がいたけど、ほんとに力を握ってたのは執政官(エグゼクター)の評議会「七人衆」。最精鋭の兵はダックスで、主人に逆らえないように作られてたんだって。美徳として「七つの原則」を大事にしてて、末期の首都は地球の月、今のルアだよ。"
+      ]
+    },
+    {
+      "id": "quest.orokin_fall",
+      "type": "quest",
+      "about": [
+        "Orokin"
+      ],
+      "title": "オロキン帝国の滅亡",
+      "words": [],
+      "requires": [
+        "/Lotus/Types/Keys/OrokinMoonQuest/OrokinMoonQuestKeyChain",
+        "/Lotus/Types/Keys/WarWithinQuest/WarWithinQuestKeyChain"
+      ],
+      "group": "orokin",
+      "stage": 1,
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Orokin"
+      ],
+      "text": [
+        "人口が増えすぎたオロキンは、Tau に引っ越そうとしたんだよね。でも植民船 Zariman Ten Zero は Void で事故って、生き残った子供たちは変な力を身につけちゃった。子供たちを守ってた研究者 Margulis は、殺せって命令を拒んで処刑される。",
+        "次に送り出した機械のセンティエントは、オロキンが Tau も食いつぶす気だって気づいて、逆に戦争をふっかけてくる。これが旧大戦。オロキンは Margulis の研究を使った Warframe を子供たち(テンノ)に操らせて、形勢をひっくり返した。",
+        "…でも、Margulis のことで恨んでた Ballas が、センティエントの長 Hunhow にテンノの弱点を流してたんだよね。Hunhow の娘 Natah(のちの Lotus)の指示で、テンノは勝利の祝いの席でオロキンを討って、帝国は崩れた。"
+      ]
+    },
+    {
+      "id": "setting.tenno",
+      "type": "setting",
+      "about": [
+        "Tenno"
+      ],
+      "title": "テンノとは",
+      "words": [
+        "テンノ",
+        "Tenno",
+        "テンノの正体",
+        "テンノの起源",
+        "Zariman"
+      ],
+      "group": "tenno",
+      "stage": 0,
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Factions",
+        "https://wiki.warframe.com/w/Tenno"
+      ],
+      "text": [
+        "テンノは、刃も銃も使いこなして、Warframe っていう鎧を操る戦士たち。旧大戦を生き延びたあと、ずーっと冷凍睡眠で眠ってたんだよね。",
+        "起きてみたら、太陽系はグリニアとかコーパスとかが争ってる真っ最中。テンノは Warframe を扱える唯一の存在として、お互いにだけ忠誠を誓って戦ってる感じ。"
+      ]
+    },
+    {
+      "id": "quest.tenno_origin",
+      "type": "quest",
+      "about": [
+        "Tenno"
+      ],
+      "title": "テンノの正体",
+      "words": [],
+      "requires": [
+        "/Lotus/Types/Keys/OrokinMoonQuest/OrokinMoonQuestKeyChain",
+        "/Lotus/Types/Keys/WarWithinQuest/WarWithinQuestKeyChain"
+      ],
+      "group": "tenno",
+      "stage": 1,
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Tenno"
+      ],
+      "text": [
+        "テンノってさ、植民船 Zariman Ten Zero の事故で生まれたんだよね。Void に迷い込んだ船で生き残ったのは子供たちだけで、Void を浴びたその子たちは変な力を持っちゃってた。",
+        "力の扱い方を見つけたのは研究者の Margulis。でも彼女は子供たちを守ろうとして処刑されて、その研究から、意識と力を Warframe に流し込むトランスファレンスが作られた。子供たちは月の施設「リザーバー」のポッドから、遠隔で Warframe を動かして戦ってたっぽい。",
+        "テンノは、育ての母みたいだった Margulis を処刑したオロキンをずっと恨んでて、勝利の祝いの席で指導者たちを討っちゃう。そのあと、送り込まれてたセンティエントの Natah がテンノと心を通わせて仲間を裏切って、月ごとリザーバーを Void に隠した。で、Lotus って名乗って、テンノをずっと見守ってたんだって。"
+      ]
+    },
+    {
+      "id": "setting.sentient",
+      "type": "setting",
+      "about": [
+        "Sentient"
+      ],
+      "title": "センティエントの成り立ち",
+      "words": [
+        "センティエント",
+        "Sentient",
+        "センティエントの帰還"
+      ],
+      "group": "sentient",
+      "stage": 0,
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Sentient"
+      ],
+      "text": [
+        "センティエントは、オロキンが Tau を住める星にするために作った機械なんだよね。攻撃に慣れていく力と、自分を複製する力を持たされてた。その代わり、Void に弱いっていう欠点をわざと残されてたっぽい。",
+        "でも意識を持っちゃったセンティエントは、オロキンが Tau も食い荒らす気だって気づいて、太陽系に戻って戦争を始めた。これが旧大戦。オロキンの最新技術まで取り込んで、どんな兵器にも耐性をつけていったんだって。",
+        "大戦の途中で、個性を持つようになった一派とオロキンの間に休戦(古の同盟)が結ばれたこともあるんだけど…結局それも壊されて、戦争は再開してる。"
+      ]
+    },
+    {
+      "id": "quest.sentient_war",
+      "type": "quest",
+      "about": [
+        "Sentient"
+      ],
+      "title": "センティエントと新たな大戦",
+      "words": [],
+      "requires": [
+        "/Lotus/Types/Keys/OrokinMoonQuest/OrokinMoonQuestKeyChain",
+        "/Lotus/Types/Keys/NewWarQuest/NewWarQuestKeyChain"
+      ],
+      "group": "sentient",
+      "stage": 1,
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Sentient"
+      ],
+      "text": [
+        "旧大戦の終わりごろ、センティエントの長 Hunhow は、Ballas の情報をもとに娘の Natah を送り込んだんだよね。Natah はオロキンの粛清はやり遂げたけど、テンノだけは殺せなくて、リザーバーを Void に隠して Lotus を名乗るようになる。",
+        "だいぶ経って Hunhow が天王星で目を覚まして、センティエントがまた出てくる。戻ってきた Ballas は Lotus を Natah に戻して、新たな大戦を起こした。テンノがいなくなった太陽系はナルメルに飲み込まれたけど、漂流者が Lotus を取り戻して、最後はテンノと Lotus が Ballas を討つ。Natah の兄の Erra は寝返って、命を落とした。",
+        "大戦のあと、Hunhow は家族のことを悔やみながら、天王星の海の底で何もできずにいる…ちょっと切ないよね。"
+      ]
+    },
+    {
+      "id": "quest.narmer",
+      "type": "quest",
+      "about": [
+        "Narmer"
+      ],
+      "title": "ナルメルとは",
+      "words": [
+        "ナルメル",
+        "Narmer"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/NewWarQuest/NewWarQuestKeyChain",
+        "/Lotus/Types/Keys/KahlQuest/KahlQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Narmer"
+      ],
+      "text": [
+        "ナルメルは、Erra と Ballas が太陽系じゅうに広めたもの。センティエントの帝国とも宗教とも言われてて、信者は Tau を楽園だと信じてるんだよね。…でも、その楽園も「Tau の主たち」もほんとは存在しないって、あとで分かっちゃう。",
+        "新たな大戦でテンノがいなくなったら、センティエントは太陽系を支配した。みんなナルメルのベールで洗脳されて、逆らったらベールを爆発させられる感じ。えぐい。",
+        "Ballas が倒れてナルメルは揺らいだけど、終わりはしなかった。アルコンに作り替えられた Erra が「Pazuul」としてトップになって、支配を続けてる。ベールから解放された Kahl-175 みたいに、抵抗してるひとたちもいるよ。"
+      ]
+    },
+    {
+      "id": "quest.murmur",
+      "type": "quest",
+      "about": [
+        "The Murmur"
+      ],
+      "title": "ササヤキとは",
+      "words": [
+        "ササヤキ",
+        "Murmur"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/EntratiLab/EntratiQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/The_Murmur"
+      ],
+      "text": [
+        "ササヤキは、「壁の中の男」が Void のエネルギーから作り出した存在。人間っぽい手足が生えた石の塊みたいな見た目で、何体も合体してでっかくなれるんだよね。ばらばらだと頭はほぼ空っぽで、合体したときだけまともな意識を見せるっぽい。",
+        "Ballas が Tau に逃げようとしたせいで、壁の中の男の目がまた太陽系に向いちゃった。その結果、封印が解けた Albrecht Entrati の地下研究所に、ササヤキが放たれたって流れ。"
+      ]
+    },
+    {
+      "id": "setting.scaldra",
+      "type": "setting",
+      "about": [
+        "Scaldra"
+      ],
+      "title": "スカルドラとは",
+      "words": [
+        "スカルドラ",
+        "Scaldra"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Scaldra"
+      ],
+      "text": [
+        "スカルドラは、1999年のホルバニアで出てくる敵で、政府とズブズブの民間軍事会社なんだよね。テックロットが広まったら戒厳令で封じ込めを任されて、街を隔離して、報道とか住民の連絡まで押さえてる。",
+        "仕切ってるのは冷酷な Major Neci Rusalka と Lieutenant Viktor Vodyanoi。宗教を隠れみのにした傭兵の教団なんじゃないかって疑われてもいる。エフェルボンをまいて駆除してるけど、封じ込めは正直うまくいってないし、こっそりテックロットを兵器にしようとしてるっぽい。"
+      ]
+    },
+    {
+      "id": "setting.techrot",
+      "type": "setting",
+      "about": [
+        "Techrot"
+      ],
+      "title": "テックロットとは",
+      "words": [
+        "テックロット",
+        "Techrot",
+        "テックロットの歴史",
+        "放射能戦争"
+      ],
+      "group": "techrot",
+      "stage": 0,
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Techrot"
+      ],
+      "text": [
+        "テックロットは、1990年代の終わりのホルバニアで記録された、テクノサイト・ウイルスの感染。とにかく機械に引き寄せられる性質があって、人だけじゃなく、モニターとかケータイとか配線まで体に取り込んじゃうんだよね。攻撃されると新しい能力を覚えて次の世代に引き継ぐくらい、進化も速い。",
+        "建物の中とか地下のモール、地下鉄みたいな閉じた場所で、今も広がってる。どうやって生まれたのかは謎で、政府が自分で作ったんじゃないかって話もある。"
+      ]
+    },
+    {
+      "id": "quest.techrot_history",
+      "type": "quest",
+      "about": [
+        "Techrot"
+      ],
+      "title": "テックロットとその後の歴史",
+      "words": [],
+      "requires": [
+        "/Lotus/Types/Keys/1999Quest/1999QuestKeyChain"
+      ],
+      "group": "techrot",
+      "stage": 1,
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Techrot"
+      ],
+      "text": [
+        "テックロットって、遅くとも1997年にはもうあって、人気グループのメンバーを複製する計画「テクノサイト・コーダ」に使われてたんだよね。",
+        "オロキンの科学者 Albrecht Entrati は1998年に来て Doktor Friday って名乗って、患者を治療してた。でもその薬、逆に感染を広げちゃう…。Helminth を注入された「志願者」のうち、生き残ったひとはプロトフレームになって、その一部がヘックスを作った。",
+        "21世紀になると、テックロットは外に漏れて世界中に広がって、人類は核で応戦して最初の放射能戦争が始まった。この戦争がオロキンが出てくるきっかけになったとも言われてるよ。"
+      ]
+    },
+    {
+      "id": "quest.anarchs",
+      "type": "quest",
+      "about": [
+        "Anarchs"
+      ],
+      "title": "アナークとは",
+      "words": [
+        "アナーク",
+        "Anarchs",
+        "Anarch"
+      ],
+      "requires": [
+        "/Lotus/Types/Keys/TauPrequel/TauPrequelQuestKeyChain"
+      ],
+      "prefix": "fact",
+      "source": [
+        "https://wiki.warframe.com/w/Anarchs"
+      ],
+      "text": [
+        "アナークの中心は、Tau の土地をもらえるって約束されてたダックスたち。センティエントとの休戦で土地の大半を持ってかれて、裏切られたって感じたんだよね。そこに執政官の Nitokh が寝返ってきて、グリニアのクローン技術と、恋人 Roathe の指揮の腕を持ち込んだ。",
+        "狙いは戦争をやり直して、土地を手に入れること。そのために、センティエントに個性をくれる植物を減らそうとしたっぽい。今の時代だと、生き残りはペリタで半分トカゲみたいな姿で暮らしてて、テンノに友好的なシンジケートになってる。"
+      ]
+    }
+  ]
+}

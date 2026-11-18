@@ -4,7 +4,7 @@ from __future__ import annotations
 import sys
 
 from wfp.core import update
-from wfp.core.const import EXPORT_EXTRA_LANGS
+from wfp.core.const import DEFAULT_PORT, EXPORT_EXTRA_LANGS
 from wfp.fetch import logos
 from wfp.store import datadir
 
@@ -36,7 +36,7 @@ def serve_argv(args) -> list[str]:
 
 def add_serve(sub) -> None:
     s = sub.add_parser("serve", help="ブラウザで操作する画面を起動 (引数なしでも起動)")
-    s.add_argument("--port", type=int, default=8765)
+    s.add_argument("--port", type=int, default=DEFAULT_PORT)
     s.add_argument("--no-browser", action="store_true", help="ブラウザを自動で開かない")
     s.set_defaults(fn=None)  # 起動は入口(wfportal.py)が行う
 

@@ -177,15 +177,18 @@ def quest_names(en_docs: list[dict], ja: dict[str, tuple[str, str]]) -> list[dic
     return sorted(out.values(), key=lambda q: q["en"].lower())
 
 
-def names_from_exports(en_docs: list[dict], ja_docs: list[dict]) -> dict:
-    """Export の英語版・日本語版を uniqueName で突き合わせて辞書化する。"""
-    en, ja = _collect_names(en_docs), _collect_names(ja_docs)
-    en2ja, resources = _pair_names(en, ja), []
-    for _uid, (en_name, kind) in en.items():
-        if kind == "ExportResources":
-            resources.append(en_name)
+def _strip_tag(name: str) -> str:
+    """名前の頭の <タグ>(例: <ARCHWING>)と前後の空白を外す"""
+    return re.sub(r"^<[^>]+>\s*", "", name).strip()
 
-    # MOD 一覧用の情報(種別・極性・レア度など)
+
+def _ja_name(ja: dict, uid: str, fallback: str) -> str:
+    """uniqueName の和名(_collect_names の日本語版。無ければ fallback)"""
+    return ja.get(uid, (fallback,))[0]
+
+
+def _mod_entries(en_docs: list[dict], ja: dict) -> dict[str, dict]:
+    """MOD 一覧用の情報(種別・極性・レア度など)。{英名(小文字): 行}。同じ名前は最初の1件"""
     mods: dict[str, dict] = {}
     for doc in en_docs:
         for it in doc.get("ExportUpgrades", []):
@@ -196,56 +199,75 @@ def names_from_exports(en_docs: list[dict], ja_docs: list[dict]) -> dict:
                 continue
             compat = it.get("compatName") or ""
             mods[name.lower()] = {
-                "en": name, "ja": ja.get(it["uniqueName"], (name,))[0],
+                "en": name, "ja": _ja_name(ja, it["uniqueName"], name),
                 "type": mod_type_key(it), "polarity": it.get("polarity") or "",
                 "rarity": (it.get("rarity") or "").capitalize(),
                 "compat": compat if compat.upper() != compat else "",  # "WARFRAME" 等の汎用名は省く
                 "drain": it.get("baseDrain"), "max_rank": it.get("fusionLimit"),
             }
-    # 画像解析で照合する装備名(フレーム・武器・コンパニオン)とアルケイン名
+    return mods
+
+
+def _item_entries(en_docs: list[dict], ja: dict) -> dict[str, dict]:
+    """画像解析で照合する装備名(フレーム・武器・コンパニオン。ITEM_TYPES の productCategory だけ)。{英名(小文字): 行}"""
     items: dict[str, dict] = {}
-    arcanes: dict[str, str] = {}
-    arcane_list: dict[str, dict] = {}  # アルケイン所持一覧
     for doc in en_docs:
         for key in ("ExportWarframes", "ExportWeapons", "ExportSentinels"):
             for it in doc.get(key, []):
                 if not isinstance(it, dict) or it.get("productCategory") not in ITEM_TYPES:
                     continue
-                name = re.sub(r"^<[^>]+>\s*", "", it.get("name", "")).strip()
+                name = _strip_tag(it.get("name", ""))
                 if name and name.lower() not in items:
-                    ja_name = re.sub(r"^<[^>]+>\s*", "", ja.get(it["uniqueName"], (name,))[0]).strip()
-                    items[name.lower()] = {"en": name, "ja": ja_name, "type": ITEM_TYPES[it["productCategory"]]}
+                    items[name.lower()] = {"en": name, "ja": _strip_tag(_ja_name(ja, it["uniqueName"], name)),
+                                           "type": ITEM_TYPES[it["productCategory"]]}
+    return items
+
+
+def _arcane_entries(en_docs: list[dict], ja: dict) -> tuple[dict[str, str], dict[str, dict]]:
+    """アルケイン名(画像解析の照合用)と所持一覧用の行。({英名(小文字): 英名}, {英名(小文字): 行})"""
+    arcanes: dict[str, str] = {}
+    arcane_list: dict[str, dict] = {}
+    for doc in en_docs:
         for it in doc.get("ExportRelicArcane", []):
             name = it.get("name", "") if isinstance(it, dict) else ""
-            if name and not name.endswith(" Relic") and "/CosmeticEnhancers/" in it.get("uniqueName", ""):
-                arcanes.setdefault(name.lower(), name)
-                # 所持一覧は図鑑に載るものだけ (Arcane Steadfast の内部用の項目などを除く)。最大ランク = 段階の数 - 1
-                # レア度: ExportRelicArcane はコモンのアルケインの一部で rarity を省いているため、無ければコモン
-                #   (2026-10 時点で省かれている 21 件のうち、WFCD warframe-items に値がある 17 件はすべて Common。
-                #    なお ExportUpgrades (MOD) はコモンも省かずに書いてある)
-                levels = len(it.get("levelStats") or [])
-                if (not it.get("excludeFromCodex") and levels >= 2 and name.lower() not in arcane_list
-                        and it.get("uniqueName") not in ARCANE_UNRELEASED):
-                    arcane_list[name.lower()] = {
-                        "en": name, "ja": ja.get(it["uniqueName"], (name,))[0], "cat": arcane_cat(name),
-                        "rarity": (it.get("rarity") or "COMMON").capitalize(), "max_rank": levels - 1}
-    # マスター一覧
+            if not name or name.endswith(" Relic") or "/CosmeticEnhancers/" not in it.get("uniqueName", ""):
+                continue
+            arcanes.setdefault(name.lower(), name)
+            # 所持一覧は図鑑に載るものだけ (Arcane Steadfast の内部用の項目などを除く)。最大ランク = 段階の数 - 1
+            # レア度: ExportRelicArcane はコモンのアルケインの一部で rarity を省いているため、無ければコモン
+            #   (2026-10 時点で省かれている 21 件のうち、WFCD warframe-items に値がある 17 件はすべて Common。
+            #    なお ExportUpgrades (MOD) はコモンも省かずに書いてある)
+            levels = len(it.get("levelStats") or [])
+            if (not it.get("excludeFromCodex") and levels >= 2 and name.lower() not in arcane_list
+                    and it.get("uniqueName") not in ARCANE_UNRELEASED):
+                arcane_list[name.lower()] = {
+                    "en": name, "ja": _ja_name(ja, it["uniqueName"], name), "cat": arcane_cat(name),
+                    "rarity": (it.get("rarity") or "COMMON").capitalize(), "max_rank": levels - 1}
+    return arcanes, arcane_list
+
+
+def _mastery_entries(en_docs: list[dict], ja: dict) -> dict[str, dict]:
+    """マスター一覧の行(区分は mastery_slots。Kitgun などは variant 付き)。{id: 行}"""
     mastery: dict[str, dict] = {}
     for doc in en_docs:
         for key in ("ExportWarframes", "ExportWeapons", "ExportSentinels"):
             for it in doc.get(key, []):
                 if not isinstance(it, dict):
                     continue
-                name = re.sub(r"^<[^>]+>\s*", "", it.get("name", "")).strip()
+                name = _strip_tag(it.get("name", ""))
                 for cat, variant in mastery_slots(key, it):
                     mid = f"{cat}:{variant}:{name.lower()}" if variant else f"{cat}:{name.lower()}"
                     if mid in mastery:
                         continue
                     rank = int(it.get("maxLevelCap") or MASTERY_MAX_RANK.get(cat, 30))
                     mastery[mid] = {"id": mid, "en": name, "cat": cat, "variant": variant, "rank": rank,
-                                    "ja": re.sub(r"^<[^>]+>\s*", "", ja.get(it["uniqueName"], (name,))[0]).strip(),
+                                    "ja": _strip_tag(_ja_name(ja, it["uniqueName"], name)),
                                     "xp": mastery_xp(cat, key, rank, it.get("uniqueName", ""))}
-    # Riven 性質 (マスター一覧と同じ数え方の武器から、Riven を付けられないアークウイング近接・アンプを除く)
+    return mastery
+
+
+def _dispo_entries(en_docs: list[dict], ja: dict) -> dict[str, dict]:
+    """Riven 性質 (マスター一覧と同じ数え方の武器から、Riven を付けられないアークウイング近接・アンプを除く)。{id: 行}"""
     dispo: dict[str, dict] = {}
     for doc in en_docs:
         for it in doc.get("ExportWeapons", []):
@@ -253,7 +275,7 @@ def names_from_exports(en_docs: list[dict], ja_docs: list[dict]) -> dict:
                 continue
             if _COMPANION_HEAD.search(it.get("uniqueName", "")) or _MASTERY_CODEX_EXEMPT.search(it.get("uniqueName", "")):
                 continue  # MOA・ハウンドの頭とハウンドの武器はマスター一覧(robotic)だけ。Riven 性質には今まで通り出さない
-            name = re.sub(r"^<[^>]+>\s*", "", it.get("name", "")).strip()
+            name = _strip_tag(it.get("name", ""))
             for cat, variant in mastery_slots("ExportWeapons", it):
                 if cat not in DISPO_CATS:
                     continue
@@ -265,15 +287,24 @@ def names_from_exports(en_docs: list[dict], ja_docs: list[dict]) -> dict:
                 value = round(float(raw if isinstance(raw, (int, float)) else it["omegaAttenuation"]), 2)
                 dispo[did] = {"id": did, "en": name, "cat": cat, "variant": variant, "value": value,
                               "type": dispo_type(cat, it.get("uniqueName", ""), name),
-                              "ja": re.sub(r"^<[^>]+>\s*", "", ja.get(it["uniqueName"], (name,))[0]).strip()}
+                              "ja": _strip_tag(_ja_name(ja, it["uniqueName"], name))}
+    return dispo
+
+
+def names_from_exports(en_docs: list[dict], ja_docs: list[dict]) -> dict:
+    """Export の英語版・日本語版を uniqueName で突き合わせて辞書化する(種類ごとの _*_entries を集めて並べる)"""
+    en, ja = _collect_names(en_docs), _collect_names(ja_docs)
+    resources = [en_name for _uid, (en_name, kind) in en.items() if kind == "ExportResources"]
+    arcanes, arcane_list = _arcane_entries(en_docs, ja)
     order = {c: i for i, c in enumerate(MASTERY_CATS)}
-    return {"quests": quest_names(en_docs, ja), "en2ja": en2ja, "resources": sorted(set(resources)),
-            "mods": sorted(mods.values(), key=lambda m: m["en"].lower()),
-            "items": sorted(items.values(), key=lambda m: m["en"].lower()),
+    return {"quests": quest_names(en_docs, ja), "en2ja": _pair_names(en, ja), "resources": sorted(set(resources)),
+            "mods": sorted(_mod_entries(en_docs, ja).values(), key=lambda m: m["en"].lower()),
+            "items": sorted(_item_entries(en_docs, ja).values(), key=lambda m: m["en"].lower()),
             "arcanes": sorted(arcanes.values(), key=str.lower),
             "arcane_list": sorted(arcane_list.values(), key=lambda m: (list(ARCANE_CATS).index(m["cat"]), m["en"].lower())),
-            "mastery": sorted(mastery.values(), key=lambda m: (order[m["cat"]], m["en"].lower(), m["variant"])),
-            "dispo": sorted(dispo.values(), key=lambda m: (list(DISPO_CATS).index(m["cat"]), -m["value"], m["en"].lower(), m["variant"]))}
+            "mastery": sorted(_mastery_entries(en_docs, ja).values(), key=lambda m: (order[m["cat"]], m["en"].lower(), m["variant"])),
+            "dispo": sorted(_dispo_entries(en_docs, ja).values(),
+                            key=lambda m: (list(DISPO_CATS).index(m["cat"]), -m["value"], m["en"].lower(), m["variant"]))}
 
 
 class Names:

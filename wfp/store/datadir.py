@@ -1,6 +1,7 @@
 """データ置き場の場所と、ファイルを途中で壊さずに書く write_atomic"""
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 import time
@@ -48,3 +49,13 @@ def write_atomic(path: Path, data: str | bytes, newline: str | None = None) -> N
         except OSError:
             pass
         raise
+
+
+def read_json(path: Path) -> object | None:
+    """JSON のファイルを読む。無い・読めない・JSON として壊れているときは None(中身が null のファイルも None)。
+    先頭の BOM は読み飛ばす(utf-8-sig)。形の検査(dict か・要るキーがあるか)は使う側でする。
+    データ置き場(store/gamedata)と同梱データ(store/appdata)の両方が使う(同じ形の読み方をほかに書かない)"""
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return None

@@ -39,9 +39,8 @@
 /* ---------- MOD 入手一覧 ---------- */
 let mods = null, modMeta = null, modOpen = null;
 const modSort = { key: "ja", dir: "asc" };
-const RAR_ORDER = { Common: 1, Uncommon: 2, Rare: 3, Legendary: 4 };
 const modGetters = {
-  ja: m => nameByLang(m).toLowerCase(), type: m => tName("mod.type.", m.type), pol: m => m.polarity_name, rar: m => RAR_ORDER[m.rarity] || 0,
+  ja: m => nameByLang(m).toLowerCase(), type: m => tName("mod.type.", m.type), pol: m => m.polarity_name, rar: m => rarityRank(m.rarity),
   total: m => m.total, best: m => m.best ? m.best.chance : null, own: m => (m.owned ? 1 : 0),
 };
 /* MOD 名: 日本語の画面は日本語名、ほかの言語は英名。対象(compat)は I18N の mod.compat.<英名>(無ければ英名) */
@@ -85,12 +84,14 @@ async function loadModDetail(en) {
     box().innerHTML = sourceTable(r.rows.slice(0, 40)) + (r.rows.length > 40 ? `<p class="note">${esc(fmt("mods.detail.more", { n: r.rows.length }))}</p>` : "");
   } catch (e) { if (box()) box().innerHTML = noData(e.status === 404 ? t("mods.detail.none") : e.message); }
 }
-$("#mods-out").addEventListener("change", async e => {
+$("#mods-out").addEventListener("change", e => {
   const cb = e.target.closest("input.own"); if (!cb) return;
-  const en = cb.closest("tr").dataset.en, m = mods.find(x => x.en === en);
-  m.owned = cb.checked; cb.closest("tr").classList.toggle("owned", m.owned); $("#mods-err").textContent = "";
-  try { await api("/api/mods/owned", { method: "POST", body: { en, owned: m.owned } }); renderMods(); }
-  catch (err) { m.owned = !m.owned; cb.checked = m.owned; cb.closest("tr").classList.toggle("owned", m.owned); $("#mods-err").textContent = err.message; }
+  const en = cb.closest("tr").dataset.en, m = mods.find(x => x.en === en), owned = cb.checked;
+  optimistic({
+    apply: () => { m.owned = owned; }, undo: () => { m.owned = !owned; },
+    send: () => api("/api/mods/owned", { method: "POST", body: { en, owned } }),
+    render: renderMods, err_box: $("#mods-err"),
+  });
 });
 $("#mods-out").addEventListener("click", e => {
   if (e.target.closest("input, th, a, button")) return;
@@ -123,11 +124,7 @@ function renderModOptions() {
 loaders.mods = async () => {
   applyViewText("mods"); modScanner.label();
   if (mods) { renderModOptions(); renderMods(); return; }
-  $("#mods-out").innerHTML = `<div class="empty">${esc(t("common.loading"))}</div>`;
-  try {
-    const r = await api("/api/mods"); mods = r.mods; modMeta = r;
-    renderModOptions(); renderMods();
-  } catch (e) { $("#mods-summary").innerHTML = ""; $("#mods-out").innerHTML = noData(e.message); }
+  await loadInto($("#mods-out"), () => api("/api/mods"), data => { mods = data.mods; modMeta = data; renderModOptions(); renderMods(); }, [$("#mods-summary")]);
 };
 relabel.mods = () => { applyViewText("mods"); $("#mods-err").textContent = ""; modScanner.label(); if (scan.reads || scan.on) scanRender(); if (mods) { renderModOptions(); renderMods(); } };
 dataResets.mods = () => { mods = null; modOpen = null; };

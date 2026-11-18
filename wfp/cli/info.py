@@ -2,35 +2,29 @@
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
 from wfp.cli.table import print_table
 from wfp.core.arbitration import arbitration_view, load_schedule, update_arbys
-from wfp.core.archon import shard_list
 from wfp.core.common import fmt_dur, parse_remaining, rank
 from wfp.core.errors import error_text
 from wfp.core.i18n import render_ja, txt
 from wfp.core.text import fold_case, norm
 from wfp.core.const import (
-    BARO_KINDS, CAMBION, CYCLES, CYCLE_SOURCES, FACTIONS_JA, MODES_JA, MOD_GROUPS, PHASE_ALIASES, QA_ANSWERS_FILE,
-    QA_INTENTS_FILE, QA_LORE_FILE, QA_LORE_TALK_FILE, QA_MENU_FILE, QA_MISS_FILE, QA_TALK_FILE, RIVENS_FILE, RIVEN_TYPES_JA,
+    BARO_KINDS, CAMBION, CYCLES, JST, CYCLE_SOURCES, FACTIONS_JA, MODES_JA, MOD_GROUPS, PHASE_ALIASES, RIVENS_FILE,
+    RIVEN_TYPES_JA,
 )
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
-from wfp.core.devbuilds import dev_build_list
-from wfp.core.helminth import subsume_list
 from wfp.core.loader import DropsMissing, load_drops, load_names, load_rivens, load_sources
 from wfp.core.modstats import load_mod_stats, parse_groups
-from wfp.core.qa import QaContext, QaIndex, answer, load_qa_data, stop_words
-from wfp.core.qalore import index_names, load_lore
-from wfp.core.qamenu import load_menu
-from wfp.core.qatalk import load_talk
-from wfp.core.quests import check_flow
+from wfp.core.qa import answer_query
+from wfp.core.qacontext import QaQuery
+from wfp.core.qabundle import build_context, load_qa_bundle, make_index
 from wfp.core.riven import riven_table, update_rivens
-from wfp.core.summons import summon_list
 from wfp.core import worldstate
 from wfp.fetch import worldstate as wsfetch
 from wfp.drops.search import all_item_names
-from wfp.store import appdata, datadir, gamedata, userdata
+from wfp.store import datadir, gamedata, userdata
 
 
 def cmd_cycle(args):
@@ -49,21 +43,20 @@ def cmd_cycle(args):
         except wsfetch.WorldStateError as e:
             sys.exit(f"公式データを取得できませんでした: {e}\n※基準時刻(または前回の同期)からの計算で表示します。")
         print(f"公式データで同期しました(PC の時計のずれ {snap['offset']:+.0f} 秒)。")
-    jst = timezone(timedelta(hours=9))
     view = cycle_rows(d)
     now = view["now"]
-    nowdt = datetime.fromtimestamp(now, jst)
+    nowdt = datetime.fromtimestamp(now, JST)
     print(f"現在 {nowdt:%Y-%m-%d %H:%M:%S} JST" + (f"  (PC の時計を {view['offset']:+.0f} 秒補正)" if view["offset"] else "") + "\n")
     phase_ja = {p[0]: p[1] for c in CYCLES.values() for p in c["phases"]}
     for r in view["cycles"]:
-        end = datetime.fromtimestamp(now + r["left"], jst)
+        end = datetime.fromtimestamp(now + r["left"], JST)
         print(f"{CYCLES[r['key']]['name']}: {phase_ja[r['phase_key']]}  残り {fmt_dur(r['left'])}  "
               f"(切替 {end:%H:%M:%S} → {phase_ja[r['next_key']]})  [{CYCLE_SOURCES[r['source']]}]")
         if "cambion" in r:
             print(f"カンビオンの荒地: {CAMBION[r['cambion']]}  (Cetus と連動)")
     dr, wr = next_daily_reset(nowdt), next_weekly_reset(nowdt)
-    print(f"\nデイリーリセットまで  {fmt_dur((dr - nowdt).total_seconds())}  ({dr.astimezone(jst):%m/%d %H:%M} JST)")
-    print(f"ウィークリーリセットまで {fmt_dur((wr - nowdt).total_seconds())}  ({wr.astimezone(jst):%m/%d %H:%M} JST)")
+    print(f"\nデイリーリセットまで  {fmt_dur((dr - nowdt).total_seconds())}  ({dr.astimezone(JST):%m/%d %H:%M} JST)")
+    print(f"ウィークリーリセットまで {fmt_dur((wr - nowdt).total_seconds())}  ({wr.astimezone(JST):%m/%d %H:%M} JST)")
 
 
 def cmd_baro(args):
@@ -87,11 +80,10 @@ def cmd_baro(args):
         return
     names = load_names(d)
     view = wbaro.baro_view(d, names)
-    jst = timezone(timedelta(hours=9))
     mark = {True: "○", False: "×", None: "-"}
     cur = view["current"]
     if cur:
-        when = lambda t: datetime.fromtimestamp(t, jst).strftime("%m/%d %H:%M")
+        when = lambda t: datetime.fromtimestamp(t, JST).strftime("%m/%d %H:%M")
         state = {"here": "来ています", "coming": "次に来ます", "gone": "前回の来訪(終了)"}[cur["state"]]
         print(f"バロ: {state}  {render_ja(cur['relay'])}  {when(cur['activation'])} 〜 {when(cur['expiry'])} JST")
         for it in cur["items"]:
@@ -198,8 +190,9 @@ def cmd_modstats(args):
 
 def cmd_ask(args):
     """Q&A(日本語のみ)。データ置き場の builder.json・ドロップ表・名前辞書と同梱データから答える"""
-    question = " ".join(args.question).strip()
-    if not question and not args.lore and not args.menu and not args.talk:
+    query = QaQuery(" ".join(args.question).strip(), lore=args.lore, spoil=args.spoil, only=args.only, menu=args.menu,
+                    talk=args.talk)
+    if query.empty:
         sys.exit(render_ja(txt("err.qa.empty")))
     d = datadir.data_dir(args.data_dir)
     names = load_names(d)
@@ -209,18 +202,11 @@ def cmd_ask(args):
         drops = None
     sources = load_sources(d)
     items = all_item_names(drops, sources) if drops else []
-    data = load_qa_data(appdata.read_qa(QA_INTENTS_FILE), appdata.read_qa(QA_ANSWERS_FILE), appdata.read_qa(QA_MISS_FILE))
-    builder, subsume = gamedata.read_builder(d), subsume_list(appdata.read_helminth())
-    dev = dev_build_list(appdata.read_dev_builds())
-    lore = load_lore(appdata.read_qa(QA_LORE_FILE), appdata.read_qa(QA_LORE_TALK_FILE))
-    index = QaIndex(builder, names, items, subsume, dev, stop_words(data), summon_list(appdata.read_summons()), index_names(lore))
-    quest_names = {q["id"]: q["ja"] for q in check_flow(appdata.read_quests()) if q["kind"] == "quest"}
-    ctx = QaContext(data, index, builder=builder, drops=drops, sources=sources, items=items, subsume=subsume,
-                    archon=shard_list(appdata.read_archon()), dev=dev, mod_stats=load_mod_stats(d),
-                    lore=lore, done=userdata.load_quests_done(d), quest_names=quest_names,
-                    menu=load_menu(appdata.read_qa(QA_MENU_FILE)), talk=load_talk(appdata.read_qa(QA_TALK_FILE)))
-    print_qa(answer(ctx, question, lore=args.lore or None, spoil=args.spoil, only=args.only, menu=args.menu or None,
-                    talk=args.talk or None))
+    bundle, builder = load_qa_bundle(), gamedata.read_builder(d)
+    index = make_index(bundle, builder, names, items)
+    ctx = build_context(bundle, index, builder=builder, drops=drops, sources=sources, items=items,
+                        mod_stats=load_mod_stats(d), done=userdata.load_quests_done(d))
+    print_qa(answer_query(ctx, query))
 
 
 def print_qa(res: dict) -> None:
@@ -311,14 +297,13 @@ def cmd_arby(args):
         sys.exit("仲裁のスケジュールがまだありません。`update` か `arby sync` で取得してください。")
     if view["out_of_range"]:
         sys.exit("保存済みのスケジュールの範囲を過ぎました。`arby sync` で取り直してください。")
-    jst = timezone(timedelta(hours=9))
     if not view["regions_ok"]:
         print("※ノード名の辞書がまだ無いため、内部名で表示しています(`update` で取得できます)。")
     elif view["regions_old"]:
         print("※ノード名の辞書が古いため、ミッションの種類と敵がわかりません(`update` で取り直してください)。")
     out = []
     for r in view["rows"]:
-        start, end = datetime.fromtimestamp(r["start"], jst), datetime.fromtimestamp(r["end"], jst)
+        start, end = datetime.fromtimestamp(r["start"], JST), datetime.fromtimestamp(r["end"], JST)
         when = f"{start:%m/%d %H:%M}〜{end:%H:%M}"
         node = f"{r['node_ja']}({r['planet_ja']})" if r["planet_ja"] else r["node_ja"]
         mission = MODES_JA.get(r["mission"], r["mission"]) if r["mission"] else _arby_unknown(r["mission_index"])

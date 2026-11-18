@@ -40,6 +40,20 @@ HERE = Path(__file__).resolve().parent
 PS_SCRIPT = HERE / "ocr" / "winocr.ps1"
 DEFAULT_LANGS = "en-US,ja-JP"  # MOD 名は英語、「フォーマ」などの表示は日本語の場合がある
 
+# 解析の調整(値は 2026-11-17 の分け直しの前と同じ)。位置・大きさは MOD 名の文字の高さ h やカードの間隔に対する倍率
+# 画面全体の読み取り
+BLD_OCR_WEIGHT_POWER = 4      # 重なった候補の選び方: 長い名前 × 一致度 ** これ(一致度を強めに効かせる)
+BLD_OCR_INV_MARGIN = 2        # 所持 MOD 一覧(検索欄)の少し上(px)までを装備中として残す
+BLD_OCR_FORMA_MAX = 40        # 画面の「フォーマ N」として受け付ける数の上限
+# MOD のカードの読み取り
+MOD_OCR_ROW_GAP = 2.5         # 名前の縦の中心がこれ × h より離れたら次の段
+MOD_OCR_DRAIN_MAX = 30        # ドレインとして受け付ける数の上限
+MOD_OCR_PITCH_X = 16          # カードの横の間隔の予備(× h。となりの MOD 名が無いとき)
+MOD_OCR_PITCH_Y = 12          # 段の間隔の予備(× h。段が1つのとき)
+MOD_OCR_DRAIN_SPAN_X = 0.6    # ドレインを探す範囲: 左右はカードの間隔のこの割合まで
+MOD_OCR_DRAIN_SPAN_UP = 0.9   # 上は段の間隔のこの割合まで
+MOD_OCR_DRAIN_SPAN_DOWN = 0.5  # 下は名前の高さのこの割合まで
+
 
 class OcrUnavailable(TextError):
     """文字認識が使えない・失敗した。文はテキスト指定(画面は表示中の言語、CLI は日本語)"""
@@ -315,39 +329,52 @@ FORMA_PATTERNS = [
 ]
 
 
-def analyze(ocr: dict, names: Names, matcher: NameMatcher | None = None) -> dict:
-    """OCR の結果(winocr.ps1 の JSON)から、対象・MOD・フォーマ数を求める"""
-    matcher = matcher or build_matcher(names)
-    results = ocr.get("results") or []
-    # 英語の結果で名前を照合する(無ければ最初の言語)
-    main = next((r for r in results if str(r.get("lang", "")).startswith("en")), results[0] if results else {"lines": []})
-    lines = main.get("lines") or []
+def _center_x(box: tuple) -> float:
+    """箱(x, y, w, h)の横の中心"""
+    return box[0] + box[2] / 2
+
+
+def _center_y(box: tuple) -> float:
+    """箱(x, y, w, h)の縦の中心"""
+    return box[1] + box[3] / 2
+
+
+def _tag_words(lines: list[dict], prefix: tuple = ()) -> None:
+    """単語に番号 _id(prefix + 行・単語の位置)を振る(候補の重なり・使った数字の印に使う)"""
     for i, line in enumerate(lines):
         for j, w in enumerate(line.get("words", [])):
-            w["_id"] = (i, j)
-    segs = _segments(lines)
+            w["_id"] = (*prefix, i, j)
 
+
+def _candidate(kind: str, name: str, info, score: float, text: str, ws: list[dict], key: str) -> dict:
+    """照合に当たった候補1つ(weight は重なったときに選ぶ重み = 長い名前 × 一致度)"""
+    return {"kind": kind, "name": name, "info": info, "score": score, "text": text,
+            "ids": {w["_id"] for w in ws}, "box": _box(ws), "weight": len(key) * score ** BLD_OCR_WEIGHT_POWER}
+
+
+def _match_candidates(results: list[dict], main: dict, lines: list[dict], matcher: NameMatcher) -> list[dict]:
+    """名前の候補を集める: 英語の結果で名前一覧と照合し、日本語の結果があればアルケイン名も探す"""
     found = []
-    for text, ws in _candidates(segs):
+    for text, ws in _candidates(_segments(lines)):
         hit = matcher.match(text)
         if hit:
             score, kind, name, info, key = hit
-            found.append({"kind": kind, "name": name, "info": info, "score": score, "text": text,
-                          "ids": {w["_id"] for w in ws}, "box": _box(ws), "weight": len(key) * score ** 4})
-    # 日本語の読み取り結果からアルケイン名を探す
+            found.append(_candidate(kind, name, info, score, text, ws, key))
     ja_matcher = getattr(matcher, "ja", None)
     ja_res = next((r for r in results if str(r.get("lang", "")).startswith("ja")), None)
     if ja_matcher and ja_res and ja_res is not main:
-        for i, line in enumerate(ja_res.get("lines") or []):
-            for j, w in enumerate(line.get("words", [])):
-                w["_id"] = ("ja", i, j)
-        for text, ws in _candidates(_segments(ja_res.get("lines") or [])):
+        ja_lines = ja_res.get("lines") or []
+        _tag_words(ja_lines, ("ja",))
+        for text, ws in _candidates(_segments(ja_lines)):
             hit = ja_matcher.match(text)
             if hit:
-                score, kind, _ja, en_name, key = hit
-                found.append({"kind": "arcane", "name": en_name, "info": None, "score": score, "text": text,
-                              "ids": {w["_id"] for w in ws}, "box": _box(ws), "weight": len(key) * score ** 4})
-    # 重なる候補は「長い名前 × 一致度」の大きい方を採る(例: "Primed Continuity" と "Continuity")
+                score, _kind, _ja, en_name, key = hit
+                found.append(_candidate("arcane", en_name, None, score, text, ws, key))
+    return found
+
+
+def _pick_non_overlapping(found: list[dict]) -> tuple[list[dict], set]:
+    """重なる候補は重みの大きい方を採る(例: "Primed Continuity" と "Continuity")。(選んだ候補, 使った単語の _id)"""
     found.sort(key=lambda f: -f["weight"])
     used: set = set()
     picked, arc_seen = [], set()
@@ -360,74 +387,94 @@ def analyze(ocr: dict, names: Names, matcher: NameMatcher | None = None) -> dict
             arc_seen.add(f["name"].lower())
         used |= f["ids"]
         picked.append(f)
-    # 画面下半分の所持 MOD 一覧(検索欄より下)は、装備中の MOD ではないので除く
+    return picked, used
+
+
+def _drop_inventory(picked: list[dict], results: list[dict]) -> list[dict]:
+    """画面下半分の所持 MOD 一覧(検索欄より下)は、装備中の MOD ではないので除く(装備名は残す)"""
     inv_top = _inventory_top(results)
-    if inv_top is not None:
-        picked = [f for f in picked if f["kind"] == "item" or f["box"][1] < inv_top - 2]
+    if inv_top is None:
+        return picked
+    return [f for f in picked if f["kind"] == "item" or f["box"][1] < inv_top - BLD_OCR_INV_MARGIN]
 
-    # 対象: 名前一覧の装備に一致する中で、いちばん大きい文字
+
+def _pick_target(picked: list[dict]) -> dict | None:
+    """対象: 名前一覧の装備に一致する中で、いちばん大きい文字"""
     items = [f for f in picked if f["kind"] == "item"]
-    target = max(items, key=lambda f: (f["box"][3] * (0.5 + f["score"] / 2), f["score"]), default=None)
+    return max(items, key=lambda f: (f["box"][3] * (0.5 + f["score"] / 2), f["score"]), default=None)
 
-    # MOD・アルケイン: 上の段から、左から順に並べる
+
+def _order_rows(picked: list[dict]) -> tuple[list[list[dict]], list[dict], float]:
+    """MOD・アルケインを上の段から、左から順に並べる。(段ごとの一覧, 並べた一覧, 名前の文字の高さの中央値)"""
     mods = [f for f in picked if f["kind"] in ("mod", "arcane")]
     h = _median([f["box"][3] for f in mods])
-    mods.sort(key=lambda f: f["box"][1] + f["box"][3] / 2)
+    mods.sort(key=lambda f: _center_y(f["box"]))
     rows, row_y = [], None
     for f in mods:
-        cy = f["box"][1] + f["box"][3] / 2
-        if row_y is None or cy - row_y > 2.5 * h:
+        cy = _center_y(f["box"])
+        if row_y is None or cy - row_y > MOD_OCR_ROW_GAP * h:
             rows.append([])
             row_y = cy
         rows[-1].append(f)
-    mods = [f for row in rows for f in sorted(row, key=lambda f: f["box"][0])]
+    return rows, [f for row in rows for f in sorted(row, key=lambda f: f["box"][0])], h
 
-    # ドレイン(カード右上の数字)を各 MOD に対応づける: 名前の上側・近くにある 1〜2 桁の数字
+
+def _drain_numbers(lines: list[dict], used: set) -> list[tuple[int, dict]]:
+    """ドレインの数字の候補: 名前に使っていない、1〜MOD_OCR_DRAIN_MAX の数の単語"""
     numbers = []
     for line in lines:
         for w in line.get("words", []):
             n = _number(w.get("text", ""))
-            if n is not None and 0 < n <= 30 and w["_id"] not in used:
+            if n is not None and 0 < n <= MOD_OCR_DRAIN_MAX and w["_id"] not in used:
                 numbers.append((n, w))
-    # カードの幅と段の間隔は、となり合う MOD 名の間隔から見積もる(画面の解像度によらないように)
-    cxs = lambda row: sorted(f["box"][0] + f["box"][2] / 2 for f in row if f["kind"] == "mod")
-    pitch_x = _median([b - a for row in rows for a, b in zip(cxs(row), cxs(row)[1:])], 16 * h)
-    row_cy = [_median([f["box"][1] + f["box"][3] / 2 for f in row]) for row in rows]
-    pitch_y = _median([b - a for a, b in zip(row_cy, row_cy[1:])], 12 * h)
+    return numbers
+
+
+def _assign_drains(mods: list[dict], rows: list[list[dict]], numbers: list[tuple[int, dict]], h: float) -> None:
+    """ドレイン(カード右上の数字)を各 MOD に対応づける(f["drain"] f["slot"] を足す)。一致度の高い MOD から、
+    自分のカードの範囲にあるいちばん近い数字を取る。カードの幅と段の間隔は、となり合う MOD 名の間隔から見積もる(画面の解像度によらない)"""
+    cxs = lambda row: sorted(_center_x(f["box"]) for f in row if f["kind"] == "mod")
+    pitch_x = _median([b - a for row in rows for a, b in zip(cxs(row), cxs(row)[1:])], MOD_OCR_PITCH_X * h)
+    row_cy = [_median([_center_y(f["box"]) for f in row]) for row in rows]
+    pitch_y = _median([b - a for a, b in zip(row_cy, row_cy[1:])], MOD_OCR_PITCH_Y * h)
     taken = set()
     for f in sorted(mods, key=lambda f: -f["score"]):
         if f["kind"] != "mod":
             continue
-        x, y, w_, h_ = f["box"]
-        cx, cy = x + w_ / 2, y + h_ / 2
+        cx, cy, name_h = _center_x(f["box"]), _center_y(f["box"]), f["box"][3]
         best = None
         for n, w in numbers:
             if w["_id"] in taken:
                 continue
             dx = (w["x"] + w["w"] / 2) - cx
             dy = (w["y"] + w["h"] / 2) - cy
-            # 自分のカードの範囲(左右はカード幅の6割、上は段の間隔の9割まで)にある数字だけを見る
-            if abs(dx) > 0.6 * pitch_x or not (-0.9 * pitch_y <= dy <= 0.5 * h_):
+            if abs(dx) > MOD_OCR_DRAIN_SPAN_X * pitch_x or not (-MOD_OCR_DRAIN_SPAN_UP * pitch_y <= dy <= MOD_OCR_DRAIN_SPAN_DOWN * name_h):
                 continue
-            d = math.hypot(dx / pitch_x, dy / pitch_y)
-            if best is None or d < best[0]:
-                best = (d, n, w)
+            dist = math.hypot(dx / pitch_x, dy / pitch_y)
+            if best is None or dist < best[0]:
+                best = (dist, n, w)
         if best:
             taken.add(best[2]["_id"])
             f["drain"] = best[1]
             f["slot"] = _drain_status(f["info"], best[1])
 
-    out_mods = []
+
+def _mod_out(mods: list[dict], names: Names) -> list[dict]:
+    """MOD・アルケインの結果の形(英名・和名・種類・一致度・読んだ文字・種別・極性・ドレイン・スロットの状態)"""
+    out = []
     for f in mods:
-        m = f["info"] or {}
-        pol = m.get("polarity", "")
-        out_mods.append({
+        info = f["info"] or {}
+        pol = info.get("polarity", "")
+        out.append({
             "en": f["name"], "ja": names.ja(f["name"]), "kind": f["kind"], "score": round(f["score"], 3),
-            "read": f["text"], "type": m.get("type", ""), "polarity": POLARITY_EN.get(pol, pol) if pol else "",
+            "read": f["text"], "type": info.get("type", ""), "polarity": POLARITY_EN.get(pol, pol) if pol else "",
             "drain": f.get("drain"), "slot": f.get("slot"),
         })
+    return out
 
-    # フォーマ数: 画面上部の「装備名 [ランク] (アイコン) 数字」 -> 「フォーマ 3」などの表示 -> ドレインから推定
+
+def _read_forma(results: list[dict], target: dict | None, out_mods: list[dict]) -> dict:
+    """フォーマ数: 画面上部の「装備名 [ランク] (アイコン) 数字」 -> 「フォーマ 3」などの表示 -> ドレインから推定"""
     forma = {"value": None, "source": None, "estimate": None, "polarized": []}
     head = read_header_forma(results, target["box"] if target else None)
     if head:
@@ -435,24 +482,42 @@ def analyze(ocr: dict, names: Names, matcher: NameMatcher | None = None) -> dict
     all_text = " ".join(l.get("text", "") for r in results for l in (r.get("lines") or []))
     for pat in ([] if head else FORMA_PATTERNS):
         mt = re.search(pat, all_text, flags=re.I)
-        if mt and 0 <= int(mt.group(1)) <= 40:
+        if mt and 0 <= int(mt.group(1)) <= BLD_OCR_FORMA_MAX:
             forma.update(value=int(mt.group(1)), source="display", read=mt.group(0))
             break
     polarized = [m["polarity"] for m in out_mods if m["slot"] == "match" and m["polarity"]]
-    judged = [m for m in out_mods if m["slot"]]
-    if judged:
+    if any(m["slot"] for m in out_mods):
         forma["estimate"] = len(polarized)
         forma["polarized"] = polarized
         if forma["value"] is None:
             forma.update(value=len(polarized), source="estimate")
+    return forma
 
-    return {
-        "target": {"en": target["name"], "ja": names.ja(target["name"]), "type": (target["info"] or {}).get("type", "other"),
-                   "score": round(target["score"], 3), "read": target["text"]} if target else None,
-        "mods": out_mods, "forma": forma,
-        "lines": [l.get("text", "") for l in lines],
-        "langs": [r.get("lang") for r in results],
-    }
+
+def _target_out(target: dict | None, names: Names) -> dict | None:
+    """対象の結果の形(英名・和名・種別・一致度・読んだ文字)"""
+    if not target:
+        return None
+    return {"en": target["name"], "ja": names.ja(target["name"]), "type": (target["info"] or {}).get("type", "other"),
+            "score": round(target["score"], 3), "read": target["text"]}
+
+
+def analyze(ocr: dict, names: Names, matcher: NameMatcher | None = None) -> dict:
+    """OCR の結果(winocr.ps1 の JSON)から、対象・MOD・フォーマ数を求める(段ごとの関数を順に呼ぶ)"""
+    matcher = matcher or build_matcher(names)
+    results = ocr.get("results") or []
+    # 英語の結果で名前を照合する(無ければ最初の言語)
+    main = next((r for r in results if str(r.get("lang", "")).startswith("en")), results[0] if results else {"lines": []})
+    lines = main.get("lines") or []
+    _tag_words(lines)
+    picked, used = _pick_non_overlapping(_match_candidates(results, main, lines, matcher))
+    picked = _drop_inventory(picked, results)
+    target = _pick_target(picked)
+    rows, mods, h = _order_rows(picked)
+    _assign_drains(mods, rows, _drain_numbers(lines, used), h)
+    out_mods = _mod_out(mods, names)
+    return {"target": _target_out(target, names), "mods": out_mods, "forma": _read_forma(results, target, out_mods),
+            "lines": [l.get("text", "") for l in lines], "langs": [r.get("lang") for r in results]}
 
 
 def merge(analyses: list[dict]) -> dict:

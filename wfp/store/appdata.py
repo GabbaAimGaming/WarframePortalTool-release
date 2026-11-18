@@ -9,10 +9,11 @@ data/ は開発側が手で編集して配布するファイル。自動更新�
 """
 from __future__ import annotations
 
-import json
+import re
 from pathlib import Path
 
 from wfp.core import const
+from wfp.store import datadir
 
 # 種類 -> (data/ の下のフォルダ名, 既定のファイル名。None なら呼ぶ側が名前を渡す)
 BUNDLED: dict[str, tuple[str, str | None]] = {
@@ -44,7 +45,7 @@ def read_bundled(kind: str, name: str | None = None, src: Path | None = None) ->
         name = BUNDLED[kind][1]
         if name is None:
             raise ValueError(f"read_bundled: {kind} には既定のファイル名が無い")
-    return _read_json((bundled_dir(kind) if src is None else src) / name)
+    return datadir.read_json((bundled_dir(kind) if src is None else src) / name)
 
 
 # ---- 種類ごとの入口(フォルダ) ----
@@ -151,6 +152,42 @@ def read_qa(name: str, src: Path | None = None) -> object | None:
     return read_bundled("qa", name, qa_dir() if src is None else src)
 
 
+def qa_lore_dir(src: Path | None = None) -> Path:
+    """解説のフォルダ(data/qa/lore/)"""
+    return (qa_dir() if src is None else src) / const.QA_LORE_DIR
+
+
+def read_qa_lore_index(src: Path | None = None) -> object | None:
+    """解説の目次(_index.json)。無い・読めなければ None"""
+    return datadir.read_json(qa_lore_dir(src) / const.QA_LORE_INDEX)
+
+
+def lore_part_names(index: object) -> list[str]:
+    """目次の files のうち、解説のファイルの名前として正しいもの(QA_LORE_PART_RE。フォルダの外を指す名前は読まない)。並びは目次のまま"""
+    files = index.get("files") if isinstance(index, dict) else None
+    return [n for n in files if isinstance(n, str) and re.match(const.QA_LORE_PART_RE, n)] if isinstance(files, list) else []
+
+
+def read_qa_lore_part(name: str, src: Path | None = None) -> object | None:
+    """解説のファイル1つ(`{"topics": [...]}`)。無い・読めなければ None"""
+    return datadir.read_json(qa_lore_dir(src) / name)
+
+
+def read_qa_lore(src: Path | None = None) -> dict | None:
+    """解説(data/qa/lore/)。目次の files の順に読んで topics を繋げ、1つの形 {as_of, license, credit, topics} にする
+    (core.qalore の load_lore が読む形)。目次が無い・読めなければ None。読めないファイル・topics の無いファイルは飛ばす"""
+    index = read_qa_lore_index(src)
+    if not isinstance(index, dict):
+        return None
+    topics: list = []
+    for name in lore_part_names(index):
+        part = read_qa_lore_part(name, src)
+        rows = part.get("topics") if isinstance(part, dict) else None
+        if isinstance(rows, list):
+            topics += rows
+    return {**{k: v for k, v in index.items() if k != "files"}, "topics": topics}
+
+
 def qa_icon_path(set_id: str, name: str, src: Path | None = None) -> Path:
     """Q&A のアイコンの画像の場所(data/qa/icons/<姿の id>/<ファイル>)。名前の検査は使う側(core.qaicon の safe_name)"""
     return (qa_dir() if src is None else src) / const.QA_ICON_DIR / set_id / name
@@ -167,9 +204,3 @@ def read_qa_icon(set_id: str, name: str, src: Path | None = None) -> bytes | Non
 def read_riven_words(name: str | None = None, src: Path | None = None) -> object | None:
     return read_bundled("riven", name, riven_dir() if src is None else src)
 
-
-def _read_json(f: Path) -> object | None:
-    try:
-        return json.loads(f.read_text(encoding="utf-8-sig"))
-    except (OSError, ValueError):
-        return None

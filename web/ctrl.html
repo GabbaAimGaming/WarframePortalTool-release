@@ -132,7 +132,7 @@ async function refreshStatus() {
     hasData = s.has_drops;
     if (s.version) $("#app-ver").textContent = `v${s.version}`;
     if (s.has_logo) applyLogo();
-    pill.classList.toggle("warn", !s.has_drops);
+    pill.classList.toggle("warn", !s.has_drops || s.broken.length > 0);
     lastStatus = s; renderStatus();
     return s;
   } catch (e) { lastStatus = null; pill.dataset.state = "offline"; pill.textContent = t("status.offline"); pill.classList.add("warn"); }
@@ -142,15 +142,17 @@ let lastStatus = null;
 function renderStatus() {
   const pill = $("#status-pill"), s = lastStatus;
   if (!s) { pill.textContent = t(pill.dataset.state === "offline" ? "status.offline" : "status.checking"); return; }
-  pill.textContent = s.has_drops ? fmt("status.data", { at: s.drops_updated, n: s.counts.items }) : t("status.nodata");
+  // names.json・ドロップ表が壊れているとき(s.broken にファイル名)は、未取得とは分けて知らせる(データ更新で取り直せば直る)
+  pill.textContent = s.broken.length ? t("status.broken")
+    : s.has_drops ? fmt("status.data", { at: s.drops_updated, n: s.counts.items }) : t("status.nodata");
   const row = (k, v) => `<dt>${esc(t(k))}</dt><dd>${esc(v)}</dd>`;
-  $("#update-info").innerHTML = s.has_drops
+  $("#update-info").innerHTML = (s.broken.length ? row("upd.broken", fmt("upd.broken.v", { files: s.broken.join(", ") })) : "") + (s.has_drops
     ? row("upd.drops", fmt("upd.drops.v", { at: s.drops_updated, nodes: s.counts.nodes, items: s.counts.items }))
       + row("upd.extra", s.extra_files ? fmt("upd.extra.v", { at: s.extra_updated, files: s.extra_files, total: s.extra_total, n: s.counts.sources.toLocaleString(locale()) }) : t("upd.none"))
       + row("upd.riven", s.rivens_updated ? fmt("upd.riven.v", { at: s.rivens_updated, n: s.rivens_count }) : t("upd.none"))
       + row("upd.names", s.has_names ? fmt("upd.names.v", { at: (s.names_updated || "").replace("T", " ").replace("+00:00", " UTC") })
         + (s.names_source ? fmt("upd.names.src", { src: tName("export.src.", s.names_source), n: s.counts.mods }) : "") : t("upd.names.none"))
-    : row("upd.state", t("upd.empty"));
+    : row("upd.state", t("upd.empty")));
 }
 
 /* ページのマークアップの文字を表示中の言語にする(決まりは web/i18n.html の applyText) */

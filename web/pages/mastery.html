@@ -90,10 +90,12 @@ function renderMastery() {
 }
 async function setMastered(ids, done) {
   const before = mastery.rows.filter(r => ids.includes(r.id)).map(r => [r, r.done]);
-  $("#ms-err").textContent = "";
-  before.forEach(([r]) => r.done = done); renderMastery();
-  try { await api("/api/mastery", { method: "POST", body: { ids, done } }); }
-  catch (e) { before.forEach(([r, d]) => r.done = d); renderMastery(); $("#ms-err").textContent = e.message; }
+  await optimistic({
+    apply: () => before.forEach(([r]) => { r.done = done; }),
+    undo: () => before.forEach(([r, was_done]) => { r.done = was_done; }),
+    send: () => api("/api/mastery", { method: "POST", body: { ids, done } }),
+    render: renderMastery, err_box: $("#ms-err"),
+  });
 }
 $("#ms-cats").addEventListener("click", e => { const c = e.target.closest("[data-mcat]"); if (!c) return; msCat = c.dataset.mcat; msArming.clear(); renderMastery(); });
 $("#ms-out").addEventListener("change", e => { const cb = e.target.closest("input.own"); if (cb) setMastered([cb.closest("tr").dataset.id], cb.checked); });
@@ -120,9 +122,7 @@ $("#ms-csv").addEventListener("click", () => {
 loaders.mastery = async () => {
   applyViewText("mastery");
   if (mastery) { renderMastery(); return; }
-  $("#ms-out").innerHTML = `<div class="empty">${esc(t("common.loading"))}</div>`;
-  try { mastery = await api("/api/mastery"); renderMastery(); }
-  catch (e) { $("#ms-cats").innerHTML = ""; $("#ms-summary").innerHTML = ""; $("#ms-out").innerHTML = noData(e.message); }
+  await loadInto($("#ms-out"), () => api("/api/mastery"), data => { mastery = data; renderMastery(); }, [$("#ms-cats"), $("#ms-summary")]);
 };
 relabel.mastery = () => { applyViewText("mastery"); $("#ms-err").textContent = ""; renderMastery(); msScanner.label(); if (msScan.reads || msScan.on) msScanRender(); };
 dataResets.mastery = () => { mastery = null; };

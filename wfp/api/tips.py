@@ -18,8 +18,9 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote
 
-from wfp.api.store import JST, ApiError, Raw, mtime_jst
+from wfp.api.store import ApiError, Raw, mtime_jst
 from wfp.core import const, i18n
+from wfp.core.const import JST
 
 
 TIPS_KINDS = {".md": "md", ".markdown": "md", ".txt": "txt", ".csv": "csv"}
@@ -248,12 +249,6 @@ class _Writing:
         return False
 
 
-def _obj(body) -> dict:
-    if not isinstance(body, dict):
-        raise ApiError(i18n.txt("err.tips.form"))
-    return body
-
-
 def _str(body: dict, key: str) -> str:
     v = body.get(key) or ""
     if not isinstance(v, str):
@@ -280,7 +275,6 @@ def save_tip(root: Path, body) -> dict:
     新規: ファイル名はタイトルから作り、本文の先頭に「# タイトル」を入れる。
     編集: 見出しを変えてもファイル名は変えない(ほかのメモからのリンクを切らないため)。
     """
-    body = _obj(body)
     text, rel = body.get("text"), _str(body, "path")
     if not isinstance(text, str):
         raise ApiError(i18n.txt("err.tips.str", name="text"))
@@ -314,7 +308,7 @@ def save_tip(root: Path, body) -> dict:
 
 def add_group(root: Path, body) -> dict:
     """グループ(tips 直下のフォルダ)を足す。名前の変更・削除は画面からはしない(リンクが切れるため)"""
-    name = tip_name(_str(_obj(body), "name"), "グループ")
+    name = tip_name(_str(body, "name"), "グループ")
     with _TIPS_LOCK, _Writing(i18n.txt("err.tips.groupadd")):
         root.mkdir(parents=True, exist_ok=True)
         name = _unique(root, name, "")
@@ -364,7 +358,7 @@ def _trash_item(root: Path, tid) -> Path:
 
 def trash_tip(root: Path, body) -> dict:
     """メモをゴミ箱(tips/_trash/)へ移す。元の場所・日時・タイトルは _index.json に残す"""
-    rel = _str(_obj(body), "path")
+    rel = _str(body, "path")
     with _TIPS_LOCK, _Writing(i18n.txt("err.tips.trashmove")):
         p = tip_path(root, rel)
         if p is None or p.suffix.lower() not in TIPS_KINDS:
@@ -397,7 +391,7 @@ def trash_list(root: Path) -> dict:
 
 def restore_tip(root: Path, body) -> dict:
     """ゴミ箱から元の場所へ戻す。元のグループが無ければ作り直す。同じ名前があれば「名前 (2)」"""
-    tid = _obj(body).get("id")
+    tid = body.get("id")
     with _TIPS_LOCK, _Writing(i18n.txt("err.tips.restore")):
         src = _trash_item(root, tid)
         td = src.parent
@@ -421,7 +415,6 @@ def _group_name_ok(name: str) -> bool:
 
 def purge_tip(root: Path, body) -> dict:
     """完全に消す。id ならゴミ箱の中、path なら目次のメモ。メモに貼った画像は残す"""
-    body = _obj(body)
     with _TIPS_LOCK, _Writing(i18n.txt("err.tips.purge")):
         if "id" in body:
             p = _trash_item(root, body.get("id"))
@@ -443,7 +436,6 @@ def set_order(root: Path, body) -> dict:
 
     グループは塊で動き、グループの中のメモはそのグループの中だけで動く。無くなったものは保存しない。返り値は新しい目次。
     """
-    body = _obj(body)
     top, groups = body.get("top", []), body.get("groups", {})
     if not (isinstance(top, list) and all(isinstance(x, str) for x in top) and isinstance(groups, dict)
             and all(isinstance(v, list) and all(isinstance(x, str) for x in v) for v in groups.values())):

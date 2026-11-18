@@ -3,25 +3,22 @@ from __future__ import annotations
 
 import json
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
 
 from wfp.core.arbitration import Schedule, load_schedule
 from wfp.core.i18n import render_ja, txt
 from wfp.core.const import (
     ARBYS_FILE, BUILDER_FILE, CLAN_FILE, DROPS_FILE, MOD_STATS_FILE, MOD_TARGETS_FILE, NAMES_FILE, OTHER_FILE, RECIPES_FILE, RIVENS_FILE,
-    WFCD_DIR,
+    WFCD_DIR, JST,
 )
-from wfp.core.loader import load_drops, load_names, load_recipes, load_rivens, load_sources
+from wfp.core.loader import load_drops, load_recipes, load_rivens, load_sources
 from wfp.core.modstats import ModStats, load_mod_stats
 from wfp.core.names import Names
 from wfp.core.recipes import Recipes
 from wfp.drops.search import all_item_names
 from wfp.drops.tables import Drops, Sources
 from wfp.store import appdata, gamedata
-
-
-JST = timezone(timedelta(hours=9))
 
 
 def file_stamp(*files: Path) -> tuple:
@@ -85,15 +82,25 @@ class Store:
         """仲裁のスケジュール(arbys.txt が変われば読み直す)"""
         return self._cached(ARBYS_FILE, lambda: load_schedule(self.d))
 
+    def _names(self) -> tuple[Names, dict] | None:
+        """名前辞書と、その取得の情報(更新日時・取得元・MOD の数)。names.json を読むのは1回(変われば読み直す)。
+        無ければ None、壊れていれば gamedata.DataBroken(覚えない)"""
+        def load() -> tuple[Names, dict] | None:
+            raw = gamedata.read_names(self.d)
+            if raw is None:
+                return None
+            info = {"updated": raw.get("updated"), "source": raw.get("source"), "mods": len(raw.get("mods") or [])}
+            return Names.from_json(raw), info
+        return self._cached(NAMES_FILE, load)
+
     def names(self) -> Names:
-        return self._cached(NAMES_FILE, lambda: load_names(self.d)) or Names()
+        pair = self._names()
+        return pair[0] if pair else Names()
 
     def names_info(self) -> dict:
-        f = self.d / NAMES_FILE
-        if not f.exists():
-            return {}
-        j = json.loads(f.read_text(encoding="utf-8"))
-        return {"updated": j.get("updated"), "source": j.get("source"), "mods": len(j.get("mods") or [])}
+        """names.json の取得の情報(無ければ空)"""
+        pair = self._names()
+        return pair[1] if pair else {}
 
     def sources(self) -> Sources | None:
         """敵・バウンティ等 (wfcd/ 以下の複数ファイル) と同梱のクラン研究・Simaris 交換など。どれかが更新されたら読み直す。
@@ -144,6 +151,19 @@ class Raw:
 
     def __init__(self, body: bytes, ctype: str, cache: str = "no-store"):
         self.body, self.ctype, self.cache = body, ctype, cache
+
+
+def str_list(body: dict, field: str) -> list[str]:
+    """本文の項目(名前・id を1つか複数)を文字列の一覧にそろえる: 文字列 → 1件、文字列の配列 → そのまま、無い・null → 空。
+    それ以外(数・オブジェクト・文字列でない要素)は 400"""
+    value = body.get(field)
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return value
+    raise ApiError(txt("err.req.str_list", name=field))
 
 
 def need_drops(store: Store) -> Drops:

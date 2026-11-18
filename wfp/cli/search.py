@@ -77,17 +77,17 @@ def cmd_area(args):
 
     kinds = set(AREA_KINDS) if args.all else set(args.kind or AREA_KIND_DEFAULT)
     for planet, node in targets:
-        rows = [r for r in drops.rows if r[0] == planet and r[1] == node]
+        rows = drops.node_rows(planet, node)
         if not rows:
             continue
-        mode, event = rows[0][2], rows[0][3]
+        mode, event = rows[0].mode, rows[0].event  # ミッションの種類・イベントかはノードで同じ(先頭の行で見る)
         if event and not args.events:
             continue
         out = []
         for rot, lst in area_stages(rows, names, kinds).items():
-            for i, (r, item_kind) in enumerate(lst):
-                out.append([render_ja(stage_label(rot)) if i == 0 else "", names.ja(r[5]), AREA_KINDS[item_kind],
-                            pct(r[6]), RARITY_JA.get(r[7], r[7])])
+            for i, (row, item_kind) in enumerate(lst):
+                out.append([render_ja(stage_label(rot)) if i == 0 else "", names.ja(row.item), AREA_KINDS[item_kind],
+                            pct(row.chance), RARITY_JA.get(row.rarity, row.rarity)])
         if not out and len(targets) > 1:
             continue  # 選んだ種類が出ないノードは一覧から省く
         print(f"\n■ {PLANETS_JA.get(planet, planet)} / {node} — {MODES_JA.get(mode, mode)}" + (" [イベント]" if event else ""))

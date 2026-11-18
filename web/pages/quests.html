@@ -100,9 +100,7 @@ $("#qs-state").addEventListener("change", () => { qsArming.clear(); $("#qs-err")
 loaders.quests = async () => {
   applyViewText("quests");
   if (quests) { renderQuests(); return; }
-  $("#qs-out").innerHTML = `<div class="empty">${esc(t("common.loading"))}</div>`;
-  try { quests = await api("/api/quests"); renderQuests(); }
-  catch (e) { $("#qs-cats").innerHTML = ""; $("#qs-summary").innerHTML = ""; $("#qs-out").innerHTML = noData(e.message); }
+  await loadInto($("#qs-out"), () => api("/api/quests"), data => { quests = data; renderQuests(); }, [$("#qs-cats"), $("#qs-summary")]);
 };
 relabel.quests = () => { applyViewText("quests"); $("#qs-err").textContent = ""; renderQuests(); };  // エラー文は前の言語のままになるので消す
 dataResets.quests = () => { quests = null; };

@@ -1,0 +1,13 @@
+{
+  "as_of": "2026-11-06",
+  "license": "CC BY-NC-SA 3.0",
+  "credit": "WARFRAME Wiki(https://wiki.warframe.com)の投稿者による記事を、日本語に要約・翻案したもの。",
+  "_note": "勢力の解説。本文は wiki.warframe.com の各勢力ページの概要と Lore & History を要約したもの。セリフは入れていない。クエストのネタバレを含む部分は type quest(requires で確認)。人の名前は英名のまま。勢力・用語の和名はゲーム内表記と照合が必要なものがある。同じ話は group / stage で段階に分ける(lore_plan.md の「段の選び方」) クエストのあらすじは quest.story.<クエスト>(requires はそのクエスト自身。words はクエストの和名・英名)。 解説は lore/ のファイルに分けて置き、files の順に繋げて読む(続けて並べたい話は同じファイルの中で並べる)。",
+  "files": [
+    "factions.json",
+    "people.json",
+    "leverian_syndicates.json",
+    "quest_story.json",
+    "system.json"
+  ]
+}

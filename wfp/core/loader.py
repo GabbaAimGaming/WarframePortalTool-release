@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from wfp.core.const import CLAN_FILE, OTHER_FILE
+from wfp.core.const import CLAN_FILE, DROPS_FILE, OTHER_FILE
 from wfp.core.names import Names
 from wfp.core.recipes import Recipes, check_recipes
 from wfp.drops.tables import Drops, Sources
@@ -19,16 +19,19 @@ class DropsMissing(Exception):
 
 
 def load_names(d: Path) -> Names:
-    """名前辞書。names.json が無ければ空"""
+    """名前辞書。names.json が無ければ空、壊れていれば gamedata.DataBroken"""
     return Names.from_json(gamedata.read_names(d))
 
 
 def load_drops(d: Path) -> Drops:
-    """ドロップ表。無ければ DropsMissing"""
+    """ドロップ表。無ければ DropsMissing、壊れていれば gamedata.DataBroken"""
     raw = gamedata.read_drops(d)
     if raw is None:
         raise DropsMissing(DROPS_MISSING)
-    return Drops(raw)
+    try:
+        return Drops(raw)
+    except (AttributeError, KeyError, TypeError, ValueError) as e:  # JSON としては読めるが、中の形が違う
+        raise gamedata.DataBroken(DROPS_FILE) from e
 
 
 def load_sources(d: Path) -> Sources:

@@ -30,6 +30,11 @@ def app_version() -> str:
         return "?"
 
 
+def is_num(x: object) -> bool:
+    """数(int・float)か。真偽値(True・False)は数に数えない(同梱データの値の検査に使う)"""
+    return isinstance(x, (int, float)) and not isinstance(x, bool)
+
+
 def rank(query: str, names: list[str]) -> int | None:
     """0=完全一致 1=前方一致 2=部分一致 None=不一致"""
     q = norm(query)

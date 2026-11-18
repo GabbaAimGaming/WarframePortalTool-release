@@ -11,7 +11,8 @@ from datetime import date
 from wfp.core.archon import clean_shards, find_effect, shard_text
 from wfp.core.errors import TextError
 from wfp.core.text import norm
-from wfp.core.const import BUILD_TYPES, DEV_BUILD_KEYS, DEV_BUILD_LANGS, DEV_BUILD_NOTE, DEV_BUILD_VARIANTS, DEV_BUILDS_TAG
+from wfp.core.const import (BUILD_TYPES, DEV_BUILD_KEYS, DEV_BUILD_LANGS, DEV_BUILD_NOTE, DEV_BUILD_VARIANTS, DEV_BUILDS_TAG,
+                            QA_DEV_FRAME_Q)
 from wfp.core.helminth import clean_helminth, subsume_frame
 
 
@@ -134,6 +135,13 @@ def name_problems(raw: dict, names) -> list[str]:
         known = {norm(a) for a in names.arcanes}
         out += [f"{where}: アルケイン {a}" for a in b.get("arcanes") or [] if norm(a) not in known]
     return out
+
+
+def dev_frame_buttons(builds: list[dict]) -> list[dict]:
+    """開発者のビルドがある Warframe(種別 frame の対象)のボタン [{label: 英名, q: QA_DEV_FRAME_Q}]。重ならず ABC 順
+    (Q&A の「教えてクロちゃん」の「ビルド」の中身。menu.json の auto = dev_frames)"""
+    names = sorted({b["target"] for b in builds if b.get("type") == "frame" and b.get("target")}, key=str.casefold)
+    return [{"label": n, "q": QA_DEV_FRAME_Q.format(name=n)} for n in names]
 
 
 def dev_build_list(raw: object) -> list[dict]:

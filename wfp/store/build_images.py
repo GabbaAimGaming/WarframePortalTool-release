@@ -4,14 +4,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from wfp.core.const import BUILD_IMAGE_DIR, IMAGE_MAX_BYTES
 from wfp.core.errors import TextError
 from wfp.core.i18n import txt
-
-
-IMAGE_DIR = "build_images"
-
-
-IMAGE_MAX_BYTES = 20 * 1024 * 1024
 
 
 IMAGE_NAME_RE = re.compile(r"^[0-9a-f]{32}\.(png|jpg|gif|webp)$")
@@ -33,14 +28,20 @@ def image_ext(data: bytes) -> str | None:
     return None
 
 
-def save_build_image(d: Path, data: bytes) -> str:
+def check_build_image(data: bytes) -> str:
+    """ビルド画像として保存できるか(大きさ・種類)を検査して拡張子を返す。だめなら TextError(保存はしない)"""
     if len(data) > IMAGE_MAX_BYTES:
         raise TextError(txt("err.req.image_large", mb=str(IMAGE_MAX_BYTES // 1024 // 1024)))
     ext = image_ext(data)
     if not ext:
         raise TextError(txt("err.image.format"))
+    return ext
+
+
+def save_build_image(d: Path, data: bytes) -> str:
+    ext = check_build_image(data)
     import uuid
-    folder = d / IMAGE_DIR
+    folder = d / BUILD_IMAGE_DIR
     folder.mkdir(exist_ok=True)
     name = f"{uuid.uuid4().hex}.{ext}"
     (folder / name).write_bytes(data)
@@ -50,7 +51,7 @@ def save_build_image(d: Path, data: bytes) -> str:
 def build_image_path(d: Path, name: str) -> Path | None:
     if not IMAGE_NAME_RE.match(name or ""):
         return None
-    p = d / IMAGE_DIR / name
+    p = d / BUILD_IMAGE_DIR / name
     return p if p.is_file() else None
 
 

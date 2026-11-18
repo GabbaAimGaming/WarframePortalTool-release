@@ -10,14 +10,27 @@ from wfp.core.log import collect_log, say
 from wfp.core.const import DROPS_FILE, RIVENS_FILE, WFCD_DIR, WFCD_EXTRA
 from wfp.core.riven import update_rivens
 from wfp.fetch import logos
+from wfp.store import gamedata
 
 
 def status(store: Store) -> dict:
-    drops, info, src, rivens = store.drops(), store.names_info(), store.sources(), store.rivens()
+    """データの状態(ヘッダーとデータ更新のページ)。names.json・ドロップ表が壊れていても落とさず、broken にファイル名を入れて
+    「無い」ときと同じ値を返す(画面は壊れていることとデータ更新での直し方を案内する。更新のあとの状態もこれで返せる)"""
+    broken: list[str] = []
+
+    def read(get, empty):
+        try:
+            return get()
+        except gamedata.DataBroken as e:
+            broken.append(e.file)
+            return empty
+    drops, info = read(store.drops, None), read(store.names_info, {})
+    src, rivens = store.sources(), store.rivens()
     f = store.d / DROPS_FILE
     wfcd = sorted((store.d / WFCD_DIR).glob("*.json")) if (store.d / WFCD_DIR).exists() else []
     return {
         "has_drops": drops is not None,
+        "broken": broken,
         "has_names": bool(info),
         "drops_updated": mtime_jst(f) if drops else None,
         "names_updated": info.get("updated"),
@@ -45,8 +58,6 @@ def update_langs(body) -> tuple[str, ...]:
 
     言語の絞り込み(ja・en・Export に無い言語を外す)は update.lang_targets がする。文字列でなければ 400
     """
-    if not isinstance(body, dict):
-        raise ApiError(txt("err.req.object"))
     lang = body.get("lang")
     if lang is None:
         return ()

@@ -7,7 +7,8 @@ from typing import Callable
 
 from wfp.cli import admin, info, personal, search
 from wfp.core.common import app_version
-from wfp.store import userdb
+from wfp.core.const import DEFAULT_PORT
+from wfp.store import gamedata, userdb
 
 GROUPS = (search, personal, info, admin)
 # --help に出るコマンドの並び順。コマンドを足したらここにも足す(tests/test_cli.py が漏れ・重複を検査する)
@@ -30,7 +31,7 @@ def main(argv: list[str] | None = None, serve: Callable[[list[str]], None] | Non
     """serve: 画面サーバーを起動する関数(引数は wfportal_ui の引数)。入口(wfportal.py)が渡す"""
     args = make_parser().parse_args(argv)
     if args.cmd is None:
-        args.port, args.no_browser = 8765, False
+        args.port, args.no_browser = DEFAULT_PORT, False
     try:
         if args.cmd in (None, "serve"):
             if serve is None:
@@ -39,6 +40,8 @@ def main(argv: list[str] | None = None, serve: Callable[[list[str]], None] | Non
         else:
             args.fn(args)
     except userdb.UserDbError as e:  # 利用者データが壊れていて戻せない・新しい版で作られている
+        sys.exit(str(e))
+    except gamedata.DataBroken as e:  # names.json・ドロップ表が壊れている(update で取り直せば直る)
         sys.exit(str(e))
     except BrokenPipeError:  # `| head` などで出力が途中で閉じられた場合
         sys.stderr.close()

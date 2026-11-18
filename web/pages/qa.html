@@ -10,6 +10,7 @@
 「教えてクロちゃん」って聞いてくれたら、ざっくりとした話題を出すね
 ※日本語版のみの機能だよ</p>
         <p class="note qa-jaonly" id="qa-jaonly" hidden data-i18n="qa.jaonly">Q&amp;A の答えは日本語のみです。</p>
+        <div class="row" id="qa-call-row"><button class="btn" type="button" id="qa-call" data-i18n="qa.call">クロを呼ぶ</button></div>
         <form class="row" id="qa-form">
           <input type="text" class="search" id="qa-q" maxlength="200" data-i18n-placeholder="qa.placeholder" placeholder="例: Rhino のアーマーは? / Jade のおすすめビルドは?" autocomplete="off">
           <button class="btn" type="submit" data-i18n="qa.ask">聞く</button>
@@ -28,6 +29,11 @@
           </form>
         </dialog>
       </section>
+<!-- PART:style -->
+<style>
+/* Q&A: 「クロを呼ぶ」と入力欄のあいだを空ける(.row の横の間隔と同じ 10px) */
+#qa-call-row { margin-bottom: 10px; }
+</style>
 <!-- PART:script -->
 /* ---------- Q&A ---------- */
 /* 答えの文は API(Python)が日本語で作る(Q&A は日本語のみ)。ここは表示とボタンだけ。枠の文字(ボタン・見出し)は I18N(t)から。
@@ -144,13 +150,18 @@ function renderQa() {
   $("#qa-jaonly").hidden = lang === "ja";
   $("#qa-log").innerHTML = qaLog.length ? qaLog.map(qaItem).join("") : `<div class="empty">${esc(t("qa.empty"))}</div>`;
 }
+// 文で聞く(入力欄の「聞く」と「クロを呼ぶ」で共通。空なら聞かない)
+function qaAskText(text) {
+  const q = text.trim();
+  if (q) qaAsk({ q });
+  return !!q;
+}
 $("#qa-form").addEventListener("submit", e => {
   e.preventDefault();
-  const q = $("#qa-q").value.trim();
-  if (!q) return;
-  $("#qa-q").value = "";
-  qaAsk({ q });
+  if (qaAskText($("#qa-q").value)) $("#qa-q").value = "";
 });
+// 「クロを呼ぶ」= 呼びかけの文(qa.call.q。menu.json の words の1つ)を入れて「聞く」と同じ。入力欄の文はそのまま残す
+$("#qa-call").addEventListener("click", () => qaAskText(t("qa.call.q")));
 $("#qa-clear").addEventListener("click", () => { qaLog = []; renderQa(); });
 $("#qa-icon-sel")?.addEventListener("change", e => { pref.set("wf-qa-icon", e.target.value); renderQaIcons(); renderQa(); });
 $("#qa-icon-title").addEventListener("error", e => { e.target.hidden = true; });

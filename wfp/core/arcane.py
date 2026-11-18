@@ -19,7 +19,7 @@ def arcane_entries(names: Names, drop_items=()) -> list[dict]:
         cat = arcane_cat(name)
         if cat in ARCANE_DROP_ONLY_CATS and name.lower() not in known:
             known.add(name.lower())
-            out.append({"en": name, "ja": names._get(name) or name, "cat": cat, "rarity": "",
+            out.append({"en": name, "ja": names.ja(name), "cat": cat, "rarity": "",
                         "max_rank": ARCANE_DROP_ONLY_MAX_RANK, "drop_only": True})
     order = list(ARCANE_CATS)
     return sorted(out, key=lambda m: (order.index(m["cat"]) if m["cat"] in order else len(order), m["en"].lower()))

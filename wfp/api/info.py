@@ -4,12 +4,12 @@ from __future__ import annotations
 from datetime import datetime
 
 import wfportal_baro as wbaro
-from wfp.api.store import ApiError, JST, Store, mtime_jst
+from wfp.api.store import ApiError, Store, mtime_jst
 from wfp.core.arbitration import arbitration_view, update_arbys
 from wfp.core.common import parse_remaining
 from wfp.core.errors import error_text
 from wfp.core.i18n import txt
-from wfp.core.const import ARBYS_FILE, CYCLES, MOD_STATS_FILE, PHASE_ALIASES, RIVENS_FILE
+from wfp.core.const import ARBYS_FILE, CYCLES, JST, MOD_STATS_FILE, PHASE_ALIASES, RIVENS_FILE
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
 from wfp.core.duviri import clear_duviri_adjust, duviri_view, set_duviri_adjust
 from wfp.core.invasion import invasion_view, set_invasion_part
@@ -93,8 +93,6 @@ def duviri(store: Store) -> dict:
 
 def set_duviri(store: Store, body: dict) -> dict:
     """今週の ID を手で合わせる(本文 {"mode": "normal", "id": 2})"""
-    if not isinstance(body, dict):
-        raise ApiError(txt("err.req.object"))
     try:
         set_duviri_adjust(store.d, str(body.get("mode", "")), body.get("id"))
     except ValueError as e:
@@ -104,8 +102,6 @@ def set_duviri(store: Store, body: dict) -> dict:
 
 def reset_duviri(store: Store, body: dict) -> dict:
     """手動調整を消して同梱の設定に戻す(本文 {"mode": "normal"})"""
-    if not isinstance(body, dict):
-        raise ApiError(txt("err.req.object"))
     try:
         clear_duviri_adjust(store.d, str(body.get("mode", "")))
     except ValueError as e:
@@ -129,8 +125,6 @@ def sync_invasions(store: Store) -> dict:
 
 def set_invasion_parts(store: Store, body: dict) -> dict:
     """パーツの取得済みを付け外しする(本文 {"path": "/Lotus/…", "owned": true})"""
-    if not isinstance(body, dict):
-        raise ApiError(txt("err.req.object"))
     try:
         set_invasion_part(store.d, str(body.get("path", "")), bool(body.get("owned")))
     except ValueError as e:

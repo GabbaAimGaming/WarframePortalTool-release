@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from typing import NamedTuple
 
 from wfp.core.common import to_float
 from wfp.core.i18n import ja_text, name_txt, txt
@@ -9,23 +10,53 @@ from wfp.core.const import BOUNTY_JA, CLAN_LABS, NODE_MODES, OTHER_SOURCES, RELI
 from wfp.core.names import item_key
 
 
+class DropRow(NamedTuple):
+    """ドロップ表(ミッション)の1行。項目は名前で読む(row.item・row.chance。番号で読まない)"""
+    planet: str   # 惑星(英名)
+    node: str     # ノード
+    mode: str     # ミッションの種類(node_mode で付け替えたあと)
+    event: bool   # イベントのノードか
+    rot: str      # ローテーション(無ければ "-")
+    item: str     # 項目の英名(数量つきのことがある)
+    chance: float  # 確率(%)
+    rarity: str   # レア度(無ければ空)
+
+
+class SourceRow(NamedTuple):
+    """ミッション以外の入手先の1行。項目は名前で読む。place・detail はテキスト指定のことがある"""
+    cat: str      # 入手先の種類(SOURCE_CATS のキー: enemy / bounty / relic / clan など)
+    place: object  # 入手先(敵の名前・バウンティ・レリックなど)
+    detail: object  # 詳細(ドロップの種類・ステージ・クエスト名など)
+    rot: str      # ローテーション(無ければ "-")
+    item: str     # 項目の英名
+    chance: float | None  # 確率(%)。確率の無い入手先(クラン研究など)は None
+    rarity: str   # レア度(無ければ空)
+
+
 class Drops:
-    """missionRewards.json を [(惑星, ノード, ミッション, イベント, ローテーション, 英名, 確率, レア度)] に展開"""
+    """missionRewards.json を DropRow の一覧(rows)に展開する。node_order はノードの並び、by_node はノードごとの行"""
 
     def __init__(self, raw: dict):
-        self.rows = []
+        self.rows: list[DropRow] = []
         self.node_order = []
+        self.by_node: dict[tuple[str, str], list[DropRow]] = {}
         for planet, nodes in raw["missionRewards"].items():
             for node, v in nodes.items():
                 self.node_order.append((planet, node))
                 rewards = v["rewards"]
                 groups = rewards.items() if isinstance(rewards, dict) else [("-", rewards)]
+                node_rows = self.by_node.setdefault((planet, node), [])
                 for rot, lst in groups:
                     for e in lst:
-                        self.rows.append((planet, node, node_mode(planet, node, v["gameMode"]), bool(v.get("isEvent")),
-                                          rot, e["itemName"], float(e["chance"]), e.get("rarity", "")))
-        self.item_names = sorted({r[5] for r in self.rows})
+                        node_rows.append(DropRow(planet, node, node_mode(planet, node, v["gameMode"]), bool(v.get("isEvent")),
+                                                 rot, e["itemName"], float(e["chance"]), e.get("rarity", "")))
+                self.rows.extend(node_rows)
+        self.item_names = sorted({row.item for row in self.rows})
         self.planets = list(dict.fromkeys(p for p, _ in self.node_order))
+
+    def node_rows(self, planet: str, node: str) -> list[DropRow]:
+        """1ノードの行(無ければ空)。全部の行をなめずに引く"""
+        return self.by_node.get((planet, node), [])
 
 
 def node_mode(planet: str, node: str, mode: str) -> str:
@@ -69,7 +100,7 @@ def mission_place(planet: str, node: str) -> dict:
 class Sources:
     """ミッション以外の入手先 (WFCD の各ファイル) を1つの表に展開する。
 
-    rows = [(種類, 入手先, 詳細, ローテーション, 英名, 確率%, レア度)]。入手先・詳細はテキスト指定(wfp/core/i18n.py の txt)
+    rows は SourceRow の一覧(種類・入手先・詳細・ローテーション・英名・確率%・レア度)。入手先・詳細はテキスト指定(wfp/core/i18n.py の txt)
     確率は「その敵を1体倒す / その報酬を1回引く」ときにその項目が出る割合にそろえる。
     clan / other(同梱の data/parts/clan.json / other.json の中身)を渡すと、クラン研究・Simaris 交換などの行も足す(確率は None)。
     part_owner は extras(設計図ではない作成素材)の {名前(小文字): 本体の英名}。パーツ検索のカテゴリー分けに使う
@@ -78,74 +109,96 @@ class Sources:
     """
 
     def __init__(self, files: dict[str, dict], clan: object = None, other: object = None):
-        self.rows: list[tuple] = []
         self.part_owner: dict[str, str] = {}
-        add = self.rows.append
-        get = lambda name: (files.get(name) or {}).get(name) or []
+        # 並びは検索結果の並びに出るので変えない(敵 → バウンティ → レリック → ソーティー → 特殊ミッション・キー → 同梱)
+        rows = (_enemy_rows(files) + _bounty_rows(files) + _relic_rows(files) + _sortie_rows(files) + _special_rows(files)
+                + clan_rows(clan, self.part_owner) + other_rows(other, self.part_owner))
+        self.rows: list[SourceRow] = [row for row in rows if row.item]
+        self.item_names = sorted({row.item for row in self.rows})
+        self.relic_items = {item_key(row.item) for row in self.rows if row.cat == "relic"}
+        self.enemies = sorted({row.place for row in self.rows if row.cat == "enemy" and row.place})  # 敵から探すの候補(WFCD の英名そのまま)
 
-        # 敵: 素材・シジル等 (chance は1体あたりの確率)
-        for name, label in (("resourceByAvatar", txt("src.enemy.resource")), ("sigilByAvatar", txt("src.enemy.sigil")),
-                            ("additionalItemByAvatar", txt("src.enemy.other"))):
-            for e in get(name):
-                for it in e.get("items", []):
-                    add(("enemy", e.get("source", ""), label, "-", it.get("item", ""), to_float(it.get("chance")), it.get("rarity", "")))
-        # 敵: MOD (MODを落とす確率 × その中で選ばれる確率)
-        for e in get("enemyModTables"):
-            drop = to_float(e.get("enemyModDropChance") or e.get("ememyModDropChance"))
-            for it in e.get("mods", []):
-                add(("enemy", e.get("enemyName", ""), txt("src.enemy.mod", p=f"{drop:g}"), "-", it.get("modName", ""),
-                     drop * to_float(it.get("chance")) / 100, it.get("rarity", "")))
-        # 敵: 設計図・パーツ
-        for b in get("blueprintLocations"):
-            for e in b.get("enemies", []):
-                drop = to_float(e.get("enemyBlueprintDropChance"))
-                add(("enemy", e.get("enemyName", ""), txt("src.enemy.bp", p=f"{drop:g}"), "-",
-                     b.get("blueprintName") or b.get("itemName", ""), drop * to_float(e.get("chance")) / 100, e.get("rarity", "")))
-        # 敵: その他アイテム
-        for e in get("miscItems"):
-            drop = to_float(e.get("enemyItemDropChance"))
+
+def _wfcd_list(files: dict[str, dict], name: str) -> list:
+    """WFCD のファイル <name>.json の中身の一覧(中身は {name: [...]} の形。無い・形が違えば空)"""
+    return (files.get(name) or {}).get(name) or []
+
+
+def _enemy_rows(files: dict[str, dict]) -> list[SourceRow]:
+    """敵の行(素材・シジル・その他・MOD・設計図・アイテム)。確率は1体あたり(落とす確率 × その中で選ばれる確率)"""
+    rows: list[SourceRow] = []
+    for name, label in (("resourceByAvatar", txt("src.enemy.resource")), ("sigilByAvatar", txt("src.enemy.sigil")),
+                        ("additionalItemByAvatar", txt("src.enemy.other"))):
+        for e in _wfcd_list(files, name):
             for it in e.get("items", []):
-                add(("enemy", e.get("enemyName", ""), txt("src.enemy.item", p=f"{drop:g}"), "-", it.get("itemName", ""),
-                     drop * to_float(it.get("chance")) / 100, it.get("rarity", "")))
-        # バウンティ (ローテーション A/B/C × ステージ)
-        for name in BOUNTY_JA:
-            for e in get(name):
-                label = _bounty_label(name, e.get("bountyLevel", ""))
-                rewards = e.get("rewards") or {}
-                for rot, lst in (rewards.items() if isinstance(rewards, dict) else [("-", rewards)]):
-                    for it in lst or []:
-                        add(("bounty", label, stage_txt(it.get("stage", "")), rot, it.get("itemName", ""),
-                             to_float(it.get("chance")), it.get("rarity", "")))
-        # レリック
-        for r in get("relics"):
-            if r.get("state") not in RELIC_STATES:
-                continue
-            label = txt("src.relic", era=name_txt("relic.era.", r.get("tier") or ""), name=r.get("relicName") or "")
-            for it in r.get("rewards", []):
-                add(("relic", label, name_txt("relic.state.", r["state"]), "-", it.get("itemName", ""),
-                     to_float(it.get("chance")), it.get("rarity", "")))
-        # ソーティー
-        for it in get("sortieRewards"):
-            add(("sortie", txt("src.sortie"), txt("src.sortie.final"), "-", it.get("itemName", ""), to_float(it.get("chance")), it.get("rarity", "")))
-        # 特殊ミッション (仲裁・遺棄船・ナイトメア等) とキー・ボス
-        for name, cat, field in (("transientRewards", "special", "objectiveName"), ("keyRewards", "key", "keyName")):
-            for e in get(name):
-                rewards = e.get("rewards") or []
-                groups = rewards.items() if isinstance(rewards, dict) else [(None, rewards)]
-                for rot, lst in groups:
-                    for it in lst or []:
-                        add((cat, e.get(field, ""), stage_txt(it.get("stage", "")), rot or it.get("rotation") or "-",
-                             it.get("itemName", ""), to_float(it.get("chance")), it.get("rarity", "")))
-        self.rows.extend(clan_rows(clan, self.part_owner))
-        self.rows.extend(other_rows(other, self.part_owner))
-        self.rows = [r for r in self.rows if r[4]]
-        self.item_names = sorted({r[4] for r in self.rows})
-        self.relic_items = {item_key(r[4]) for r in self.rows if r[0] == "relic"}
-        self.enemies = sorted({r[1] for r in self.rows if r[0] == "enemy" and r[1]})  # 敵から探すの候補(WFCD の英名そのまま)
+                rows.append(SourceRow("enemy", e.get("source", ""), label, "-", it.get("item", ""), to_float(it.get("chance")), it.get("rarity", "")))
+    for e in _wfcd_list(files, "enemyModTables"):
+        drop = to_float(e.get("enemyModDropChance") or e.get("ememyModDropChance"))
+        for it in e.get("mods", []):
+            rows.append(SourceRow("enemy", e.get("enemyName", ""), txt("src.enemy.mod", p=f"{drop:g}"), "-", it.get("modName", ""),
+                                  drop * to_float(it.get("chance")) / 100, it.get("rarity", "")))
+    for b in _wfcd_list(files, "blueprintLocations"):
+        for e in b.get("enemies", []):
+            drop = to_float(e.get("enemyBlueprintDropChance"))
+            rows.append(SourceRow("enemy", e.get("enemyName", ""), txt("src.enemy.bp", p=f"{drop:g}"), "-",
+                                  b.get("blueprintName") or b.get("itemName", ""), drop * to_float(e.get("chance")) / 100, e.get("rarity", "")))
+    for e in _wfcd_list(files, "miscItems"):
+        drop = to_float(e.get("enemyItemDropChance"))
+        for it in e.get("items", []):
+            rows.append(SourceRow("enemy", e.get("enemyName", ""), txt("src.enemy.item", p=f"{drop:g}"), "-", it.get("itemName", ""),
+                                  drop * to_float(it.get("chance")) / 100, it.get("rarity", "")))
+    return rows
+
+
+def _bounty_rows(files: dict[str, dict]) -> list[SourceRow]:
+    """バウンティの行(組織ごと。ローテーション A/B/C × ステージ)"""
+    rows: list[SourceRow] = []
+    for name in BOUNTY_JA:
+        for e in _wfcd_list(files, name):
+            label = _bounty_label(name, e.get("bountyLevel", ""))
+            rewards = e.get("rewards") or {}
+            for rot, lst in (rewards.items() if isinstance(rewards, dict) else [("-", rewards)]):
+                for it in lst or []:
+                    rows.append(SourceRow("bounty", label, stage_txt(it.get("stage", "")), rot, it.get("itemName", ""),
+                                          to_float(it.get("chance")), it.get("rarity", "")))
+    return rows
+
+
+def _relic_rows(files: dict[str, dict]) -> list[SourceRow]:
+    """レリックの行(精錬の段階 RELIC_STATES のものだけ)"""
+    rows: list[SourceRow] = []
+    for r in _wfcd_list(files, "relics"):
+        if r.get("state") not in RELIC_STATES:
+            continue
+        label = txt("src.relic", era=name_txt("relic.era.", r.get("tier") or ""), name=r.get("relicName") or "")
+        for it in r.get("rewards", []):
+            rows.append(SourceRow("relic", label, name_txt("relic.state.", r["state"]), "-", it.get("itemName", ""),
+                                  to_float(it.get("chance")), it.get("rarity", "")))
+    return rows
+
+
+def _sortie_rows(files: dict[str, dict]) -> list[SourceRow]:
+    """ソーティーの行(最後のミッションの報酬)"""
+    return [SourceRow("sortie", txt("src.sortie"), txt("src.sortie.final"), "-", it.get("itemName", ""), to_float(it.get("chance")), it.get("rarity", ""))
+            for it in _wfcd_list(files, "sortieRewards")]
+
+
+def _special_rows(files: dict[str, dict]) -> list[SourceRow]:
+    """特殊ミッション(仲裁・遺棄船・ナイトメア等)とキー・ボスの行"""
+    rows: list[SourceRow] = []
+    for name, cat, field in (("transientRewards", "special", "objectiveName"), ("keyRewards", "key", "keyName")):
+        for e in _wfcd_list(files, name):
+            rewards = e.get("rewards") or []
+            groups = rewards.items() if isinstance(rewards, dict) else [(None, rewards)]
+            for rot, lst in groups:
+                for it in lst or []:
+                    rows.append(SourceRow(cat, e.get(field, ""), stage_txt(it.get("stage", "")), rot or it.get("rotation") or "-",
+                                          it.get("itemName", ""), to_float(it.get("chance")), it.get("rarity", "")))
+    return rows
 
 
 def _manual_rows(raw: object, field: str, labels: dict, cat: str | None, prefix: str,
-                 owners: dict[str, str] | None) -> list[tuple]:
+                 owners: dict[str, str] | None) -> list[SourceRow]:
     """手で書いた入手先の一覧(data/parts/ の clan.json / other.json)を入手先の行にする。確率は無いので None。
 
     field は入手先のキーの項目名(クラン研究は "lab"、その他は "source")、labels はキー -> (英語名, 日本語名)(キーの検査に使う)。
@@ -158,12 +211,12 @@ def _manual_rows(raw: object, field: str, labels: dict, cat: str | None, prefix:
     部品・extras の quest も note と同じく、自分の quest、無ければ本体と同じ入手先のときだけ本体の quest。形が違う quest は無いものとして扱う
     """
     items = raw.get("items") if isinstance(raw, dict) else None
-    out: list[tuple] = []
+    out: list[SourceRow] = []
 
     def add(key: object, note, item: str) -> bool:
         ok = isinstance(key, str) and key in labels
         if ok:
-            out.append((cat or key, name_txt(prefix, key), note, "-", item, None, ""))
+            out.append(SourceRow(cat or key, name_txt(prefix, key), note, "-", item, None, ""))
         return ok
 
     def by_lang(v: object):
@@ -212,12 +265,12 @@ def _manual_rows(raw: object, field: str, labels: dict, cat: str | None, prefix:
     return out
 
 
-def clan_rows(raw: object, owners: dict[str, str] | None = None) -> list[tuple]:
+def clan_rows(raw: object, owners: dict[str, str] | None = None) -> list[SourceRow]:
     """クラン研究の一覧(data/parts/clan.json)を入手先「クラン研究」の行にする(入手先は研究所。CLAN_LABS)"""
     return _manual_rows(raw, "lab", CLAN_LABS, "clan", "clan.lab.", owners)
 
 
-def other_rows(raw: object, owners: dict[str, str] | None = None) -> list[tuple]:
+def other_rows(raw: object, owners: dict[str, str] | None = None) -> list[SourceRow]:
     """ドロップしない入手先の一覧(data/parts/other.json)を行にする。種類は入手先のキー(simaris / quest。OTHER_SOURCES)"""
     return _manual_rows(raw, "source", OTHER_SOURCES, None, "src.cat.", owners)
 

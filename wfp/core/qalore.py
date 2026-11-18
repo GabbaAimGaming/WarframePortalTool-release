@@ -1,4 +1,4 @@
-"""Q&A の解説(設定・ストーリー)。**日本語のみ**。文は固定(LLM なし)で、data/qa/lore.json・lore_talk.json に置く。
+"""Q&A の解説(設定・ストーリー)。**日本語のみ**。文は固定(LLM なし)で、data/qa/lore/(目次 _index.json の順に繋げて読む。store/appdata の read_qa_lore)・lore_talk.json に置く。
 
 - 解説の種類は QA_LORE_TYPES: setting(クエストと無縁)/ quest(クエストの中身。requires のクエストが未完了なら、話す前に確認する)/
   system(MOD・ダメージ計算式などゲームの仕組み。requires を持たない。about の MOD 名は Q&A の索引に足す = system_names)
@@ -22,7 +22,7 @@ import re
 from dataclasses import dataclass, field
 
 from wfp.core.text import norm
-from wfp.core.const import QA_KINDS, QA_LORE_LINES, QA_LORE_TYPES, QA_NEEDS_MARK
+from wfp.core.const import QA_KINDS, QA_LORE_LINES, QA_LORE_PART_RE, QA_LORE_TYPES, QA_NEEDS_MARK
 from wfp.core.quests import check_flow
 
 NEEDS_MIN_GROUPS = 2  # needs のまとまりの最小数(1つなら words で足りる)
@@ -84,7 +84,7 @@ def _needs(raw: object) -> list[list[str]]:
 
 
 def _topic(row: object) -> dict | None:
-    """lore.json の1行を形を整えて返す。必須の項目が欠けていれば None"""
+    """解説の1行を形を整えて返す。必須の項目が欠けていれば None"""
     if not isinstance(row, dict):
         return None
     tid, typ, title = row.get("id"), row.get("type"), row.get("title")
@@ -117,7 +117,7 @@ def _choices(raw: object) -> list[dict]:
 
 
 def load_lore(lore_raw: object, talk_raw: object) -> LoreData:
-    """lore.json・lore_talk.json から LoreData を作る。形の崩れた行は飛ばし、`_` で始まるキーは見ない(読めなければ空)"""
+    """解説(read_qa_lore で1つにまとめたもの)・lore_talk.json から LoreData を作る。形の崩れた行は飛ばし、`_` で始まるキーは見ない(読めなければ空)"""
     rows = (lore_raw.get("topics") if isinstance(lore_raw, dict) else None) or []
     topics = [t for t in (_topic(r) for r in rows) if t]
     talk_src = talk_raw if isinstance(talk_raw, dict) else {}
@@ -257,6 +257,31 @@ def check_lore(lore_raw: object, talk_raw: object, flow_raw: object, intent_word
     problems += [f"lore_talk: choices の id {i} が重複" for i in sorted({i for i in cids if cids.count(i) > 1})]
     if data.topics and (not data.license or not data.credit):
         problems.append("lore: license・credit が無い(出典を出せない)")
+    return problems
+
+
+def check_lore_files(index: object, parts: dict[str, object], on_disk: list[str]) -> list[str]:
+    """解説のフォルダの検査(テスト用): 目次の files・ファイルの中身・フォルダのファイルの食い違い。
+    parts = 目次の名前 -> 読んだ中身(読めなければ None)、on_disk = フォルダにある .json の名前(目次を除く)"""
+    problems: list[str] = []
+    files = index.get("files") if isinstance(index, dict) else None
+    if not isinstance(files, list) or not files:
+        return ["lore: 目次(_index.json)に files が無い"]
+    names = [n for n in files if isinstance(n, str) and re.match(QA_LORE_PART_RE, n)]
+    if len(names) != len(files):
+        problems.append("lore: 目次の files に名前の形が崩れたものがある(英小文字・数字・_ と .json)")
+    problems += [f"lore: 目次の files に {n} が2回ある" for n in sorted({n for n in names if names.count(n) > 1})]
+    problems += [f"lore: {n} が目次の files に無い(読まれない)" for n in sorted(set(on_disk) - set(names))]
+    seen: dict[str, str] = {}
+    for n in dict.fromkeys(names):
+        rows = parts.get(n).get("topics") if isinstance(parts.get(n), dict) else None
+        if not isinstance(rows, list) or not rows:
+            problems.append(f"lore: {n} が無い・読めない・topics が空")
+            continue
+        for tid in (r.get("id") for r in rows if isinstance(r, dict)):
+            if tid in seen and seen[tid] != n:
+                problems.append(f"lore: id {tid} が {seen[tid]} と {n} の両方にある")
+            seen.setdefault(tid, n)
     return problems
 
 

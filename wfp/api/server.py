@@ -17,10 +17,10 @@ import wfportal_builder as wb
 from wfp.api import admin, info, ocr, pages, personal, qa, search, sim, tips
 from wfp.api.store import ApiError, Raw, Store
 from wfp.core import common
-from wfp.core.const import API_FETCH_SITES, REQUEST_MAX_BYTES, SERVER_HEADERS
+from wfp.core.const import API_FETCH_SITES, DEFAULT_PORT, IMAGE_MAX_BYTES, REQUEST_MAX_BYTES, SERVER_HEADERS
 from wfp.core.i18n import txt
 from wfp.fetch import logos
-from wfp.store import build_images, datadir, userdb
+from wfp.store import build_images, datadir, gamedata, userdb
 
 GROUPS = (search, personal, info, admin, tips, sim, qa, ocr)
 
@@ -88,14 +88,19 @@ class Request:
         return size
 
     def body(self) -> dict:
+        """JSON の本文(オブジェクト)。形式・長さ・中身を検査する。オブジェクトでなければ(配列・数など)400。
+        経路の処理は dict が来る前提で書いてよい(処理ごとに isinstance で確かめない)"""
         h = self.handler.headers
         if "application/json" not in (h.get("Content-Type") or ""):
             raise ApiError(txt("err.req.json_type"), 415)
         size = self._length(REQUEST_MAX_BYTES, txt("err.req.too_large"))
         try:
-            return json.loads(self.handler.rfile.read(size) or b"{}")
+            data = json.loads(self.handler.rfile.read(size) or b"{}")
         except json.JSONDecodeError:
             raise ApiError(txt("err.req.bad_json"))
+        if not isinstance(data, dict):
+            raise ApiError(txt("err.req.object"))
+        return data
 
     def empty_body(self) -> None:
         """本文を使わない POST でも、形式(JSON)の検査はする。戻り値は常に None"""
@@ -105,7 +110,7 @@ class Request:
         h = self.handler.headers
         if not (h.get("Content-Type") or "").startswith("image/"):
             raise ApiError(txt("err.req.image_type"), 415)
-        size = self._length(build_images.IMAGE_MAX_BYTES, txt("err.req.image_large", mb=str(build_images.IMAGE_MAX_BYTES // 1024 // 1024)))
+        size = self._length(IMAGE_MAX_BYTES, txt("err.req.image_large", mb=str(IMAGE_MAX_BYTES // 1024 // 1024)))
         return self.handler.rfile.read(size)
 
 
@@ -176,6 +181,8 @@ def make_handler(store: Store, tips_dir: Path | None = None):
                 self._json({"error": str(e), "text": e.text}, e.status)
             except userdb.UserDbError as e:  # 利用者データが壊れていて戻せない・新しい版で作られている
                 self._json({"error": str(e), "text": e.text}, 500)
+            except gamedata.DataBroken as e:  # names.json・ドロップ表が壊れている(データ更新で取り直せば直る。文で案内する)
+                self._json({"error": str(e), "text": e.text}, 500)
             except (BrokenPipeError, ConnectionResetError):
                 pass  # ブラウザ側が先に接続を閉じた
             except Exception as e:  # noqa: BLE001
@@ -196,7 +203,7 @@ def make_handler(store: Store, tips_dir: Path | None = None):
 
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description="wfportal ローカルUI")
-    ap.add_argument("--port", type=int, default=8765)
+    ap.add_argument("--port", type=int, default=DEFAULT_PORT)
     ap.add_argument("--data-dir")
     ap.add_argument("--no-open", action="store_true", help="ブラウザを自動で開かない")
     args = ap.parse_args(argv)
