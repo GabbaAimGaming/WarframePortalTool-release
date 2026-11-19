@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import re
 
+from wfp.core.common import fmt_jst
 from wfp.core.i18n import render_ja
 from wfp.core.text import norm
 from wfp.core.const import QA_PART_SOURCE_LIMIT, QA_RELIC_SOURCE_LIMIT, QA_SOURCE_LIMIT, ERA_JA, HELMINTH_FRAME
@@ -13,6 +14,7 @@ from wfp.core.devbuilds import build_view, builds_for
 from wfp.core.helminth import subsume_frame
 from wfp.core.qacontext import QaContext, miss_answer
 from wfp.drops.search import find_sources
+from wfp.drops.tables import Vault
 
 # Prime・Umbra は Helminth に食べさせられない(吸収一覧は基本のフレームの名前)
 _VARIANT_RE = re.compile(r"\s+(Prime|Umbra)$", re.I)
@@ -118,6 +120,8 @@ def _source_rows(rows: list[dict], limit: int) -> list[dict]:
     for r in rows[:limit]:
         where = " ".join(x for x in (render_ja(r["place"]), render_ja(r["detail"]) if r.get("detail") else "",
                                      render_ja(r["stage"]) if r.get("stage") else "") if x)
+        if r.get("resurgence"):  # Prime Resurgence で交換できるレリックの行
+            where += "(Prime Resurgence)"
         chance = r.get("chance")
         out.append({"cat": r["cat"], "where": where, "qty": r.get("qty") or "",
                     "chance": "" if chance is None else chance_text(chance)})
@@ -133,7 +137,7 @@ def _relic_sources(ctx: QaContext, res: dict, e: dict) -> dict:
     places: dict[tuple, dict] = {}
     for relic in relics:
         label = f"{ERA_JA[e['relic']]} {names.relic_era(relic)[1]}"
-        for src in find_sources(relic, ctx.drops, ctx.sources, names):
+        for src in find_sources(relic, ctx.drops, ctx.sources, names, vault=_vault(ctx)):
             row = _source_rows([src], 1)[0]
             place = places.setdefault((row["cat"], row["where"]), {"cat": row["cat"], "where": row["where"], "qty": "",
                                                                    "chance": "", "relics": [], "_best": -1.0})
@@ -148,9 +152,22 @@ def _relic_sources(ctx: QaContext, res: dict, e: dict) -> dict:
         p["relics"] = [{"name": r["name"], "chance": r["chance"]} for r in p["relics"]]
         del p["_best"]
     res["sources"].append({"title": "", "rows": rows})
-    res["text"] = ctx.data.say("sources.relic", name=e["ja"], n=QA_RELIC_SOURCE_LIMIT)
+    res["text"] = ctx.data.say("sources.relic", name=e["ja"], n=QA_RELIC_SOURCE_LIMIT) + _resurgence_note(ctx, rows)
     res["basis"] = ctx.data.say("basis.drops")
     return res
+
+
+def _vault(ctx: QaContext) -> Vault:
+    """Vault 入りの判定。API・CLI が Prime Resurgence も見て作ったもの(ctx.vault)があればそれ"""
+    return ctx.vault if ctx.vault is not None else Vault(ctx.drops, ctx.sources)
+
+
+def _resurgence_note(ctx: QaContext, rows: list[dict]) -> str:
+    """答えた行に Prime Resurgence(レリック自体の入手先か、交換できるレリックの行)があれば、期限を添えた一言(無ければ空)"""
+    until = _vault(ctx).until
+    if until is None or not any(r.get("cat") == "resurgence" or r.get("resurgence") for r in rows):
+        return ""
+    return "。" + ctx.data.say("sources.resurgence", until=fmt_jst(until))
 
 
 def _sources(ctx: QaContext, res: dict, e: dict, it: dict) -> dict:
@@ -159,21 +176,28 @@ def _sources(ctx: QaContext, res: dict, e: dict, it: dict) -> dict:
     if e["relic"]:
         return _relic_sources(ctx, res, e)
     names = ctx.index.names
-    rows = find_sources(e["en"], ctx.drops, ctx.sources, names) if e["item"] else []
+    vault = _vault(ctx)  # 入手先が Vault 入りのレリックだけの項目(いま手に入らない)
+    rows = find_sources(e["en"], ctx.drops, ctx.sources, names, vault=vault) if e["item"] else []
     if rows:
         res["sources"].append({"title": "", "rows": _source_rows(rows, QA_SOURCE_LIMIT)})
-        res["text"] = ctx.data.say("sources", name=e["ja"], n=QA_SOURCE_LIMIT)
+        res["text"] = ctx.data.say("sources", name=e["ja"], n=QA_SOURCE_LIMIT) + _resurgence_note(ctx, rows)
+        if vault.unavailable(e["en"]):
+            res["text"] += "。" + ctx.data.say("sources.vaulted", name=e["ja"])
     else:
         owners = getattr(ctx.sources, "part_owner", None)
         parts = sorted({names.split_qty(n)[1] for n in ctx.items
                         if (hit := names.part_of(n, owners)) and norm(hit[0]) == e["key"] and norm(names.split_qty(n)[1]) != e["key"]})
+        offered: list[dict] = []  # Prime Resurgence の印を見る行(部品ごとに出した行)
         for part in parts:
-            prow = find_sources(part, ctx.drops, ctx.sources, names)
+            prow = find_sources(part, ctx.drops, ctx.sources, names, vault=vault)
+            offered += prow[:QA_PART_SOURCE_LIMIT]
             if prow:
-                res["sources"].append({"title": names.ja(part), "rows": _source_rows(prow, QA_PART_SOURCE_LIMIT)})
+                vaulted = vault is not None and vault.unavailable(part)
+                title = names.ja(part) + (f"({ctx.data.say('sources.vaulted.parts')})" if vaulted else "")
+                res["sources"].append({"title": title, "rows": _source_rows(prow, QA_PART_SOURCE_LIMIT)})
         if not res["sources"]:
             return miss_answer(ctx, res, "no_hit", e["ja"])
-        res["text"] = ctx.data.say("sources.parts", name=e["ja"], n=QA_PART_SOURCE_LIMIT)
+        res["text"] = ctx.data.say("sources.parts", name=e["ja"], n=QA_PART_SOURCE_LIMIT) + _resurgence_note(ctx, offered)
     res["basis"] = ctx.data.say("basis.drops")
     return res
 

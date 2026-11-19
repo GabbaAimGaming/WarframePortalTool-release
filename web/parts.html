@@ -46,12 +46,20 @@ async function optimistic(o) {
 const placeCell = x => x.enemy
   ? `<button type="button" class="go-enemy" data-enemy="${esc(x.enemy)}" title="${esc(t("enemy.open"))}">${esc(x.enemy)}</button>`
   : esc(renderTxt(x.place));
+/** 入手先の名前の後ろの印: イベント・Vault 入り・Prime Resurgence(レリックの行は resurgence、レリック自体の行は until に期限の UNIX 時刻) */
+function placeTags(x) {
+  const until = x.resurgence ?? x.until;
+  const at = until ? new Date(until * 1000).toLocaleString(locale(), { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+  return (x.event ? `<span class="tag-event">${esc(t("src.event"))}</span>` : "")
+    + (x.vaulted ? `<span class="tag-mini" title="${esc(t("src.vaulted.tip"))}">${esc(t("src.vaulted"))}</span>` : "")
+    + (until ? `<span class="tag-mini" title="${esc(t("src.resurgence.tip"))}">${esc(fmt("src.resurgence", { at }))}</span>` : "");
+}
 /** 入手先の表 (素材から探す / パーツ検索 / MOD 一覧の詳細で共用)。行の place・detail・stage は API のテキスト指定 */
 function sourceTable(rows) {
   const max = Math.max(...rows.map(x => x.chance ?? 0), 0.0001);  // 確率の無い入手先(クラン研究)は「—」でバーを出さない
   return `<div class="tablewrap"><table>
     <thead><tr>${["cat", "place", "detail", "stage", "chance", "rarity"].map(c => `<th>${esc(t("src.col." + c))}</th>`).join("")}</tr></thead>
-    <tbody>${rows.map(x => `<tr><td>${catTag(x.cat)}</td><td>${placeCell(x)}${x.event ? `<span class="tag-event">${esc(t("src.event"))}</span>` : ""}</td>
+    <tbody>${rows.map(x => `<tr><td>${catTag(x.cat)}</td><td>${placeCell(x)}${placeTags(x)}</td>
       <td>${esc(renderTxt(x.detail))}</td><td>${esc(renderTxt(x.stage))}</td>
       <td>${x.chance == null ? "—" : `<div class="chance"><div class="bar"><i style="--w:${(x.chance / max * 100).toFixed(1)}%"></i></div><b>${x.qty ? esc(fmt("src.qty", { n: x.qty })) : ""}${fmtPct(x.chance)}</b></div>`}</td>
       <td>${x.rarity ? rarity(x.rarity) : ""}</td></tr>`).join("")}</tbody></table></div>`;
@@ -94,7 +102,7 @@ function sourceSearch(o) {
     if (cat && !r.cats.some(c => c.key === cat)) cat = "";
     const rows = cat ? r.rows.filter(x => x.cat === cat) : r.rows;
     el("out").innerHTML = `
-    <div class="result-head"><h3>${esc(nameOf(r))}</h3>${subOf(r) ? `<span class="en">${esc(subOf(r))}</span>` : ""}<span class="count">${esc(fmt("src.count", { n: r.total }))}</span></div>
+    <div class="result-head"><h3>${esc(nameOf(r))}</h3>${subOf(r) ? `<span class="en">${esc(subOf(r))}</span>` : ""}<span class="count">${esc(fmt("src.count", { n: r.total }))}</span>${r.unavailable ? `<span class="tag-event">${esc(t("item.vaulted"))}</span>` : ""}</div>
     ${r.cats.length > 1 ? `<div class="seg" role="group" aria-label="${esc(t("src.cats"))}">
       <button class="chip" data-cat="" aria-pressed="${!cat}">${esc(t("src.all"))}<small>${r.total}</small></button>
       ${r.cats.map(c => `<button class="chip" data-cat="${esc(c.key)}" aria-pressed="${cat === c.key}">${esc(tName("src.cat.", c.key))}<small>${c.n}</small></button>`).join("")}</div>` : ""}

@@ -146,6 +146,11 @@ RARITY_JA = {"Common": "コモン", "Uncommon": "アンコモン", "Rare": "レ�
 ERA_JA = {"Lith": "Lith", "Meso": "Meso", "Neo": "Neo", "Axi": "Axi", "Requiem": "Requiem", "Vanguard": "バンガード"}
 
 
+# Vault に入らない時代(ERA_JA のキー)。Requiem は Kuva Lich・Kuva サイフォンなど WFCD の表に載らないことがある場所で出るので、
+# 入手先に出てこなくても Vault 入りとはみなさない(wfp/drops/tables.py の Vault。中身の Requiem MOD を入手不可にしないため)
+VAULT_SKIP_ERAS = ("Requiem",)
+
+
 PART_JA = {"Blueprint": "設計図", "Neuroptics": "ニューロオプティクス", "Chassis": "シャーシ",
            "Systems": "システム", "Barrel": "バレル", "Receiver": "レシーバー", "Stock": "ストック",
            "Blade": "ブレード", "Handle": "ハンドル"}
@@ -159,7 +164,7 @@ BUILD_TYPES = {"frame": "Warframe", "primary": "プライマリ", "secondary": "
 # 入手先の種類
 SOURCE_CATS = {"mission": "ミッション", "enemy": "敵", "bounty": "バウンティ", "relic": "レリック",
                "special": "特殊ミッション", "key": "キー・ボス", "sortie": "ソーティー", "clan": "クラン研究",
-               "simaris": "Simaris 交換", "quest": "クエスト報酬"}
+               "simaris": "Simaris 交換", "quest": "クエスト報酬", "resurgence": "Prime Resurgence"}
 
 
 # アイテムの種類(Names.item_kind)。エリア検索・アイテムから探すで共用。並びは画面のチェックと、種類で分けたときの表の並び
@@ -377,6 +382,20 @@ SUMMON_STATS = ("health", "shield", "armor", "energy", "sprint")
 
 
 SUMMON_SLOTS = (1, 2, 3, 4)
+
+
+# Prime 入手可能品の時系列(ページ primes)。data/primes/ の中。開発側が Wiki を見て手で書く(Export に無くても消さない)
+PRIMES_RELEASE_FILE = "release.json"      # Prime Access の回(出た順。month・frames・weapons・others・no_relic)
+PRIMES_ORDER_FILE = "frame_order.json"    # 元のフレームの実装順(no・frame)
+PRIME_MONTHS = 24                         # ゲージのマス(1 マス = 1 か月。左端が今月、右端が 23 か月前)
+PRIME_ACTIVE_MAX = 7                      # ゲージに出す回の上限(恒常で入手できる Prime Access の数。新しい方から)
+PRIME_WORD = "Prime"                      # 部品の名前から Prime の本体の名前を取り出す語(例: Frost Prime Neuroptics Blueprint)
+PRIME_RELEASE_LISTS = ("frames", "weapons", "others")  # 回の中の名前の一覧
+PRIME_MONTH_RE = r"^\d{4}-(0[1-9]|1[0-2])$"
+# ゲージの行の状態(画面は primes.state.<キー>)。unchecked = ドロップ表がそろわず Vault の判定ができない
+PRIME_STATES = ("available", "pending", "unchecked")
+# 実装順の小窓の記号(画面は primes.mark.<キー>)。done = Prime 化済み・none = 未・locked = Prime はあるが入手不可(no_relic)
+PRIME_MARKS = ("done", "none", "locked")
 
 
 # Q&A からビルド管理に追加するときの名前の初期値の末尾(例: Jade_dev)
@@ -777,6 +796,10 @@ WORLDSTATE_URLS = [
 WORLDSTATE_COOLDOWN = 60          # 秒。前回の取得からこの間は取り直さない(CDN のキャッシュ max-age 60 と同じ)
 WORLDSTATE_CLOCK_TOLERANCE = 2.0  # 秒。Date ヘッダーは 1 秒単位なので、これ未満のずれは 0 とみなす
 WORLDSTATE_FILE = "worldstate.json"  # 取り出した結果だけを保存する(取得した全文は保存しない)
+# Prime Resurgence(Varzia。World State の PrimeVaultTraders)の在庫のうちレリックの見分け方と、内部パスの読み替え。
+# 在庫は「/Lotus/StoreItems/Types/Game/Projections/T1VoidProjection…Bronze」の形で、Export(item_paths.json)は /StoreItems の無い形
+RESURGENCE_RELIC_MARK = "/Projections/"
+RESURGENCE_STORE_PREFIX = ("/Lotus/StoreItems/", "/Lotus/")  # (在庫のパスの頭, Export のパスの頭)
 # バロ(Void 商人)が来る中継地点: World State のノード -> (名前, 惑星の英名。無ければ空)
 BARO_RELAYS = {
     "MercuryHUB": ("Larunda Relay", "Mercury"), "VenusHUB": ("Vesper Relay", "Venus"),

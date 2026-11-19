@@ -4,16 +4,18 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
-from wfp.core import arbitration, invasion, modstats, recipes, riven, simdata
+from wfp.core import arbitration, invasion, modstats, recipes, riven, simdata, worldstate
 from wfp.core.common import export_lang
 from wfp.core.errors import TextFailure, error_text
 from wfp.core.i18n import name_txt, txt
 from wfp.core.log import say
+from wfp.core.loader import load_resurgence
 from wfp.core.names import item_paths_from_exports
 from wfp.core.const import DROPS_URLS, WFCD_BASES, WFCD_EXTRA
 from wfp.fetch import exports, logos, net
@@ -80,6 +82,15 @@ def _stage_arbys(c: _StageCtx) -> dict:
     return txt("log.arbys.done", n=str(len(sched)), last=last)
 
 
+def _stage_worldstate(c: _StageCtx) -> dict:
+    """World State(Prime Resurgence の在庫・サイクル・バロ・侵略)。レリックの名前に item_paths.json を使うので、その段階のあと"""
+    worldstate.sync(c.d)
+    res = load_resurgence(c.d)
+    if not res.active(time.time()):
+        return txt("log.resurgence.none")
+    return txt("log.resurgence.done", n=str(len(res.names)))
+
+
 # 名前辞書のあとの段階: (取りに行く前のログ。None なら出さない, 処理 → 済みのログ, 失敗のログ)。上から順に行う
 _FOLLOW_STAGES: tuple[tuple[str | None, Callable[[_StageCtx], dict], str], ...] = (
     (None, _stage_sim, "log.sim.failed"),
@@ -88,6 +99,7 @@ _FOLLOW_STAGES: tuple[tuple[str | None, Callable[[_StageCtx], dict], str], ...] 
     (None, _stage_recipes, "log.recipes.failed"),
     ("log.fetching.regions", _stage_regions, "log.regions.failed"),
     ("log.fetching.arbys", _stage_arbys, "log.arbys.failed"),
+    ("log.ws.fetching", _stage_worldstate, "log.ws.failed"),
 )
 
 

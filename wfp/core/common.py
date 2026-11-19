@@ -6,9 +6,10 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 
 from wfp.core import const
-from wfp.core.const import EXPORT_EXTRA_LANGS, EXPORT_LANG_ALIAS
+from wfp.core.const import EXPORT_EXTRA_LANGS, EXPORT_LANG_ALIAS, JST
 from wfp.core.text import norm
 
 
@@ -75,6 +76,11 @@ def fmt_clock(sec: float) -> str:
     sec = max(0, int(sec))
     h, m, s = sec // 3600, sec % 3600 // 60, sec % 60
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
+
+
+def fmt_jst(t: float) -> str:
+    """UNIX 時刻を日本時間の「11/27 04:00」にする(CLI・Q&A の日本語の文用。画面は locale() で書く)"""
+    return datetime.fromtimestamp(t, JST).strftime("%m/%d %H:%M")
 
 
 def fmt_dur(sec: float) -> str:

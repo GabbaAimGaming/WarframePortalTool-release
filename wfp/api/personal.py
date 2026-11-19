@@ -17,11 +17,11 @@ from wfp.core.archon import shard_list
 from wfp.core.build import arcane_pairs, make_build
 from wfp.core.devbuilds import adopt_entry, dev_build_list, find_dev_build
 from wfp.core.helminth import subsume_list
-from wfp.core.mastery import mastery_items, mastery_table
+from wfp.core.mastery import mastery_items, mastery_table, vaulted_owners
 from wfp.core.mods import mod_table
 from wfp.core.quests import QuestNotFound, quest_items, quest_summary, quest_table, set_quests_done
 from wfp.core import todo
-from wfp.store import appdata, build_images, userdata
+from wfp.store import appdata, build_images, gamedata, userdata
 
 
 def mods_list(store: Store) -> dict:
@@ -52,8 +52,20 @@ def mastery_list(store: Store) -> dict:
     if not names.mastery:
         raise ApiError(txt("err.mastery.nodata"), 409)
     rows = mastery_table(names, userdata.load_mastered(store.d))
+    # いま作れない本体(入手不可のパーツがある)に vaulted。vault は判定できたか(できなければ画面はチェックを使えなくする)。
+    # ドロップ表が壊れていても一覧は出す(マスター一覧は names.json だけで開けるもの。判定なしで続ける)
+    try:
+        src = store.sources()
+        vault = store.vault()
+        vaulted = vaulted_owners(names, vault, src.part_owner if src else None)
+        ready = vault.ready
+    except gamedata.DataBroken:
+        vaulted, ready = set(), False
+    for r in rows:
+        if r["en"].lower() in vaulted:
+            r["vaulted"] = True
     # カテゴリーは並びだけ(表示名は画面の I18N の mastery.cat.<キー>)。集計は画面が数える(創設者の切り替えがあるため)
-    return {"rows": rows, "cats": list(MASTERY_CATS)}
+    return {"rows": rows, "cats": list(MASTERY_CATS), "vault": ready}
 
 
 def set_mastered(store: Store, body: dict) -> dict:

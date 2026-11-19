@@ -1,24 +1,27 @@
-"""画面向け API: 情報(サイクル・侵略サイクル・仲裁・バロ吉・Riven 相場・デュヴィリ・MOD 効果検索)"""
+"""画面向け API: 情報(サイクル・侵略サイクル・仲裁・バロ吉・Riven 相場・デュヴィリ・MOD 効果検索・Prime の入手時期)"""
 from __future__ import annotations
 
+import time
 from datetime import datetime
 
 import wfportal_baro as wbaro
-from wfp.api.store import ApiError, Store, mtime_jst
+from wfp.api.store import ApiError, Store, file_stamp, mtime_jst
 from wfp.core.arbitration import arbitration_view, update_arbys
 from wfp.core.common import parse_remaining
 from wfp.core.errors import error_text
 from wfp.core.i18n import txt
-from wfp.core.const import ARBYS_FILE, CYCLES, JST, MOD_STATS_FILE, PHASE_ALIASES, RIVENS_FILE
+from wfp.core.const import (ARBYS_FILE, CYCLES, JST, MOD_STATS_FILE, PHASE_ALIASES, PRIMES_ORDER_FILE, PRIMES_RELEASE_FILE,
+                            RIVENS_FILE)
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
 from wfp.core.duviri import clear_duviri_adjust, duviri_view, set_duviri_adjust
 from wfp.core.invasion import invasion_view, set_invasion_part
 from wfp.core.modstats import parse_groups
+from wfp.core.primes import primes_view, relic_index
 from wfp.core.riven import riven_table
 from wfp.core.spexchange import spex_view
 from wfp.core import worldstate
 from wfp.fetch import worldstate as wsfetch
-from wfp.store import gamedata
+from wfp.store import appdata, gamedata
 
 
 def cycles(store: Store) -> dict:
@@ -83,6 +86,19 @@ def rivens_list(store: Store) -> dict:
     if raw is None:
         raise ApiError(txt("err.riven.nodata"), 409)
     return {"rows": riven_table(raw, store.names()), "updated": mtime_jst(store.d / RIVENS_FILE)}
+
+
+def primes(store: Store) -> dict:
+    """Prime 入手可能品の時系列(ゲージ・Prime Resurgence・実装順)。同梱データが無くても空の一覧で返す(エラーにしない)"""
+    folder = appdata.primes_dir()
+    raws = store.derived("@primes_data", file_stamp(folder / PRIMES_RELEASE_FILE, folder / PRIMES_ORDER_FILE),
+                         lambda: (appdata.read_primes(PRIMES_RELEASE_FILE), appdata.read_primes(PRIMES_ORDER_FILE)))
+    src = store.sources()
+    relics = store.derived("@prime_relics", (src,), lambda: relic_index(src))
+    now = time.time()
+    return primes_view(raws[0], raws[1], relics=relics, vault=store.vault_plain(), resurgence=store.resurgence(),
+                       names=store.names(), names_loaded=bool(store.names_info()),
+                       today=datetime.fromtimestamp(now, JST).date(), now=now)
 
 
 # (メソッド, パス) -> 処理。c はリクエスト(wfp/api/server.py の Request)
@@ -178,6 +194,7 @@ ROUTES = {
     ("GET", "/api/arbitration"): lambda c: arbitration(c.store),
     ("POST", "/api/arbitration/update"): lambda c: c.empty_body() or sync_arbitration(c.store),
     ("GET", "/api/duviri"): lambda c: duviri(c.store),
+    ("GET", "/api/primes"): lambda c: primes(c.store),
     ("POST", "/api/duviri/adjust"): lambda c: set_duviri(c.store, c.body()),
     ("POST", "/api/duviri/reset"): lambda c: reset_duviri(c.store, c.body()),
     ("GET", "/api/modstats/suggest"): lambda c: mod_suggest(c.store, c.q.get("q", "")),

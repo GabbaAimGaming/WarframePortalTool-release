@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -10,14 +11,14 @@ from wfp.core.arbitration import Schedule, load_schedule
 from wfp.core.i18n import render_ja, txt
 from wfp.core.const import (
     ARBYS_FILE, BUILDER_FILE, CLAN_FILE, DROPS_FILE, MOD_STATS_FILE, MOD_TARGETS_FILE, NAMES_FILE, OTHER_FILE, RECIPES_FILE, RIVENS_FILE,
-    WFCD_DIR, JST,
+    WFCD_DIR, JST, ITEM_PATHS_FILE, WORLDSTATE_FILE,
 )
-from wfp.core.loader import load_drops, load_recipes, load_rivens, load_sources
+from wfp.core.loader import load_drops, load_recipes, load_resurgence, load_rivens, load_sources
 from wfp.core.modstats import ModStats, load_mod_stats
 from wfp.core.names import Names
 from wfp.core.recipes import Recipes
 from wfp.drops.search import all_item_names
-from wfp.drops.tables import Drops, Sources
+from wfp.drops.tables import Drops, Resurgence, Sources, Vault
 from wfp.store import appdata, gamedata
 
 
@@ -124,9 +125,28 @@ class Store:
     def rivens(self) -> list | None:
         return self._cached(RIVENS_FILE, lambda: load_rivens(self.d))
 
-    def all_items(self) -> list[str]:
+    def resurgence(self) -> Resurgence:
+        """Prime Resurgence の期間と交換できるレリック(worldstate.json・item_paths.json が変われば読み直す)"""
+        files = (self.d / WORLDSTATE_FILE, self.d / ITEM_PATHS_FILE)
+        return self.derived("@resurgence", file_stamp(*files), lambda: load_resurgence(self.d))
+
+    def vault(self) -> Vault:
+        """Vault 入りのレリックと入手不可の項目(ドロップ表・入手先・Prime Resurgence が変わるか、その期間に入る・終わると作り直す)"""
+        drops, src, res = self.drops(), self.sources(), self.resurgence()
+        active = res.active(time.time())
+        return self.derived("@vault", (drops, src, res, active), lambda: Vault(drops, src, res))
+
+    def vault_plain(self) -> Vault:
+        """Prime Resurgence を見ない Vault 入りの判定(レリックがドロップしないものは、交換できる間も Vault 入り)。
+        Prime の時系列のゲージ用。ドロップ表・入手先が変われば作り直す"""
         drops, src = self.drops(), self.sources()
-        return self.derived("@items", (drops, src), lambda: all_item_names(drops, src) if drops else [])
+        return self.derived("@vault_plain", (drops, src), lambda: Vault(drops, src))
+
+    def all_items(self) -> list[str]:
+        """候補になる項目の英名(いま Prime Resurgence で交換できるレリックも入る)"""
+        drops, src, vault = self.drops(), self.sources(), self.vault()
+        return self.derived("@items", (drops, src, vault),
+                            lambda: all_item_names(drops, src, vault.offered_names) if drops else [])
 
 
 class ApiError(Exception):

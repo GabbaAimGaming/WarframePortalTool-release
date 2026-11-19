@@ -1,4 +1,4 @@
-"""データ置き場から読み込んで、名前辞書・ドロップ表・入手先・Riven 相場・要求素材集の設計図を組み立てる"""
+"""データ置き場から読み込んで、名前辞書・ドロップ表・入手先・Vault の判定・Riven 相場・要求素材集の設計図を組み立てる"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,7 +6,7 @@ from pathlib import Path
 from wfp.core.const import CLAN_FILE, DROPS_FILE, OTHER_FILE
 from wfp.core.names import Names
 from wfp.core.recipes import Recipes, check_recipes
-from wfp.drops.tables import Drops, Sources
+from wfp.drops.tables import Drops, Resurgence, Sources, Vault, resurgence_from
 from wfp.fetch import riven_stats
 from wfp.store import appdata, gamedata
 
@@ -37,6 +37,17 @@ def load_drops(d: Path) -> Drops:
 def load_sources(d: Path) -> Sources:
     """ミッション以外の入手先(wfcd/ 以下)と、同梱のクラン研究・Simaris 交換など(data/parts/clan.json / other.json)"""
     return Sources(gamedata.read_wfcd(d), appdata.read_parts(CLAN_FILE), appdata.read_parts(OTHER_FILE))
+
+
+def load_resurgence(d: Path) -> Resurgence:
+    """Prime Resurgence の期間と交換できるレリック(worldstate.json の resurgence と item_paths.json)。無ければ空"""
+    snap = gamedata.read_worldstate(d) or {}
+    return resurgence_from(snap.get("resurgence"), gamedata.read_item_paths(d))
+
+
+def load_vault(d: Path, drops: Drops | None, sources: Sources | None) -> Vault:
+    """Vault 入りの判定(いま Prime Resurgence で交換できるレリックは外す)。CLI 用(API は Store.vault)"""
+    return Vault(drops, sources, load_resurgence(d))
 
 
 def load_recipes(d: Path) -> Recipes:

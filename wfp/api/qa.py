@@ -22,7 +22,7 @@ def qa_context(store: Store) -> QaContext:
     stamp = index_stamp(bundle, builder, names, items)
     index = store.derived("@qa", stamp, lambda: make_index(bundle, builder, names, items))
     return build_context(bundle, index, builder=builder, drops=drops, sources=sources, items=items,
-                         mod_stats=store.mod_stats(), done=userdata.load_quests_done(store.d))
+                         mod_stats=store.mod_stats(), done=userdata.load_quests_done(store.d), vault=store.vault())
 
 
 def qa_query(c) -> QaQuery:

@@ -15,8 +15,8 @@ def mod_table(names: Names, drops: Drops | None, sources: Sources | None, owned:
         if not event:
             idx.setdefault(item_key(item), []).append(
                 ("mission", mission_place(planet, node), name_txt("mode.", mode), stage_label(rot), chance))
-    for cat, place, detail, rot, item, chance, rarity in (sources.rows if sources else []):
-        idx.setdefault(item_key(item), []).append((cat, place, detail, stage_label(rot), chance))
+    for r in (sources.rows if sources else []):
+        idx.setdefault(item_key(r.item), []).append((r.cat, r.place, r.detail, stage_label(r.rot), r.chance))
     owned = owned or set()
     out = []
     for m in names.mods:

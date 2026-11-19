@@ -56,7 +56,7 @@ def load_qa_data(intents_raw: object, answers_raw: object, miss_raw: object) -> 
 # 答えで使う文の型(check_qa_data が有無を検査する)
 TEXT_KEYS = ("field.frame", "field.weapon", "field.summon", "field.none", "stats.frame", "stats.weapon", "stats.summon", "abilities",
              "passive", "sources",
-             "sources.parts", "sources.relic", "build", "helminth.frame", "helminth.prime", "helminth.self", "helminth.ability", "helminth.not",
+             "sources.parts", "sources.relic", "sources.vaulted", "sources.vaulted.parts", "sources.resurgence", "build", "helminth.frame", "helminth.prime", "helminth.self", "helminth.ability", "helminth.not",
              "basis.builder", "basis.drops", "basis.dev", "basis.helminth", "basis.summon", "options")
 
 

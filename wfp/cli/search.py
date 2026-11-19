@@ -5,14 +5,14 @@ import sys
 
 from wfp.cli.common import need_drops
 from wfp.cli.table import print_table
-from wfp.core.common import pct, rank
+from wfp.core.common import fmt_jst, pct, rank
 from wfp.core.i18n import render_ja
 from wfp.core.text import norm
 from wfp.core.const import (
     AREA_KIND_DEFAULT, AREA_KINDS, ENEMY_KIND_DEFAULT, ITEM_KIND_DEFAULT, MASTERY_CATS, MODES_JA, PLANETS_JA, RARITY_JA,
     RECIPE_SOURCE_LIMIT, SOURCE_CATS,
 )
-from wfp.core.loader import DropsMissing, load_drops, load_names, load_recipes, load_sources
+from wfp.core.loader import DropsMissing, load_drops, load_names, load_recipes, load_sources, load_vault
 from wfp.core.recipes import pick_tops, sort_sources
 from wfp.drops.search import all_item_names, area_stages, enemy_drops, find_sources, group_candidates, pick_candidates, pick_enemies
 from wfp.drops.tables import stage_label
@@ -25,7 +25,9 @@ def cmd_item(args):
     query = " ".join(args.query)
     kinds = set(AREA_KINDS) if args.all else set(args.kind or ITEM_KIND_DEFAULT)
     owners = sources.part_owner if sources else {}
-    cands = pick_candidates(query, all_item_names(drops, sources), names, keep=lambda n: names.item_kind(n, owners) in kinds)
+    vault = load_vault(d, drops, sources)
+    cands = pick_candidates(query, all_item_names(drops, sources, vault.offered_names), names,
+                            keep=lambda n: names.item_kind(n, owners) in kinds)
     if not cands:
         hint = "" if args.all else " (ほかの種類も探すには --kind か --all)"
         sys.exit(f"「{query}」に一致する項目がありません。{hint}")
@@ -45,11 +47,12 @@ def cmd_item(args):
         keys = [keys[args.pick - 1]]
 
     base = keys[0]
-    rows = find_sources(base, drops, sources, names, events=args.events)
+    rows = find_sources(base, drops, sources, names, events=args.events, vault=vault)
     if args.cat:
         rows = [r for r in rows if r["cat"] in args.cat]
-    print(f"■ {names.ja(base)}  ({base})  — {len(rows)} か所\n")
-    out = [[SOURCE_CATS.get(r["cat"], r["cat"]), render_ja(r["place"]) + (" [イベント]" if r["event"] else ""), render_ja(r["detail"]),
+    print(f"■ {names.ja(base)}  ({base})  — {len(rows)} か所" + ("  [現在入手不可(Vault 入り)]" if vault.unavailable(base) else "") + "\n")
+    out = [[SOURCE_CATS.get(r["cat"], r["cat"]),
+            render_ja(r["place"]) + _place_tags(r), render_ja(r["detail"]),
             render_ja(r["stage"]), (f"{r['qty']}個 " if r["qty"] else "") + pct(r["chance"]), RARITY_JA.get(r["rarity"], r["rarity"])]
            for r in rows[: args.limit]]
     print_table(["種類", "入手先", "詳細", "ステージ", "確率", "レア度"], out, right_cols=(4,))
@@ -57,6 +60,18 @@ def cmd_item(args):
         print(f"\n(上位 {args.limit} 件を表示。--limit で変更できます)")
     print("\n確率: ミッション/バウンティは報酬1回の抽選で選ばれる割合、敵は1体倒したときに落とす割合、"
           "レリックは開けたときに出る割合です。クラン研究・Simaris 交換・クエスト報酬は確率が無いので「—」です。")
+    if any(r.get("vaulted") for r in rows):
+        print("[Vault] はいまのドロップ表のどこにも出ないレリックです。")
+    if vault.until is not None and any(r.get("resurgence") or r["cat"] == "resurgence" for r in rows):
+        print(f"[Prime Resurgence] は Varzia(Maroo のバザー)でアヤと交換できるレリックです({fmt_jst(vault.until)} まで)。")
+
+
+def _place_tags(r: dict) -> str:
+    """入手先の名前の後ろに付ける印(イベント・Vault 入り・Prime Resurgence)"""
+    tags = [" [イベント]" if r["event"] else "", " [Vault]" if r.get("vaulted") else ""]
+    if r.get("resurgence") or r.get("until"):
+        tags.append(f" [Prime Resurgence 〜{fmt_jst(r.get('resurgence') or r['until'])}]")
+    return "".join(tags)
 
 
 def cmd_area(args):

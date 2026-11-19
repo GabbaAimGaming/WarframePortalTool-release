@@ -13,6 +13,7 @@ from pathlib import Path
 from wfp.core.i18n import render_ja, txt
 from wfp.core.const import MASTERY_CATS, MASTERY_EXTRA_FILE, MASTERY_FOUNDER
 from wfp.core.names import Names
+from wfp.drops.tables import Vault
 from wfp.store import appdata
 
 
@@ -53,6 +54,17 @@ def mastery_items(names: Names, src: Path | None = None) -> list[dict]:
 def mastery_table(names: Names, done: set[str], src: Path | None = None) -> list[dict]:
     """マスター済みの印つきの一覧。カテゴリー・Kitgun の区別(variant)はキーのまま(表示名は画面 / CLI で付ける)"""
     return [{**m, "done": m["id"] in done} for m in mastery_items(names, src)]
+
+
+def vaulted_owners(names: Names, vault: Vault, owners: dict[str, str] | None = None) -> set[str]:
+    """いま作れない本体(マスター一覧の英名を小文字にしたもの)。入手不可のパーツ(Vault.items。入手先が Vault 入りのレリックだけ)を
+    1つでも持つ本体は、そのパーツが手に入らないので作れない。パーツ → 本体は Names.part_of(owners は Sources.part_owner)。
+    ファウンダー限定品は part_of が拾わないので入らない。ドロップ表が無ければ Vault が空なので何も入らない"""
+    out = set()
+    for item in vault.items:
+        if hit := names.part_of(item, owners):
+            out.add(hit[0].lower())
+    return out
 
 
 def mastery_summary(rows: list[dict]) -> dict:

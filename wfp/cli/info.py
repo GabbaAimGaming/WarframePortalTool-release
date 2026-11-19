@@ -15,7 +15,7 @@ from wfp.core.const import (
     RIVEN_TYPES_JA,
 )
 from wfp.core.cycle import cycle_rows, next_daily_reset, next_weekly_reset, set_manual_cycle
-from wfp.core.loader import DropsMissing, load_drops, load_names, load_rivens, load_sources
+from wfp.core.loader import DropsMissing, load_drops, load_names, load_rivens, load_sources, load_vault
 from wfp.core.modstats import load_mod_stats, parse_groups
 from wfp.core.qa import answer_query
 from wfp.core.qacontext import QaQuery
@@ -201,11 +201,12 @@ def cmd_ask(args):
     except DropsMissing:
         drops = None
     sources = load_sources(d)
-    items = all_item_names(drops, sources) if drops else []
+    vault = load_vault(d, drops, sources)
+    items = all_item_names(drops, sources, vault.offered_names) if drops else []
     bundle, builder = load_qa_bundle(), gamedata.read_builder(d)
     index = make_index(bundle, builder, names, items)
     ctx = build_context(bundle, index, builder=builder, drops=drops, sources=sources, items=items,
-                        mod_stats=load_mod_stats(d), done=userdata.load_quests_done(d))
+                        mod_stats=load_mod_stats(d), done=userdata.load_quests_done(d), vault=vault)
     print_qa(answer_query(ctx, query))
 
 

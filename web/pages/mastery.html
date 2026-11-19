@@ -11,6 +11,8 @@
           <input type="text" class="search" id="ms-q" data-i18n-placeholder="ms.placeholder" placeholder="名前で絞り込み(例: Rhino / Soma)" autocomplete="off">
           <select id="ms-state" data-i18n-aria="common.state" aria-label="状態"><option value="" data-i18n="ms.state.all">マスター済み・未マスター</option><option value="todo" data-i18n="ms.state.todo">未マスターのみ</option><option value="done" data-i18n="ms.state.done">マスター済みのみ</option></select>
           <label class="chk"><input type="checkbox" id="ms-founder"> <span data-i18n="mastery.cat.founder">ファウンダー</span></label>
+          <label class="chk"><input type="checkbox" id="ms-noprime"> <span data-i18n="ms.noprime">Prime版を除外</span></label>
+          <label class="chk"><input type="checkbox" id="ms-novault"> <span data-i18n="ms.novault">入手不可を除外</span></label>
           <button class="btn ghost" type="button" id="ms-bulk-on" data-i18n="ms.bulk.on">表示中をすべてマスター済みに</button>
           <button class="btn ghost" type="button" id="ms-bulk-off" data-i18n="ms.bulk.off">表示中のチェックを外す</button>
           <button class="btn ghost" type="button" id="ms-csv" data-i18n="common.csv">CSVで保存</button>
@@ -33,7 +35,7 @@
         <div class="summary" id="ms-summary"></div>
         <div class="err" id="ms-err" role="alert"></div>
         <div id="ms-out"></div>
-        <p class="note" data-i18n="ms.note">Kitgun はチェンバー(プライマリ版とセカンダリ版は別々)、Zaw はストライク、アンプはプリズムと Sirocco、MOA・ハウンドは頭(モデル)、K-ドライブはボードの単位で数えます。Excalibur Prime・Skana Prime・Lato Prime は「ファウンダー」にチェックを入れたときだけ、「ファウンダー」の項目に表示して集計します。プレクサスとアンプ本体は「その他」に入ります。マスタリー経験値はランク最大までの値です(Warframe・コンパニオン・センチネル・MOA/ハウンド・アークウイング・ネクラメカ・K-ドライブ・プレクサスは 1 ランク 200、武器は 100。Kuva・Tenet・Coda などとネクラメカはランク 40)。</p>
+        <p class="note" data-i18n="ms.note">Kitgun はチェンバー(プライマリ版とセカンダリ版は別々)、Zaw はストライク、アンプはプリズムと Sirocco、MOA・ハウンドは頭(モデル)、K-ドライブはボードの単位で数えます。Excalibur Prime・Skana Prime・Lato Prime は「ファウンダー」にチェックを入れたときだけ、「ファウンダー」の項目に表示して集計します。「入手不可を除外」は、Vault 入りのレリック(いまのドロップ表のどこにも出ないレリック)でしか出ないパーツがあって、いま作れないもの(「Vault」の印)を外します(Varzia の Prime Resurgence は見ていません)。「Prime版を除外」と「入手不可を除外」は一覧・一括変更・CSV から外すだけで、件数と経験値の合計には含めます。プレクサスとアンプ本体は「その他」に入ります。マスタリー経験値はランク最大までの値です(Warframe・コンパニオン・センチネル・MOA/ハウンド・アークウイング・ネクラメカ・K-ドライブ・プレクサスは 1 ランク 200、武器は 100。Kuva・Tenet・Coda などとネクラメカはランク 40)。</p>
       </section>
 <!-- PART:script -->
 /* ---------- マスター一覧 ---------- */
@@ -45,6 +47,15 @@ msFounder = pref.flag("wf-mastery-founder");
 $("#ms-founder").checked = msFounder;
 const msRows = () => mastery.rows.filter(r => msFounder || r.cat !== "founder");
 const msCats = () => mastery.cats.filter(k => msFounder || k !== "founder");
+// Prime版を除外: 一覧・一括変更・CSV からだけ外す(件数・経験値の合計には含めたまま。状態の絞り込みと同じ扱い)
+let msNoPrime = pref.flag("wf-mastery-noprime");
+$("#ms-noprime").checked = msNoPrime;
+const msIsPrime = r => /\bPrime\b/i.test(r.en || "");
+// 入手不可を除外: いま作れないもの(API の vaulted。Vault 入りのレリックでしか出ないパーツがある)を、Prime版を除外と同じく一覧・一括変更・CSV からだけ外す。
+// ドロップ表・入手先のデータがそろわず判定できないとき(API の vault が false)はチェックを使えなくする
+let msNoVault = pref.flag("wf-mastery-novault");
+$("#ms-novault").checked = msNoVault;
+const msVaultTag = r => (r.vaulted ? `<span class="tag-mini" title="${esc(t("ms.vaulted.tip"))}">${esc(t("src.vaulted"))}</span>` : "");
 /* 名前: 日本語の画面は日本語名、ほかは英名。Kitgun はプライマリ版・セカンダリ版を区別する(I18N の mastery.variant) */
 const msLabel = r => { const n = nameByLang(r); return r.variant ? fmt("mastery.variant", { name: n, variant: t("mastery.variant." + r.variant) }) : n; };
 const msSort = { key: "cat", dir: "asc" };
@@ -54,7 +65,7 @@ const msGetters = {
 };
 function msFilter() {
   const q = $("#ms-q").value.trim().toLowerCase(), st = $("#ms-state").value;
-  return msRows().filter(r => (!msCat || r.cat === msCat) && (!st || (st === "done") === r.done) &&
+  return msRows().filter(r => (!msCat || r.cat === msCat) && (!st || (st === "done") === r.done) && (!msNoPrime || !msIsPrime(r)) && (!msNoVault || !r.vaulted) &&
     (!q || [r.en, r.ja, msLabel(r)].some(x => (x || "").toLowerCase().includes(q))));
 }
 function msSummary() {
@@ -65,6 +76,8 @@ function msSummary() {
 }
 function renderMastery() {
   if (!mastery) return;
+  $("#ms-novault").disabled = !mastery.vault;  // 判定できないときはチェックしても何も外れないので使えなくする
+  $("#ms-novault").closest("label").title = mastery.vault ? "" : t("ms.novault.nodata");
   const sm = msSummary();
   $("#ms-cats").innerHTML = [["", t("src.all"), sm.all], ...msCats().map(k => [k, tName("mastery.cat.", k), sm[k]])]
     .map(([k, v, o]) => `<button class="chip" data-mcat="${k}" aria-pressed="${msCat === k}">${esc(v)}<small>${o.done} / ${o.total}</small></button>`).join("");
@@ -84,9 +97,9 @@ function renderMastery() {
     <thead><tr>${th(esc(t("ms.col.done")), "done", msSort, "chk")}${th(esc(t("ms.col.name")), "name", msSort)}${th(esc(t("ms.col.cat")), "cat", msSort)}${th(esc(t("ms.col.rank")), "rank", msSort, "num")}${th(esc(t("ms.col.xp")), "xp", msSort, "num")}</tr></thead>
     <tbody>${list.map(r => `<tr class="${r.done ? "owned" : ""}" data-id="${esc(r.id)}">
       <td class="chk"><input type="checkbox" class="own" ${r.done ? "checked" : ""} aria-label="${esc(fmt("ms.done.aria", { name: msLabel(r) }))}"></td>
-      <td>${esc(msLabel(r))}${subEn(r)}</td><td>${esc(tName("mastery.cat.", r.cat))}</td>
+      <td>${esc(msLabel(r))}${msVaultTag(r)}${subEn(r)}</td><td>${esc(tName("mastery.cat.", r.cat))}</td>
       <td class="num">${r.rank}</td><td class="num">${r.xp.toLocaleString(locale())}</td></tr>`).join("")}</tbody></table></div>`
-    : noData(t("common.none")), [msCat, $("#ms-q").value, $("#ms-state").value, msFounder, msSort.key, msSort.dir]);
+    : noData(t("common.none")), [msCat, $("#ms-q").value, $("#ms-state").value, msFounder, msNoPrime, msNoVault, msSort.key, msSort.dir]);
 }
 async function setMastered(ids, done) {
   const before = mastery.rows.filter(r => ids.includes(r.id)).map(r => [r, r.done]);
@@ -106,6 +119,16 @@ $("#ms-founder").addEventListener("change", e => {
   msFounder = e.target.checked; msArming.clear();
   if (!msFounder && msCat === "founder") msCat = "";
   pref.setFlag("wf-mastery-founder", msFounder);
+  renderMastery();
+});
+$("#ms-noprime").addEventListener("change", e => {
+  msNoPrime = e.target.checked; msArming.clear();
+  pref.setFlag("wf-mastery-noprime", msNoPrime);
+  renderMastery();
+});
+$("#ms-novault").addEventListener("change", e => {
+  msNoVault = e.target.checked; msArming.clear();
+  pref.setFlag("wf-mastery-novault", msNoVault);
   renderMastery();
 });
 ["on", "off"].forEach(k => $(`#ms-bulk-${k}`).addEventListener("click", () => {

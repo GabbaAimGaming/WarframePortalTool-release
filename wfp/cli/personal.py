@@ -17,12 +17,12 @@ from wfp.core.const import (
 )
 from wfp.core.archon import find_effect, parse_shard_args, shard_list, shard_text
 from wfp.core.helminth import parse_helminth_arg, subsume_frame, subsume_list
-from wfp.core.loader import load_drops, load_names, load_sources
-from wfp.core.mastery import mastery_label, mastery_summary, mastery_table
+from wfp.core.loader import load_drops, load_names, load_sources, load_vault
+from wfp.core.mastery import mastery_label, mastery_summary, mastery_table, vaulted_owners
 from wfp.core.mods import mod_table
 from wfp.core.quests import item_name, quest_items, quest_summary, quest_table, set_quests_done
 from wfp.drops.search import all_item_names
-from wfp.store import appdata, build_images, datadir, userdata
+from wfp.store import appdata, build_images, datadir, gamedata, userdata
 
 
 def cmd_mods(args):
@@ -98,8 +98,17 @@ def cmd_mastery(args):
         rows = [r for r in rows if not r["done"]]
     if not rows:
         sys.exit("条件に合うものがありません。")
+    # いま作れない本体(入手不可のパーツがある)は名前の後ろに [Vault]。ドロップ表が無い・壊れているときは判定しない
+    # (マスター一覧は names.json だけで出せるもの。ドロップ表の傷みで止めない)。Prime Resurgence の期間中のレリックは外す
+    try:
+        drops = load_drops(d) if (d / DROPS_FILE).exists() else None
+        sources = load_sources(d)
+        vaulted = vaulted_owners(names, load_vault(d, drops, sources), sources.part_owner if sources else None)
+    except gamedata.DataBroken:
+        vaulted = set()
     print_table(["済", "名前", "カテゴリー", "最大ランク", "マスタリー経験値"],
-                [["✓" if r["done"] else "", r["label"], r["cat_ja"], str(r["rank"]), f"{r['xp']:,}"] for r in rows[: args.limit]],
+                [["✓" if r["done"] else "", r["label"] + (" [Vault]" if r["en"].lower() in vaulted else ""), r["cat_ja"], str(r["rank"]),
+                  f"{r['xp']:,}"] for r in rows[: args.limit]],
                 right_cols=(3, 4))
     summ = mastery_summary(mastery_table(names, done))
     print(f"\n{len(rows)} 件中 {min(len(rows), args.limit)} 件を表示")

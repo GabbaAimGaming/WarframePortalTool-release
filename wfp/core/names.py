@@ -148,11 +148,15 @@ def _collect_names(docs: list[dict]) -> dict[str, tuple[str, str]]:
 
 
 def _pair_names(en: dict[str, tuple[str, str]], other: dict[str, tuple[str, str]]) -> dict[str, str]:
-    """_collect_names の英語版とほかの言語版を uniqueName で突き合わせ、英名 -> その言語の名前にする(同じ英名は最初のもの)"""
+    """_collect_names の英語版とほかの言語版を uniqueName で突き合わせ、英名 -> その言語の名前にする(同じ英名は最初のもの)。
+    頭に印のある名前(例: <ARCHWING> Odonata Prime)は、印を外した名前でも引けるようにする(印つきの名前もそのまま残す)"""
     out: dict[str, str] = {}
     for uid, (en_name, _kind) in en.items():
         if uid in other:
             out.setdefault(en_name, other[uid][0])
+    for uid, (en_name, _kind) in en.items():
+        if uid in other and (bare := _strip_tag(en_name)) != en_name:
+            out.setdefault(bare, _strip_tag(other[uid][0]))
     return out
 
 

@@ -52,6 +52,7 @@ class QaContext:
     builder: dict | None = None
     drops: object = None              # drops.tables.Drops(無ければ None)
     sources: object = None            # drops.tables.Sources
+    vault: object = None              # drops.tables.Vault(Prime Resurgence も見たもの。作るのに全行をなめるので、API は Store.vault のキャッシュを渡す。無ければ答えるときに drops・sources から作る)
     items: list[str] = field(default_factory=list)
     subsume: list[dict] = field(default_factory=list)
     archon: dict = field(default_factory=lambda: {"tauforged_rate": 1.5, "colors": []})

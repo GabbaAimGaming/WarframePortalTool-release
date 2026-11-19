@@ -66,8 +66,9 @@ def make_index(bundle: QaBundle, builder, names, items) -> QaIndex:
     return QaIndex(builder, names, items, bundle.subsume, bundle.dev, bundle.stops, bundle.summons, bundle.lore_names)
 
 
-def build_context(bundle: QaBundle, index: QaIndex, *, builder, drops, sources, items, mod_stats, done) -> QaContext:
-    """答えに使うデータ。QaContext を作るのはここだけ(API・CLI で項目がずれないように)"""
-    return QaContext(bundle.data, index, builder=builder, drops=drops, sources=sources, items=items,
+def build_context(bundle: QaBundle, index: QaIndex, *, builder, drops, sources, items, mod_stats, done, vault=None) -> QaContext:
+    """答えに使うデータ。QaContext を作るのはここだけ(API・CLI で項目がずれないように)。
+    vault は Vault 入りの判定(drops.tables.Vault。無ければ入手先の答えで入手不可を言わない)"""
+    return QaContext(bundle.data, index, builder=builder, drops=drops, sources=sources, vault=vault, items=items,
                      subsume=bundle.subsume, archon=bundle.archon, dev=bundle.dev, mod_stats=mod_stats,
                      lore=bundle.lore, done=done, quest_names=bundle.quest_names, menu=bundle.menu, talk=bundle.talk)

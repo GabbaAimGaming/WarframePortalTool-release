@@ -30,6 +30,7 @@ BUNDLED: dict[str, tuple[str, str | None]] = {
     "summons": ("summons", const.SUMMONS_FILE),          # 呼び出し(core.summons)
     "qa": ("qa", None),                                  # Q&A の語の表・答えの文の型など(core.qa)
     "riven": ("riven", const.RIVEN_WORDS_FILE),          # Riven の画像の読み取りの効果名(wfportal_rivenscan)
+    "primes": ("primes", None),                          # Prime Access の回・フレームの実装順(core.primes)
 }
 
 
@@ -102,6 +103,10 @@ def riven_dir() -> Path:
     return bundled_dir("riven")
 
 
+def primes_dir() -> Path:
+    return bundled_dir("primes")
+
+
 # ---- 種類ごとの入口(読み込み)。フォルダは上の *_dir から取る(テストの差し替えが効くように) ----
 
 def read_duviri(name: str, src: Path | None = None) -> object | None:
@@ -146,6 +151,10 @@ def read_dev_builds(name: str | None = None, src: Path | None = None) -> object 
 
 def read_summons(name: str | None = None, src: Path | None = None) -> object | None:
     return read_bundled("summons", name, summons_dir() if src is None else src)
+
+
+def read_primes(name: str, src: Path | None = None) -> object | None:
+    return read_bundled("primes", name, primes_dir() if src is None else src)
 
 
 def read_qa(name: str, src: Path | None = None) -> object | None:

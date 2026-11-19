@@ -85,7 +85,23 @@ def extract(ws: dict) -> dict:
         traders.append({"character": v.get("Character") or "", "node": v.get("Node") or "", "activation": act,
                         "expiry": exp, "items": items})
     return {"server_time": ws.get("Time"), "build": ws.get("BuildLabel"), "cetus": cetus, "traders": traders,
-            "invasions": extract_invasions(ws.get("Invasions"))}
+            "invasions": extract_invasions(ws.get("Invasions")), "resurgence": extract_resurgence(ws.get("PrimeVaultTraders"))}
+
+
+def extract_resurgence(raw) -> dict | None:
+    """World State の PrimeVaultTraders(Varzia の Prime Resurgence)から、いまの期間と在庫の内部パスだけを取り出す。
+
+    {activation, expiry, items: [内部パス]}。期間の無いもの・在庫の無いものは飛ばし、最初に読めた1件を返す(無ければ None)。
+    在庫はパック・アクセサリー・レリックが混ざったまま(レリックの見分けは drops/tables の resurgence_from)
+    """
+    for v in raw if isinstance(raw, list) else []:
+        if not isinstance(v, dict):
+            continue
+        act, exp = ms_date(v.get("Activation")), ms_date(v.get("Expiry"))
+        items = [m["ItemType"] for m in v.get("Manifest") or [] if isinstance(m, dict) and isinstance(m.get("ItemType"), str)]
+        if exp is not None and items:
+            return {"activation": act, "expiry": exp, "items": items}
+    return None
 
 
 def _number(v) -> float | None:

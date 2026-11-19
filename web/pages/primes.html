@@ -1,0 +1,153 @@
+<!-- ページ「Prime の入手時期」(id primes): 表示部(view = <section id="view-primes">)と処理(script)。
+     wfp/api/pages.py の PAGE_FILES の順で、ctrl.html の INCLUDE:pages#view / pages#script に差し込まれる。
+     行の組み立て・状態・色の段階は API(wfp/core/primes)。ここは描くだけ -->
+<!-- PART:view -->
+      <!-- Prime の入手時期 -->
+      <section id="view-primes" hidden>
+        <div class="pr-head">
+          <h2 data-i18n="page.primes">Prime の入手時期</h2>
+          <button class="btn ghost" type="button" id="pr-order-open" data-i18n="primes.order.open">実装順</button>
+        </div>
+        <p class="lead" data-i18n="primes.lead">いま入手できる Prime を、出てから長い順に並べています。</p>
+        <div class="err" id="pr-err" role="alert"></div>
+        <div id="pr-out"></div>
+        <div class="pr-veil" id="pr-veil" hidden></div>
+        <dialog class="tips-dlg pr-dlg" id="pr-dlg" data-i18n-aria="primes.order.title" aria-label="フレームの実装順">
+          <h3 data-i18n="primes.order.title">フレームの実装順</h3>
+          <div class="pr-dlg-body" id="pr-order"></div>
+          <p class="note" data-i18n="primes.order.note">※ Prime はあるが入手不可</p>
+          <div class="row"><button class="btn" type="button" id="pr-dlg-close" data-i18n="primes.order.close">閉じる</button></div>
+        </dialog>
+      </section>
+<!-- PART:style -->
+<style>
+/* Prime の入手時期: 見出しの右に「実装順」のボタン */
+.pr-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pr-head h2 { margin-bottom: 0; }
+/* 名前の3列 + ゲージ。行の高さはそろえる */
+.pr-grid { display: grid; grid-template-columns: minmax(7em, 1fr) minmax(7em, 1fr) minmax(7em, 1.2fr) minmax(12em, 3fr);
+  gap: 6px 12px; align-items: center; margin: 12px 0 0; }
+.pr-grid .pr-hd { font-size: .85em; color: var(--mute); border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.pr-name { overflow-wrap: anywhere; line-height: 1.3; }
+/* 目盛り: ゲージと同じ 24 マス(--pr-cells)。現在 = 1 マス目・1年前 = 13 マス目・2年前 = 24 マス目(右寄せ) */
+.pr-scale { display: grid; grid-template-columns: repeat(var(--pr-cells, 24), 1fr); }
+.pr-scale span { white-space: nowrap; }
+.pr-scale .s-year1 { grid-column: 13 / span 6; }
+.pr-scale .s-year2 { grid-column: 19 / -1; text-align: right; }
+/* 1 マス = 1 か月の区切り線(左端が今月) */
+.pr-track { position: relative; height: 22px; background-color: var(--accent-bg);
+  background-image: repeating-linear-gradient(to right, transparent 0, transparent calc(100% / var(--pr-cells, 24) - 1px),
+    var(--line) calc(100% / var(--pr-cells, 24) - 1px), var(--line) calc(100% / var(--pr-cells, 24))); }
+.pr-bar { height: 100%; box-shadow: inset -1px 0 0 var(--bg); }
+.pr-tag { position: absolute; top: 50%; transform: translateY(-50%); font-size: .8em; white-space: nowrap;
+  color: var(--ink); background: var(--bg); padding: 0 4px; }
+.pr-gap { grid-column: 1 / -1; margin: 18px 0 0; font-size: .85em; color: var(--mute); border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.pr-res { height: 22px; display: flex; align-items: center; justify-content: center; font-size: .85em;
+  background: hsl(205, 70%, 45%); color: #fff; }
+.pr-res.off { background: var(--accent-bg); color: var(--mute); }
+/* 実装順の小窓: 大きさは固定で中をスクロール。ヘッダーは隠さない(暗くする幕と小窓はヘッダーの下から。top は開くときに入れる) */
+.pr-veil { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: rgba(0, 0, 0, .55); }
+dialog.pr-dlg { position: fixed; left: 0; right: 0; margin: 0 auto; z-index: 21; width: min(420px, 92vw); overflow: auto; }
+dialog.pr-dlg h3 { margin: 0 0 10px; }
+.pr-dlg-body { height: min(55vh, 520px); overflow-y: auto; border: 1px solid var(--line); }
+.pr-dlg-body table { width: 100%; }
+/* 見出しの行は中をスクロールしても上に残す(th の背景は全体の CSS の --panel-2) */
+.pr-dlg-body thead th { position: sticky; top: 0; z-index: 1; }
+.pr-dlg-body td.pr-mark { text-align: center; font-weight: 700; }
+.pr-dlg .note { margin: 8px 0 12px; }
+@media (max-width: 760px) {
+  .pr-grid { grid-template-columns: 1fr 1fr 1fr; }
+  .pr-grid .pr-gauge { grid-column: 1 / -1; }
+}
+</style>
+<!-- PART:script -->
+/* ---------- Prime の入手時期 ---------- */
+let prData = null;
+/* 色: 並び順の段階(level 1 = 赤 = 次に Vault 入り、0 = 緑 = 最新)。赤 → 橙 → 黄 → 緑 の色相 */
+const prColor = level => `hsl(${Math.round(120 * (1 - level))}, 70%, 48%)`;
+const prMonth = month => { const [year, mon] = month.split("-").map(Number);
+  return new Date(year, mon - 1, 1).toLocaleDateString(locale(), { year: "numeric", month: "2-digit" }); };
+const prDay = sec => new Date(sec * 1000).toLocaleDateString(locale(), { year: "numeric", month: "2-digit", day: "2-digit" });
+const prName = item => item ? `<span title="${esc(item.en)}">${esc(nameByLang(item))}</span>` : "";
+/* 名前の3列(武器が3つ以上なら武器2の欄に「 / 」でつなぐ) */
+function prNameCells(rel) {
+  const frame = rel.frames.map(prName).join(" / "), wpn_one = prName(rel.weapons[0]);
+  const wpn_two = rel.weapons.slice(1).map(prName).join(" / ");
+  return `<div class="pr-name">${frame}</div><div class="pr-name">${wpn_one}</div><div class="pr-name">${wpn_two}</div>`;
+}
+function prGaugeRow(rel) {
+  const width = rel.blocks / prData.months * 100;  // 今月から出た月までのマス
+  const label = fmt("primes.months", { month: prMonth(rel.month), n: rel.months });
+  const tag = rel.state === "pending" ? `<span class="pr-tag" style="left:calc(${width}% + 6px)">${esc(t("primes.state.pending"))}</span>` : "";
+  return prNameCells(rel) + `<div class="pr-gauge"><div class="pr-track" role="img" aria-label="${esc(label)}" title="${esc(label)}">` +
+    `<div class="pr-bar" style="width:${width}%;background:${prColor(rel.level)}"></div>${tag}</div></div>`;
+}
+function prHeadRow() {
+  const cols = ["frame", "weapon1", "weapon2"].map(c => `<div class="pr-hd">${esc(t("primes.col." + c))}</div>`).join("");
+  const scale = ["now", "year1", "year2"].map(c => `<span class="s-${c}">${esc(t("primes.scale." + c))}</span>`).join("");
+  return cols + `<div class="pr-hd pr-gauge pr-scale">${scale}</div>`;
+}
+/* Prime Resurgence: 横いっぱいの青のゲージに期間。期間の外・対象なしは「期間外」 */
+function prResRows(res) {
+  const period = res.active && res.activation && res.expiry
+    ? fmt("primes.res.period", { start: prDay(res.activation), end: prDay(res.expiry) }) : "";
+  const bar = `<div class="pr-gauge"><div class="pr-res${period ? "" : " off"}">${esc(period || t("primes.res.off"))}</div></div>`;
+  const rows = res.rows.length ? res.rows.map(rel => prNameCells(rel) + bar).join("") : `<div></div><div></div><div></div>${bar}`;
+  return `<div class="pr-gap">${esc(t("primes.res.title"))}</div>` + rows;
+}
+function prNotes() {
+  const notes = [];
+  if (!prData.ready) notes.push(t("primes.unchecked"));
+  if (prData.unknown.length) notes.push(fmt("primes.unknown", { names: prData.unknown.join(", ") }));
+  return notes.map(n => `<p class="note">${esc(n)}</p>`).join("");
+}
+function renderPrimes() {
+  applyViewText("primes");
+  if (!prData) return;
+  const gauge = prData.gauge.length ? prData.gauge.map(prGaugeRow).join("")
+    : `<div class="pr-gauge" style="grid-column:1/-1">${noData(t("primes.empty"))}</div>`;
+  const as_of = prData.as_of ? `<p class="note">${esc(fmt("primes.asof", { date: prData.as_of }))}</p>` : "";
+  $("#pr-out").innerHTML = prNotes() + `<div class="pr-grid" style="--pr-cells:${prData.months}">${prHeadRow()}${gauge}${prResRows(prData.resurgence)}</div>` + as_of;
+  renderPrimeOrder();
+}
+/* 実装順の小窓の中身(記号は I18N。title と aria-label に文) */
+function renderPrimeOrder() {
+  if (!prData) return;
+  const head = ["no", "frame", "prime"].map(c => `<th scope="col">${esc(t("primes.order.col." + c))}</th>`).join("");
+  const body = prData.order.map(row => {
+    const label = t(`primes.mark.${row.mark}.label`);
+    const mark = hasText("primes.mark." + row.mark) ? t("primes.mark." + row.mark) : "";  // 未実装(none)は記号なし
+    return `<tr><td>${row.no}</td><td>${prName(row.frame)}</td>` +
+      `<td class="pr-mark" title="${esc(label)}" aria-label="${esc(label)}">${esc(mark)}</td></tr>`;
+  }).join("");
+  $("#pr-order").innerHTML = `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+function loadPrimes() {
+  applyViewText("primes");
+  $("#pr-err").textContent = "";
+  return loadInto($("#pr-out"), () => api("/api/primes"), data => { prData = data; renderPrimes(); });
+}
+/* 小窓はヘッダーの下に出す(モーダルにすると幕がヘッダーまで覆うので、自前の幕 #pr-veil と show() で開く) */
+function placePrimeOrder() {
+  const head = $(".app > header") || $("header");
+  const top = Math.max(0, head ? head.getBoundingClientRect().bottom : 0);
+  $("#pr-veil").style.top = `${top}px`;
+  $("#pr-dlg").style.top = `${top + 16}px`;
+  $("#pr-dlg").style.maxHeight = `calc(100dvh - ${top + 32}px)`;
+}
+function openPrimeOrder() {
+  if (!prData) { $("#pr-err").textContent = t("common.loading"); return; }
+  placePrimeOrder();
+  $("#pr-veil").hidden = false;
+  $("#pr-dlg").show();
+  $("#pr-dlg-close").focus();
+}
+const closePrimeOrder = () => { if ($("#pr-dlg").open) $("#pr-dlg").close(); };
+$("#pr-dlg").addEventListener("close", () => { $("#pr-veil").hidden = true; $("#pr-order-open").focus(); });
+$("#pr-order-open").addEventListener("click", openPrimeOrder);
+$("#pr-dlg-close").addEventListener("click", closePrimeOrder);
+$("#pr-veil").addEventListener("click", closePrimeOrder);
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#pr-dlg").open) closePrimeOrder(); });
+window.addEventListener("resize", () => { if ($("#pr-dlg").open) placePrimeOrder(); });
+relabel.primes = renderPrimes;
+loaders.primes = loadPrimes;  // 開くたびに読み直す(データ更新で取り直した結果も反映)

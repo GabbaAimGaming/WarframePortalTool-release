@@ -15,13 +15,14 @@ from wfp.drops.search import area_stages, enemy_drops, find_sources, group_candi
 from wfp.drops.tables import mission_place, stage_label
 
 
-def suggest_items(store: Store, q: str, kinds: set[str], cat: str = "", no_prime: bool = False) -> dict:
+def suggest_items(store: Store, q: str, kinds: set[str], cat: str = "", no_prime: bool = False, no_vault: bool = False) -> dict:
     """アイテムから探すの候補。種類(AREA_KINDS のキー。Names.item_kind)が kinds に入る項目だけを返す。
 
     items は候補(最大 SUGGEST_LIMIT 件。kind は種類のキー、パーツなら cat にカテゴリー)、total は絞った後の全件数。
     パーツ(part)だけに効く絞り込み: cat はマスター一覧のカテゴリー(MASTERY_CATS)、
     no_prime は入手先にレリックがある項目(Sources.relic_items)を除く(画面の「Prime を除外する」。名前ではなく入手先で判定するので、
-    バウンティで出る Galariak Prime などは残る)。ほかの種類はどちらにも影響されない。
+    バウンティで出る Galariak Prime などは残る)。no_vault はいま入手できない項目(入手先が Vault 入りのレリックだけ。Vault)を除く。
+    ほかの種類はどれにも影響されない。パーツの行で入手できないものには vaulted: True を付ける。
     cats はパーツのカテゴリーごとの件数(q と種類に合うもの。cat で絞る前。並びは MASTERY_CATS)。名前は画面の I18N(mastery.cat.<キー>)
     """
     if cat and (cat not in MASTERY_CATS or cat in PART_SKIP_CATS):
@@ -30,10 +31,11 @@ def suggest_items(store: Store, q: str, kinds: set[str], cat: str = "", no_prime
     names, src = store.names(), store.sources()
     owners = src.part_owner if src else {}
     relic = src.relic_items if src and no_prime else set()
+    vault = store.vault()
     kind_of: dict[str, str] = {}
     for n in store.all_items():
         kind = names.item_kind(n, owners)
-        if kind in kinds and not (kind == "part" and item_key(n) in relic):
+        if kind in kinds and not (kind == "part" and (item_key(n) in relic or (no_vault and vault.unavailable(n)))):
             kind_of[n] = kind
     if q.strip():
         cands = pick_candidates(q, kind_of, names)
@@ -47,7 +49,10 @@ def suggest_items(store: Store, q: str, kinds: set[str], cat: str = "", no_prime
         if part_cat:
             counts[part_cat] = counts.get(part_cat, 0) + 1
         if not cat or kind != "part" or part_cat == cat:
-            rows.append({"key": base, "ja": names.ja(base), "en": base, "kind": kind, "cat": part_cat})
+            row = {"key": base, "ja": names.ja(base), "en": base, "kind": kind, "cat": part_cat}
+            if kind == "part" and vault.unavailable(base):
+                row["vaulted"] = True
+            rows.append(row)
     return {
         "total": len(rows),
         "cats": [{"key": c, "n": counts[c]} for c in MASTERY_CATS if c in counts],
@@ -57,7 +62,8 @@ def suggest_items(store: Store, q: str, kinds: set[str], cat: str = "", no_prime
 
 def lookup_item(store: Store, key: str, events: bool) -> dict:
     drops, names = need_drops(store), store.names()
-    rows = find_sources(key, drops, store.sources(), names, events=events)
+    vault = store.vault()
+    rows = find_sources(key, drops, store.sources(), names, events=events, vault=vault)
     if not rows:
         raise ApiError(txt("err.item.none"), 404)
     counts: dict[str, int] = {}
@@ -65,6 +71,7 @@ def lookup_item(store: Store, key: str, events: bool) -> dict:
         counts[r["cat"]] = counts.get(r["cat"], 0) + 1
     return {
         "ja": names.ja(key), "en": key, "total": len(rows),
+        "unavailable": vault.unavailable(key),  # 入手先が Vault 入りのレリックだけ(いま入手できない)
         "cats": [{"key": c, "n": counts[c]} for c in SOURCE_CATS if c in counts],  # 種類の名前は画面の I18N(src.cat.<キー>)
         "rows": rows,  # rarity はキー。place・detail・stage はテキスト指定
     }
@@ -181,7 +188,7 @@ def lookup_recipe(store: Store, key: str) -> dict:
 # (メソッド, パス) -> 処理。c はリクエスト(wfp/api/server.py の Request)
 ROUTES = {
     ("GET", "/api/suggest/item"): lambda c: suggest_items(c.store, c.q.get("q", ""), parse_kinds(c.q.get("kinds"), ITEM_KIND_DEFAULT),
-                                                          c.q.get("cat", ""), c.flag("noprime")),
+                                                          c.q.get("cat", ""), c.flag("noprime"), c.flag("novault")),
     ("GET", "/api/item"): lambda c: lookup_item(c.store, c.q.get("key", ""), c.flag("events")),
     ("GET", "/api/suggest/area"): lambda c: suggest_areas(c.store, c.q.get("q", "")),
     ("GET", "/api/area"): lambda c: lookup_area(c.store, c.q.get("type", "planet"), c.q.get("key", ""),

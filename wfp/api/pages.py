@@ -29,7 +29,7 @@ UI_FILES = ("ctrl.html", "menu.html", "view.html", "i18n.html", "parts.html")  #
 PAGES_DIR = "pages"  # ページごとのファイル(web/pages/<id>.html)。INCLUDE の「ファイル名」に書くとページ全部になる
 # ページの並び(マークアップと処理を差し込む順。メニューの並びは web/menu.html の MENU で、これとは別)
 PAGE_FILES = ("home", "item", "area", "enemy", "recipe", "mods", "arcane", "baro", "riven", "mastery", "quests", "todo", "invasion",
-              "arbitration", "cycle", "duviri", "modstats", "qa", "build", "sim", "tips", "guide", "update")
+              "arbitration", "cycle", "duviri", "modstats", "primes", "qa", "build", "sim", "tips", "guide", "update")
 PAGE_PARTS = ("view", "script")  # ページのファイルに必須の部品(style は任意)
 PAGE_PART_KINDS = PAGE_PARTS + ("style",)
 BUILDER = "wfportal_builder.html"
