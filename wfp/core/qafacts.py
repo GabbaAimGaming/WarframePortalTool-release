@@ -13,7 +13,7 @@ from wfp.core.const import QA_PART_SOURCE_LIMIT, QA_RELIC_SOURCE_LIMIT, QA_SOURC
 from wfp.core.devbuilds import build_view, builds_for
 from wfp.core.helminth import subsume_frame
 from wfp.core.qacontext import QaContext, miss_answer
-from wfp.drops.search import find_sources
+from wfp.drops.search import find_sources, part_sources, parts_by_owner
 from wfp.drops.tables import Vault
 
 # Prime・Umbra は Helminth に食べさせられない(吸収一覧は基本のフレームの名前)
@@ -185,16 +185,12 @@ def _sources(ctx: QaContext, res: dict, e: dict, it: dict) -> dict:
             res["text"] += "。" + ctx.data.say("sources.vaulted", name=e["ja"])
     else:
         owners = getattr(ctx.sources, "part_owner", None)
-        parts = sorted({names.split_qty(n)[1] for n in ctx.items
-                        if (hit := names.part_of(n, owners)) and norm(hit[0]) == e["key"] and norm(names.split_qty(n)[1]) != e["key"]})
+        parts = parts_by_owner(ctx.items, names, owners).get(e["key"], [])
         offered: list[dict] = []  # Prime Resurgence の印を見る行(部品ごとに出した行)
-        for part in parts:
-            prow = find_sources(part, ctx.drops, ctx.sources, names, vault=vault)
-            offered += prow[:QA_PART_SOURCE_LIMIT]
-            if prow:
-                vaulted = vault is not None and vault.unavailable(part)
-                title = names.ja(part) + (f"({ctx.data.say('sources.vaulted.parts')})" if vaulted else "")
-                res["sources"].append({"title": title, "rows": _source_rows(prow, QA_PART_SOURCE_LIMIT)})
+        for part in part_sources(parts, ctx.drops, ctx.sources, names, vault=vault):
+            offered += part["rows"][:QA_PART_SOURCE_LIMIT]
+            title = part["ja"] + (f"({ctx.data.say('sources.vaulted.parts')})" if part["vaulted"] else "")
+            res["sources"].append({"title": title, "rows": _source_rows(part["rows"], QA_PART_SOURCE_LIMIT)})
         if not res["sources"]:
             return miss_answer(ctx, res, "no_hit", e["ja"])
         res["text"] = ctx.data.say("sources.parts", name=e["ja"], n=QA_PART_SOURCE_LIMIT) + _resurgence_note(ctx, offered)

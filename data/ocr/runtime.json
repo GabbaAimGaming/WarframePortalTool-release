@@ -1,0 +1,270 @@
+{
+ "_note": "高精度の文字認識(PP-OCRv6 + onnxruntime)で入れる部品。packages は Python のタグ(cp311〜cp314。lite 版で使う Python と同梱版の 3.14)ごとに入れるパッケージと版(版を省くとそのタグで使えるいちばん新しい版)、files はそのホイール(tools/ocr_runtime_lock.py が PyPI から決めて SHA-256 を書く)、models は段ごとのモデル(同じ道具が SHA-256 と大きさを書く)。sha256 が空のものは入れない(画面に「部品の表がまだ用意されていません」)。3.15 に乗り換えるときは packages に cp315 を足して道具を回す",
+ "as_of": "2026-11-21",
+ "packages": {
+  "cp311": [
+   {
+    "name": "onnxruntime",
+    "version": "1.31.1"
+   },
+   {
+    "name": "numpy"
+   },
+   {
+    "name": "pillow"
+   }
+  ],
+  "cp312": [
+   {
+    "name": "onnxruntime",
+    "version": "1.31.1"
+   },
+   {
+    "name": "numpy"
+   },
+   {
+    "name": "pillow"
+   }
+  ],
+  "cp313": [
+   {
+    "name": "onnxruntime",
+    "version": "1.31.1"
+   },
+   {
+    "name": "numpy"
+   },
+   {
+    "name": "pillow"
+   }
+  ],
+  "cp314": [
+   {
+    "name": "onnxruntime",
+    "version": "1.31.1"
+   },
+   {
+    "name": "numpy",
+    "version": "2.5.3"
+   },
+   {
+    "name": "pillow",
+    "version": "13.0.0"
+   }
+  ]
+ },
+ "files": {
+  "cp311": [
+   {
+    "name": "onnxruntime-1.31.1-cp311-cp311-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/69/82/2e2bf967ade9567d77c307533566ef56a19c32e2114fc062a405703def88/onnxruntime-1.31.1-cp311-cp311-win_amd64.whl",
+    "sha256": "c3d91b5de31e2fc82d71bd65b2b22bddee8b49057a3a36338e9a868e0ea90c05",
+    "size": 14885761
+   },
+   {
+    "name": "numpy-2.4.6-cp311-cp311-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/c5/31/7fc6239c12bce7e931463251cca4426c465e1876ba3cc785402ef4dd8f4e/numpy-2.4.6-cp311-cp311-win_amd64.whl",
+    "sha256": "1e254a00cdf42b1e4d5b3d68d33af63268d41340d8885df2ab6470f2e1500147",
+    "size": 12608406
+   },
+   {
+    "name": "pillow-13.0.0-cp311-cp311-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/7d/f6/6e2d96413e4c9dbec12ea584d9e646d602877d4cce3ea669099f959deac6/pillow-13.0.0-cp311-cp311-win_amd64.whl",
+    "sha256": "d7710eb676e9bb68965cb045be0d333b4c0d7f9dfbaa7fbf121385b1588683d3",
+    "size": 7278471
+   },
+   {
+    "name": "flatbuffers-25.12.19-py2.py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/e8/2d/d2a548598be01649e2d46231d151a6c56d10b964d94043a335ae56ea2d92/flatbuffers-25.12.19-py2.py3-none-any.whl",
+    "sha256": "7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4",
+    "size": 26661
+   },
+   {
+    "name": "packaging-26.3-py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl",
+    "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c",
+    "size": 129956
+   },
+   {
+    "name": "protobuf-7.36.2-cp310-abi3-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/8a/55/b77bda4e5e5f5971fb51b07663694690e9afdb9402136c16a522bd621cad/protobuf-7.36.2-cp310-abi3-win_amd64.whl",
+    "sha256": "a300819d441e078a5608c0d3c709796bb548136058fda017ae51d425b44fd353",
+    "size": 456514
+   }
+  ],
+  "cp312": [
+   {
+    "name": "onnxruntime-1.31.1-cp312-cp312-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/45/b2/793b4051d8dc6acb379ead9b72050f0ffa283ca49a6904add2e218b83e2e/onnxruntime-1.31.1-cp312-cp312-win_amd64.whl",
+    "sha256": "ae8a9a351efda685cc59a66226cdefaa37a126c1d66872ca23a2de9425326130",
+    "size": 14888466
+   },
+   {
+    "name": "numpy-2.5.5-cp312-cp312-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/d1/71/b1ce51834c21020d189332979d38ba7350eb6cd7ca8c8ec424a663b0ca6f/numpy-2.5.5-cp312-cp312-win_amd64.whl",
+    "sha256": "919eb420662b0b4ba34889df503f3d5329775b0c1d5f7e5f5af4fba8315b1e30",
+    "size": 12580189
+   },
+   {
+    "name": "pillow-13.0.0-cp312-cp312-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/ff/cd/73a79ecdc822076002eb24b5e1e4a530b0bb5310fcb6d239abbec877110b/pillow-13.0.0-cp312-cp312-win_amd64.whl",
+    "sha256": "ff3fe9eb621fbb9db4c4be33ab946f6bac5f98ab50ca8d3260503653656c961b",
+    "size": 7272166
+   },
+   {
+    "name": "flatbuffers-25.12.19-py2.py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/e8/2d/d2a548598be01649e2d46231d151a6c56d10b964d94043a335ae56ea2d92/flatbuffers-25.12.19-py2.py3-none-any.whl",
+    "sha256": "7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4",
+    "size": 26661
+   },
+   {
+    "name": "packaging-26.3-py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl",
+    "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c",
+    "size": 129956
+   },
+   {
+    "name": "protobuf-7.36.2-cp310-abi3-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/8a/55/b77bda4e5e5f5971fb51b07663694690e9afdb9402136c16a522bd621cad/protobuf-7.36.2-cp310-abi3-win_amd64.whl",
+    "sha256": "a300819d441e078a5608c0d3c709796bb548136058fda017ae51d425b44fd353",
+    "size": 456514
+   }
+  ],
+  "cp313": [
+   {
+    "name": "onnxruntime-1.31.1-cp313-cp313-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/59/bf/a1d282b4c753ba3e9b31f4c11abd2bc2390513dc5e3792ca3b78e42401c3/onnxruntime-1.31.1-cp313-cp313-win_amd64.whl",
+    "sha256": "0558f29d5f6ac09957390c9c5495931485ee8ae7f0ce781ccee86a0ae5c2348b",
+    "size": 14888304
+   },
+   {
+    "name": "numpy-2.5.5-cp313-cp313-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/45/74/bb9161943fb65caf24e4bb04c788f5c7815e6cb78ac595e7f46781033c82/numpy-2.5.5-cp313-cp313-win_amd64.whl",
+    "sha256": "e0608d1585557b68dcb6a70a41654f7536567960afad79d91752d2863b242b68",
+    "size": 12573354
+   },
+   {
+    "name": "pillow-13.0.0-cp313-cp313-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/d7/ed/1b16fb66a37e1b9e41370b93b2c614c7da761a5b2a41dc333f7af4639962/pillow-13.0.0-cp313-cp313-win_amd64.whl",
+    "sha256": "9dda0788a9932776a75d8bcc020076edc308ce2508b51f6739a45e3158b3fc42",
+    "size": 7284777
+   },
+   {
+    "name": "flatbuffers-25.12.19-py2.py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/e8/2d/d2a548598be01649e2d46231d151a6c56d10b964d94043a335ae56ea2d92/flatbuffers-25.12.19-py2.py3-none-any.whl",
+    "sha256": "7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4",
+    "size": 26661
+   },
+   {
+    "name": "packaging-26.3-py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl",
+    "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c",
+    "size": 129956
+   },
+   {
+    "name": "protobuf-7.36.2-cp310-abi3-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/8a/55/b77bda4e5e5f5971fb51b07663694690e9afdb9402136c16a522bd621cad/protobuf-7.36.2-cp310-abi3-win_amd64.whl",
+    "sha256": "a300819d441e078a5608c0d3c709796bb548136058fda017ae51d425b44fd353",
+    "size": 456514
+   }
+  ],
+  "cp314": [
+   {
+    "name": "onnxruntime-1.31.1-cp314-cp314-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/e5/e9/9112e9322aef42bff80e805915b61cdcbb82577589bdd42dedf73a5ff9b6/onnxruntime-1.31.1-cp314-cp314-win_amd64.whl",
+    "sha256": "0a3998e18cb667ef54287556bd62291a788ed235723dd90c83b2294b24e71d81",
+    "size": 15268752
+   },
+   {
+    "name": "numpy-2.5.3-cp314-cp314-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/a4/73/d2c08231e4fde7e415501fd02c715d96e98599b2d8384445933944152984/numpy-2.5.3-cp314-cp314-win_amd64.whl",
+    "sha256": "2c25dfa72943e4336ddb6b0ee4277b47a0c85bede0807530ec68103bf58e2c10",
+    "size": 12698179
+   },
+   {
+    "name": "pillow-13.0.0-cp314-cp314-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/50/e2/7ad17747517e4c813dca78257d6bb593466f8231baf1384bc98d92745edb/pillow-13.0.0-cp314-cp314-win_amd64.whl",
+    "sha256": "f7cbb7a64e7ec664775195e4f81923bc8a93d9451b963f844e59118f63147a7a",
+    "size": 7281830
+   },
+   {
+    "name": "flatbuffers-25.12.19-py2.py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/e8/2d/d2a548598be01649e2d46231d151a6c56d10b964d94043a335ae56ea2d92/flatbuffers-25.12.19-py2.py3-none-any.whl",
+    "sha256": "7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4",
+    "size": 26661
+   },
+   {
+    "name": "packaging-26.3-py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl",
+    "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c",
+    "size": 129956
+   },
+   {
+    "name": "protobuf-7.36.2-cp310-abi3-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/8a/55/b77bda4e5e5f5971fb51b07663694690e9afdb9402136c16a522bd621cad/protobuf-7.36.2-cp310-abi3-win_amd64.whl",
+    "sha256": "a300819d441e078a5608c0d3c709796bb548136058fda017ae51d425b44fd353",
+    "size": 456514
+   }
+  ]
+ },
+ "models": {
+  "medium": [
+   {
+    "path": "det/inference.onnx",
+    "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_det_onnx/resolve/main/inference.onnx",
+    "sha256": "eb13b44b25bb36f89528b68720af8a61d9cf381176107f465db1757b65d086e1",
+    "size": 62032837
+   },
+   {
+    "path": "det/inference.yml",
+    "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_det_onnx/resolve/main/inference.yml",
+    "sha256": "7298d5ead546584af2504d03355f881ac7a7bc0eb1e282d3e159277c1d0af871",
+    "size": 886
+   },
+   {
+    "path": "rec/inference.onnx",
+    "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_rec_onnx/resolve/main/inference.onnx",
+    "sha256": "9c09abf0957f7968c7586464b7397b84ad2387a0497a351af40e9acc71b673ba",
+    "size": 76554979
+   },
+   {
+    "path": "rec/inference.yml",
+    "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_rec_onnx/resolve/main/inference.yml",
+    "sha256": "991b700facf5b50a7de193468207d5f4255b538dde0d312ae3b7c7a9b6873129",
+    "size": 150580
+   }
+  ],
+  "small": [
+   {
+    "path": "det/inference.onnx",
+    "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_small_det_onnx/resolve/main/inference.onnx",
+    "sha256": "d73e0058b7a8086bbd57f3d10b8bcd4ff95363f67e06e2762b5e814fe9c9410e",
+    "size": 9880512
+   },
+   {
+    "path": "det/inference.yml",
+    "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_small_det_onnx/resolve/main/inference.yml",
+    "sha256": "193f435274bf9f0b5f71a929bbfbcf148282df7e633b34e7c373e8f44741b516",
+    "size": 885
+   },
+   {
+    "path": "rec/inference.onnx",
+    "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_small_rec_onnx/resolve/main/inference.onnx",
+    "sha256": "5435fd747c9e0efe15a96d0b378d5bd157e9492ed8fd80edf08f30d02fa24634",
+    "size": 21159378
+   },
+   {
+    "path": "rec/inference.yml",
+    "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_small_rec_onnx/resolve/main/inference.yml",
+    "sha256": "ab078671bb49f06228eadccd34f1bb501e157f7a047095ffb943ba81512c77d1",
+    "size": 150579
+   }
+  ]
+ },
+ "licenses": {
+  "onnxruntime": "MIT",
+  "numpy": "BSD-3-Clause",
+  "pillow": "MIT-CMU",
+  "PP-OCRv6": "Apache-2.0"
+ }
+}

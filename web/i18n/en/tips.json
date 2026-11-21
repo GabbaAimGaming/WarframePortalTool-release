@@ -1,0 +1,12 @@
+{
+  "tips.lead": "A page for notes you want at hand. You can add and edit notes on this page, or edit the files in the tips folder in the tool's folder directly (with Notepad, Excel, etc.).",
+  "tips.sample": "The sample notes are in Japanese only.",
+  "tips.new": "New",
+  "tips.edit": "Edit",
+  "tips.del": "Delete",
+  "tips.group": "Add group",
+  "tips.trash": "Trash",
+  "tips.reload": "Reload",
+  "tips.open": "Open tips folder",
+  "tips.linkmissing": "The linked note was not found: {path}"
+}

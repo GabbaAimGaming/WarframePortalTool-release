@@ -152,7 +152,7 @@ class Store:
 class ApiError(Exception):
     """API のエラー。msg は日本語の文か、テキスト指定(txt("err.…", 値=…)。リストも可)。
 
-    テキスト指定なら画面は表示中の言語で出す(応答の text)。日本語の文(error)は web/i18n/ja.json から作る(core/i18n の ja_text)。
+    テキスト指定なら画面は表示中の言語で出す(応答の text)。日本語の文(error)は web/i18n/ja/ から作る(core/i18n の ja_text)。
     日本語の文を直接渡す書き方は多言語対応の済んでいないページ用(画面はその文をそのまま出す)
     """
 

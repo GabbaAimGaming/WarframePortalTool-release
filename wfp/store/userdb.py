@@ -33,7 +33,7 @@ USER_KINDS = {
     "mods_owned": "ids", "mastered": "ids", "quests_done": "ids", "invasion_parts": "ids", "baro_owned": "ids",
     "arcanes_owned": "ranks",
     "builds": "items", "todo": "items",
-    "cycles": "doc", "duviri_adjust": "doc", "baro_seen": "doc",
+    "cycles": "doc", "duviri_adjust": "doc", "baro_seen": "doc", "ocr_prefs": "doc",
 }
 # 取り込む・書き出すときの JSON の型(前のファイルの形)
 _SHAPE_TYPES = {"ids": list, "ranks": dict, "items": list, "doc": dict}

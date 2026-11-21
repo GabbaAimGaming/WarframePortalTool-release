@@ -1,0 +1,18 @@
+{
+  "enemy.lead": "Type an enemy name to see the items it drops per kill and their chances.",
+  "enemy.placeholder": "e.g. Heavy Gunner / Corrupted",
+  "enemy.nomatch": "No matching enemies",
+  "enemy.more": "{n} more (keep typing to narrow down)",
+  "enemy.pick": "Pick an enemy from the suggestions.",
+  "enemy.empty": "Type an enemy name.",
+  "enemy.nodata": "No data yet. Fetch it from \"Data Update\".",
+  "enemy.nokind": "Select at least one kind.",
+  "enemy.none": "No drops of the selected kinds (adding kinds may show more).",
+  "enemy.count": "{n} / {total} items",
+  "enemy.col.item": "Item",
+  "enemy.col.detail": "Table",
+  "enemy.col.chance": "Chance",
+  "enemy.col.rarity": "Rarity",
+  "enemy.footnote": "Chances are per kill. The % in Table is the chance of rolling that table (mods, blueprints, etc.) and is already multiplied in.",
+  "enemy.open": "Open in Find by Enemy"
+}

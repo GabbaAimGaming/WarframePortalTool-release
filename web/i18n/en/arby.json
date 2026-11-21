@@ -1,0 +1,20 @@
+{
+  "arby.lead": "The current Arbitration and the schedule for the next 12 hours. Arbitrations change every hour. Get the schedule with \"Data Update\" or \"Refetch schedule\".",
+  "arby.sync": "Refetch schedule",
+  "arby.syncing": "Fetching the schedule...",
+  "arby.fetched": "Schedule fetched {at}",
+  "arby.col.time": "Time",
+  "arby.col.node": "Node",
+  "arby.col.mission": "Mission type",
+  "arby.col.faction": "Enemy",
+  "arby.time": "{start} - {end}",
+  "arby.current": "Now · {left} left",
+  "arby.unknown": "Unknown",
+  "arby.unknown.n": "Unknown ({n})",
+  "arby.loading": "Loading...",
+  "arby.nodata": "No Arbitration schedule yet. Press \"Refetch schedule\" or \"Data Update\".",
+  "arby.range": "The saved schedule has run out. Press \"Refetch schedule\".",
+  "arby.noregions": "Node names are not available yet, so internal names are shown. Run Data Update to show node names, mission types and enemies.",
+  "arby.oldregions": "The node name data is old, so mission types and enemies are unknown. Run Data Update again.",
+  "arby.note": "Times use the PC clock (corrected by the cycle time sync) in the format of the selected language. The schedule comes from browse.wf (https://browse.wf/). If it differs from the game, trust the game."
+}

@@ -7,12 +7,15 @@ from datetime import datetime, timezone
 import wfportal_msscan as msscan
 import wfportal_ocr as ocr
 from wfp.api.ocr import need_ocr, run_ocr
-from wfp.api.store import ApiError, Raw, Store, str_list
+from wfp.api.store import ApiError, Raw, Store, file_stamp, need_drops, str_list
 from wfp.core.arcane import ArcaneNotFound, arcane_table, set_arcanes_owned
 from wfp.core.errors import error_text
 from wfp.core.i18n import txt
 from wfp.core.text import norm
-from wfp.core.const import ARCANE_CATS, BUILD_IMAGE_MAX, BUILD_TYPES, MASTERY_CATS, MOD_TYPES, OCR_CACHE_DIR, POLARITY_EN, QUEST_CATS, SOURCE_CATS
+from wfp.core.const import (
+    ARCANE_CATS, BUILD_IMAGE_MAX, BUILD_TYPES, MASTERY_CATS, MASTERY_EXTRA_FILE, MOD_TYPES, OCR_CACHE_DIR, OCR_DEFAULT_LANGS,
+    POLARITY_EN, QUEST_CATS, SOURCE_CATS,
+)
 from wfp.core.archon import shard_list
 from wfp.core.build import arcane_pairs, make_build
 from wfp.core.devbuilds import adopt_entry, dev_build_list, find_dev_build
@@ -21,6 +24,7 @@ from wfp.core.mastery import mastery_items, mastery_table, vaulted_owners
 from wfp.core.mods import mod_table
 from wfp.core.quests import QuestNotFound, quest_items, quest_summary, quest_table, set_quests_done
 from wfp.core import todo
+from wfp.drops.search import find_sources, part_sources, parts_by_owner
 from wfp.store import appdata, build_images, gamedata, userdata
 
 
@@ -68,9 +72,34 @@ def mastery_list(store: Store) -> dict:
     return {"rows": rows, "cats": list(MASTERY_CATS), "vault": ready}
 
 
+def mastery_by_id(store: Store) -> dict[str, dict]:
+    """マスター一覧の項目の表 {id: 項目}(mastery_items)。名前辞書か同梱の extra.json が変わったときだけ作り直す"""
+    names = store.names()
+    return store.derived("@mastery_ids", (names, *file_stamp(appdata.mastery_dir() / MASTERY_EXTRA_FILE)),
+                         lambda: {m["id"]: m for m in mastery_items(names)})
+
+
+def mastery_sources(store: Store, mid: str) -> dict:
+    """マスター一覧の1行(id)の入手先: 本体そのものの行(rows)と、パーツごとの行(parts。drops/search の part_sources)。
+    行の形は /api/item と同じ。イベント限定は含めない。本体 → パーツの表は Store.derived で1回だけ作る"""
+    names = store.names()
+    item = mastery_by_id(store).get(mid)
+    if item is None:
+        raise ApiError(txt("err.mastery.unknown", id=mid), 404)
+    drops, src = need_drops(store), store.sources()
+    vault = store.vault()
+    items = store.all_items()
+    table = store.derived("@mastery_parts", (names, items, src),
+                          lambda: parts_by_owner(items, names, src.part_owner if src else None))
+    body = item["en"]
+    return {"ja": item["ja"], "en": body, "unavailable": vault.unavailable(body),
+            "rows": find_sources(body, drops, src, names, vault=vault),
+            "parts": part_sources(table.get(norm(body), []), drops, src, names, vault=vault)}
+
+
 def set_mastered(store: Store, body: dict) -> dict:
     ids = str_list(body, "ids")
-    valid = {m["id"] for m in mastery_items(store.names())}
+    valid = mastery_by_id(store)
     with userdata.editing(store.d, "mastered") as done:
         for i in ids:
             if i not in valid:
@@ -260,7 +289,7 @@ def delete_build(store: Store, name: str) -> list[dict]:
 def analyze_build_image(store: Store, image_name: str, data: bytes | None) -> dict:
     """保存済みの画像(image_name)か、送られてきた画像(data)を解析する。
     保存済みの画像のファイルが無いときはエラーにせず {"missing": True} を返す(画面はその画像を飛ばす)"""
-    need_ocr()
+    need_ocr(store)
     names = store.names()
     if not names.mods:
         raise ApiError(txt("err.mods.nodata"), 409)
@@ -271,7 +300,7 @@ def analyze_build_image(store: Store, image_name: str, data: bytes | None) -> di
         data = p.read_bytes()
     if not data or not build_images.image_ext(data):
         raise ApiError(txt("err.image.format"), 415)
-    raw = run_ocr(data, cache_dir=store.d / OCR_CACHE_DIR)
+    raw = run_ocr(store, data, cache_dir=store.d / OCR_CACHE_DIR)
     matcher = store.derived("@matcher", (names,), lambda: ocr.build_matcher(names))
     result = ocr.analyze(raw, names, matcher)
     result["has_items"] = bool(names.items)
@@ -280,14 +309,14 @@ def analyze_build_image(store: Store, image_name: str, data: bytes | None) -> di
 
 def scan_mods(store: Store, data: bytes) -> dict:
     """ゲームの MOD 一覧画面(の画像)から MOD 名を読み取る。所持チェックを付けるかは画面側で決める"""
-    need_ocr()
+    need_ocr(store)
     names = store.names()
     if not names.mods:
         raise ApiError(txt("err.mods.nodata"), 409)
     if not data or not build_images.image_ext(data):
         raise ApiError(txt("err.image.format"), 415)
     # 何度も読むので、英語だけ・拡大は控えめにして速さを優先する。結果は保存しない
-    raw = run_ocr(data, cache_dir=None, langs="en-US", scale=1.5)
+    raw = run_ocr(store, data, cache_dir=None, langs="en-US", scale=1.5, speed="fast")
     matcher = store.derived("@modmatcher", (names,), lambda: ocr.NameMatcher([("mod", m["en"], m) for m in names.mods]))
     result = ocr.analyze(raw, names, matcher)
     owned = userdata.load_owned(store.d)
@@ -303,7 +332,7 @@ def scan_mods(store: Store, data: bytes) -> dict:
 def scan_mastery(store: Store, data: bytes) -> dict:
     """ゲームの「プロフィール → エクストラ」の装備一覧(の画像)からマスター済みを読み取る。印を付けるかは画面側で決める
     (付けるときは POST /api/mastery)。ここは何も書き込まない"""
-    need_ocr()
+    need_ocr(store)
     names = store.names()
     if not names.mastery:
         raise ApiError(txt("err.mastery.nodata"), 409)
@@ -321,7 +350,7 @@ def scan_mastery(store: Store, data: bytes) -> dict:
     worker.start()
     try:
         # 日本語の小さい文字(ランク表記)を読むので、拡大は既定のまま。結果は保存しない
-        raw = run_ocr(data, cache_dir=None, langs=ocr.DEFAULT_LANGS)
+        raw = run_ocr(store, data, cache_dir=None, langs=OCR_DEFAULT_LANGS)
     finally:
         worker.join()
     if "error" in decoded:
@@ -345,6 +374,7 @@ ROUTES = {
     ("POST", "/api/mods/scan"): lambda c: scan_mods(c.store, c.image()),
     ("GET", "/api/mastery"): lambda c: mastery_list(c.store),
     ("POST", "/api/mastery"): lambda c: set_mastered(c.store, c.body()),
+    ("GET", "/api/mastery/sources"): lambda c: mastery_sources(c.store, c.q.get("id", "")),
     ("POST", "/api/mastery/scan"): lambda c: scan_mastery(c.store, c.image()),
     ("GET", "/api/quests"): lambda c: quests_list(c.store),
     ("POST", "/api/quests"): lambda c: set_quests(c.store, c.body()),

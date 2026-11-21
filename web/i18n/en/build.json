@@ -1,0 +1,10 @@
+{
+  "build.type.frame": "Warframe",
+  "build.type.primary": "Primary",
+  "build.type.secondary": "Secondary",
+  "build.type.melee": "Melee",
+  "build.type.companion": "Companion",
+  "build.type.archwing": "Archwing",
+  "build.type.summon": "Summon",
+  "build.type.other": "Other"
+}

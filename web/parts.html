@@ -264,6 +264,8 @@ async function loadOcrInfo() {
   try { ocrInfo = await api("/api/ocr-info"); } catch (e) { ocrInfo = { available: false, reason: e.message }; }
   return ocrInfo;
 }
+/* 覚えている文字認識の確認を捨てる(データ更新のページで文字認識の設定を変えた・部品を入れたあと。次の loadOcrInfo で聞き直す) */
+function forgetOcrInfo() { ocrInfo = null; }
 /* 画像(ファイル・動画の1コマ)を PNG にする。JPEG・WebP や、16bit・パレットの PNG もサーバーが読める形にそろえる */
 async function toPng(source) {
   const canvas = document.createElement("canvas");

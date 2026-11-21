@@ -1,0 +1,19 @@
+{
+  "ac.title": "Arcanes",
+  "ac.lead": "Arcanes from the official data (ExportRelicArcane.json), grouped by what they equip on. Tick the box on the left to record one as owned and pick its rank (saved on this PC). You can filter by English or Japanese name.",
+  "ac.placeholder": "Filter by name (e.g. Energize)",
+  "ac.state.owned": "Owned only",
+  "ac.state.maxed": "Max rank only",
+  "ac.state.notmax": "Owned but not max rank",
+  "ac.note": "The type (what it equips on) is judged from the name (Arcane, Molt and Theorem are Warframe; Magus and Emergence are Operator; Virtuos and Eternal are Amp; Pax and Residual are Kitgun; Exodia is Zaw; and so on). New arcanes that cannot be judged go under \"Other\". Zid-An arcanes for the Tektolyst Artifact are not in the official data yet, so they are taken from the drop tables (English name only, no rarity, max rank 5; the official data is used once it has them). Seven arcanes that are in the official data but not in the game (Arcane Survival, Shield, Defense, Detoxifier, Liquid, Protection, Temperance) are left out. Unticking also clears the rank. New arcanes arrive with game updates, so fetch again with \"Data Update\".",
+  "ac.name.aria": "Rank of {name}",
+  "ac.summary": "Owned {owned} / {total} ({pct}%)",
+  "ac.maxed": "Max rank {n}",
+  "ac.overall": "Overall: owned {owned} / {total}, max rank {maxed}",
+  "ac.col.rank": "Rank",
+  "ac.own.aria": "Own {name}",
+  "ac.none": "No arcanes match.",
+  "ac.csv.cat": "Type",
+  "ac.csv.max": "Max rank",
+  "ac.csv.file": "arcanes"
+}

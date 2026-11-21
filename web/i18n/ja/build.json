@@ -1,0 +1,10 @@
+{
+  "build.type.frame": "Warframe",
+  "build.type.primary": "プライマリ",
+  "build.type.secondary": "セカンダリ",
+  "build.type.melee": "近接",
+  "build.type.companion": "コンパニオン",
+  "build.type.archwing": "アークウイング",
+  "build.type.summon": "呼び出し",
+  "build.type.other": "その他"
+}

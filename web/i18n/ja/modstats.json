@@ -1,0 +1,21 @@
+{
+  "modstats.lead": "影響先(例: 威力・効率)を入力すると、その数値を変える MOD をランク0〜最大の効果つきで一覧にします。候補を選ばずに Enter で、効果テキストの全文検索になります。",
+  "modstats.placeholder": "例: 威力 / 効率 / Multishot",
+  "modstats.groups": "区分",
+  "modstats.all": "すべて選ぶ",
+  "modstats.clear": "すべて外す",
+  "modstats.fulltext": "全文で探す: {q}",
+  "modstats.pick": "候補から影響先を選ぶか、Enter で効果テキストを全文検索します。",
+  "modstats.empty": "影響先(例: 威力・効率)か、効果テキストの一部を入力してください。",
+  "modstats.nogroup": "区分を1つ以上選んでください。",
+  "modstats.nodata": "MOD 効果のデータがありません。メニューの「データ更新」から取得してください。",
+  "modstats.nomatch": "該当する MOD がありません。",
+  "modstats.count": "{n} 件",
+  "modstats.more": "先頭 {n} 件を表示しています。語を足すか区分で絞り込んでください。",
+  "modstats.target": "影響先: {name}",
+  "modstats.text": "効果テキスト: {q}",
+  "modstats.rank": "ランク",
+  "modstats.cond": "条件付き",
+  "modstats.compat": "対象: {name}",
+  "modstats.updated": "データ: {at}"
+}

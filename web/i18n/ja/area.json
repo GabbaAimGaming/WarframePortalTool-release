@@ -1,0 +1,20 @@
+{
+  "area.lead": "惑星またはノード名を選ぶと、出現ステージごとにドロップと確率を表示します。表示する種類はチェックで選べます。",
+  "area.placeholder": "例: 地球 / Cervantes",
+  "area.nomatch": "一致するエリアがありません",
+  "area.pick": "惑星またはノードを選んでください。",
+  "area.none": "表示できるドロップがありません(種類を足すと増える場合があります)。",
+  "area.count": "{n} ノード",
+  "area.col.stage": "ステージ",
+  "area.col.item": "アイテム",
+  "area.col.chance": "確率",
+  "area.col.rarity": "レア度",
+  "area.nomaterial": "選んだ種類のドロップはありません",
+  "area.nodata": "データがありません。「データ更新」から取得してください。",
+  "area.nokind": "種類を1つ以上選んでください。",
+  "area.kind.resource": "素材",
+  "area.kind.part": "パーツ・設計図",
+  "area.kind.mod": "MOD",
+  "area.kind.relic": "レリック",
+  "area.kind.other": "その他"
+}

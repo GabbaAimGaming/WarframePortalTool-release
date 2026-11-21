@@ -1,0 +1,14 @@
+{
+  "dlg.aria": "Confirm",
+  "dlg.cancel": "Cancel",
+  "dlg.yes": "Yes",
+  "dlg.no": "No",
+  "dlg.purge.confirm": "\"{title}\" will be deleted permanently. This cannot be undone.\nDelete it?",
+  "dlg.del": "Delete \"{title}\".",
+  "dlg.trash": "Move to trash",
+  "dlg.purge": "Delete permanently",
+  "dlg.trash.purge": "Remove \"{title}\" from the trash.",
+  "dlg.group": "Name of the group to add (it becomes a folder in tips)",
+  "dlg.group.ok": "Add",
+  "dlg.group.renamed": "Created as \"{name}\" because of unusable characters or a duplicate name."
+}

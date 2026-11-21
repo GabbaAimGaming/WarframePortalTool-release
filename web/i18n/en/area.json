@@ -1,0 +1,20 @@
+{
+  "area.lead": "Pick a planet or node to see its drops and their chances, stage by stage. Use the checkboxes to choose which kinds to show.",
+  "area.placeholder": "e.g. Earth / Cervantes",
+  "area.nomatch": "No matching areas",
+  "area.pick": "Pick a planet or node.",
+  "area.none": "No drops to show (adding more kinds may show more).",
+  "area.count": "Nodes: {n}",
+  "area.col.stage": "Stage",
+  "area.col.item": "Item",
+  "area.col.chance": "Chance",
+  "area.col.rarity": "Rarity",
+  "area.nomaterial": "No drops of the selected kinds",
+  "area.nodata": "No data yet. Fetch it from \"Data Update\".",
+  "area.nokind": "Pick at least one kind.",
+  "area.kind.resource": "Resources",
+  "area.kind.part": "Parts & Blueprints",
+  "area.kind.mod": "Mods",
+  "area.kind.relic": "Relics",
+  "area.kind.other": "Other"
+}

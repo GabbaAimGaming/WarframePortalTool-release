@@ -1,0 +1,12 @@
+{
+  "tips.lead": "すぐ見たいメモをまとめるページです。メモはこのページで追加・編集できるほか、ツールのフォルダにある tips フォルダのファイルを直接編集しても変わります(メモ帳・Excel などで編集できます)。",
+  "tips.sample": "例文は日本語のみです。",
+  "tips.new": "新規",
+  "tips.edit": "編集",
+  "tips.del": "削除",
+  "tips.group": "グループ追加",
+  "tips.trash": "ゴミ箱",
+  "tips.reload": "再読み込み",
+  "tips.open": "tips フォルダを開く",
+  "tips.linkmissing": "リンク先のメモが見つかりません: {path}"
+}

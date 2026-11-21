@@ -1,6 +1,6 @@
 """定数: 取得元の URL・ファイル名・機能ごとの設定と表示名の表(wfp の他のモジュールを import しない。標準ライブラリだけ)
 
-core.i18n(テキスト指定・表示名の表 JA_TABLES。日本語の文は web/i18n/ja.json)・core.common(一致度・書式)などがこのモジュールを使う。
+core.i18n(テキスト指定・表示名の表 JA_TABLES。日本語の文は web/i18n/ja/)・core.common(一致度・書式)などがこのモジュールを使う。
 使う側は `from wfp.core.const import 名前`。APP_DIR だけは `from wfp.core import const` → `const.APP_DIR`(テストで差し替えるため)
 """
 from __future__ import annotations
@@ -94,7 +94,7 @@ FANKIT_LOGOS_URL = ("https://www.dropbox.com/scl/fo/el9i8ltoms44id3wt3swv/h/Logo
 
 # ツールのフォルダ(wfp/ の1つ上)
 APP_DIR = Path(__file__).resolve().parents[2]
-# 画面の文字の表: <APP_DIR>/<WEB_DIR>/<I18N_DIR>/<言語>.json。I18N_BASE(日本語)は必須で、Python も CLI・API の
+# 画面の文字の表: <APP_DIR>/<WEB_DIR>/<I18N_DIR>/<言語>/<キーの頭>.json。I18N_BASE(日本語)は必須で、Python も CLI・API の
 # 日本語の文にこれを使う(core/i18n の ja_text。2026-11-10 の B14 で TEXT_JA をやめた)
 WEB_DIR = "web"
 I18N_DIR = "i18n"
@@ -831,6 +831,53 @@ JST = timezone(timedelta(hours=9))
 BUILD_IMAGE_DIR = "build_images"
 BUILD_IMAGE_MAX = 30
 OCR_CACHE_DIR = "ocr_cache"
+
+# 文字認識のエンジン(wfp/ocr。2026-11-20)。winrt = Windows OCR(ocr/winocr.ps1)・ppocr = PP-OCRv6 + onnxruntime(高精度)
+# auto はエンジンを OCR_ENGINE_ORDER の順に試し、使えるものを使う
+OCR_ENGINE_WINRT = "winrt"
+OCR_ENGINE_PPOCR = "ppocr"
+OCR_ENGINE_AUTO = "auto"
+OCR_ENGINE_ORDER = (OCR_ENGINE_PPOCR, OCR_ENGINE_WINRT)
+OCR_ENGINE_PREFS = (OCR_ENGINE_AUTO, OCR_ENGINE_WINRT, OCR_ENGINE_PPOCR)
+OCR_DEFAULT_LANGS = "en-US,ja-JP"  # Windows OCR に渡す言語(MOD 名は英語、「フォーマ」などの表示は日本語の場合がある)
+OCR_LANG_MULTI = "mul"             # 1回で複数の言語を読むエンジンの結果の lang(どの言語の求めにも当たる)
+OCR_SPEEDS = ("accurate", "fast")  # accurate = 精度優先 / fast = 何度も読むとき(MOD 一覧の画面共有)
+OCR_PS_SCRIPT = ("ocr", "winocr.ps1")  # <APP_DIR>/ocr/winocr.ps1
+OCR_PS_TIMEOUT_LANGS = 30          # 使える言語を調べるときの待ち時間(秒)
+OCR_TIMEOUT = 120                  # 1枚の文字認識の待ち時間(秒)
+OCR_MAX_PIXELS = 40_000_000       # 前処理で開く画像の画素数の上限(8K の画面のスクリーンショットより大きい。展開爆弾の対策)
+OCR_MAX_SIDE = 8192                # 前処理で拡大したあとの長い辺の上限(px)
+
+# 高精度の文字認識の部品(データ置き場の下。wfp/ocr/runtime)。表は data/ocr/runtime.json(Python のタグごとのホイール・段ごとのモデル)
+# 3.15 に乗り換えるときは runtime.json の packages / files に cp315 を足す(tools/ocr_runtime_lock.py で files と SHA-256 を作る)
+OCR_RUNTIME_DIR = "ocr_runtime"            # <データ置き場>/ocr_runtime/{site-packages, models/<段>, installed.json}
+OCR_RUNTIME_SITE = "site-packages"
+OCR_RUNTIME_MODELS = "models"
+OCR_RUNTIME_INSTALLED = "installed.json"
+OCR_RUNTIME_FILE = "runtime.json"          # data/ocr/runtime.json
+OCR_RUNTIME_MODULES = ("numpy", "PIL", "onnxruntime")  # 高精度エンジンに要るモジュール
+OCR_DOWNLOAD_TIMEOUT = 120
+NET_CHUNK_BYTES = 256 * 1024             # 大きなファイルを少しずつ読むときの1回の量(fetch/net の http_download)
+
+# PP-OCRv6(wfp/ocr/ppocr)。段は medium(精度優先・既定)/ small(遅い PC 用)。値はモデルの inference.yml と PaddleOCR の既定から。
+# 速さ・精度の数字は tools/ocr_eval.py で実機で測ってから直す
+PPOCR_TIERS = ("medium", "small")
+PPOCR_MODEL_PARTS = ("det", "rec")         # models/<段>/<部分>/inference.onnx・inference.yml
+PPOCR_MODEL_FILES = ("inference.onnx", "inference.yml")
+PPOCR_PROVIDERS = ("CPUExecutionProvider",)  # GPU(DirectML)は段階 4
+PPOCR_THREADS = 0                          # 0 = onnxruntime に任せる
+PPOCR_DET_SIDE = {"accurate": 1920, "fast": 1280}  # 検出に渡す画像の長い辺の上限(px。32 の倍数にそろえる)
+PPOCR_DET_MULTIPLE = 32
+PPOCR_DET_MEAN = (0.485, 0.456, 0.406)     # 検出の正規化(BGR の並びのまま。PaddleOCR と同じ)
+PPOCR_DET_STD = (0.229, 0.224, 0.225)
+PPOCR_DET_THRESH = 0.3                     # 確率の地図を2値にするしきい値
+PPOCR_BOX_THRESH = 0.6                     # 枠の中の確率の平均がこれ未満なら捨てる
+PPOCR_UNCLIP = 1.5                         # 枠を外へ広げる割合(DB は文字より小さめに出す)
+PPOCR_MIN_BOX = 3                          # これより小さい枠(短い辺の px)は捨てる
+PPOCR_REC_HEIGHT = 48                      # 認識に渡す行の高さ(inference.yml の image_shape)
+PPOCR_REC_MAX_WIDTH = 3200                 # 認識に渡す行の幅の上限(inference.yml の動的な形の上限)
+PPOCR_REC_BATCH = 8
+PPOCR_REC_MIN_SCORE = 0.5                  # 文字の確からしさの平均がこれ未満の行は捨てる
 
 # 候補の件数の上限: アイテムから探す(数量違いを束ねた後)・敵から探す(勢力・強化版の違いが多いので多め)・エリア検索(惑星とノード)
 SUGGEST_LIMIT = 10

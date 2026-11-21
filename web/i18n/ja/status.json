@@ -1,0 +1,7 @@
+{
+  "status.data": "データ {at} 取得 / 項目 {n}",
+  "status.nodata": "データ未取得 — 「データ更新」から取得してください",
+  "status.offline": "サーバーに接続できません",
+  "status.broken": "データが壊れています — 「データ更新」で取り直してください",
+  "status.checking": "データ確認中..."
+}

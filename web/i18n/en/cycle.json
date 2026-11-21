@@ -1,0 +1,22 @@
+{
+  "cycle.name.cetus": "Plains of Eidolon (Cetus)",
+  "cycle.name.vallis": "Orb Vallis",
+  "cycle.name.zariman": "Zariman",
+  "cycle.name.duviri": "Duviri",
+  "cycle.phase.day": "Day",
+  "cycle.phase.night": "Night",
+  "cycle.phase.warm": "Warm",
+  "cycle.phase.cold": "Cold",
+  "cycle.phase.corpus": "Corpus",
+  "cycle.phase.grineer": "Grineer",
+  "cycle.phase.sorrow": "Sorrow",
+  "cycle.phase.fear": "Fear",
+  "cycle.phase.joy": "Joy",
+  "cycle.phase.anger": "Anger",
+  "cycle.phase.envy": "Envy",
+  "cycle.cambion.day": "Fass (day)",
+  "cycle.cambion.night": "Vome (night)",
+  "cycle.src.default": "Calculated from reference",
+  "cycle.src.worldstate": "Synced with official data",
+  "cycle.src.manual": "Set by hand"
+}

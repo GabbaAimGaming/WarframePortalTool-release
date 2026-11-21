@@ -1,0 +1,14 @@
+{
+  "dlg.aria": "確認",
+  "dlg.cancel": "キャンセル",
+  "dlg.yes": "はい",
+  "dlg.no": "いいえ",
+  "dlg.purge.confirm": "「{title}」を完全に消します。元に戻せません。\n本当に消しますか？",
+  "dlg.del": "「{title}」を削除します。",
+  "dlg.trash": "ゴミ箱に入れる",
+  "dlg.purge": "完全削除する",
+  "dlg.trash.purge": "「{title}」をゴミ箱から消します。",
+  "dlg.group": "追加するグループの名前(tips の中のフォルダになります)",
+  "dlg.group.ok": "追加する",
+  "dlg.group.renamed": "使えない文字や同じ名前があったため「{name}」で作りました。"
+}

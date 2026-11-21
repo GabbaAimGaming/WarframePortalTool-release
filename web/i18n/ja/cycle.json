@@ -1,0 +1,22 @@
+{
+  "cycle.name.cetus": "平原 (Cetus)",
+  "cycle.name.vallis": "オーブ峡谷 (Orb Vallis)",
+  "cycle.name.zariman": "ZARIMAN",
+  "cycle.name.duviri": "デュヴィリ (Duviri)",
+  "cycle.phase.day": "昼",
+  "cycle.phase.night": "夜",
+  "cycle.phase.warm": "温暖",
+  "cycle.phase.cold": "寒冷",
+  "cycle.phase.corpus": "コーパス",
+  "cycle.phase.grineer": "グリニア",
+  "cycle.phase.sorrow": "Sorrow",
+  "cycle.phase.fear": "Fear",
+  "cycle.phase.joy": "Joy",
+  "cycle.phase.anger": "Anger",
+  "cycle.phase.envy": "Envy",
+  "cycle.cambion.day": "Fass(昼)",
+  "cycle.cambion.night": "Vome(夜)",
+  "cycle.src.default": "基準時刻から計算",
+  "cycle.src.worldstate": "公式データで同期",
+  "cycle.src.manual": "手動で時刻合わせ"
+}

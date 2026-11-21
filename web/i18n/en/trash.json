@@ -1,0 +1,12 @@
+{
+  "trash.title": "Trash",
+  "trash.lead": "Where deleted notes go (_trash in the tips folder). \"Restore\" puts a note back where it was.",
+  "trash.col.note": "Note",
+  "trash.col.path": "Original location",
+  "trash.col.at": "Moved at",
+  "trash.restore": "Restore",
+  "trash.purge": "Delete permanently",
+  "trash.empty": "The trash is empty.",
+  "trash.restored": "Restored \"{title}\" to {path}.",
+  "trash.purged": "Deleted \"{title}\" permanently."
+}

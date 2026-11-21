@@ -10,8 +10,8 @@ parts.html(画面の共通部品)・pages/<id>.html(ページごとの表示部�
   ファイルが食い違えば PageError(ページを足すときは PAGE_FILES に id を1つ)
 - 差し込めるのは UI_FILES / BUILDER_FILES / PAGE_FILES のファイルだけ(web/ の外や、ほかのファイルは読まない)。入れ子の差し込みはしない
 - 目印の誤り(知らないファイル・無い部品・使われない部品)は PageError にする(画面が半端に表示されないように)
-- 表示する文字は web/i18n/<言語>.json(キー → 文字)。組み立てた後、`I18N_SLOT` の箇所を
-  {言語: 表} の JSON に置き換える。日本語(ja.json)は必須で先頭、ほかはファイル名の順
+- 表示する文字は web/i18n/<言語>/<キーの頭>.json(キー → 文字。読み込みは core/i18n の read_lang_dir)。組み立てた後、`I18N_SLOT` の箇所を
+  {言語: 表} の JSON に置き換える。日本語(ja/)は必須で先頭、ほかはフォルダ名の順
 - 画面でも使う Python の定数(PAGE_CONSTS。core/const の名前)は、メイン画面の `CONST_SLOT` の箇所に {名前: 値} の JSON で差し込む
   (画面で手で写さない。足すときは PAGE_CONSTS に名前を1つ)
 """
@@ -21,7 +21,7 @@ import json
 import re
 from pathlib import Path
 
-from wfp.core import const
+from wfp.core import const, i18n
 from wfp.core.const import I18N_BASE, I18N_DIR, WEB_DIR
 
 BASE = "ctrl.html"
@@ -132,27 +132,25 @@ def assemble(texts: dict[str, str], base: str = BASE, pages: tuple[str, ...] = P
 def check_i18n(tables: dict) -> None:
     """言語の表の形を検査する(言語コード・日本語の有無・キーと値が空でない文字列)"""
     if I18N_BASE not in tables:
-        raise PageError(f"{I18N_DIR}/{I18N_BASE}.json がありません")
+        raise PageError(f"{I18N_DIR}/{I18N_BASE}/ がありません")
     for code, table in tables.items():
         if not LANG_CODE.match(code):
             raise PageError(f"{I18N_DIR}: 言語コードの形が違います: {code}")
         if not isinstance(table, dict):
-            raise PageError(f"{I18N_DIR}/{code}.json: 中身がオブジェクトではありません")
+            raise PageError(f"{I18N_DIR}/{code}/: 中身がオブジェクトではありません")
         bad = [k for k, v in table.items() if not isinstance(v, str) or not v.strip() or not k.strip()]
         if bad:
-            raise PageError(f"{I18N_DIR}/{code}.json: 空か文字でない値があります: " + ", ".join(bad[:5]))
+            raise PageError(f"{I18N_DIR}/{code}/: 空か文字でない値があります: " + ", ".join(bad[:5]))
 
 
 def read_i18n(folder: Path | None = None) -> dict[str, dict[str, str]]:
-    """web/i18n/*.json を {言語: {キー: 文字}} で読む(日本語が先頭)。壊れていれば PageError"""
-    base = (folder or web_dir()) / I18N_DIR
-    files = sorted(base.glob("*.json"), key=lambda f: (f.stem != I18N_BASE, f.stem))
+    """web/i18n/<言語>/*.json を {言語: {キー: 文字}} で読む(日本語が先頭)。壊れていれば PageError"""
     tables = {}
-    for f in files:
+    for code, lang_dir in i18n.lang_dirs((folder or web_dir()) / I18N_DIR).items():
         try:
-            tables[f.stem] = json.loads(f.read_text(encoding="utf-8"))
-        except (OSError, ValueError) as e:
-            raise PageError(f"{I18N_DIR}/{f.name} が読めません: {e}") from e
+            tables[code] = i18n.read_lang_dir(lang_dir)
+        except i18n.LangFileError as e:
+            raise PageError(f"{I18N_DIR}/{code}/{e}") from e
     check_i18n(tables)
     return tables
 

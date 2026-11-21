@@ -57,6 +57,32 @@ def all_item_names(drops: Drops, sources: Sources | None, extra: list[str] | tup
     return sorted(set(drops.item_names) | set(sources.item_names if sources else []) | set(extra))
 
 
+def parts_by_owner(items, names: Names, owners: dict[str, str] | None = None) -> dict[str, list[str]]:
+    """本体ごとのパーツ: {本体の英名を norm したもの: [パーツの英名]}。items は all_item_names の項目。
+    パーツ → 本体は Names.part_of(owners は Sources.part_owner。設計図ではない作成素材も入る)。
+    数量違い・大文字小文字違いは item_key で1つに束ねる(group_candidates と同じ。最初に出た綴りを残す。find_sources も item_key で
+    照合するので、どちらの綴りでも入手先は同じ)。本体と同じ名前の項目(本体そのもの)は除く・名前順"""
+    out: dict[str, dict[str, str]] = {}
+    for n in sorted(items):
+        if hit := names.part_of(n, owners):
+            key, part = norm(hit[0]), names.split_qty(n)[1]
+            if norm(part) != key:
+                out.setdefault(key, {}).setdefault(item_key(part), part)
+    return {k: sorted(v.values()) for k, v in out.items()}
+
+
+def part_sources(parts: list[str], drops: "Drops", sources: Sources | None, names: Names,
+                 vault: Vault | None = None, events: bool = False) -> list[dict]:
+    """パーツごとの入手先: [{en, ja, vaulted, rows}]。parts は parts_by_owner で引いた本体のパーツ。入手先の無いパーツは入れない。
+    rows は find_sources の行。vaulted は入手先が Vault 入りのレリックだけ(いま手に入らない。vault を渡したときだけ)"""
+    out = []
+    for part in parts:
+        rows = find_sources(part, drops, sources, names, events=events, vault=vault)
+        if rows:
+            out.append({"en": part, "ja": names.ja(part), "vaulted": bool(vault is not None and vault.unavailable(part)), "rows": rows})
+    return out
+
+
 def pick_candidates(query: str, item_names, names: Names, materials_only: bool = False,
                     keep: Callable[[str], bool] | None = None) -> list[str]:
     """名前(英名・日本語名・ひらがな)が query に合う項目を、合い方の良い順に返す。

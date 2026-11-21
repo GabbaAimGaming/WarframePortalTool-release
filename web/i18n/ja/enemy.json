@@ -1,0 +1,18 @@
+{
+  "enemy.lead": "敵の名前(英語)を入力すると、その敵を1体倒したときに落とすアイテムと確率を表示します。",
+  "enemy.placeholder": "例: Heavy Gunner / Corrupted",
+  "enemy.nomatch": "一致する敵がありません(敵の名前は英語です)",
+  "enemy.more": "ほか {n} 件(名前を続けて入力すると絞り込めます)",
+  "enemy.pick": "候補から敵を選んでください。",
+  "enemy.empty": "敵の名前を入力してください。",
+  "enemy.nodata": "データがありません。「データ更新」から取得してください。",
+  "enemy.nokind": "種類を1つ以上選んでください。",
+  "enemy.none": "選んだ種類のドロップはありません(種類を足すと増える場合があります)。",
+  "enemy.count": "{n} / {total} 件",
+  "enemy.col.item": "アイテム",
+  "enemy.col.detail": "区分",
+  "enemy.col.chance": "確率",
+  "enemy.col.rarity": "レア度",
+  "enemy.footnote": "確率は1体倒したときに落とす割合です。区分の % はその表(MOD・設計図など)を引く割合で、確率にはかけ合わせ済みです。",
+  "enemy.open": "敵から探すで開く"
+}

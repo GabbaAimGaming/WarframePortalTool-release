@@ -1,0 +1,11 @@
+{
+  "item.vaulted": "Currently unobtainable (vaulted)",
+  "item.lead": "Type an item name (Japanese, English or hiragana) to list where it comes from (missions, enemies, bounties, relics and more) with chances.",
+  "item.placeholder": "e.g. Neurodes / Rhino / Vitality",
+  "item.nomatch": "No matching items (try selecting more kinds)",
+  "item.nokind": "Pick at least one kind to search.",
+  "item.more": "{n} more (narrow by name or kind)",
+  "item.pick": "Pick one of the candidates.",
+  "item.empty": "Pick an item or type a name.",
+  "item.nodata": "No data yet. Fetch it from \"Data Update\"."
+}

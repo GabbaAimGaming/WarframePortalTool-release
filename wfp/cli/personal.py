@@ -13,7 +13,8 @@ from wfp.core.common import pct, rank
 from wfp.core.i18n import render_ja, txt
 from wfp.core.text import norm
 from wfp.core.const import (
-    ARCANE_CATS, BUILD_IMAGE_DIR, BUILD_IMAGE_MAX, BUILD_TYPES, DROPS_FILE, MASTERY_CATS, MOD_TYPES, QUEST_CATS, QUEST_STATES, RARITY_JA, SOURCE_CATS,
+    ARCANE_CATS, BUILD_IMAGE_DIR, BUILD_IMAGE_MAX, BUILD_TYPES, DROPS_FILE, MASTERY_CATS, MOD_TYPES, OCR_ENGINE_PREFS,
+    QUEST_CATS, QUEST_STATES, RARITY_JA, SOURCE_CATS,
 )
 from wfp.core.archon import find_effect, parse_shard_args, shard_list, shard_text
 from wfp.core.helminth import parse_helminth_arg, subsume_frame, subsume_list
@@ -296,9 +297,13 @@ def _build_export(d, args) -> None:
 
 
 def _build_analyze(d, args) -> None:
-    """build analyze: 画像を文字認識してビルドの中身を読む(wfportal_ocr。Windows の文字認識が要る)"""
+    """build analyze: 画像を文字認識してビルドの中身を読む(wfportal_ocr。エンジンは wfp/ocr。--engine で選ぶ)"""
     import wfportal_ocr  # 文字認識を使うときだけ読み込む
-    wfportal_ocr.main_analyze(args.query, d, raw=args.raw, save_ocr=args.save_ocr, ocr_json=args.ocr_json)
+    from wfp.ocr import engine
+    prefs = userdata.load_ocr_prefs(d)  # 画面と同じ設定(--engine があればそちら)
+    engine.configure(d, prefs["tier"])
+    wfportal_ocr.main_analyze(args.query, d, raw=args.raw, save_ocr=args.save_ocr, ocr_json=args.ocr_json,
+                              engine=args.engine or prefs["engine"])
 
 
 def _build_raw(args, name: str, old_type: str | None) -> dict:
@@ -384,6 +389,8 @@ def add_build(sub) -> None:
     s.add_argument("--raw", action="store_true", help="analyze: 読み取った文字をそのまま表示")
     s.add_argument("--save-ocr", metavar="JSON", help="analyze: 文字認識の結果を保存 (不具合の報告用)")
     s.add_argument("--ocr-json", metavar="JSON", help="analyze: 保存した文字認識の結果から解析し直す")
+    s.add_argument("--engine", choices=OCR_ENGINE_PREFS,
+                   help="analyze: 文字認識のエンジン(auto = 高精度が入っていればそれ・無ければ Windows / winrt / ppocr。既定は画面の設定)")
     s.set_defaults(fn=cmd_build)
 
 

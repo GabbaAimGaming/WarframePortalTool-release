@@ -1,0 +1,11 @@
+{
+  "common.csv": "Save as CSV",
+  "common.state": "Status",
+  "common.loading": "Loading...",
+  "common.shown": "Showing {n}",
+  "common.confirm.n": "Really change {n}",
+  "common.none": "Nothing matches.",
+  "common.done": "Done.",
+  "common.failed": "Failed.",
+  "common.range": "{a}–{b}"
+}

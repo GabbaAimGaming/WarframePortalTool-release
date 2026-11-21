@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from wfp.core.const import CYCLES, CYCLE_SOURCES
+from wfp.core.const import CYCLES, CYCLE_SOURCES, OCR_ENGINE_AUTO, OCR_ENGINE_PREFS, PPOCR_TIERS
 from wfp.store import userdb
 
 
@@ -43,6 +43,14 @@ def _as_dict(raw) -> dict:
     return raw if isinstance(raw, dict) else {}
 
 
+def _clean_ocr_prefs(raw) -> dict:
+    """文字認識の設定 {"engine": auto / winrt / ppocr, "tier": medium / small}。知らない値は既定に"""
+    raw = _as_dict(raw)
+    engine = raw.get("engine") if raw.get("engine") in OCR_ENGINE_PREFS else OCR_ENGINE_AUTO
+    tier = raw.get("tier") if raw.get("tier") in PPOCR_TIERS else PPOCR_TIERS[0]
+    return {"engine": engine, "tier": tier}
+
+
 # 種類ごとの読み出すときの検査(load_* と editing で同じものを使う)
 #   mods_owned: 所持にした MOD の英語名(小文字)  mastered: マスター済みにした項目の id
 #   quests_done: 完了にしたクエスト・ジャンクションの id(クエストは内部パス、ジャンクションは junction:<キー>)
@@ -50,6 +58,7 @@ def _as_dict(raw) -> dict:
 #   baro_owned: バロ吉入手一覧の手動チェック(品物の英語名。小文字)  builds: ビルドの一覧(並び順のまま)
 #   duviri_adjust: デュヴィリのローテーションの手動調整 {"normal": {"id", "week", "set_at"}, ...}(中身の検査は core.duviri)
 #   baro_seen: この PC で記録したバロの来訪 {"visits": {来訪日: {...}}}(中身の検査は wfportal_baro)
+#   ocr_prefs: 文字認識のエンジンと高精度エンジンの段 {"engine", "tier"}(2026-11-20)
 _CLEANERS = {
     "cycles": _clean_cycles,
     "mods_owned": lambda raw: {x.lower() for x in raw},
@@ -57,7 +66,7 @@ _CLEANERS = {
     "arcanes_owned": _clean_ranks,
     "builds": lambda raw: [b for b in raw if isinstance(b, dict)],
     "todo": lambda raw: [b for b in raw if isinstance(b, dict)],  # 項目の中身の検査は core/todo の clean_items(store は core の機能ロジックを使わない)
-    "duviri_adjust": _as_dict, "baro_seen": _as_dict,
+    "duviri_adjust": _as_dict, "baro_seen": _as_dict, "ocr_prefs": _clean_ocr_prefs,
 }
 
 
@@ -140,6 +149,14 @@ def load_invasion_parts(d: Path) -> set[str]:
 
 def save_invasion_parts(d: Path, owned: set[str]) -> None:
     userdb.write_kind(d, "invasion_parts", owned)
+
+
+def load_ocr_prefs(d: Path) -> dict:
+    return _load(d, "ocr_prefs")
+
+
+def save_ocr_prefs(d: Path, prefs: dict) -> None:
+    userdb.write_kind(d, "ocr_prefs", prefs)
 
 
 def load_baro_seen(d: Path) -> dict:

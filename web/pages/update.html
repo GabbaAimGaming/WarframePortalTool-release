@@ -10,6 +10,22 @@
         <div class="row"><button class="btn" id="update-btn" data-i18n="upd.btn">公式データを取得</button>
           <button class="btn ghost" id="update-riv-btn" type="button" data-i18n="upd.riv">Riven相場だけ取得</button></div>
         <pre class="log" id="update-log" hidden></pre>
+        <!-- 文字認識のエンジン(β版の機能がオンのときだけ出す。renderOcrPanel) -->
+        <div id="ocr-panel" hidden>
+          <h3><span data-i18n="ocr.engine.title">文字認識</span> <span class="beta-tag" data-i18n="beta.tag">β</span></h3>
+          <p class="lead" data-i18n="ocr.engine.lead">ゲーム画面・ビルド画像の読み取りに使う文字認識を選びます。高精度の文字認識(PP-OCRv6)は、部品(数十〜百数十 MB)を入れると使えます。</p>
+          <dl class="kv" id="ocr-info"></dl>
+          <div class="row">
+            <label><span data-i18n="ocr.engine.pick">使う文字認識</span>
+              <select id="ocr-engine"></select></label>
+            <label><span data-i18n="ocr.engine.tier">高精度の段</span>
+              <select id="ocr-tier"></select></label>
+            <button class="btn ghost" id="ocr-install" type="button" data-i18n="ocr.engine.install">高精度の文字認識を入れる</button>
+          </div>
+          <div class="err" id="ocr-err" role="alert"></div>
+          <div class="ocr-progress" id="ocr-progress" role="status" aria-live="polite" hidden></div>
+          <pre class="log" id="ocr-log" hidden></pre>
+        </div>
         <p class="note" data-i18n="upd.note">取得元: ドロップ表・入手先は WFCD/warframe-drop-data(drops.warframestat.us)、日本語名は calamity-inc/warframe-public-export(取得できなければ公式 Public Export)、Riven 相場は公式の weeklyRivensPC.json(取得できなければ WFCD の api.warframestat.us)です。ロゴ素材が未取得のときは、公式ファンキット(Warframe Fan Kit)の配布元からロゴ素材も取得します。インターネット接続が必要です。</p>
       </section>
 <!-- PART:script -->
@@ -25,5 +41,92 @@ $("#update-btn").addEventListener("click", async () => {
   } catch (e) { log.textContent = e.message; }
   btn.disabled = false; btn.textContent = t("upd.btn"); refreshStatus();
 });
-loaders.update = () => { applyViewText("update"); return refreshStatus(); };
-relabel.update = () => { applyViewText("update"); renderStatus(); relabelLogs(); };
+/* 文字認識のエンジンの欄: 使っているエンジン・高精度の部品の状態・設定・導入(/api/ocr-info・/api/ocr/prefs・/api/ocr/runtime/install) */
+let ocrPanel = null;
+const ocrPanelGuard = latestGuard();
+function renderOcrPanel() {
+  const box = $("#ocr-panel");
+  box.hidden = !betaOn;
+  if (!ocrPanel || box.hidden) return;
+  const info = ocrPanel, rt = info.runtime || {};
+  const row = (k, v) => `<dt>${esc(t(k))}</dt><dd>${esc(v)}</dd>`;
+  const using = info.available ? tName("ocr.engine.name.", info.engine) + (info.fallback ? t("ocr.engine.fallback") : "") : ocrReason(info);
+  const parts = rt.ready ? t("ocr.engine.rt.ready") : !rt.supported && !rt.modules ? fmt("ocr.engine.rt.pyver", { tag: rt.tag || "" })
+    : t("ocr.engine.rt.none");
+  $("#ocr-info").innerHTML = row("ocr.engine.using", using) + row("ocr.engine.rt", parts);
+  const options = (sel, values, prefix, current) => {
+    sel.innerHTML = values.map(v => `<option value="${esc(v)}"${v === current ? " selected" : ""}>${esc(tName(prefix, v))}</option>`).join("");
+  };
+  options($("#ocr-engine"), info.choices.engine, "ocr.engine.name.", info.prefs.engine);
+  options($("#ocr-tier"), info.choices.tier, "ocr.engine.tiername.", info.prefs.tier);
+  $("#ocr-install").disabled = !!rt.ready || (!rt.supported && !rt.modules) || ocrJobRunning();
+  renderOcrJob();
+}
+/* 部品の導入の進み具合(/api/ocr/runtime/progress)。導入は裏で動くので、取得中は毎秒聞き直す(everySecond.update) */
+let ocrJob = null, ocrPolling = false;
+const ocrJobRunning = () => !!ocrJob && ocrJob.state === "running";
+const mbText = bytes => (bytes / 1048576).toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+function renderOcrJob() {
+  const box = $("#ocr-progress");
+  box.hidden = !ocrJobRunning();
+  if (box.hidden) return;
+  const job = ocrJob;
+  const step = job.phase === "fetch" || !job.phase ? "" : ` ${t("ocr.engine.phase." + job.phase)}`;
+  const file = job.count ? fmt("ocr.engine.progress.file", { index: job.index, count: job.count, name: job.name || "" }) : t("ocr.engine.progress.prepare");
+  box.innerHTML = `${progressBar(ratePct(job.done, job.total))}
+    <span>${esc(file)}${esc(step)}</span>
+    <span class="sub">${esc(fmt("ocr.engine.progress.size", { done: mbText(job.done), total: mbText(job.total), time: dur(job.elapsed) }))}</span>`;
+}
+async function ocrJobFinished(job) {
+  const log = $("#ocr-log");
+  if (job.state === "done") { log.hidden = false; showLog(log, { lines: job.lines, ok: true }); }
+  else $("#ocr-err").textContent = job.error ? renderTxt(job.error) : "";
+  forgetOcrInfo();
+  await loadOcrPanel();
+}
+async function pollOcrJob() {
+  if (ocrPolling) return;
+  ocrPolling = true;
+  try {
+    const was = ocrJobRunning(), job = await api("/api/ocr/runtime/progress");
+    ocrJob = job;
+    if (was && !ocrJobRunning()) await ocrJobFinished(job);
+    else renderOcrPanel();
+  } catch (e) { $("#ocr-err").textContent = e.message; }
+  finally { ocrPolling = false; }
+}
+everySecond.update = () => { if (ocrJobRunning()) pollOcrJob(); };
+async function loadOcrPanel() {
+  if (!betaOn) { renderOcrPanel(); return; }
+  const fresh = ocrPanelGuard();
+  try { const r = await api("/api/ocr-info"); if (!fresh()) return; ocrPanel = r; $("#ocr-err").textContent = ""; }
+  catch (e) { if (fresh()) $("#ocr-err").textContent = e.message; }
+  renderOcrPanel();
+}
+async function saveOcrPrefs(body) {
+  const fresh = ocrPanelGuard();
+  $("#ocr-err").textContent = "";
+  try { const r = await api("/api/ocr/prefs", { method: "POST", body }); if (!fresh()) return; ocrPanel = r; forgetOcrInfo(); }
+  catch (e) { if (fresh()) $("#ocr-err").textContent = e.message; }
+  renderOcrPanel();
+}
+$("#ocr-engine").addEventListener("change", e => saveOcrPrefs({ engine: e.target.value }));
+$("#ocr-tier").addEventListener("change", e => saveOcrPrefs({ tier: e.target.value }));
+$("#ocr-install").addEventListener("click", async () => {
+  $("#ocr-install").disabled = true; $("#ocr-err").textContent = ""; $("#ocr-log").hidden = true;
+  try {
+    // すぐ返る(導入は裏で動く)。本文を使わない POST も JSON の形で送る(サーバーの empty_body)
+    ocrJob = await api("/api/ocr/runtime/install", { method: "POST", body: {} });
+  } catch (e) { $("#ocr-err").textContent = e.message; }
+  renderOcrPanel();
+});
+// 開いたときに進み具合も聞く(裏でまだ導入している最中なら、バーの続きから出す)
+loaders.update = () => { applyViewText("update"); loadOcrPanel().then(() => betaOn && pollOcrJob()); return refreshStatus(); };
+// β版の切り替え(setBeta)でも呼ばれる。オンにしたときにまだ読んでいなければ読む
+relabel.update = () => { applyViewText("update"); renderStatus(); relabelLogs(); if (ocrPanel) renderOcrPanel(); else loadOcrPanel(); };
+<!-- PART:style -->
+<style>
+/* 文字認識の部品の導入の進み具合(バー・何個目と名前・量と経過時間) */
+.ocr-progress { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 8px 0; }
+.ocr-progress .sub { color: var(--mute); font-size: 12px; }
+</style>

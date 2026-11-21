@@ -1,0 +1,22 @@
+{
+  "scan.file": "Read from screenshots",
+  "scan.confirm": "Don't tick automatically; confirm first",
+  "scan.note": "Open the mod screen in the game and scroll: mod names on screen are read and marked as owned (every few seconds, only when the screen changes). Low-confidence matches go to \"Check\"; click them if they are right. Reading uses Windows text recognition. Exclusive fullscreen may not be captured; use borderless (windowed) mode or read from screenshots instead.",
+  "scan.stats": "Reads {reads} / mods found {seen} / newly owned {added}",
+  "scan.added": "Newly owned (× to undo)",
+  "scan.maybe": "Check (click to mark as owned)",
+  "scan.read": "Read: {text}",
+  "scan.waiting": "Reading (waiting for the screen to change)",
+  "scan.reading": "Reading...",
+  "scan.found": "Reading ({n} mod names found on the last screen)",
+  "scan.failed": "Reading failed: {msg}",
+  "scan.unavailable": "Not available: {reason}",
+  "scan.nobrowser": "This browser cannot capture the screen. Open it in Chrome or Edge.",
+  "scan.cancel": "Screen sharing was cancelled.",
+  "scan.on": "Read game screen: ON",
+  "scan.off": "Read game screen: OFF",
+  "scan.stopped": "Stopped",
+  "scan.files": "Reading screenshots... {i} / {n}",
+  "scan.file.failed": "Could not read {file}: {msg}",
+  "scan.files.done": "Read {n} screenshots"
+}

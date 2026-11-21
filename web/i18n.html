@@ -1,7 +1,7 @@
 <!-- 文字を引く部品: 言語ごとの表(I18N)と、t・fmt・renderTxt などの関数。ブラウザに覚える設定(pref)・API の応答の読み方(apiRead・apiImage)もここ
      (メイン画面とシミュレータで共用する部品はこれだけなので)。
      メイン画面(web/ctrl.html)とシミュレータ(web/wfportal_builder.html)の両方に差し込む(wfp/api/pages.py)。
-     I18N の中身は web/i18n/<言語>.json。組み立てるとき pages.py が下の目印(I18N:DATA)に差し込む。 -->
+     I18N の中身は web/i18n/<言語>/<キーの頭>.json。組み立てるとき pages.py が下の目印(I18N:DATA)に差し込む。 -->
 <!-- PART:script -->
 <script>
 /* ---------- ブラウザに覚える設定(localStorage) ---------- */
@@ -18,7 +18,7 @@ const pref = {
 };
 
 /* ---------- 表示する文字(言語ごと) ---------- */
-/* 中身は web/i18n/<言語>.json(キー → 文字)。画面を組み立てるとき wfp/api/pages.py が下の目印の行に差し込む。
+/* 中身は web/i18n/<言語>/<キーの頭>.json(キー → 文字)。画面を組み立てるとき wfp/api/pages.py が下の目印の行に差し込む。
    言語を足すときは JSON を1つ足すだけ(切り替えのボタンも自動で増える)。各言語の lang.name / lang.short がボタンの文字。
    今の言語に無いキーは日本語、それも無ければキーそのものを表示する。
    キーの決まり:

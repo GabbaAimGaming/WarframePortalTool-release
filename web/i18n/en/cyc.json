@@ -1,0 +1,20 @@
+{
+  "cyc.lead": "Day/night and similar cycles, plus the time until the daily and weekly resets. Calculated from the cycle lengths, so it works offline.",
+  "cyc.sync": "Sync with official data",
+  "cyc.note": "\"Sync with official data\" asks the official World State only when pressed, and syncs the Plains and Zariman cycles and your PC clock offset (pressing again within 60 seconds reuses the last result). Orb Vallis and Duviri have no clue in the official data, so they are calculated from a reference time.",
+  "cyc.manual": "Set by hand (when the official data cannot be fetched)",
+  "cyc.f.key": "Cycle",
+  "cyc.f.phase": "Current phase",
+  "cyc.f.rem": "Time left in that phase (e.g. 45:30, or just minutes)",
+  "cyc.f.note": "Enter the time left you see in game, and the cycle is calculated from there. A later \"Sync with official data\" overwrites it with the official data.",
+  "cyc.left": "Time left",
+  "cyc.next": "→ next: {phase}",
+  "cyc.cambion": "Cambion Drift: {phase}",
+  "cyc.daily": "Daily reset",
+  "cyc.weekly": "Weekly reset",
+  "cyc.nosync": "Not synced with official data yet (calculated from the reference time)",
+  "cyc.synced": "Last sync {at} / PC clock offset {off}",
+  "cyc.offset": "{sec} s (corrected)",
+  "cyc.offset.none": "none",
+  "cyc.fetching": "Fetching official data..."
+}

@@ -1,0 +1,21 @@
+{
+  "duviri.lead": "This week's Circuit rewards and the rotation for the coming weeks. Changes at the weekly reset (Monday 0:00 UTC).",
+  "duviri.normal": "Normal",
+  "duviri.steelpath": "Steel Path",
+  "duviri.current": "This week",
+  "duviri.upcoming": "Upcoming rotation",
+  "duviri.date": "Week of",
+  "duviri.col": "Reward {n}",
+  "duviri.weekday": " (Mon)",
+  "duviri.manual": "Adjusted manually",
+  "duviri.broken": "The rotation data could not be read.",
+  "duviri.none": "There is only one rotation, so nothing is upcoming.",
+  "duviri.loading": "Loading...",
+  "duviri.adjust": "Out of sync with the game? (adjust manually)",
+  "duviri.adjust.id": "This week's ID (current mode)",
+  "duviri.adjust.save": "Save",
+  "duviri.adjust.reset": "Back to bundled settings",
+  "duviri.adjust.help": "Pick the ID that matches this week's rewards in game; the rotation advances from there every week. Adjustments are per mode and survive tool updates.",
+  "duviri.from": "from {date}",
+  "duviri.modes": "Mode"
+}

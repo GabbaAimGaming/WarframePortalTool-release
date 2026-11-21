@@ -31,6 +31,7 @@ BUNDLED: dict[str, tuple[str, str | None]] = {
     "qa": ("qa", None),                                  # Q&A の語の表・答えの文の型など(core.qa)
     "riven": ("riven", const.RIVEN_WORDS_FILE),          # Riven の画像の読み取りの効果名(wfportal_rivenscan)
     "primes": ("primes", None),                          # Prime Access の回・フレームの実装順(core.primes)
+    "ocr": ("ocr", const.OCR_RUNTIME_FILE),              # 高精度の文字認識の部品の表(wfp.ocr.runtime)
 }
 
 
@@ -155,6 +156,14 @@ def read_summons(name: str | None = None, src: Path | None = None) -> object | N
 
 def read_primes(name: str, src: Path | None = None) -> object | None:
     return read_bundled("primes", name, primes_dir() if src is None else src)
+
+
+def ocr_dir() -> Path:
+    return bundled_dir("ocr")
+
+
+def read_ocr_runtime(name: str | None = None, src: Path | None = None) -> object | None:
+    return read_bundled("ocr", name, ocr_dir() if src is None else src)
 
 
 def read_qa(name: str, src: Path | None = None) -> object | None:

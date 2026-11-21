@@ -1,0 +1,12 @@
+{
+  "relic.era.Lith": "Lith",
+  "relic.era.Meso": "Meso",
+  "relic.era.Neo": "Neo",
+  "relic.era.Axi": "Axi",
+  "relic.era.Requiem": "Requiem",
+  "relic.era.Vanguard": "バンガード",
+  "relic.state.Intact": "無傷",
+  "relic.state.Exceptional": "上質",
+  "relic.state.Flawless": "完璧",
+  "relic.state.Radiant": "光輝"
+}

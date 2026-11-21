@@ -49,7 +49,7 @@ const itemSearch = sourceSearch({
   list: res => res.items,
   // 入手不可(入手先が Vault 入りのレリックだけ)のパーツには印を付ける
   tag: i => `<span class="tag-mini">${esc(t("area.kind." + i.kind))}</span>`
-    + (i.vaulted ? `<span class="tag-mini" title="${esc(t("src.vaulted.tip"))}">${esc(t("src.vaulted"))}</span>` : ""),
+    + (i.vaulted ? `<span class="tag-mini" title="${esc(t("src.vaulted.part.tip"))}">${esc(t("src.vaulted"))}</span>` : ""),
   // 種類を1つも選んでいないときは候補を取らない(空の kinds はサーバーで「指定なし = 既定」になるため)
   blocked: () => (itemKinds().length ? "" : t("item.nokind")),
   onSuggest: res => {

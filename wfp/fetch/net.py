@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import urllib.request
+from typing import Callable
 
+from wfp.core.const import NET_CHUNK_BYTES
 from wfp.core.i18n import txt
 from wfp.core.log import say
 from wfp.fetch import decode
@@ -21,6 +23,23 @@ def http_get(url: str, timeout: int = 60) -> bytes:
             import gzip
             data = gzip.decompress(data)
     return data
+
+
+def http_download(url: str, timeout: int = 60, on_chunk: Callable[[int], None] | None = None) -> bytes:
+    """大きなファイル(ホイール・モデル)を NET_CHUNK_BYTES ずつ読む。読むたびに on_chunk(ここまでの量) を呼ぶ。
+    中身をそのまま照合する(SHA-256)ので gzip は頼まない・ほどかない"""
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
+    parts, got = [], 0
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        while True:
+            chunk = r.read(NET_CHUNK_BYTES)
+            if not chunk:
+                break
+            parts.append(chunk)
+            got += len(chunk)
+            if on_chunk:
+                on_chunk(got)
+    return b"".join(parts)
 
 
 def fetch_json(urls: list[str], verbose: bool = False) -> bytes:

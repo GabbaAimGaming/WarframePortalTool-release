@@ -1,0 +1,22 @@
+{
+  "riv.lead": "Official weekly Riven Mod trade statistics for PC. Prices are in platinum.",
+  "riv.placeholder": "Weapon name (e.g. Rubico)",
+  "riv.col.type": "Weapon type",
+  "riv.veiled.include": "Include veiled",
+  "riv.update": "Update Riven prices only",
+  "riv.note": "Extreme listings are mixed in, so the median is a better guide than the average. Weapons with few trades vary more.",
+  "riv.veiled": "Veiled",
+  "riv.summary": "Showing {shown} / {total}",
+  "riv.updated": "Fetched {at}",
+  "riv.col.weapon": "Weapon",
+  "riv.unrolled": "Unrolled",
+  "riv.rerolled": "Rerolled",
+  "riv.median": "Median",
+  "riv.avg": "Average",
+  "riv.range": "Range",
+  "riv.pop": "Trades",
+  "riv.none": "No Rivens match.",
+  "riv.type.all": "All weapon types",
+  "riv.fetching": "Fetching...",
+  "riv.fetching.log": "Fetching Riven prices..."
+}

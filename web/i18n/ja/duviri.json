@@ -1,0 +1,21 @@
+{
+  "duviri.lead": "サーキットで選べる報酬の今週分と、来週以降の並びです。毎週月曜 9:00(JST)のウィークリーリセットで切り替わります。",
+  "duviri.normal": "ノーマル",
+  "duviri.steelpath": "鋼の道のり",
+  "duviri.current": "今週の報酬",
+  "duviri.upcoming": "今後のローテーション",
+  "duviri.date": "週(月曜)",
+  "duviri.col": "報酬{n}",
+  "duviri.weekday": "(月)",
+  "duviri.manual": "手動で調整中",
+  "duviri.broken": "ローテーションのデータが読めません。",
+  "duviri.none": "ローテーションが1件だけなので、今後の表はありません。",
+  "duviri.loading": "読み込み中...",
+  "duviri.adjust": "ゲーム内とズレているとき(手動で調整)",
+  "duviri.adjust.id": "今週の ID(表示中のモード)",
+  "duviri.adjust.save": "保存",
+  "duviri.adjust.reset": "同梱の設定に戻す",
+  "duviri.adjust.help": "ゲーム内の今週の報酬に合う ID を選んで保存すると、以降はそこから毎週進めて表示します。調整はモードごとで、ツールの更新では消えません。「同梱の設定に戻す」で調整を消せます。",
+  "duviri.from": "{date}〜",
+  "duviri.modes": "モード"
+}

@@ -2,7 +2,7 @@
 """wfportal_ocr - ビルド画像の自動解析 (Windows 標準の文字認識 + 名前一覧との照合 / 標準ライブラリのみ)
 
 流れ:
-  1. ocr/winocr.ps1 で Windows.Media.Ocr を呼び、文字と位置(行・単語ごとの枠)を JSON で受け取る
+  1. 文字認識のエンジン(wfp/ocr。今は Windows OCR = ocr/winocr.ps1)で、文字と位置(行・単語ごとの枠)を受け取る
   2. 読み取った文字を、公式の名前一覧(MOD・アルケイン・フレーム/武器)と照合して読み間違いを補正する
        - 単語の並びを少しずつずらして候補を作る(長い MOD 名が2行に折り返す場合も1つにまとめる)
   3. 結果から次を求める
@@ -11,34 +11,26 @@
        - フォーマ数: 画面に「フォーマ 3」などの表示があればその値。無ければ、各 MOD カードのドレイン(消費
          キャパシティ)から極性が一致しているスロットを数えて推定する(一致すると消費が半分になるため)
 
-Windows 以外や文字認識が使えない環境では OcrUnavailable を送出する。解析(2〜3)は OCR の結果(JSON)
+文字認識を呼ぶのは wfp/ocr(2026-11-20 に分けた)。使えない環境では wfp.ocr.engine の OcrUnavailable。解析(2〜3)は OCR の結果(JSON)
 さえあればどこでも動くので、テストや不具合報告の再現に使える。
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import math
-import os
 import re
-import shutil
-import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
-from wfp.core.errors import TextError
 from wfp.core.i18n import txt
-from wfp.core.const import BUILD_TYPES, POLARITY_EN
+from wfp.core.const import BUILD_TYPES, OCR_ENGINE_AUTO, OCR_LANG_MULTI, POLARITY_EN
 from wfp.core.loader import load_names
 from wfp.core.matcher import NameMatcher
 from wfp.core.names import Names
 from wfp.core.text import ocr_key
-from wfp.store import build_images
+from wfp.ocr.engine import OcrUnavailable, run_ocr_bytes
+from wfp.ocr.result import pick_result
 
-HERE = Path(__file__).resolve().parent
-PS_SCRIPT = HERE / "ocr" / "winocr.ps1"
-DEFAULT_LANGS = "en-US,ja-JP"  # MOD 名は英語、「フォーマ」などの表示は日本語の場合がある
 
 # 解析の調整(値は 2026-11-17 の分け直しの前と同じ)。位置・大きさは MOD 名の文字の高さ h やカードの間隔に対する倍率
 # 画面全体の読み取り
@@ -53,90 +45,6 @@ MOD_OCR_PITCH_Y = 12          # 段の間隔の予備(× h。段が1つのとき
 MOD_OCR_DRAIN_SPAN_X = 0.6    # ドレインを探す範囲: 左右はカードの間隔のこの割合まで
 MOD_OCR_DRAIN_SPAN_UP = 0.9   # 上は段の間隔のこの割合まで
 MOD_OCR_DRAIN_SPAN_DOWN = 0.5  # 下は名前の高さのこの割合まで
-
-
-class OcrUnavailable(TextError):
-    """文字認識が使えない・失敗した。文はテキスト指定(画面は表示中の言語、CLI は日本語)"""
-
-
-# --------------------------------------------------------------------------
-# 1. Windows の文字認識を呼ぶ
-# --------------------------------------------------------------------------
-
-def find_powershell() -> str | None:
-    """Windows PowerShell 5.1 (powershell.exe)。PowerShell 7 (pwsh) は WinRT を読めないので使わない"""
-    if os.name != "nt":
-        return None
-    root = os.environ.get("SystemRoot", r"C:\Windows")
-    p = Path(root) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
-    return str(p) if p.exists() else shutil.which("powershell.exe")
-
-
-def _run_ps(args: list[str], timeout: int) -> dict:
-    fake = os.environ.get("WFPORTAL_OCR_FAKE")  # テスト用: 保存した OCR 結果(JSON)を返す
-    if fake:
-        data = json.loads(Path(fake).read_text(encoding="utf-8-sig"))
-        data = data[0] if isinstance(data, list) else data
-        return {"available": [r.get("lang") for r in data.get("results", [])]} if "-ListLanguages" in args else data
-    ps = find_powershell()
-    if not ps:
-        raise OcrUnavailable(txt("err.ocr.windows"))
-    if not PS_SCRIPT.exists():
-        raise OcrUnavailable(txt("err.ocr.script", path=str(PS_SCRIPT)))
-    fd, out = tempfile.mkstemp(suffix=".json", prefix="wfocr_")
-    os.close(fd)
-    try:
-        cmd = [ps, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(PS_SCRIPT), "-Out", out, *args]
-        flags = 0x08000000 if os.name == "nt" else 0  # CREATE_NO_WINDOW: 黒い画面を出さない
-        try:
-            proc = subprocess.run(cmd, capture_output=True, timeout=timeout, creationflags=flags)
-        except subprocess.TimeoutExpired:
-            raise OcrUnavailable(txt("err.ocr.timeout", sec=str(timeout)))
-        text = Path(out).read_text(encoding="utf-8-sig") if Path(out).stat().st_size else ""
-        data = json.loads(text) if text else {}
-        if proc.returncode != 0 or "error" in data:
-            msg = data.get("error") or proc.stderr.decode("utf-8", "replace").strip() or f"exit {proc.returncode}"
-            raise OcrUnavailable(txt("err.ocr.failed", msg=msg))
-        return data
-    finally:
-        try:
-            os.unlink(out)
-        except OSError:
-            pass
-
-
-def ocr_languages(timeout: int = 30) -> list[str]:
-    return _run_ps(["-ListLanguages"], timeout).get("available") or []
-
-
-def run_ocr(image: Path, langs: str = DEFAULT_LANGS, scale: float = 2.0, timeout: int = 120) -> dict:
-    return _run_ps(["-Image", str(image), "-Langs", langs, "-Scale", str(scale)], timeout)
-
-
-def run_ocr_bytes(data: bytes, cache_dir: Path | None = None, **kw) -> dict:
-    """画像のバイト列を文字認識する。cache_dir を渡すと同じ画像の結果を使い回す"""
-    digest = hashlib.sha1(data).hexdigest()
-    cached = cache_dir / f"{digest}.json" if cache_dir else None
-    if cached and cached.exists():
-        try:
-            return json.loads(cached.read_text(encoding="utf-8"))
-        except ValueError:
-            pass
-    ext = build_images.image_ext(data) or "png"
-    fd, tmp = tempfile.mkstemp(suffix=f".{ext}", prefix="wfimg_")
-    try:
-        with os.fdopen(fd, "wb") as f:
-            f.write(data)
-        result = run_ocr(Path(tmp), **kw)
-    finally:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-    if cached:
-        cached.parent.mkdir(parents=True, exist_ok=True)
-        cached.write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
-    return result
 
 
 # --------------------------------------------------------------------------
@@ -352,6 +260,19 @@ def _candidate(kind: str, name: str, info, score: float, text: str, ws: list[dic
             "ids": {w["_id"] for w in ws}, "box": _box(ws), "weight": len(key) * score ** BLD_OCR_WEIGHT_POWER}
 
 
+def _ja_lines(results: list[dict], main: dict) -> list[dict] | None:
+    """アルケイン名(日本語)を探す行。日本語の結果が別にあればその行(単語の印を付け直す)、
+    日英を1回で読んだ結果(mul)ならその行のまま、どちらでもなければ None"""
+    if str(main.get("lang", "")).lower() == OCR_LANG_MULTI:
+        return main.get("lines") or []
+    ja_res = pick_result(results, "ja")
+    if not ja_res or ja_res is main:
+        return None
+    lines = ja_res.get("lines") or []
+    _tag_words(lines, ("ja",))
+    return lines
+
+
 def _match_candidates(results: list[dict], main: dict, lines: list[dict], matcher: NameMatcher) -> list[dict]:
     """名前の候補を集める: 英語の結果で名前一覧と照合し、日本語の結果があればアルケイン名も探す"""
     found = []
@@ -361,10 +282,8 @@ def _match_candidates(results: list[dict], main: dict, lines: list[dict], matche
             score, kind, name, info, key = hit
             found.append(_candidate(kind, name, info, score, text, ws, key))
     ja_matcher = getattr(matcher, "ja", None)
-    ja_res = next((r for r in results if str(r.get("lang", "")).startswith("ja")), None)
-    if ja_matcher and ja_res and ja_res is not main:
-        ja_lines = ja_res.get("lines") or []
-        _tag_words(ja_lines, ("ja",))
+    ja_lines = _ja_lines(results, main) if ja_matcher else None
+    if ja_lines is not None:
         for text, ws in _candidates(_segments(ja_lines)):
             hit = ja_matcher.match(text)
             if hit:
@@ -507,7 +426,7 @@ def analyze(ocr: dict, names: Names, matcher: NameMatcher | None = None) -> dict
     matcher = matcher or build_matcher(names)
     results = ocr.get("results") or []
     # 英語の結果で名前を照合する(無ければ最初の言語)
-    main = next((r for r in results if str(r.get("lang", "")).startswith("en")), results[0] if results else {"lines": []})
+    main = pick_result(results, "en") or (results[0] if results else {"lines": []})
     lines = main.get("lines") or []
     _tag_words(lines)
     picked, used = _pick_non_overlapping(_match_candidates(results, main, lines, matcher))
@@ -581,7 +500,8 @@ def print_analysis(r: dict) -> None:
         print(f"  {i:>2}. {m['ja']}" + (f"  ({' / '.join(extra)})" if extra else ""))
 
 
-def main_analyze(paths: list[str], data_dir: Path, raw: bool = False, save_ocr: str | None = None, ocr_json: str | None = None) -> None:
+def main_analyze(paths: list[str], data_dir: Path, raw: bool = False, save_ocr: str | None = None, ocr_json: str | None = None,
+                 engine: str = OCR_ENGINE_AUTO) -> None:
     names = load_names(data_dir)
     if not names.mods:
         sys.exit("MOD の情報がありません。先に `python wfportal.py update` を実行してください。")
@@ -596,7 +516,7 @@ def main_analyze(paths: list[str], data_dir: Path, raw: bool = False, save_ocr: 
                 ocr = json.loads(Path(p).read_text(encoding="utf-8-sig"))
                 ocr = ocr if isinstance(ocr, list) else [ocr]
             else:
-                ocr = [run_ocr(Path(p).expanduser())]
+                ocr = [run_ocr_bytes(Path(p).expanduser().read_bytes(), pref=engine)]
         except OcrUnavailable as e:
             sys.exit(str(e))
         except (OSError, ValueError) as e:

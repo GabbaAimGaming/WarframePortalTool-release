@@ -1,0 +1,23 @@
+{
+  "msscan.note": "Open Profile → Extras (the equipment list) in the game and scroll; mastered items (max rank, blue bar, laurel at the top right) are read and ticked (every few seconds, only when the screen changes). Items whose look and rank text disagree, or with several candidates (such as Kitguns on the All tab), go to \"Check\"; click them if they are correct. Ticks are never removed automatically. Currently only the Japanese game display is supported.",
+  "msscan.noenglish": "English text recognition is not installed, so English names are read with the Japanese recognizer (letters around I are often misread). Add \"English\" in Windows Settings → Time & language → Language & region for more accurate names.",
+  "msscan.stats": "Reads {reads} / items found {seen} / newly mastered {added} / tab: {tab}",
+  "msscan.added": "Newly marked as mastered (× to undo)",
+  "msscan.maybe": "Check (click to mark as mastered)",
+  "msscan.unknown": "Mastered tiles whose name could not be matched:",
+  "msscan.found": "Reading (last screen: {n} mastered / to check)",
+  "msscan.signal": "Read: {text} / laurel {laurel} / bar {bar} / rank {rank}",
+  "msscan.rank.max": "max",
+  "msscan.reason.mismatch": "look and rank disagree",
+  "msscan.reason.multi": "several candidates",
+  "msscan.reason.low": "low match",
+  "msscan.reason.tab": "not in this tab",
+  "msscan.reason.confirm": "to confirm",
+  "msscan.tab.all": "All",
+  "msscan.tab.primary": "Primary",
+  "msscan.tab.secondary": "Secondary",
+  "msscan.tab.melee": "Melee",
+  "msscan.tab.vehicle": "Vehicles",
+  "msscan.tab.amp": "Amps",
+  "msscan.tab.none": "unknown"
+}

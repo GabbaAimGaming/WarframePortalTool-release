@@ -1,0 +1,12 @@
+{
+  "relic.era.Lith": "Lith",
+  "relic.era.Meso": "Meso",
+  "relic.era.Neo": "Neo",
+  "relic.era.Axi": "Axi",
+  "relic.era.Requiem": "Requiem",
+  "relic.era.Vanguard": "Vanguard",
+  "relic.state.Intact": "Intact",
+  "relic.state.Exceptional": "Exceptional",
+  "relic.state.Flawless": "Flawless",
+  "relic.state.Radiant": "Radiant"
+}

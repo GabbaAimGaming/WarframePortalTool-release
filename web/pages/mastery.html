@@ -35,8 +35,15 @@
         <div class="summary" id="ms-summary"></div>
         <div class="err" id="ms-err" role="alert"></div>
         <div id="ms-out"></div>
-        <p class="note" data-i18n="ms.note">Kitgun はチェンバー(プライマリ版とセカンダリ版は別々)、Zaw はストライク、アンプはプリズムと Sirocco、MOA・ハウンドは頭(モデル)、K-ドライブはボードの単位で数えます。Excalibur Prime・Skana Prime・Lato Prime は「ファウンダー」にチェックを入れたときだけ、「ファウンダー」の項目に表示して集計します。「入手不可を除外」は、Vault 入りのレリック(いまのドロップ表のどこにも出ないレリック)でしか出ないパーツがあって、いま作れないもの(「Vault」の印)を外します(Varzia の Prime Resurgence は見ていません)。「Prime版を除外」と「入手不可を除外」は一覧・一括変更・CSV から外すだけで、件数と経験値の合計には含めます。プレクサスとアンプ本体は「その他」に入ります。マスタリー経験値はランク最大までの値です(Warframe・コンパニオン・センチネル・MOA/ハウンド・アークウイング・ネクラメカ・K-ドライブ・プレクサスは 1 ランク 200、武器は 100。Kuva・Tenet・Coda などとネクラメカはランク 40)。</p>
+        <p class="note" data-i18n="ms.note">Kitgun はチェンバー(プライマリ版とセカンダリ版は別々)、Zaw はストライク、アンプはプリズムと Sirocco、MOA・ハウンドは頭(モデル)、K-ドライブはボードの単位で数えます。Excalibur Prime・Skana Prime・Lato Prime は「ファウンダー」にチェックを入れたときだけ、「ファウンダー」の項目に表示して集計します。「入手不可を除外」は、Vault 入りのレリック(いまのドロップ表のどこにも出ないレリック)でしか出ないパーツがあって、いま作れないもの(「Vault」の印)を外します(Varzia の Prime Resurgence で期間中に交換できるレリックは入手できるものとして扱います)。「Prime版を除外」と「入手不可を除外」は一覧・一括変更・CSV から外すだけで、件数と経験値の合計には含めます。名前の横の「入手先」で、その行の下に入手先を開きます(本体の入手先と、パーツごとの入手先。ドロップ表・クラン研究・Simaris などにあるものだけで、イベント限定は含みません)。プレクサスとアンプ本体は「その他」に入ります。マスタリー経験値はランク最大までの値です(Warframe・コンパニオン・センチネル・MOA/ハウンド・アークウイング・ネクラメカ・K-ドライブ・プレクサスは 1 ランク 200、武器は 100。Kuva・Tenet・Coda などとネクラメカはランク 40)。</p>
       </section>
+<!-- PART:style -->
+<style>
+/* マスター一覧: 名前の横の「入手先」ボタンと、開いた入手先の小見出し */
+.ms-src-btn { margin-left: 8px; padding: 1px 8px; font-size: 12px; }
+.ms-src-head { margin: 10px 0 4px; font-size: 14px; }
+.ms-src-head:first-child { margin-top: 0; }
+</style>
 <!-- PART:script -->
 /* ---------- マスター一覧 ---------- */
 let mastery = null, msCat = "";
@@ -55,6 +62,10 @@ const msIsPrime = r => /\bPrime\b/i.test(r.en || "");
 // ドロップ表・入手先のデータがそろわず判定できないとき(API の vault が false)はチェックを使えなくする
 let msNoVault = pref.flag("wf-mastery-novault");
 $("#ms-novault").checked = msNoVault;
+// 入手先: 名前の横のボタンで、その行の下に開く(1件だけ)。応答(GET /api/mastery/sources)は id ごとに { res } で覚える(テキスト指定なので言語を変えても使える)。
+// 失敗も { err } で覚え、描き直しでは取り直さない(行を開き直すと取り直す)。取得中の id は msSrcLoading(その間は描き直しても取り直さない)
+let msOpen = null, msSrcLoading = null;
+const msSrcCache = new Map(), msSrcGuard = latestGuard();
 const msVaultTag = r => (r.vaulted ? `<span class="tag-mini" title="${esc(t("ms.vaulted.tip"))}">${esc(t("src.vaulted"))}</span>` : "");
 /* 名前: 日本語の画面は日本語名、ほかは英名。Kitgun はプライマリ版・セカンダリ版を区別する(I18N の mastery.variant) */
 const msLabel = r => { const n = nameByLang(r); return r.variant ? fmt("mastery.variant", { name: n, variant: t("mastery.variant." + r.variant) }) : n; };
@@ -97,9 +108,32 @@ function renderMastery() {
     <thead><tr>${th(esc(t("ms.col.done")), "done", msSort, "chk")}${th(esc(t("ms.col.name")), "name", msSort)}${th(esc(t("ms.col.cat")), "cat", msSort)}${th(esc(t("ms.col.rank")), "rank", msSort, "num")}${th(esc(t("ms.col.xp")), "xp", msSort, "num")}</tr></thead>
     <tbody>${list.map(r => `<tr class="${r.done ? "owned" : ""}" data-id="${esc(r.id)}">
       <td class="chk"><input type="checkbox" class="own" ${r.done ? "checked" : ""} aria-label="${esc(fmt("ms.done.aria", { name: msLabel(r) }))}"></td>
-      <td>${esc(msLabel(r))}${msVaultTag(r)}${subEn(r)}</td><td>${esc(tName("mastery.cat.", r.cat))}</td>
-      <td class="num">${r.rank}</td><td class="num">${r.xp.toLocaleString(locale())}</td></tr>`).join("")}</tbody></table></div>`
+      <td>${esc(msLabel(r))}${msVaultTag(r)}<button class="btn ghost ms-src-btn" type="button" data-ms-src aria-expanded="${msOpen === r.id}" aria-label="${esc(fmt("ms.src.aria", { name: msLabel(r) }))}">${esc(t("ms.src.btn"))}</button>${subEn(r)}</td><td>${esc(tName("mastery.cat.", r.cat))}</td>
+      <td class="num">${r.rank}</td><td class="num">${r.xp.toLocaleString(locale())}</td></tr>
+      ${msOpen === r.id ? `<tr class="detail"><td colspan="5" id="ms-src">${msSrcCell(r.id)}</td></tr>` : ""}`).join("")}</tbody></table></div>`
     : noData(t("common.none")), [msCat, $("#ms-q").value, $("#ms-state").value, msFounder, msNoPrime, msNoVault, msSort.key, msSort.dir]);
+  if (msOpen && !msSrcCache.has(msOpen) && msSrcLoading !== msOpen && list.some(r => r.id === msOpen)) loadMsSources(msOpen);
+}
+/* 開いた行の中身: 覚えた応答・覚えたエラー・読み込み中 */
+function msSrcCell(id) {
+  const hit = msSrcCache.get(id);
+  return !hit ? esc(t("common.loading")) : hit.err !== undefined ? noData(hit.err) : msSrcHtml(hit.res);
+}
+/* 開いた行の入手先: 本体そのものの入手先 → パーツごと(小見出しはパーツ名と Vault の印)。どれも無ければ案内の文 */
+function msSrcHtml(res) {
+  const parts = res.parts.map(p => `<h4 class="ms-src-head">${esc(nameByLang(p))}${p.vaulted ? `<span class="tag-mini" title="${esc(t("src.vaulted.part.tip"))}">${esc(t("src.vaulted"))}</span>` : ""}${subEn(p)}</h4>${sourceTable(p.rows)}`);
+  if (res.rows.length) parts.unshift(`<h4 class="ms-src-head">${esc(fmt("ms.src.self", { name: nameByLang(res) }))}</h4>${sourceTable(res.rows)}`);
+  return parts.length ? parts.join("") + `<p class="note">${esc(t("src.footnote"))}</p>` : `<p class="note">${esc(t("ms.src.none"))}</p>`;
+}
+async function loadMsSources(id) {
+  const fresh = msSrcGuard(), box = () => $("#ms-src");
+  msSrcLoading = id;
+  let hit;
+  try { hit = { res: await api(`/api/mastery/sources?id=${encodeURIComponent(id)}`) }; } catch (e) { hit = { err: e.message }; }
+  if (!fresh()) return;  // データ更新で捨てた・別の行の取得が始まった
+  msSrcLoading = null;
+  msSrcCache.set(id, hit);
+  if (msOpen === id && box()) box().innerHTML = msSrcCell(id);
 }
 async function setMastered(ids, done) {
   const before = mastery.rows.filter(r => ids.includes(r.id)).map(r => [r, r.done]);
@@ -111,6 +145,13 @@ async function setMastered(ids, done) {
   });
 }
 $("#ms-cats").addEventListener("click", e => { const c = e.target.closest("[data-mcat]"); if (!c) return; msCat = c.dataset.mcat; msArming.clear(); renderMastery(); });
+$("#ms-out").addEventListener("click", e => {
+  const b = e.target.closest("[data-ms-src]"); if (!b) return;
+  const id = b.closest("tr").dataset.id;
+  msOpen = msOpen === id ? null : id;
+  if (msOpen && msSrcCache.get(id)?.err !== undefined) msSrcCache.delete(id);  // 失敗した行は開き直すと取り直す
+  renderMastery();
+});
 $("#ms-out").addEventListener("change", e => { const cb = e.target.closest("input.own"); if (cb) setMastered([cb.closest("tr").dataset.id], cb.checked); });
 onSortClick($("#ms-out"), msSort, renderMastery, ["done", "rank", "xp"]);
 $("#ms-q").addEventListener("input", debounce(() => { msArming.clear(); renderMastery(); }, 150));
@@ -144,11 +185,13 @@ $("#ms-csv").addEventListener("click", () => {
 });
 loaders.mastery = async () => {
   applyViewText("mastery");
+  // 入手先はページを開くたびに取り直す(Vault・Prime Resurgence の判定はページを開いている間にも変わる。一覧そのものは覚えたまま)
+  msSrcCache.clear(); msSrcLoading = null; msSrcGuard();
   if (mastery) { renderMastery(); return; }
   await loadInto($("#ms-out"), () => api("/api/mastery"), data => { mastery = data; renderMastery(); }, [$("#ms-cats"), $("#ms-summary")]);
 };
 relabel.mastery = () => { applyViewText("mastery"); $("#ms-err").textContent = ""; renderMastery(); msScanner.label(); if (msScan.reads || msScan.on) msScanRender(); };
-dataResets.mastery = () => { mastery = null; };
+dataResets.mastery = () => { mastery = null; msOpen = null; msSrcLoading = null; msSrcCache.clear(); msSrcGuard(); };
 
 /* ---------- マスター一覧: ゲーム画面からの読み取り(結果は MOD 側の scan とは別に持つ。画面共有は createScreenScanner) ----------
    API(POST /api/mastery/scan)は読み取って判定するだけ。印は POST /api/mastery で付ける。自動では外さない */

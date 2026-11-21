@@ -1,0 +1,21 @@
+{
+  "mastery.variant": "{name} ({variant})",
+  "mastery.cat.warframe": "Warframe",
+  "mastery.cat.primary": "プライマリ",
+  "mastery.cat.secondary": "セカンダリ",
+  "mastery.cat.melee": "近接",
+  "mastery.cat.kitgun": "Kitgun",
+  "mastery.cat.zaw": "Zaw",
+  "mastery.cat.robotic": "ロボティック",
+  "mastery.cat.companion": "コンパニオン",
+  "mastery.cat.archwing": "アークウイング",
+  "mastery.cat.archgun": "アークウイングガン",
+  "mastery.cat.archmelee": "アークウイング近接",
+  "mastery.cat.necramech": "ネクロメカ",
+  "mastery.cat.kdrive": "Kドライブ",
+  "mastery.cat.amp": "アンプ",
+  "mastery.cat.extra": "その他",
+  "mastery.cat.founder": "ファウンダー",
+  "mastery.variant.primary": "プライマリ",
+  "mastery.variant.secondary": "セカンダリ"
+}

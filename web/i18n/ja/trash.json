@@ -1,0 +1,12 @@
+{
+  "trash.title": "ゴミ箱",
+  "trash.lead": "削除したメモの置き場所です(tips フォルダの中の _trash)。「元に戻す」で元の場所に戻ります。",
+  "trash.col.note": "メモ",
+  "trash.col.path": "元の場所",
+  "trash.col.at": "入れた日時",
+  "trash.restore": "元に戻す",
+  "trash.purge": "完全削除",
+  "trash.empty": "ゴミ箱は空です。",
+  "trash.restored": "「{title}」を {path} に戻しました。",
+  "trash.purged": "「{title}」を完全に消しました。"
+}

@@ -1,0 +1,21 @@
+{
+  "modstats.lead": "Type a stat (e.g. Strength, Efficiency) to list the mods that change it, with their effects from rank 0 to max. Press Enter without picking a suggestion to search the effect text instead.",
+  "modstats.placeholder": "e.g. Strength / Efficiency / Multishot",
+  "modstats.groups": "Categories",
+  "modstats.all": "Select all",
+  "modstats.clear": "Clear all",
+  "modstats.fulltext": "Search text: {q}",
+  "modstats.pick": "Pick a stat from the suggestions, or press Enter to search the effect text.",
+  "modstats.empty": "Type a stat (e.g. Strength, Efficiency) or part of an effect text.",
+  "modstats.nogroup": "Select at least one category.",
+  "modstats.nodata": "No mod effect data yet. Fetch it from \"Data Update\".",
+  "modstats.nomatch": "No matching mods.",
+  "modstats.count": "{n} mods",
+  "modstats.more": "Showing the first {n}. Add words or narrow down by category.",
+  "modstats.target": "Stat: {name}",
+  "modstats.text": "Effect text: {q}",
+  "modstats.rank": "Rank",
+  "modstats.cond": "Conditional",
+  "modstats.compat": "For: {name}",
+  "modstats.updated": "Data: {at}"
+}

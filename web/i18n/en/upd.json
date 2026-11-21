@@ -1,0 +1,23 @@
+{
+  "upd.lead": "Fetches the drop tables, enemy and bounty sources, Riven prices and the name dictionary (including Riven dispositions and simulator data). Run it again after game updates.",
+  "upd.btn": "Fetch official data",
+  "upd.riv": "Fetch Riven prices only",
+  "upd.note": "Sources: drop tables and sources come from WFCD/warframe-drop-data (drops.warframestat.us), names from calamity-inc/warframe-public-export (or the official Public Export if that fails), and Riven prices from the official weeklyRivensPC.json (or WFCD's api.warframestat.us). If the logo has not been fetched yet, it is also fetched from the official Warframe Fan Kit. An internet connection is required.",
+  "upd.drops": "Drop tables",
+  "upd.drops.v": "Fetched {at} ({nodes} nodes / {items} items)",
+  "upd.extra": "Enemies, bounties, etc.",
+  "upd.extra.v": "Fetched {at} ({files} / {total} files, {n} entries)",
+  "upd.none": "Not fetched",
+  "upd.riven": "Riven prices",
+  "upd.riven.v": "Fetched {at} ({n})",
+  "upd.names": "Name dictionary",
+  "upd.names.v": "Fetched {at}",
+  "upd.names.src": " ({src} / {n} mods)",
+  "upd.names.none": "Not fetched (English names are shown)",
+  "upd.state": "Status",
+  "upd.empty": "No data yet",
+  "upd.broken": "Broken files",
+  "upd.broken.v": "{files} (fetch them again with \"Fetch official data\" below)",
+  "upd.fetching": "Fetching...",
+  "upd.fetching.log": "Fetching. This can take a few tens of seconds..."
+}

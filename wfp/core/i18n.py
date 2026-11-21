@@ -1,12 +1,13 @@
-"""画面の文字(テキスト指定)と日本語の文: txt name_txt・render_txt render_ja・ja_text(web/i18n/ja.json を読む ja_table)・表示名の表 JA_TABLES。
+"""画面の文字(テキスト指定)と日本語の文: txt name_txt・render_txt render_ja・ja_text(web/i18n/ja/ を読む ja_table)・文字のファイルの読み込み(lang_dirs read_lang_dir)・表示名の表 JA_TABLES。
 
-API は日本語の文を作らず、テキスト指定を返して画面が web/i18n の表で文にする。CLI・API のエラー文は同じ ja.json で日本語にする。
+API は日本語の文を作らず、テキスト指定を返して画面が web/i18n の表で文にする。CLI・API のエラー文は同じ web/i18n/ja/ で日本語にする。
 2026-11-10 に core/common から分けた(D2)。import してよい wfp は core.const だけ
 """
 from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 
 from wfp.core import const
 from wfp.core.const import (
@@ -23,24 +24,65 @@ from wfp.core.const import (
 #   リスト            各要素を文にして list.sep でつなぐ
 #   {"k", "v", "d"}  表のキー k の文の {名前} を v の値(テキスト指定)で置き換える。k が表に無ければ d(無ければ k)
 #   {"l": {言語: 文}} 同梱データに言語ごとに書いた文(クエスト名など)。表示中の言語、無ければ ja、en の順
-# CLI・API のエラー文は日本語で出すので、テキスト指定を render_ja で文にする。日本語の文は画面と同じ web/i18n/ja.json を読む(ja_text)。
+# CLI・API のエラー文は日本語で出すので、テキスト指定を render_ja で文にする。日本語の文は画面と同じ web/i18n/ja/ を読む(ja_text)。
 # 表示名の表(JA_TABLES。惑星・ミッションの種類など)は core/const の表がもとで、Python でもキーの並び・CLI・名前の検索に使うので残し、
-# web/i18n/ja.json と一致することを tests/test_i18n_text.py が確かめる(どちらかだけ直すと落ちる)
-_JA_CACHE: dict = {}  # ja.json のパス -> {キー: 文}(読めたときだけ覚える)
+# web/i18n/ja/ と一致することを tests/test_i18n_text.py が確かめる(どちらかだけ直すと落ちる)
+_JA_CACHE: dict = {}  # 日本語のフォルダ -> {キー: 文}(読めたときだけ覚える)
+
+
+class LangFileError(ValueError):
+    """画面の文字のファイルが無い・読めない・形が違う(開発側の誤り。画面の組み立てでは PageError になる)"""
+
+
+# ---------- 画面の文字のファイル: web/i18n/<言語>/<キーの頭>.json ----------
+# キーの頭(最初の「.」の前)ごとに1ファイル。例: page.json に "page.tips" "page.qa" …。キーはフルの名前のまま書く。
+# 言語のフォルダの *.json を名前順に読んで1つの表にする(画面の組み立て pages.read_i18n と ja_table で共通)
+
+def lang_dirs(base: Path) -> dict[str, Path]:
+    """web/i18n の下の言語のフォルダ {言語コード: フォルダ}。日本語(I18N_BASE)が先頭、ほかは名前の順。
+    直下のファイル(前の形の <言語>.json など)は読まない"""
+    if not base.is_dir():
+        return {}
+    dirs = [d for d in base.iterdir() if d.is_dir()]
+    dirs.sort(key=lambda d: (d.name != const.I18N_BASE, d.name))
+    return {d.name: d for d in dirs}
+
+
+def _read_lang_file(path: Path) -> dict[str, str]:
+    """1つのファイルを読む。オブジェクトでない・キーの頭がファイル名と違えば LangFileError"""
+    try:
+        table = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise LangFileError(f"{path.name} が読めません: {e}") from e
+    if not isinstance(table, dict):
+        raise LangFileError(f"{path.name}: 中身がオブジェクトではありません")
+    stray = [k for k in table if k.split(".", 1)[0] != path.stem]
+    if stray:
+        raise LangFileError(f"{path.name}: キーの頭がファイル名と違います(<頭>.json に書く): " + ", ".join(stray[:5]))
+    return table
+
+
+def read_lang_dir(folder: Path) -> dict[str, str]:
+    """言語のフォルダの *.json を名前順に読んで1つの表にする。ファイルが1つも無い・読めないファイルがあれば LangFileError"""
+    files = sorted(folder.glob("*.json"))
+    if not files:
+        raise LangFileError("*.json がありません")
+    table: dict[str, str] = {}
+    for path in files:
+        table.update(_read_lang_file(path))
+    return table
 
 
 def ja_table() -> dict[str, str]:
-    """画面の文字の日本語の表(web/i18n/ja.json)。最初の1回だけ読んで覚える。読めなければ空(キーやそのままの文で出る。止めない)"""
-    path = const.APP_DIR / const.WEB_DIR / const.I18N_DIR / f"{const.I18N_BASE}.json"
-    table = _JA_CACHE.get(path)
+    """画面の文字の日本語の表(web/i18n/ja/)。最初の1回だけ読んで覚える。読めなければ空(キーやそのままの文で出る。止めない)"""
+    folder = const.APP_DIR / const.WEB_DIR / const.I18N_DIR / const.I18N_BASE
+    table = _JA_CACHE.get(folder)
     if table is None:
         try:
-            table = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+            table = read_lang_dir(folder)
+        except LangFileError:
             return {}
-        if not isinstance(table, dict):
-            return {}
-        _JA_CACHE[path] = table
+        _JA_CACHE[folder] = table
     return table
 
 
@@ -77,7 +119,7 @@ def name_txt(prefix: str, key: str) -> dict | str:
 
 
 def ja_text(key: str) -> str | None:
-    """キーの日本語(web/i18n/ja.json・JA_TABLES)。無ければ None"""
+    """キーの日本語(web/i18n/ja/・JA_TABLES)。無ければ None"""
     text = ja_table().get(key)
     if isinstance(text, str):
         return text

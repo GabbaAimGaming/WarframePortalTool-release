@@ -1,0 +1,23 @@
+{
+  "msscan.note": "ゲームのプロフィール →「エクストラ」の装備一覧を開いてスクロールしていくと、マスター済み(最大ランク・青いバー・右上の月桂冠)のものを読み取ってチェックします(数秒ごと・画面が変わったときだけ)。見た目と表記が食い違うものや、候補が複数あるもの(「すべて」タブの Kitgun など)は「要確認」に出るので、正しければクリックしてください。自動でチェックを外すことはありません。いまは日本語表示のゲーム画面だけに対応しています。",
+  "msscan.noenglish": "英語の文字認識が入っていないため、英字の名前を日本語の文字認識で読んでいます(I まわりを読み違えやすくなります)。Windows の設定 → 時刻と言語 → 言語と地域 で「English」を追加すると、名前の読み取りが正確になります。",
+  "msscan.stats": "読み取り {reads} 回 / 見つけた装備 {seen} 件 / 新しくマスター済みにした {added} 件 / タブ: {tab}",
+  "msscan.added": "新しくマスター済みにした(× で取り消し)",
+  "msscan.maybe": "要確認(クリックでマスター済みにする)",
+  "msscan.unknown": "名前を照合できなかったマスター済みのタイル:",
+  "msscan.found": "読み取り中(直前の画面で {n} 件のマスター済み・要確認を確認)",
+  "msscan.signal": "読み取り: {text} / 月桂冠 {laurel} / バー {bar} / ランク {rank}",
+  "msscan.rank.max": "最大",
+  "msscan.reason.mismatch": "見た目と表記が食い違い",
+  "msscan.reason.multi": "候補が複数",
+  "msscan.reason.low": "一致度が低い",
+  "msscan.reason.tab": "タブと種類が違う",
+  "msscan.reason.confirm": "確認待ち",
+  "msscan.tab.all": "すべて",
+  "msscan.tab.primary": "プライマリ",
+  "msscan.tab.secondary": "セカンダリ",
+  "msscan.tab.melee": "近接",
+  "msscan.tab.vehicle": "乗り物",
+  "msscan.tab.amp": "アンプ",
+  "msscan.tab.none": "不明"
+}

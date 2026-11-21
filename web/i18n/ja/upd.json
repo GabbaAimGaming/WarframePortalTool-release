@@ -1,0 +1,23 @@
+{
+  "upd.lead": "ドロップ表・敵やバウンティの入手先・Riven 相場・日本語名の辞書(Riven性質・シミュレータ用のデータを含む)を取得します。ゲームのアップデート後にも実行してください。",
+  "upd.btn": "公式データを取得",
+  "upd.riv": "Riven相場だけ取得",
+  "upd.note": "取得元: ドロップ表・入手先は WFCD/warframe-drop-data(drops.warframestat.us)、日本語名は calamity-inc/warframe-public-export(取得できなければ公式 Public Export)、Riven 相場は公式の weeklyRivensPC.json(取得できなければ WFCD の api.warframestat.us)です。ロゴ素材が未取得のときは、公式ファンキット(Warframe Fan Kit)の配布元からロゴ素材も取得します。インターネット接続が必要です。",
+  "upd.drops": "ドロップ表",
+  "upd.drops.v": "{at} に取得({nodes} ノード / 全 {items} 項目)",
+  "upd.extra": "敵・バウンティ等",
+  "upd.extra.v": "{at} に取得({files} / {total} ファイル、{n} 件)",
+  "upd.none": "未取得",
+  "upd.riven": "Riven相場",
+  "upd.riven.v": "{at} に取得({n} 件)",
+  "upd.names": "日本語名辞書",
+  "upd.names.v": "{at} に取得",
+  "upd.names.src": "({src} / MOD {n} 件)",
+  "upd.names.none": "未取得(英語名で表示されます)",
+  "upd.state": "状態",
+  "upd.empty": "まだデータがありません",
+  "upd.broken": "壊れているファイル",
+  "upd.broken.v": "{files}(下の「公式データを取得」で取り直せます)",
+  "upd.fetching": "取得中...",
+  "upd.fetching.log": "取得しています。数十秒かかることがあります..."
+}

@@ -1,0 +1,7 @@
+{
+  "status.data": "Data fetched {at} / {n} items",
+  "status.nodata": "No data — fetch it from \"Data Update\"",
+  "status.offline": "Cannot connect to the server",
+  "status.broken": "Data is broken — fetch it again from \"Data Update\"",
+  "status.checking": "Checking data..."
+}

@@ -1,0 +1,6 @@
+{
+  "part.cats": "Category",
+  "part.noprime": "Exclude Prime",
+  "part.novault": "Exclude unobtainable",
+  "part.cat.all": "All"
+}

@@ -1,0 +1,21 @@
+{
+  "mastery.variant": "{name} ({variant})",
+  "mastery.cat.warframe": "Warframe",
+  "mastery.cat.primary": "Primary",
+  "mastery.cat.secondary": "Secondary",
+  "mastery.cat.melee": "Melee",
+  "mastery.cat.kitgun": "Kitgun",
+  "mastery.cat.zaw": "Zaw",
+  "mastery.cat.robotic": "Robotic",
+  "mastery.cat.companion": "Companion",
+  "mastery.cat.archwing": "Archwing",
+  "mastery.cat.archgun": "Arch-Gun",
+  "mastery.cat.archmelee": "Arch-Melee",
+  "mastery.cat.necramech": "Necramech",
+  "mastery.cat.kdrive": "K-Drive",
+  "mastery.cat.amp": "Amp",
+  "mastery.cat.extra": "Other",
+  "mastery.cat.founder": "Founder",
+  "mastery.variant.primary": "Primary",
+  "mastery.variant.secondary": "Secondary"
+}

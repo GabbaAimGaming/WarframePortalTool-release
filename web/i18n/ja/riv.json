@@ -1,0 +1,22 @@
+{
+  "riv.lead": "公式が毎週公開している PC 版の Riven MOD 取引統計です。単位はプラチナ。",
+  "riv.placeholder": "武器名(例: Rubico / ルビコ)",
+  "riv.col.type": "武器種",
+  "riv.veiled.include": "未開封(ヴェール)を含む",
+  "riv.update": "Riven相場だけ更新",
+  "riv.note": "極端な出品価格が混ざるため、平均より中央値が目安になります。件数が少ない武器は振れ幅が大きくなります。",
+  "riv.veiled": "未開封(ヴェール)",
+  "riv.summary": "表示 {shown} / {total} 件",
+  "riv.updated": "{at} 取得",
+  "riv.col.weapon": "武器",
+  "riv.unrolled": "未リロール",
+  "riv.rerolled": "リロール済み",
+  "riv.median": "中央値",
+  "riv.avg": "平均",
+  "riv.range": "範囲",
+  "riv.pop": "件数",
+  "riv.none": "条件に合う Riven がありません。",
+  "riv.type.all": "すべての武器種",
+  "riv.fetching": "取得中...",
+  "riv.fetching.log": "Riven 相場を取得しています..."
+}

@@ -2,13 +2,12 @@
 from __future__ import annotations
 
 import wfportal_builder as wb
-import wfportal_ocr as ocr
 import wfportal_rivenscan as rscan
 from wfp.api.ocr import need_ocr, run_ocr
 from wfp.api.store import ApiError, Store, file_stamp
 from wfp.core.i18n import txt
 from wfp.core.log import collect_log
-from wfp.core.const import RIVEN_WORDS_FILE
+from wfp.core.const import OCR_DEFAULT_LANGS, RIVEN_WORDS_FILE
 from wfp.core import simdata
 from wfp.core.riven import dispo_table
 from wfp.store import appdata, build_images
@@ -45,11 +44,11 @@ def riven_words(store: Store) -> rscan.WordTable:
 
 def scan_riven(store: Store, data: bytes) -> dict:
     """Riven の画像から武器・ランク(推定)・効果の値を読む。グレードは画面が直したあとに /api/builder/riven/grade で出す"""
-    need_ocr()
+    need_ocr(store)
     if not data or build_images.image_ext(data) not in ("png", "jpg"):
         raise ApiError(txt("err.sim.scan.image"), 415)
     table = riven_words(store)
-    raw = run_ocr(data, cache_dir=None, langs=ocr.DEFAULT_LANGS)
+    raw = run_ocr(store, data, cache_dir=None, langs=OCR_DEFAULT_LANGS)
     builder = store.builder()
     res = rscan.parse_riven(raw, table, builder["weapons"] if builder else [])
     group = None

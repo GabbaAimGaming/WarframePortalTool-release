@@ -1,0 +1,11 @@
+{
+  "common.csv": "CSVで保存",
+  "common.state": "状態",
+  "common.loading": "読み込み中...",
+  "common.shown": "表示 {n} 件",
+  "common.confirm.n": "本当に {n} 件を変更",
+  "common.none": "条件に合うものがありません。",
+  "common.done": "完了しました。",
+  "common.failed": "失敗しました。",
+  "common.range": "{a}〜{b}"
+}
