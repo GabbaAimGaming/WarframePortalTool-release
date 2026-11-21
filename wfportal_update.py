@@ -3,6 +3,7 @@
 
     python wfportal_update.py            新しい版があれば、変わったファイルだけ取得して置き換える
     python wfportal_update.py --check    確認だけする(置き換えない)
+    python wfportal_update.py --json     結果を JSON の1行で出す(画面の「最新バージョンがあるかチェックする」が使う。--check とも組める)
 
 配布用の公開リポジトリ(REPO)にある release/manifest_<版>.json (版 = lite / with_python) と、
 このフォルダの version.json を比べ、GitHub の方がバージョンが新しいときだけ更新する。
@@ -23,6 +24,7 @@
 
 終了コード: 0 = 最新 / 更新した、1 = 確認・更新できなかった(起動は続けてよい)、
             10 = 更新した上で、起動用 bat を入れ替える必要がある
+            (画面から手動で更新して start_wfportal.bat.new が残っているときも、次の起動で 10 を返して入れ替えさせる)
 """
 from __future__ import annotations
 
@@ -49,6 +51,9 @@ BAT = "start_wfportal.bat"
 BAT_NEW = BAT + ".new"
 EDITIONS = ("source", "lite", "with_python")
 EXIT_OK, EXIT_FAILED, EXIT_RESTART = 0, 1, 10
+# 確認・更新の結果の状態(--json の state。画面の文字は web/i18n の appupd.state.<状態>)
+STATE_OFF, STATE_GIT, STATE_BROKEN, STATE_FAILED = "off", "git", "broken", "failed"
+STATE_LATEST, STATE_OLDER, STATE_NEWER, STATE_UPDATED = "latest", "older", "newer", "updated"
 
 MAX_FILE_BYTES = 50 * 1024 * 1024
 MAX_MANIFEST_BYTES = 2 * 1024 * 1024
@@ -236,13 +241,15 @@ def apply_update(d: Path, manifest: dict, plan: dict, log=print) -> bool:
 # 入口
 # --------------------------------------------------------------------------
 
-def run(d: Path = APP_DIR, check_only: bool = False, log=print) -> int:
+def examine(d: Path, log=print) -> dict:
+    """更新の確認(置き換えない)。{"state": 状態(STATE_*), "current": いまの版, "remote": 公開の版, "manifest", "plan"}
+    plan は新しい版があるときだけ。画面の「最新バージョンがあるかチェックする」(--json)と起動時の更新で共通"""
     if os.environ.get("WFPORTAL_NO_UPDATE") == "1" or (d / "NO_AUTO_UPDATE").exists():
         log("自動更新はオフになっています。")
-        return EXIT_OK
+        return {"state": STATE_OFF}
     if (d / ".git").exists():
         log("git で管理しているフォルダなので、自動更新はしません(git pull で更新してください)。")
-        return EXIT_OK
+        return {"state": STATE_GIT}
     cur = local_version(d)
     try:
         current = parse_version(cur["version"])
@@ -250,43 +257,84 @@ def run(d: Path = APP_DIR, check_only: bool = False, log=print) -> int:
             raise UpdateError(f"版の名前が不正です: {cur['edition']!r}")
     except UpdateError as e:
         log(f"version.json を読めないため、自動更新はしません({e})。")
-        return EXIT_FAILED
+        return {"state": STATE_BROKEN}
+    out = {"state": STATE_FAILED, "current": cur["version"]}
     log(f"更新を確認しています(いまの版: v{cur['version']})...")
     try:
         manifest = load_manifest(cur["edition"])
     except (OSError, UpdateError) as e:  # urllib のエラー(接続できない・404 など)は OSError
         log(f"  更新を確認できませんでした: {e}  ※いまの版のまま起動します")
-        return EXIT_FAILED
+        return out
+    out.update(remote=manifest["version"], manifest=manifest)
     remote = parse_version(manifest["version"])
     if remote == current:
         log("  最新の版です。")
-        return EXIT_OK
+        return {**out, "state": STATE_LATEST}
     if remote < current:  # 古い版で上書きはしない(戻したいときは、番号を上げた版として公開する)
         log(f"  公開されている版(v{manifest['version']})より、この版(v{cur['version']})の方が新しいため、更新しません。")
-        return EXIT_OK
+        return {**out, "state": STATE_OLDER}
     plan = plan_update(d, manifest, read_json(d / STATE_FILE))
     log(f"  新しい版 v{manifest['version']} があります(取得 {len(plan['download'])} 件・削除 {len(plan['delete'])} 件)")
+    return {**out, "state": STATE_NEWER, "plan": plan}
+
+
+def update(d: Path = APP_DIR, check_only: bool = False, log=print) -> dict:
+    """確認して、新しい版があれば置き換える。返り値は examine と同じ形(置き換えたら state = STATE_UPDATED・bat = 入れ替えが要るか)"""
+    res = examine(d, log)
+    if res["state"] != STATE_NEWER:
+        return res
+    plan = res["plan"]
     if check_only:
         for path, _ in plan["download"]:
             log(f"    取得する: {path}")
         for path in plan["delete"]:
             log(f"    削除する: {path}")
-        return EXIT_OK
+        return res
     try:
-        bat = apply_update(d, manifest, plan, log)
+        bat = apply_update(d, res["manifest"], plan, log)
     except (OSError, UpdateError) as e:
         log(f"  更新できませんでした: {e}  ※いまの版のまま起動します")
-        return EXIT_FAILED
-    log(f"  v{manifest['version']} に更新しました。")
-    return EXIT_RESTART if bat else EXIT_OK
+        return {**res, "state": STATE_FAILED}
+    log(f"  v{res['remote']} に更新しました。")
+    return {**res, "state": STATE_UPDATED, "bat": bat}
+
+
+def exit_code(d: Path, res: dict, check_only: bool, log=print) -> int:
+    """終了コード。起動用 bat の入れ替えが要るとき(今回の更新・前回の手動の更新の残り start_wfportal.bat.new)は EXIT_RESTART"""
+    if res["state"] in (STATE_FAILED, STATE_BROKEN):
+        code = EXIT_FAILED
+    else:
+        code = EXIT_RESTART if res.get("bat") else EXIT_OK
+    if not check_only and code != EXIT_RESTART and (d / BAT_NEW).is_file():
+        # 画面から手動で更新したときの bat は、起動し直すまで入れ替えられないので残っている(古い bat は 10 のときだけ入れ替える)
+        log("  前回の更新の起動用ファイルを入れ替えます。")
+        return EXIT_RESTART
+    return code
+
+
+def report(res: dict) -> dict:
+    """--json で出す形(画面の API が読む)。文は入れず、状態のキーと版・件数だけ"""
+    plan = res.get("plan") or {}
+    return {"state": res["state"], "current": res.get("current"), "remote": res.get("remote"),
+            "download": len(plan.get("download", ())), "delete": len(plan.get("delete", ()))}
+
+
+def run(d: Path = APP_DIR, check_only: bool = False, log=print) -> int:
+    return exit_code(d, update(d, check_only, log), check_only, log)
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Warframe Portal Tool の自動更新")
     ap.add_argument("--check", action="store_true", help="確認だけする(置き換えない)")
     ap.add_argument("--dir", help="ツールのフォルダ(既定: このファイルのあるフォルダ)")
+    ap.add_argument("--json", action="store_true", help="進み具合を出さず、最後に結果を JSON の1行で出す(画面の API 用)")
     a = ap.parse_args(argv)
-    return run(Path(a.dir).resolve() if a.dir else APP_DIR, check_only=a.check)
+    d = Path(a.dir).resolve() if a.dir else APP_DIR
+    if not a.json:
+        return run(d, check_only=a.check)
+    res = update(d, a.check, log=lambda *_: None)
+    print(json.dumps(report(res), ensure_ascii=False))
+    return exit_code(d, res, a.check, log=lambda *_: None)
 
 
 if __name__ == "__main__":

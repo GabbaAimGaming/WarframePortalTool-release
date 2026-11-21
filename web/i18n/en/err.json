@@ -145,5 +145,8 @@
   "err.todo.kind": "Unknown type: {name}",
   "err.todo.unknown": "Not found: {id}",
   "err.todo.full": "Too many tasks (up to {n}).",
-  "err.todo.action": "Unknown action: {name}"
+  "err.todo.action": "Unknown action: {name}",
+  "err.appupd.run": "Could not run the update check or update (wfportal_update.py).",
+  "err.appupd.busy": "An update check or update is already running. Please wait until it finishes.",
+  "err.appupd.no_restart": "The tool was not started from start_wfportal.bat, so it cannot restart automatically. Please close the tool and start it again."
 }

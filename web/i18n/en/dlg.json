@@ -10,5 +10,6 @@
   "dlg.trash.purge": "Remove \"{title}\" from the trash.",
   "dlg.group": "Name of the group to add (it becomes a folder in tips)",
   "dlg.group.ok": "Add",
-  "dlg.group.renamed": "Created as \"{name}\" because of unusable characters or a duplicate name."
+  "dlg.group.renamed": "Created as \"{name}\" because of unusable characters or a duplicate name.",
+  "dlg.ok": "OK"
 }

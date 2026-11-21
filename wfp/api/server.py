@@ -17,7 +17,8 @@ import wfportal_builder as wb
 from wfp.api import admin, info, ocr, pages, personal, qa, search, sim, tips
 from wfp.api.store import ApiError, Raw, Store
 from wfp.core import common
-from wfp.core.const import API_FETCH_SITES, DEFAULT_PORT, IMAGE_MAX_BYTES, REQUEST_MAX_BYTES, SERVER_HEADERS
+from wfp.core.const import (API_FETCH_SITES, APP_RESTART_DELAY, APP_RESTART_EXIT, DEFAULT_PORT, IMAGE_MAX_BYTES,
+                            REQUEST_MAX_BYTES, SERVER_HEADERS)
 from wfp.core.i18n import txt
 from wfp.fetch import logos
 from wfp.store import build_images, datadir, gamedata, userdb
@@ -112,6 +113,13 @@ class Request:
             raise ApiError(txt("err.req.image_type"), 415)
         size = self._length(IMAGE_MAX_BYTES, txt("err.req.image_large", mb=str(IMAGE_MAX_BYTES // 1024 // 1024)))
         return self.handler.rfile.read(size)
+
+    def restart(self) -> None:
+        """画面のサーバーを止めて、終了コード APP_RESTART_EXIT で終わらせる(起動用の bat が起動し直す)。
+        応答を返せるように、APP_RESTART_DELAY 秒あとに止める"""
+        server = self.handler.server
+        server.exit_code = APP_RESTART_EXIT
+        threading.Timer(APP_RESTART_DELAY, server.shutdown).start()
 
 
 def make_handler(store: Store, tips_dir: Path | None = None):
@@ -233,3 +241,6 @@ def main(argv: list[str] | None = None) -> None:
         print("\n終了します。")
     finally:
         server.server_close()
+    if code := getattr(server, "exit_code", None):  # 更新のあとの起動し直し(Request.restart)
+        print("\n更新を反映するため、起動し直します。")
+        raise SystemExit(code)

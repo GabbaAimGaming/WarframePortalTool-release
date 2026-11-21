@@ -53,7 +53,12 @@ echo.
 echo Warframe Portal Tool を起動します...
 echo この画面を閉じるとサーバーも止まります。使っている間は開いたままにしてください。
 echo.
-%PY% wfportal_ui.py %*
+rem 画面から更新したあとに起動し直せるよう、bat から起動したことをツールに知らせる
+set "WFPORTAL_LAUNCHER=bat"
+:serve
+%PY% wfportal_ui.py %WFPORTAL_OPEN% %*
+rem 終了コード 11 = 画面から更新したので起動し直す。開いているページが自分で読み直すので、ブラウザは開かない
+if errorlevel 11 if not errorlevel 12 goto restart
 
 rem 異常終了したときはメッセージを読めるように止める
 if errorlevel 1 (
@@ -62,3 +67,12 @@ if errorlevel 1 (
     pause
 )
 endlocal
+exit /b
+
+:restart
+echo.
+echo 更新を反映して起動し直します...
+set "WFPORTAL_OPEN=--no-open"
+rem 起動用の bat 自身が更新されたときは、入れ替えてから起動し直す。括弧ブロックは使わない
+if exist "start_wfportal.bat.new" set "WFPORTAL_UPDATED=1" & copy /y "start_wfportal.bat.new" "%~f0" >nul & del "start_wfportal.bat.new" & "%~f0" %*
+goto serve

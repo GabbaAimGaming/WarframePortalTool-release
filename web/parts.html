@@ -461,3 +461,39 @@ function menuSections() {
   if (other.length) out.push({ label: t("group.other"), items: other });
   return out;
 }
+
+/* ---------- 共通の小窓(ツールの更新で使う。ブラウザの confirm・alert の代わり) ----------
+   appModal.show({ lines, buttons }) で開く(開いていれば中身を差し替える)。lines = [{ text, cls }](段落。cls = "warn" で赤字)、
+   buttons = [{ label, value, cls }]。返り値は押したボタンの value(Esc は "")の Promise。差し替えたときは前の Promise に "" を返す。
+   ボタンが無いとき(確認中・更新中)は Esc でも閉じない。閉じるのは次の show か close()。文字は呼ぶ側が表示中の言語で作る */
+const appModal = (() => {
+  let dlg = null, done = null, locked = false;
+  const settle = value => { const fn = done; done = null; if (fn) fn(value); };
+  function box() {
+    if (dlg) return dlg;
+    dlg = document.createElement("dialog");
+    dlg.className = "app-dlg";
+    dlg.setAttribute("aria-label", t("dlg.aria"));
+    dlg.innerHTML = `<form method="dialog"><div class="app-dlg-msg" role="status" aria-live="polite"></div><div class="row"></div></form>`;
+    dlg.addEventListener("cancel", e => { if (locked) e.preventDefault(); });  // ボタンの無い小窓は Esc で閉じない
+    dlg.addEventListener("close", () => settle(dlg.returnValue || ""));
+    document.body.appendChild(dlg);
+    return dlg;
+  }
+  function show({ lines, buttons = [] }) {
+    const d = box();
+    settle("");
+    locked = !buttons.length;
+    d.querySelector(".app-dlg-msg").innerHTML = lines.map(l => `<p class="${esc(l.cls || "")}">${esc(l.text)}</p>`).join("");
+    const row = d.querySelector(".row");
+    row.innerHTML = buttons.map(b => `<button class="btn ${esc(b.cls || "")}" value="${esc(b.value)}">${esc(b.label)}</button>`).join("");
+    row.hidden = locked;
+    d.returnValue = "";
+    if (!d.open) d.showModal();
+    const first = row.querySelector("button");
+    if (first) first.focus();
+    return new Promise(res => { done = res; });
+  }
+  function close() { if (dlg && dlg.open) dlg.close(""); }
+  return { show, close };
+})();

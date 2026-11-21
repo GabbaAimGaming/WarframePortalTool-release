@@ -10,5 +10,6 @@
   "dlg.trash.purge": "「{title}」をゴミ箱から消します。",
   "dlg.group": "追加するグループの名前(tips の中のフォルダになります)",
   "dlg.group.ok": "追加する",
-  "dlg.group.renamed": "使えない文字や同じ名前があったため「{name}」で作りました。"
+  "dlg.group.renamed": "使えない文字や同じ名前があったため「{name}」で作りました。",
+  "dlg.ok": "OK"
 }

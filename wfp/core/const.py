@@ -824,6 +824,19 @@ REQUEST_MAX_BYTES = 1_000_000  # JSON の本文の上限(バイト)
 IMAGE_MAX_BYTES = 20 * 1024 * 1024  # 画像の本文・保存するビルド画像の上限(バイト)
 DEFAULT_PORT = 8765  # 画面のサーバーの既定のポート(埋まっていれば +9 まで試す。.bat の説明の文字はそのまま)
 
+# --- ツールの手動の更新(データ更新のページの「最新バージョンがあるかチェックする」。wfp/api/admin.py) ---
+# 更新は起動時と同じ wfportal_update.py を別のプロセスで呼ぶ(wfp から入口は import しない)。結果は --json の最後の1行
+APP_UPDATE_SCRIPT = "wfportal_update.py"   # <APP_DIR>/wfportal_update.py
+APP_UPDATE_STATES = ("off", "git", "broken", "failed", "latest", "older", "newer", "updated")  # wfportal_update.py の STATE_*
+APP_UPDATE_CHECK_TIMEOUT = 120   # 確認の待ち時間(秒。マニフェストの取得と手元の全ファイルの SHA-256)
+APP_UPDATE_APPLY_TIMEOUT = 900   # 更新の待ち時間(秒。変わったファイルの取得)
+# 更新のあとの起動し直し: サーバーがこの終了コードで終わると、start_wfportal.bat が wfportal_ui.py を起動し直す。
+# bat から起動したかは環境変数で見る(bat が APP_LAUNCHER_ENV = APP_LAUNCHER_BAT を入れる。無ければ手で起動し直してもらう)
+APP_RESTART_EXIT = 11
+APP_RESTART_DELAY = 0.5          # 応答を返してから止めるまでの秒数
+APP_LAUNCHER_ENV = "WFPORTAL_LAUNCHER"
+APP_LAUNCHER_BAT = "bat"
+
 # 日本時間(CLI の表示・API の日時の文字列。ゲームのリセットは UTC 基準)
 JST = timezone(timedelta(hours=9))
 

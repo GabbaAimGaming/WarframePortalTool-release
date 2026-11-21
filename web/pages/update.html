@@ -10,6 +10,10 @@
         <div class="row"><button class="btn" id="update-btn" data-i18n="upd.btn">公式データを取得</button>
           <button class="btn ghost" id="update-riv-btn" type="button" data-i18n="upd.riv">Riven相場だけ取得</button></div>
         <pre class="log" id="update-log" hidden></pre>
+        <!-- ツールの手動の更新(起動時の自動更新と同じ wfportal_update.py。小窓は parts.html の appModal) -->
+        <h3 data-i18n="appupd.title">ツールの更新</h3>
+        <p class="lead" data-i18n="appupd.lead">起動したときのほかに、ここからも新しいバージョンがあるか確かめて更新できます。</p>
+        <div class="row"><button class="btn ghost" id="appupd-btn" type="button" data-i18n="appupd.btn">最新バージョンがあるかチェックする</button></div>
         <!-- 文字認識のエンジン(β版の機能がオンのときだけ出す。renderOcrPanel) -->
         <div id="ocr-panel" hidden>
           <h3><span data-i18n="ocr.engine.title">文字認識</span> <span class="beta-tag" data-i18n="beta.tag">β</span></h3>
@@ -41,6 +45,48 @@ $("#update-btn").addEventListener("click", async () => {
   } catch (e) { log.textContent = e.message; }
   btn.disabled = false; btn.textContent = t("upd.btn"); refreshStatus();
 });
+/* ---------- ツールの手動の更新(/api/app-update/*)----------
+   ① 確認中 → ② 最新なら知らせて OK / ③ 新しい版があれば「更新しますか」(再起動の警告つき)→ ④ いいえなら閉じる /
+   ⑤ はいなら更新中(ボタンなし)→ ⑥ 完了(OK で起動し直す。bat から起動していなければ手で起動し直す案内)。小窓の文字は開くときの言語 */
+const APP_RESTART_FIRST = 1500, APP_RESTART_POLL = 1000, APP_RESTART_WAIT = 60000;  // 起動し直すのを待つ: 最初の待ち・聞き直す間隔・上限(ミリ秒)
+const appUpdOk = () => [{ label: t("dlg.ok"), value: "ok" }];
+const appUpdSay = (text, cls) => appModal.show({ lines: [{ text, cls }], buttons: appUpdOk() });
+const appUpdState = r => fmt("appupd.state." + r.state, { current: r.current || "", remote: r.remote || "" });
+const appUpdWait = ms => new Promise(res => setTimeout(res, ms));
+async function appUpdCall(path) {
+  try { return await api(path, { method: "POST", body: {} }); }
+  catch (e) { appUpdSay(e.message); return null; }
+}
+async function checkAppUpdate() {
+  appModal.show({ lines: [{ text: t("appupd.checking") }] });
+  const r = await appUpdCall("/api/app-update/check");
+  if (!r) return;
+  if (r.state !== "newer") { appUpdSay(appUpdState(r)); return; }
+  const go = await appModal.show({
+    lines: [{ text: fmt("appupd.ask", { remote: r.remote }) }, { text: t("appupd.warn." + r.restart), cls: "warn" }],
+    buttons: [{ label: t("dlg.yes"), value: "yes" }, { label: t("dlg.no"), value: "", cls: "ghost" }],
+  });
+  if (go === "yes") await applyAppUpdate();
+}
+async function applyAppUpdate() {
+  appModal.show({ lines: [{ text: t("appupd.applying") }] });
+  const r = await appUpdCall("/api/app-update/apply");
+  if (!r) return;
+  if (r.state !== "updated") { appUpdSay(r.state === "failed" ? t("appupd.apply.failed") : appUpdState(r)); return; }
+  await appModal.show({ lines: [{ text: t("appupd.done") }, { text: t("appupd.done." + r.restart) }], buttons: appUpdOk() });
+  if (r.restart === "auto") await restartApp();
+}
+/* 起動し直してもらい、サーバーが戻ったらページを読み直す(新しい画面にする)。戻らなければ手で起動し直す案内 */
+async function restartApp() {
+  appModal.show({ lines: [{ text: t("appupd.restarting") }] });
+  if (!await appUpdCall("/api/app-update/restart")) return;
+  await appUpdWait(APP_RESTART_FIRST);  // 止まるまで(止まる前の応答を「戻った」と見ない)
+  for (const until = Date.now() + APP_RESTART_WAIT; Date.now() < until; await appUpdWait(APP_RESTART_POLL)) {
+    try { await api("/api/status"); location.reload(); return; } catch (e) { /* まだ起動していない */ }
+  }
+  appUpdSay(t("appupd.restart.timeout"));
+}
+$("#appupd-btn").addEventListener("click", checkAppUpdate);
 /* 文字認識のエンジンの欄: 使っているエンジン・高精度の部品の状態・設定・導入(/api/ocr-info・/api/ocr/prefs・/api/ocr/runtime/install) */
 let ocrPanel = null;
 const ocrPanelGuard = latestGuard();

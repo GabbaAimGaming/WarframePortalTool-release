@@ -533,6 +533,14 @@ dialog.tips-dlg p { margin: 0 0 16px; white-space: pre-line; overflow-wrap: anyw
 dialog.tips-dlg .row { justify-content: flex-end; }
 dialog.tips-dlg input[type="text"] { display: block; width: 100%; min-width: min(360px, 80vw); margin: 0 0 16px; }
 dialog.tips-dlg input[hidden] { display: none; }
+/* 共通の小窓(parts.html の appModal。ツールの更新) */
+dialog.app-dlg { border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 18px 20px 16px; max-width: min(520px, 92vw); }
+dialog.app-dlg::backdrop { background: rgba(0, 0, 0, .55); }
+dialog.app-dlg p { margin: 0 0 12px; white-space: pre-line; overflow-wrap: anywhere; }
+dialog.app-dlg p.warn { color: var(--danger); font-weight: 700; }
+dialog.app-dlg .app-dlg-msg { margin-bottom: 4px; }
+dialog.app-dlg .row { justify-content: flex-end; }
+dialog.app-dlg .row[hidden] { display: none; }
 .tips-body { border: 1px solid var(--line); background: var(--bg); padding: 16px 20px 22px; min-width: 0; min-height: 240px; overflow-wrap: anywhere; }
 .tips-body .tip-meta { font-size: 12px; color: var(--mute); margin: 0 0 10px; }
 .tips-body h1 { font-size: 20px; margin: 0 0 12px; }

@@ -1,5 +1,5 @@
 {
-  "version": "2.31",
+  "version": "2.32",
   "edition": "lite",
   "files": {
     "INSTALL_PYTHON.md": {
@@ -13,8 +13,8 @@
       "src": "LICENSE"
     },
     "README.md": {
-      "sha256": "d730f2865211652163dccc99bc6e0988552051b57f7c0d9fccc67150801d3a14",
-      "size": 69970,
+      "sha256": "23f1b49656cdd8b3f346770b6ac49a982ff88491633e2f53659ac4acb8e825c9",
+      "size": 70458,
       "src": "build/lite/README.md"
     },
     "data/archon/shards.json": {
@@ -243,8 +243,8 @@
       "src": "ocr/winocr.ps1"
     },
     "start_wfportal.bat": {
-      "sha256": "094fe05f8282570cb149947800af19361e64b03c20ac6996b2f7fc69eb072284",
-      "size": 2462,
+      "sha256": "4308367ab79f777492172a94cf278aaac15aaa51089cb16f68c55f35d73a3b90",
+      "size": 3111,
       "src": "start_wfportal.bat"
     },
     "tips/00_Tipsの使い方.md": {
@@ -286,6 +286,11 @@
       "sha256": "4256f3d2c5c9c7abf0c50dd149a26b6d4e70ef74aad70525abc2432b7012abe6",
       "size": 1541,
       "src": "web/i18n/en/ac.json"
+    },
+    "web/i18n/en/appupd.json": {
+      "sha256": "2972571316a013eb7f07944099f1b63d5f7e07cb5ac5ad24706a3ba54e173695",
+      "size": 1630,
+      "src": "web/i18n/en/appupd.json"
     },
     "web/i18n/en/arby.json": {
       "sha256": "bfbf28043999c0637a18d67372fbd4b7e7e0c2def244a42440d60ff4fe10c884",
@@ -348,8 +353,8 @@
       "src": "web/i18n/en/cycle.json"
     },
     "web/i18n/en/dlg.json": {
-      "sha256": "a9f9aadbb71ea5b2d101bbbcc08e73cb3ba4d46ea2852261a1d3319aa7cd8510",
-      "size": 556,
+      "sha256": "7fc4df2f5183ca71c48aee41d9e1ee944748bb1b50fb2535f57611b0aa221285",
+      "size": 574,
       "src": "web/i18n/en/dlg.json"
     },
     "web/i18n/en/duviri.json": {
@@ -363,8 +368,8 @@
       "src": "web/i18n/en/enemy.json"
     },
     "web/i18n/en/err.json": {
-      "sha256": "0f8da7d29b7dd64ed8f60c930ead6e6a37d7c2798facd96e17e45e7cd8288f2d",
-      "size": 9753,
+      "sha256": "2d9c98309c51a1158e7eb7478f6f4a9744868da69df990f454b1dbc41b6a442d",
+      "size": 10098,
       "src": "web/i18n/en/err.json"
     },
     "web/i18n/en/export.json": {
@@ -577,6 +582,11 @@
       "size": 1942,
       "src": "web/i18n/ja/ac.json"
     },
+    "web/i18n/ja/appupd.json": {
+      "sha256": "c152bcd89b5647b91f7b482ebbbf169e4a11c8364cd1c08ccfb51997237b4891",
+      "size": 2150,
+      "src": "web/i18n/ja/appupd.json"
+    },
     "web/i18n/ja/arby.json": {
       "sha256": "cccf33928592cd1a39cbe8bda0acbefaba8f95a011ebd5ab49a7853be68682d9",
       "size": 1778,
@@ -638,8 +648,8 @@
       "src": "web/i18n/ja/cycle.json"
     },
     "web/i18n/ja/dlg.json": {
-      "sha256": "82417f8ebcc1e8f9d959799f986acebe139faf6f6a48b2897cbd1e0e6988c860",
-      "size": 669,
+      "sha256": "c82f98b482ddc0c9a115b489904873e09805c9bee561f5ffe21a058ada19944e",
+      "size": 687,
       "src": "web/i18n/ja/dlg.json"
     },
     "web/i18n/ja/duviri.json": {
@@ -653,8 +663,8 @@
       "src": "web/i18n/ja/enemy.json"
     },
     "web/i18n/ja/err.json": {
-      "sha256": "50dc4fa9510f3517ceda53488ff6d1a30cbd5d738fce0e7a2e81e3cb74df6c8e",
-      "size": 12476,
+      "sha256": "bba8f8dcd9f16f3b55c9a343c4d8a60c48a1da6c8f36e892dc07e44514ca3a17",
+      "size": 12877,
       "src": "web/i18n/ja/err.json"
     },
     "web/i18n/ja/export.json": {
@@ -983,18 +993,18 @@
       "src": "web/pages/todo.html"
     },
     "web/pages/update.html": {
-      "sha256": "27252c0e186197952ce5e05391b9e4fa95a4e11c7abf9afa80e2598c77d3136a",
-      "size": 8864,
+      "sha256": "3b93356fb668be9d06a553c5c925e213e6ce6b2e329e89f59f8e0885575db4e2",
+      "size": 12260,
       "src": "web/pages/update.html"
     },
     "web/parts.html": {
-      "sha256": "7fb390452748b2dcb6a27efdccfbcb2b7df3e9104452cda92d93af6fac70b0b1",
-      "size": 30534,
+      "sha256": "43188def3c692807f7599e944695eb8768cbbbaf036e46caf109665586d6d5e1",
+      "size": 32578,
       "src": "web/parts.html"
     },
     "web/view.html": {
-      "sha256": "e8ce36a8558a80b66a7c04dd289dba5630938a6514f22e5c51dfd8412506adec",
-      "size": 42303,
+      "sha256": "3b1780cc81eae4016b044852d46da79beda78678343cc80037f9e829face46f5",
+      "size": 42881,
       "src": "web/view.html"
     },
     "web/wfportal_builder.html": {
@@ -1013,8 +1023,8 @@
       "src": "wfp/api/__init__.py"
     },
     "wfp/api/admin.py": {
-      "sha256": "f38508aa07e652e761b903e62faefbc4f5c0c66dd25c4c8a30aeaef3240b1593",
-      "size": 3767,
+      "sha256": "4230cde45c4e41497db1704fbedee9fbb06f8749a5ad008702e7ff4ea603cf23",
+      "size": 6576,
       "src": "wfp/api/admin.py"
     },
     "wfp/api/info.py": {
@@ -1048,8 +1058,8 @@
       "src": "wfp/api/search.py"
     },
     "wfp/api/server.py": {
-      "sha256": "80730ee1b8bbe538bf2e02a3f8c39f1c0eb03784238cb473a325a9ec020601fc",
-      "size": 10762,
+      "sha256": "4afd866140da7dd6422d788ae951a751e2f9f8e23e8e2e42ec2b92fd01a03120",
+      "size": 11440,
       "src": "wfp/api/server.py"
     },
     "wfp/api/sim.py": {
@@ -1138,8 +1148,8 @@
       "src": "wfp/core/common.py"
     },
     "wfp/core/const.py": {
-      "sha256": "8476ae480df720b2f37498d3471432f206ddf8d3973ec37aad2cf6b4a96cce8d",
-      "size": 52423,
+      "sha256": "9c7e9edcd59f254a524b811293ed7e5e437fb018e29a9a215d7d2414430ef947",
+      "size": 53633,
       "src": "wfp/core/const.py"
     },
     "wfp/core/cycle.py": {
@@ -1493,8 +1503,8 @@
       "src": "wfportal_ui.py"
     },
     "wfportal_update.py": {
-      "sha256": "522453263a290b075c0de581a9ec047ba55c1175a604a1c99f0b6c88113cf28e",
-      "size": 13736,
+      "sha256": "297ae5bdd35280103d523b148b42da36871a4cd83a6039a0c043b06c2b0b06f6",
+      "size": 16879,
       "src": "wfportal_update.py"
     }
   }
