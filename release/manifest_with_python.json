@@ -1,5 +1,5 @@
 {
-  "version": "2.32",
+  "version": "2.33",
   "edition": "with_python",
   "files": {
     "LICENSE": {
@@ -988,8 +988,8 @@
       "src": "web/pages/todo.html"
     },
     "web/pages/update.html": {
-      "sha256": "3b93356fb668be9d06a553c5c925e213e6ce6b2e329e89f59f8e0885575db4e2",
-      "size": 12260,
+      "sha256": "c11c400fd0df061b9f046e7b692c3c366a1a99990fbfafdd7cc01bd5280393b6",
+      "size": 12415,
       "src": "web/pages/update.html"
     },
     "web/parts.html": {

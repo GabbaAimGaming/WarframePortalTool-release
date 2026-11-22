@@ -174,5 +174,6 @@ relabel.update = () => { applyViewText("update"); renderStatus(); relabelLogs();
 <style>
 /* 文字認識の部品の導入の進み具合(バー・何個目と名前・量と経過時間) */
 .ocr-progress { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 8px 0; }
+.ocr-progress[hidden] { display: none; }  /* 上の display: flex が hidden を打ち消すので戻す(終わったあとにバーが残っていた) */
 .ocr-progress .sub { color: var(--mute); font-size: 12px; }
 </style>
