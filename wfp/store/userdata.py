@@ -53,6 +53,7 @@ def _clean_ocr_prefs(raw) -> dict:
 
 # 種類ごとの読み出すときの検査(load_* と editing で同じものを使う)
 #   mods_owned: 所持にした MOD の英語名(小文字)  mastered: マスター済みにした項目の id
+#   mods_confirmed: 画面の読み取りの「要確認」から利用者が所持と確定した MOD の英語名(小文字)。読み取りで飛ばす(2026-11-23)
 #   quests_done: 完了にしたクエスト・ジャンクションの id(クエストは内部パス、ジャンクションは junction:<キー>)
 #   invasion_parts: 侵略サイクルで取得済みにしたパーツの内部パス(同梱の data/invasion/parts.json の path)
 #   baro_owned: バロ吉入手一覧の手動チェック(品物の英語名。小文字)  builds: ビルドの一覧(並び順のまま)
@@ -62,6 +63,7 @@ def _clean_ocr_prefs(raw) -> dict:
 _CLEANERS = {
     "cycles": _clean_cycles,
     "mods_owned": lambda raw: {x.lower() for x in raw},
+    "mods_confirmed": lambda raw: {x.lower() for x in raw},
     "mastered": set, "quests_done": set, "invasion_parts": set, "baro_owned": set,
     "arcanes_owned": _clean_ranks,
     "builds": lambda raw: [b for b in raw if isinstance(b, dict)],
@@ -93,6 +95,14 @@ def load_owned(d: Path) -> set[str]:
 
 def save_owned(d: Path, owned: set[str]) -> None:
     userdb.write_kind(d, "mods_owned", owned)
+
+
+def load_confirmed(d: Path) -> set[str]:
+    return _load(d, "mods_confirmed")
+
+
+def save_confirmed(d: Path, confirmed: set[str]) -> None:
+    userdb.write_kind(d, "mods_confirmed", confirmed)
 
 
 def load_mastered(d: Path) -> set[str]:

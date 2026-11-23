@@ -1,7 +1,7 @@
 {
   "scan.file": "Read from screenshots",
   "scan.confirm": "Don't tick automatically; confirm first",
-  "scan.note": "Open the mod screen in the game and scroll: mod names on screen are read and marked as owned (every few seconds, only when the screen changes). Low-confidence matches go to \"Check\"; click them if they are right. Reading uses Windows text recognition. Exclusive fullscreen may not be captured; use borderless (windowed) mode or read from screenshots instead.",
+  "scan.note": "Open the mod screen (Codex) in the game and scroll: mod names on screen are read and marked as owned (every few seconds, only when the screen changes). Dimmed (unacquired) cards are not marked. Low-confidence matches and owned mods that look unacquired go to \"Check\"; choose for them. Mods you confirm are skipped in later reads. The \"Acquisition\" heading below the cards is ignored. Screenshots are checked for dimmed cards only when they are PNG (other formats always go to Check). Reading uses Windows text recognition. Exclusive fullscreen may not be captured; use borderless (windowed) mode or read from screenshots instead.",
   "scan.stats": "Reads {reads} / mods found {seen} / newly owned {added}",
   "scan.added": "Newly owned (× to undo)",
   "scan.maybe": "Check (click to mark as owned)",
@@ -18,5 +18,8 @@
   "scan.stopped": "Stopped",
   "scan.files": "Reading screenshots... {i} / {n}",
   "scan.file.failed": "Could not read {file}: {msg}",
-  "scan.files.done": "Read {n} screenshots"
+  "scan.files.done": "Read {n} screenshots",
+  "scan.conflict": "Check: owned but looks unacquired (choose one)",
+  "scan.conflict.keep": "Keep as owned",
+  "scan.conflict.drop": "Remove"
 }

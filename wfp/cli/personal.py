@@ -54,6 +54,8 @@ def cmd_mods(args):
         rows = [m for m in rows if m["type"] == args.type.upper()]
     if args.unowned:
         rows = [m for m in rows if not m["owned"]]
+    if not args.conclave:
+        rows = [m for m in rows if not m.get("conclave")]
     if not rows:
         sys.exit("条件に合う MOD がありません。")
     out = []
@@ -400,6 +402,7 @@ def add_mods(sub) -> None:
                    help="MOD 名で絞り込み。先頭に own / unown を付けると所持チェックを付ける/外す")
     s.add_argument("--type", choices=[k.lower() for k in MOD_TYPES], help="種別で絞り込み")
     s.add_argument("--unowned", action="store_true", help="未所持のみ")
+    s.add_argument("--conclave", action="store_true", help="コンクレーヴ専用の MOD も出す")
     s.add_argument("--limit", type=int, default=60)
     s.set_defaults(fn=cmd_mods)
 

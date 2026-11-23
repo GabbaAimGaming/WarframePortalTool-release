@@ -28,5 +28,9 @@
   "mods.csv.compat": "Target",
   "mods.csv.count": "{cat} (count)",
   "mods.csv.chance": "Chance (%)",
-  "mods.csv.file": "mods"
+  "mods.csv.file": "mods",
+  "mods.confirmed": "Confirmed",
+  "mods.confirmed.title": "Confirmed as owned while reading the game screen (skipped in later reads; cleared when you untick owned)",
+  "mods.conclave": "Show Conclave mods",
+  "mods.conclave.tag": "Conclave"
 }

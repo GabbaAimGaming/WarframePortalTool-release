@@ -14,7 +14,6 @@
   "mod.type.ARCH-MELEE": "Arch-Melee",
   "mod.type.PARAZON": "Parazon",
   "mod.type.NECRAMECH": "Necramech",
-  "mod.type.OTHER": "Other",
   "mod.group.warframe": "Warframe",
   "mod.group.primary": "Primary",
   "mod.group.secondary": "Secondary",
@@ -40,5 +39,7 @@
   "mod.compat.Assault Rifle": "Assault Rifle",
   "mod.compat.Throwing": "Throwing",
   "mod.compat.Kitgun": "Kitgun",
-  "mod.compat.Zaw": "Zaw"
+  "mod.compat.Zaw": "Zaw",
+  "mod.type.RAILJACK": "Railjack",
+  "mod.type.OTHER": "Other"
 }

@@ -30,7 +30,7 @@ from wfp.core.const import USERDB_BACKUP_FILE, USERDB_BACKUP_INTERVAL, USERDB_FI
 #   ids:   id の集合(テーブル id_sets)          ranks: 名前 → 整数(ranks)
 #   items: 並び順のある JSON の一覧(list_items)  doc:   JSON 1つ(docs)
 USER_KINDS = {
-    "mods_owned": "ids", "mastered": "ids", "quests_done": "ids", "invasion_parts": "ids", "baro_owned": "ids",
+    "mods_owned": "ids", "mods_confirmed": "ids", "mastered": "ids", "quests_done": "ids", "invasion_parts": "ids", "baro_owned": "ids",
     "arcanes_owned": "ranks",
     "builds": "items", "todo": "items",
     "cycles": "doc", "duviri_adjust": "doc", "baro_seen": "doc", "ocr_prefs": "doc",

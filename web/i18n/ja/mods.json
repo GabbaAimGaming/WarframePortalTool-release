@@ -28,5 +28,9 @@
   "mods.csv.compat": "対象",
   "mods.csv.count": "{cat}(件)",
   "mods.csv.chance": "確率(%)",
-  "mods.csv.file": "mod一覧"
+  "mods.csv.file": "mod一覧",
+  "mods.confirmed": "確定",
+  "mods.confirmed.title": "画面の読み取りで所持と確定しました(読み取りでは飛ばします。所持のチェックを外すと消えます)",
+  "mods.conclave": "コンクレーヴの MOD を出す",
+  "mods.conclave.tag": "コンクレーヴ"
 }

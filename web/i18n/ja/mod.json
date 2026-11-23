@@ -13,8 +13,7 @@
   "mod.type.ARCH-GUN": "アークウイングガン",
   "mod.type.ARCH-MELEE": "アークウイング近接",
   "mod.type.PARAZON": "パラゾン",
-  "mod.type.NECRAMECH": "ネクラメカ",
-  "mod.type.OTHER": "その他",
+  "mod.type.NECRAMECH": "ネクロメカ",
   "mod.group.warframe": "Warframe",
   "mod.group.primary": "プライマリ",
   "mod.group.secondary": "セカンダリ",
@@ -40,5 +39,7 @@
   "mod.compat.Assault Rifle": "アサルトライフル",
   "mod.compat.Throwing": "投擲",
   "mod.compat.Kitgun": "Kitgun",
-  "mod.compat.Zaw": "Zaw"
+  "mod.compat.Zaw": "Zaw",
+  "mod.type.RAILJACK": "レールジャック",
+  "mod.type.OTHER": "その他"
 }

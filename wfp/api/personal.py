@@ -32,22 +32,29 @@ def mods_list(store: Store) -> dict:
     names = store.names()
     if not names.mods:
         raise ApiError(txt("err.mods.nodata"), 409)
-    rows = mod_table(names, store.drops(), store.sources(), userdata.load_owned(store.d))
+    rows = mod_table(names, store.drops(), store.sources(), userdata.load_owned(store.d), userdata.load_confirmed(store.d))
     # 種別・入手先の種類は並びだけを返す(表示名は画面の I18N の mod.type.<キー> / src.cat.<キー>)
     return {"mods": rows, "types": list(MOD_TYPES), "cats": list(SOURCE_CATS),
             "polarities": dict(POLARITY_EN)}
 
 
 def set_owned(store: Store, body: dict) -> dict:
+    """所持を付け外しする。confirm: true なら利用者が確定した印も付ける(読み取りで飛ばす)。外すときは印も消す。
+    所持と印は別の種類なので2回に分けて書く(印だけ書けなくても、次の読み取りでまた聞かれるだけ)"""
     names = store.names()
     valid = {m["en"].lower() for m in names.mods}
-    targets = str_list(body, "en")
+    keys = [en.lower() for en in str_list(body, "en")]
+    for en, k in zip(str_list(body, "en"), keys):
+        if k not in valid:
+            raise ApiError(txt("err.mods.unknown", name=en), 404)
+    add = bool(body.get("owned"))
     with userdata.editing(store.d, "mods_owned") as owned:
-        for en in targets:
-            k = en.lower()
-            if k not in valid:
-                raise ApiError(txt("err.mods.unknown", name=en), 404)
-            (owned.add if body.get("owned") else owned.discard)(k)
+        for k in keys:
+            (owned.add if add else owned.discard)(k)
+    if not add or body.get("confirm"):
+        with userdata.editing(store.d, "mods_confirmed") as confirmed:
+            for k in keys:
+                (confirmed.add if add else confirmed.discard)(k)
     return {"owned": len(owned)}
 
 
@@ -307,25 +314,50 @@ def analyze_build_image(store: Store, image_name: str, data: bytes | None) -> di
     return result
 
 
+def _start_png(data: bytes) -> tuple[threading.Thread | None, dict]:
+    """PNG なら展開を別のスレッドで始める(文字認識を待つあいだに並べて行う)。展開できなければ holder は空のまま"""
+    holder: dict = {}
+    if build_images.image_ext(data) != "png":
+        return None, holder
+
+    def decode() -> None:
+        try:
+            holder["png"] = msscan.read_png(data)
+        except ValueError:
+            pass  # 読めない PNG(16 ビット・インターレース等)は明るさを判定しない
+    worker = threading.Thread(target=decode, daemon=True)
+    worker.start()
+    return worker, holder
+
+
 def scan_mods(store: Store, data: bytes) -> dict:
-    """ゲームの MOD 一覧画面(の画像)から MOD 名を読み取る。所持チェックを付けるかは画面側で決める"""
+    """ゲームの MOD 一覧画面(の画像)から MOD 名を読み取る。所持チェックを付けるかは画面側で決める。
+    lit = 名前の文字が明るい(取得済み)か(PNG でなければ None)・confirmed = 利用者が所持と確定済み(読み取りで飛ばす)"""
     need_ocr(store)
     names = store.names()
     if not names.mods:
         raise ApiError(txt("err.mods.nodata"), 409)
     if not data or not build_images.image_ext(data):
         raise ApiError(txt("err.image.format"), 415)
-    # 何度も読むので、英語だけ・拡大は控えめにして速さを優先する。結果は保存しない
-    raw = run_ocr(store, data, cache_dir=None, langs="en-US", scale=1.5, speed="fast")
+    worker, decoded = _start_png(data)
+    try:
+        # 何度も読むので、英語だけ・拡大は控えめにして速さを優先する。結果は保存しない
+        raw = run_ocr(store, data, cache_dir=None, langs="en-US", scale=1.5, speed="fast")
+    finally:
+        if worker:
+            worker.join()
     matcher = store.derived("@modmatcher", (names,), lambda: ocr.NameMatcher([("mod", m["en"], m) for m in names.mods]))
     result = ocr.analyze(raw, names, matcher)
-    owned = userdata.load_owned(store.d)
+    marks = ocr.scan_marks(result["mods"], decoded.get("png"))
+    owned, confirmed = userdata.load_owned(store.d), userdata.load_confirmed(store.d)
+    conclave = {m["en"].lower() for m in names.mods if m.get("conclave")}
     found, seen = [], set()
-    for m in result["mods"]:
+    for m in marks:
         k = m["en"].lower()
         if m["kind"] == "mod" and k not in seen:
             seen.add(k)
-            found.append({"en": m["en"], "ja": m["ja"], "score": m["score"], "read": m["read"], "owned": k in owned})
+            found.append({"en": m["en"], "ja": m["ja"], "score": m["score"], "read": m["read"], "lit": m["lit"],
+                          "owned": k in owned, "confirmed": k in owned and k in confirmed, "conclave": k in conclave})
     return {"found": found, "lines": len(result["lines"])}
 
 

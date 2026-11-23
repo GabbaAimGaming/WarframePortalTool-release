@@ -45,6 +45,10 @@ MOD_OCR_PITCH_Y = 12          # 段の間隔の予備(× h。段が1つのとき
 MOD_OCR_DRAIN_SPAN_X = 0.6    # ドレインを探す範囲: 左右はカードの間隔のこの割合まで
 MOD_OCR_DRAIN_SPAN_UP = 0.9   # 上は段の間隔のこの割合まで
 MOD_OCR_DRAIN_SPAN_DOWN = 0.5  # 下は名前の高さのこの割合まで
+# ゲームの MOD 一覧(コーデックス)の読み取り(2026-11-23。MOD 入手一覧の画面共有・スクリーンショット)
+MOD_SCAN_LIT_MIN = 160        # 名前の文字のいちばん明るい画素(RGB の最大)がこれ以上なら取得済み。未取得のカードは暗い
+                              # (実測: 取得済み 221〜253(強化の有無・枠の色によらない)・未取得 101)
+MOD_SCAN_HEAD_LETTERS = 3     # 英字が全部大文字でこの数以上なら見出し(「入手先 - FLAME GLAND」)。カードの名前は大文字小文字が混ざる
 
 
 # --------------------------------------------------------------------------
@@ -52,7 +56,8 @@ MOD_OCR_DRAIN_SPAN_DOWN = 0.5  # 下は名前の高さのこの割合まで
 # --------------------------------------------------------------------------
 
 def build_matcher(names: Names) -> NameMatcher:
-    entries = [("mod", m["en"], m) for m in names.mods]
+    # コンクレーヴ専用の MOD は照合しない(普通の MOD の読み違いが当たらないように。2026-11-23)
+    entries = [("mod", m["en"], m) for m in names.mods if not m.get("conclave")]
     entries += [("arcane", a, None) for a in names.arcanes]
     entries += [("item", it["en"], it) for it in names.items]
     m = NameMatcher(entries)
@@ -387,7 +392,7 @@ def _mod_out(mods: list[dict], names: Names) -> list[dict]:
         out.append({
             "en": f["name"], "ja": names.ja(f["name"]), "kind": f["kind"], "score": round(f["score"], 3),
             "read": f["text"], "type": info.get("type", ""), "polarity": POLARITY_EN.get(pol, pol) if pol else "",
-            "drain": f.get("drain"), "slot": f.get("slot"),
+            "drain": f.get("drain"), "slot": f.get("slot"), "box": [round(v, 1) for v in f["box"]],
         })
     return out
 
@@ -437,6 +442,32 @@ def analyze(ocr: dict, names: Names, matcher: NameMatcher | None = None) -> dict
     out_mods = _mod_out(mods, names)
     return {"target": _target_out(target, names), "mods": out_mods, "forma": _read_forma(results, target, out_mods),
             "lines": [l.get("text", "") for l in lines], "langs": [r.get("lang") for r in results]}
+
+
+def is_heading(read: str) -> bool:
+    """読んだ文字が全部大文字の見出しか(コーデックスの「入手先 - 名前」。カードの名前は大文字小文字が混ざる)"""
+    letters = [ch for ch in read if ch.isascii() and ch.isalpha()]
+    return len(letters) >= MOD_SCAN_HEAD_LETTERS and all(ch.isupper() for ch in letters)
+
+
+def mod_lit(png, box) -> bool | None:
+    """名前の文字が明るいか(取得済みのカード)。png は pixel(x, y) -> (r, g, b)(範囲外は None)を持つもの。
+    画像・枠が無い・枠が画像の外なら None(判定できない)"""
+    if png is None or not box:
+        return None
+    left, top, width, height = (int(round(v)) for v in box)
+    brightest = -1
+    for py in range(top, top + height):
+        for px in range(left, left + width):
+            rgb = png.pixel(px, py)
+            if rgb:
+                brightest = max(brightest, *rgb)
+    return None if brightest < 0 else brightest >= MOD_SCAN_LIT_MIN
+
+
+def scan_marks(mods: list[dict], png) -> list[dict]:
+    """MOD 一覧の読み取りの結果: 見出しを除き、取得済みか(lit。判定できなければ None)を付ける"""
+    return [{**m, "lit": mod_lit(png, m.get("box"))} for m in mods if not is_heading(m.get("read", ""))]
 
 
 def merge(analyses: list[dict]) -> dict:

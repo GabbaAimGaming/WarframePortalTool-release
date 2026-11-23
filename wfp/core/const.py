@@ -250,7 +250,14 @@ SIM_STATS = {
 MOD_TYPES = {"WARFRAME": "Warframe", "AURA": "オーラ", "PRIMARY": "プライマリ", "SECONDARY": "セカンダリ",
              "MELEE": "近接", "STANCE": "スタンス", "SENTINEL": "センチネル", "KUBROW": "クブロウ", "KAVAT": "キャバット",
              "HELMINTH CHARGER": "ヘルミンスチャージャー", "ARCHWING": "アークウイング", "ARCH-GUN": "アークウイングガン",
-             "ARCH-MELEE": "アークウイング近接", "PARAZON": "パラゾン", "NECRAMECH": "ネクラメカ", "OTHER": "その他"}
+             "ARCH-MELEE": "アークウイング近接", "PARAZON": "パラゾン", "NECRAMECH": "ネクロメカ", "RAILJACK": "レールジャック",
+             "OTHER": "その他"}
+
+
+# MOD 入手一覧に載せる Export の欄(ExportUpgrades_*.json の中。ExportAvionics = レールジャック。2026-11-23)
+MOD_LIST_KEYS = ("ExportUpgrades", "ExportAvionics")
+# コンクレーヴ専用の MOD の内部パスの印(MOD 入手一覧はチェックで出し分け・MOD 効果検索とビルド画像の照合には入れない)
+CONCLAVE_MOD_MARKS = ("/PvPMods/", "PvPAugmentCard")
 
 
 COMPAT_JA = {"Rifle": "ライフル", "Shotgun": "ショットガン", "Pistol": "ピストル", "Melee": "近接", "Sniper": "スナイパー",

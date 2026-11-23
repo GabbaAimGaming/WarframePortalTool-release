@@ -5,8 +5,8 @@ import re
 
 from wfp.core.common import rank
 from wfp.core.const import (
-    ARCANE_CATS, ARCANE_PREFIX_CAT, ARCANE_UNRELEASED, DISPO_CATS, ERA_JA, ITEM_TYPES, MASTERY_CATS, MASTERY_FOUNDER,
-    MASTERY_MAX_RANK, MOD_TYPES, PART_JA, PART_QUALIFIERS, PART_SKIP_CATS, PART_WORDS,
+    ARCANE_CATS, ARCANE_PREFIX_CAT, ARCANE_UNRELEASED, CONCLAVE_MOD_MARKS, DISPO_CATS, ERA_JA, ITEM_TYPES, MASTERY_CATS,
+    MASTERY_FOUNDER, MASTERY_MAX_RANK, MOD_LIST_KEYS, MOD_TYPES, PART_JA, PART_QUALIFIERS, PART_SKIP_CATS, PART_WORDS,
 )
 
 
@@ -121,17 +121,26 @@ def dispo_dots(value: float) -> int:
 
 def mod_type_key(it: dict) -> str:
     t = it.get("type") or ""
-    if "/Necromech/" in it.get("uniqueName", ""):
+    uid = it.get("uniqueName", "")
+    if "/Necromech/" in uid:
         return "NECRAMECH"
+    if "/Mods/Railjack/" in uid:  # ExportAvionics(type が無い)
+        return "RAILJACK"
     return t if t in MOD_TYPES else "OTHER"
 
 
 def is_listed_mod(it: dict) -> bool:
-    """MOD一覧に載せる MOD か(Riven・コンクラーヴ用・初心者用(欠陥)・変換コアは除く)"""
+    """MOD一覧に載せる MOD か(Riven・初心者用(欠陥)・変換コア・コーデックスに出さないもの(excludeFromCodex。
+    Unfused Artifact・実装されていない MOD など)は除く)。コンクレーヴ用は載せる(印は is_conclave_mod)"""
     uid, name = it.get("uniqueName", ""), it.get("name", "")
-    return bool(name) and not (
-        "Riven Mod" in name or "/PvPMods/" in uid or "/Beginner/" in uid or "/TransmuteCores/" in uid
-        or "/Randomized/" in uid)
+    return bool(name) and not it.get("excludeFromCodex") and not (
+        "Riven Mod" in name or "/Beginner/" in uid or "/TransmuteCores/" in uid or "/Randomized/" in uid)
+
+
+def is_conclave_mod(it: dict) -> bool:
+    """コンクレーヴ専用の MOD か(/PvPMods/ と、Warframe ごとのコンクレーヴ用オーグメント 〜PvPAugmentCard)"""
+    uid = it.get("uniqueName", "")
+    return any(mark in uid for mark in CONCLAVE_MOD_MARKS)
 
 
 def _collect_names(docs: list[dict]) -> dict[str, tuple[str, str]]:
@@ -192,10 +201,11 @@ def _ja_name(ja: dict, uid: str, fallback: str) -> str:
 
 
 def _mod_entries(en_docs: list[dict], ja: dict) -> dict[str, dict]:
-    """MOD 一覧用の情報(種別・極性・レア度など)。{英名(小文字): 行}。同じ名前は最初の1件"""
+    """MOD 一覧用の情報(種別・極性・レア度など)。{英名(小文字): 行}。同じ名前は最初の1件。
+    読む欄は MOD_LIST_KEYS(レールジャックの ExportAvionics も)。コンクレーヴ専用は conclave: True"""
     mods: dict[str, dict] = {}
     for doc in en_docs:
-        for it in doc.get("ExportUpgrades", []):
+        for it in (it for key in MOD_LIST_KEYS for it in doc.get(key, [])):
             if not isinstance(it, dict) or not is_listed_mod(it):
                 continue
             name = it["name"]
@@ -208,6 +218,7 @@ def _mod_entries(en_docs: list[dict], ja: dict) -> dict[str, dict]:
                 "rarity": (it.get("rarity") or "").capitalize(),
                 "compat": compat if compat.upper() != compat else "",  # "WARFRAME" 等の汎用名は省く
                 "drain": it.get("baseDrain"), "max_rank": it.get("fusionLimit"),
+                "conclave": is_conclave_mod(it),
             }
     return mods
 

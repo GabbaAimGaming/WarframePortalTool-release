@@ -13,7 +13,7 @@ from pathlib import Path
 from wfp.core.errors import TextError
 from wfp.core.i18n import txt
 from wfp.core.const import MOD_GROUPS, MOD_STATS_LIMIT
-from wfp.core.names import is_listed_mod
+from wfp.core.names import is_conclave_mod, is_listed_mod
 from wfp.core.text import fold_case
 from wfp.store import appdata, gamedata
 
@@ -111,7 +111,8 @@ def same_shape(ranks_en: list, ranks_ja: list) -> bool:
 
 
 def build_mod_stats(en_docs: list[dict], ja_docs: list[dict]) -> list[dict]:
-    """Export(en・ja)から MOD ごとの効果テキストを抜き出す。対象外は is_listed_mod と同じ。同じ名前は最初の1件(names の MOD 一覧と同じ)"""
+    """Export(en・ja)から MOD ごとの効果テキストを抜き出す。対象外は is_listed_mod と同じ + コンクレーヴ専用(is_conclave_mod)。
+    同じ名前は最初の1件(names の MOD 一覧と同じ)"""
     ja_by_uid: dict[str, dict] = {}
     for doc in ja_docs:
         for key in MOD_EXPORT_KEYS:
@@ -122,7 +123,7 @@ def build_mod_stats(en_docs: list[dict], ja_docs: list[dict]) -> list[dict]:
     for doc in en_docs:
         for key in MOD_EXPORT_KEYS:
             for it in doc.get(key) or []:
-                if not isinstance(it, dict) or not it.get("uniqueName") or not is_listed_mod(it):
+                if not isinstance(it, dict) or not it.get("uniqueName") or not is_listed_mod(it) or is_conclave_mod(it):
                     continue
                 ranks_en = _ranks(it)
                 desc_en = "" if ranks_en else _desc(it)

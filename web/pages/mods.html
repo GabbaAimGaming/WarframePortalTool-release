@@ -15,6 +15,7 @@
           <select id="mods-src" data-i18n-aria="src.col.place" aria-label="入手先"></select>
           <select id="mods-own" data-i18n-aria="mods.col.own" aria-label="所持">
             <option value="" data-i18n="mods.own.all">所持・未所持</option><option value="no" data-i18n="mods.own.no">未所持のみ</option><option value="yes" data-i18n="mods.own.yes">所持済みのみ</option></select>
+          <label class="chk"><input type="checkbox" id="mods-conclave"> <span data-i18n="mods.conclave">コンクレーヴの MOD を出す</span></label>
           <button class="btn ghost" id="mods-csv" type="button" data-i18n="common.csv">CSVで保存</button>
         </div>
         <div class="row" style="margin-top:8px">
@@ -28,13 +29,19 @@
             <div><b id="scan-state"></b><div class="mini" id="scan-stats"></div></div></div>
           <div id="scan-new"></div>
           <div id="scan-maybe"></div>
-          <p class="note" data-i18n="scan.note">ゲームの MOD 画面を開いてスクロールしていくと、映った MOD 名を読み取って所持にチェックします(数秒ごと・画面が変わったときだけ)。一致度が低いものは「要確認」に出るので、正しければクリックしてください。読み取りは Windows の文字認識を使います。排他的フルスクリーンでは映らないことがあるので、その場合はボーダーレス(ウィンドウ)表示にするか、スクリーンショットから読み取ってください。</p>
+          <div id="scan-conflict"></div>
+          <p class="note" data-i18n="scan.note">ゲームの MOD 画面(コーデックス)を開いてスクロールしていくと、映った MOD 名を読み取って所持にチェックします(数秒ごと・画面が変わったときだけ)。暗く表示された未取得のカードはチェックしません。一致度が低いもの・所持にしているのに未取得に見えるものは「要確認」に出るので、選んでください。確定したものは次からの読み取りで飛ばします。下の「入手先」の見出しは読みません。スクリーンショットは PNG のときだけ明るさで未取得を見分けます(ほかの形式はすべて要確認)。読み取りは Windows の文字認識を使います。排他的フルスクリーンでは映らないことがあるので、その場合はボーダーレス(ウィンドウ)表示にするか、スクリーンショットから読み取ってください。</p>
         </div>
         <div class="summary" id="mods-summary"></div>
         <div class="err" id="mods-err" role="alert"></div>
         <div id="mods-out"></div>
         <p class="note" data-i18n="mods.note">確率: ミッション/バウンティは報酬1回の抽選、敵は1体倒したとき、レリックは開けたときに出る割合です。「記載なし」は公式ドロップ表に無いもの(シンジケート・バロ・ナイトウェーブ・クエスト報酬など)です。</p>
       </section>
+<!-- PART:style -->
+<style>
+/* MOD 入手一覧: 読み取りの「所持なのに未取得に見える」の名前と2つのボタンを1組に並べる */
+#view-mods .scan-pair { display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; }
+</style>
 <!-- PART:script -->
 /* ---------- MOD 入手一覧 ---------- */
 let mods = null, modMeta = null, modOpen = null;
@@ -45,10 +52,14 @@ const modGetters = {
 };
 /* MOD 名: 日本語の画面は日本語名、ほかの言語は英名。対象(compat)は I18N の mod.compat.<英名>(無ければ英名) */
 const modCompat = m => tName("mod.compat.", m.compat || "");
+/* コンクレーヴ専用の MOD はチェックがあるときだけ出す(表・集計・CSV・読み取り。状態はこのブラウザに覚える) */
+let modConclave = pref.flag("wf-mods-conclave");
+$("#mods-conclave").checked = modConclave;
+const modBase = () => mods.filter(m => modConclave || !m.conclave);
 function modFilter() {
   const q = $("#mods-q").value.trim().toLowerCase(), ty = $("#mods-type").value, r = $("#mods-rar").value,
     src = $("#mods-src").value, own = $("#mods-own").value;
-  return mods.filter(m => (!ty || m.type === ty) && (!r || m.rarity === r) &&
+  return modBase().filter(m => (!ty || m.type === ty) && (!r || m.rarity === r) &&
     (!own || (own === "yes") === m.owned) &&
     (!src || (src === "any" ? m.total > 0 : src === "none" ? m.total === 0 : (m.counts[src] || 0) > 0)) &&
     (!q || [m.ja, m.en, m.compat, modCompat(m)].some(x => (x || "").toLowerCase().includes(q))));
@@ -56,9 +67,9 @@ function modFilter() {
 function renderMods() {
   if (!mods) return;
   const list = sortRows(modFilter(), modSort, modGetters);
-  const owned = mods.filter(m => m.owned).length, shownOwned = list.filter(m => m.owned).length, ownedPct = ratePct(owned, mods.length);
-  $("#mods-summary").innerHTML = `<span>${fmt("mods.summary", { shown: `<b class="count">${list.length}</b>`, total: mods.length, owned: shownOwned })}</span>
-    <span>${esc(fmt("mods.summary.all", { owned, total: mods.length, pct: ownedPct.toFixed(1) }))}</span>
+  const base = modBase(), owned = base.filter(m => m.owned).length, shownOwned = list.filter(m => m.owned).length, ownedPct = ratePct(owned, base.length);
+  $("#mods-summary").innerHTML = `<span>${fmt("mods.summary", { shown: `<b class="count">${list.length}</b>`, total: base.length, owned: shownOwned })}</span>
+    <span>${esc(fmt("mods.summary.all", { owned, total: base.length, pct: ownedPct.toFixed(1) }))}</span>
     ${progressBar(ownedPct)}`;
   if (!list.length) { $("#mods-out").innerHTML = noData(t("mods.none")); return; }
   const shown = list.slice(0, 600);
@@ -67,13 +78,13 @@ function renderMods() {
       ${th(esc(t("mods.col.total")), "total", modSort)}${th(esc(t("mods.col.best")), "best", modSort)}</tr></thead>
     <tbody>${shown.map(m => `<tr class="mod-row${m.owned ? " owned" : ""}" data-en="${esc(m.en)}" aria-expanded="${modOpen === m.en}">
       <td class="chk"><input type="checkbox" class="own" ${m.owned ? "checked" : ""} aria-label="${esc(fmt("mods.own.aria", { name: nameByLang(m) }))}"></td>
-      <td>${esc(nameByLang(m))}${subEn(m)}${m.compat ? `<div class="mini">${esc(modCompat(m))}</div>` : ""}</td>
+      <td>${esc(nameByLang(m))}${m.conclave ? `<span class="tag-mini">${esc(t("mods.conclave.tag"))}</span>` : ""}${m.confirmed ? `<span class="tag-mini" title="${esc(t("mods.confirmed.title"))}">${esc(t("mods.confirmed"))}</span>` : ""}${subEn(m)}${m.compat ? `<div class="mini">${esc(modCompat(m))}</div>` : ""}</td>
       <td>${esc(tName("mod.type.", m.type))}</td><td>${esc(m.polarity_name)}</td><td>${m.rarity ? rarity(m.rarity) : ""}</td>
       <td>${m.total ? `<div class="badges">${Object.entries(m.counts).map(([c, n]) => catTag(c, `${tName("src.cat.", c)} ${n}`)).join("")}</div>` : `<span class="none">${esc(t("mods.unlisted"))}</span>`}</td>
       <td class="wrap">${m.best ? `${catTag(m.best.cat)} ${esc(renderTxt(m.best.place))} <b>${fmtPct(m.best.chance)}</b>` : ""}</td></tr>
       ${modOpen === m.en ? `<tr class="detail"><td colspan="7" id="mod-detail">${esc(t("common.loading"))}</td></tr>` : ""}`).join("")}</tbody></table></div>
     ${list.length > shown.length ? `<p class="note">${esc(fmt("mods.first", { n: shown.length }))}</p>` : ""}`,
-    [$("#mods-q").value, $("#mods-type").value, $("#mods-rar").value, $("#mods-src").value, $("#mods-own").value, modSort.key, modSort.dir]);
+    [$("#mods-q").value, $("#mods-type").value, $("#mods-rar").value, $("#mods-src").value, $("#mods-own").value, modConclave, modSort.key, modSort.dir]);
   if (modOpen && list.some(m => m.en === modOpen)) loadModDetail(modOpen);
 }
 async function loadModDetail(en) {
@@ -86,9 +97,9 @@ async function loadModDetail(en) {
 }
 $("#mods-out").addEventListener("change", e => {
   const cb = e.target.closest("input.own"); if (!cb) return;
-  const en = cb.closest("tr").dataset.en, m = mods.find(x => x.en === en), owned = cb.checked;
-  optimistic({
-    apply: () => { m.owned = owned; }, undo: () => { m.owned = !owned; },
+  const en = cb.closest("tr").dataset.en, m = mods.find(x => x.en === en), owned = cb.checked, was_conf = m.confirmed;
+  optimistic({  // 外すと確定の印も消える(サーバーと同じ)
+    apply: () => { m.owned = owned; if (!owned) m.confirmed = false; }, undo: () => { m.owned = !owned; m.confirmed = was_conf; },
     send: () => api("/api/mods/owned", { method: "POST", body: { en, owned } }),
     render: renderMods, err_box: $("#mods-err"),
   });
@@ -100,6 +111,7 @@ $("#mods-out").addEventListener("click", e => {
 });
 onSortClick($("#mods-out"), modSort, renderMods, ["total", "best", "rar", "own"]);
 ["#mods-type", "#mods-rar", "#mods-src", "#mods-own"].forEach(id => $(id).addEventListener("change", renderMods));
+$("#mods-conclave").addEventListener("change", e => { modConclave = e.target.checked; pref.setFlag("wf-mods-conclave", modConclave); renderMods(); });
 $("#mods-q").addEventListener("input", debounce(renderMods, 150));
 $("#mods-csv").addEventListener("click", () => {
   if (!mods) return;
@@ -131,31 +143,48 @@ dataResets.mods = () => { mods = null; modOpen = null; };
 
 /* ---------- ゲーム画面から MOD を読み取って所持チェック ---------- */
 const AUTO_SCORE = 0.9;  // これ以上の一致度なら自動でチェック。未満は「要確認」
-let scan = { reads: 0, added: [], maybe: new Map(), seen: new Set() };  // 読み取りの結果(画面共有の状態は createScreenScanner が足す)
+// 読み取りの結果(画面共有の状態は createScreenScanner が足す)。conflict = 所持にしているのに未取得(暗いカード)に見えたもの
+let scan = { reads: 0, added: [], maybe: new Map(), conflict: new Map(), seen: new Set() };
+const scanChips = (label, items, chip) => items.length ? `<span class="mini">${esc(t(label))}</span><div class="chips">${items.map(chip).join("")}</div>` : "";
 function scanRender(state) {
   $("#scan-panel").hidden = false;
   if (state !== undefined) $("#scan-state").textContent = state;
   $("#scan-stats").textContent = fmt("scan.stats", { reads: scan.reads, seen: scan.seen.size, added: scan.added.length });
-  $("#scan-new").innerHTML = scan.added.length ? `<span class="mini">${esc(t("scan.added"))}</span><div class="chips">${scan.added.slice(-60).reverse()
-    .map(en => `<button class="chip" data-undo="${esc(en)}">${esc(en)}<span class="x" aria-hidden="true">×</span></button>`).join("")}</div>` : "";
-  const maybe = [...scan.maybe.values()];
-  $("#scan-maybe").innerHTML = maybe.length ? `<span class="mini">${esc(t("scan.maybe"))}</span><div class="chips">${maybe
-    .map(m => `<button class="chip" data-own="${esc(m.en)}" title="${esc(fmt("scan.read", { text: m.read }))}">${esc(m.en)}<small>${Math.round(m.score * 100)}%</small></button>`).join("")}</div>` : "";
+  $("#scan-new").innerHTML = scanChips("scan.added", scan.added.slice(-60).reverse(),
+    en => `<button class="chip" data-undo="${esc(en)}">${esc(en)}<span class="x" aria-hidden="true">×</span></button>`);
+  $("#scan-maybe").innerHTML = scanChips("scan.maybe", [...scan.maybe.values()],
+    m => `<button class="chip" data-own="${esc(m.en)}" title="${esc(fmt("scan.read", { text: m.read }))}">${esc(m.en)}<small>${Math.round(m.score * 100)}%</small></button>`);
+  $("#scan-conflict").innerHTML = scanChips("scan.conflict", [...scan.conflict.values()],
+    m => `<span class="scan-pair">${esc(m.en)}<button class="chip" data-keep="${esc(m.en)}">${esc(t("scan.conflict.keep"))}</button><button class="chip" data-drop="${esc(m.en)}">${esc(t("scan.conflict.drop"))}</button></span>`);
 }
-async function markOwned(list, owned) {
+/* 所持を付け外しする。confirm なら利用者が確定した印も付ける(外すと印も消える) */
+async function markOwned(list, owned, confirm = false) {
   if (!list.length) return;
-  await api("/api/mods/owned", { method: "POST", body: { en: list, owned } });
-  if (mods) { const set = new Set(list.map(x => x.toLowerCase())); mods.forEach(m => { if (set.has(m.en.toLowerCase())) m.owned = owned; }); renderMods(); }
+  await api("/api/mods/owned", { method: "POST", body: { en: list, owned, confirm } });
+  if (mods) {
+    const set = new Set(list.map(x => x.toLowerCase()));
+    mods.forEach(m => { if (set.has(m.en.toLowerCase())) { m.owned = owned; m.confirmed = owned ? (m.confirmed || confirm) : false; } });
+    renderMods();
+  }
+}
+/* 読み取った MOD 1つの扱い: skip(何もしない)・auto(自動で所持)・maybe(要確認)・conflict(所持なのに未取得に見える)。
+   lit = 名前の文字が明るいか(取得済みのカード。判定できなければ null) */
+function scanJudge(m) {
+  if (m.confirmed || (m.conclave && !modConclave)) return "skip";  // コンクレーヴ専用はチェックがあるときだけ
+  if (m.owned) return m.lit === false ? "conflict" : "skip";
+  if (m.lit === false || scan.added.includes(m.en)) return "skip";
+  return m.lit === true && m.score >= AUTO_SCORE && !$("#scan-confirm").checked ? "auto" : "maybe";
 }
 async function scanImage(blob) {
   const r = await apiImage("/api/mods/scan", blob);
   scan.reads++;
-  const confirm = $("#scan-confirm").checked, add = [];
+  const add = [];
   r.found.forEach(m => {
-    scan.seen.add(m.en.toLowerCase());
-    if (m.owned || scan.added.includes(m.en)) return;
-    if (m.score >= AUTO_SCORE && !confirm) add.push(m.en);
-    else scan.maybe.set(m.en.toLowerCase(), m);
+    const key = m.en.toLowerCase(), how = scanJudge(m);
+    scan.seen.add(key);
+    if (how === "auto") add.push(m.en);
+    else if (how === "maybe") scan.maybe.set(key, m);
+    else if (how === "conflict") scan.conflict.set(key, m);
   });
   if (add.length) { await markOwned(add, true); scan.added.push(...add); add.forEach(en => scan.maybe.delete(en.toLowerCase())); }
   return r.found.length;
@@ -165,9 +194,13 @@ const modScanner = createScreenScanner({
   prefix: "scan", state: scan, render: scanRender, read: scanImage, found: n => fmt("scan.found", { n }),
 });
 $("#scan-panel").addEventListener("click", async e => {
-  const undo = e.target.closest("[data-undo]"), own = e.target.closest("[data-own]");
+  const undo = e.target.closest("[data-undo]"), own = e.target.closest("[data-own]"),
+    keep = e.target.closest("[data-keep]"), drop = e.target.closest("[data-drop]");
   try {
-    if (undo) { const en = undo.dataset.undo; await markOwned([en], false); scan.added = scan.added.filter(x => x !== en); scanRender(); }
-    if (own) { const en = own.dataset.own; await markOwned([en], true); scan.maybe.delete(en.toLowerCase()); scan.added.push(en); scanRender(); }
+    if (undo) { const en = undo.dataset.undo; await markOwned([en], false); scan.added = scan.added.filter(x => x !== en); }
+    if (own) { const en = own.dataset.own; await markOwned([en], true, true); scan.maybe.delete(en.toLowerCase()); scan.added.push(en); }
+    if (keep) { const en = keep.dataset.keep; await markOwned([en], true, true); scan.conflict.delete(en.toLowerCase()); }
+    if (drop) { const en = drop.dataset.drop; await markOwned([en], false); scan.conflict.delete(en.toLowerCase()); }
+    if (undo || own || keep || drop) scanRender();
   } catch (err) { scanRender(err.message); }
 });
