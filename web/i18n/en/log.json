@@ -52,5 +52,10 @@
   "log.logo.rights": "* The logo belongs to Digital Extremes. Keep it to personal use and do not redistribute it.",
   "log.logo.savefail": "Could not save: {e}",
   "log.ocr.fetch": "Downloading {name}...",
-  "log.ocr.done": "Installed the high-accuracy text recognition components."
+  "log.ocr.done": "Installed the high-accuracy text recognition components.",
+  "log.offers.fetching": "Fetching Syndicate, quest reward and vendor sources (Export Plus)...",
+  "log.offers.done": "Syndicates, quest rewards and vendors: {n} items",
+  "log.offers.failed": "Could not fetch Syndicate, quest reward and vendor sources: {e}  * the previous data is used if there is any",
+  "log.offers.removed": "Export Plus is turned off, so the Syndicate, quest reward and vendor sources fetched before were removed",
+  "log.offers.pref_failed": "Could not save whether to fetch Export Plus: {e}  * this fetch follows the current choice"
 }

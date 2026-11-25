@@ -61,10 +61,14 @@ def suggest_items(store: Store, q: str, kinds: set[str], cat: str = "", no_prime
 
 
 def lookup_item(store: Store, key: str, events: bool) -> dict:
-    drops, names = need_drops(store), store.names()
+    """項目の入手先。ドロップ表がまだ無くても、入手先の表(シンジケート・商人・クラン研究など)に行があれば返す
+    (MOD 入手一覧・アルケイン所持一覧の件数は入手先の表からも数えるので、行の詳細と食い違わないように)。
+    ドロップ表が無くて行も無ければ、データ更新の案内(409)"""
+    drops, names = store.drops(), store.names()
     vault = store.vault()
     rows = find_sources(key, drops, store.sources(), names, events=events, vault=vault)
     if not rows:
+        need_drops(store)
         raise ApiError(txt("err.item.none"), 404)
     counts: dict[str, int] = {}
     for r in rows:

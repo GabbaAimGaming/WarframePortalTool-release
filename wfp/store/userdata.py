@@ -51,6 +51,18 @@ def _clean_ocr_prefs(raw) -> dict:
     return {"engine": engine, "tier": tier}
 
 
+# offer_vendors: 入手先に出す商人の選択 {商人のキー: true/false}(選んでいない商人は初期値。core.offers の vendors_on)。
+# キーは名前のある商人(VENDOR_NAMES)か一覧のキー(新しい商人)なので、ここではキーの検査はしない
+def _clean_choices(raw) -> dict[str, bool]:
+    return {k: v for k, v in _as_dict(raw).items() if isinstance(k, str) and isinstance(v, bool)}
+
+
+# offer_prefs: データ更新で Export Plus(シンジケート・クエスト報酬・商人)も取るか {"plus": true/false}。無ければ取らない
+def _clean_offer_prefs(raw) -> dict[str, bool]:
+    plus = _as_dict(raw).get("plus")
+    return {"plus": plus if isinstance(plus, bool) else False}
+
+
 # 種類ごとの読み出すときの検査(load_* と editing で同じものを使う)
 #   mods_owned: 所持にした MOD の英語名(小文字)  mastered: マスター済みにした項目の id
 #   mods_confirmed: 画面の読み取りの「要確認」から利用者が所持と確定した MOD の英語名(小文字)。読み取りで飛ばす(2026-11-23)
@@ -60,6 +72,8 @@ def _clean_ocr_prefs(raw) -> dict:
 #   duviri_adjust: デュヴィリのローテーションの手動調整 {"normal": {"id", "week", "set_at"}, ...}(中身の検査は core.duviri)
 #   baro_seen: この PC で記録したバロの来訪 {"visits": {来訪日: {...}}}(中身の検査は wfportal_baro)
 #   ocr_prefs: 文字認識のエンジンと高精度エンジンの段 {"engine", "tier"}(2026-11-20)
+#   offer_vendors: 入手先に出す商人の選択 {商人のキー: true/false}
+#   offer_prefs: データ更新で Export Plus も取るか {"plus": true/false}
 _CLEANERS = {
     "cycles": _clean_cycles,
     "mods_owned": lambda raw: {x.lower() for x in raw},
@@ -68,7 +82,7 @@ _CLEANERS = {
     "arcanes_owned": _clean_ranks,
     "builds": lambda raw: [b for b in raw if isinstance(b, dict)],
     "todo": lambda raw: [b for b in raw if isinstance(b, dict)],  # 項目の中身の検査は core/todo の clean_items(store は core の機能ロジックを使わない)
-    "duviri_adjust": _as_dict, "baro_seen": _as_dict, "ocr_prefs": _clean_ocr_prefs,
+    "duviri_adjust": _as_dict, "baro_seen": _as_dict, "ocr_prefs": _clean_ocr_prefs, "offer_vendors": _clean_choices, "offer_prefs": _clean_offer_prefs,
 }
 
 
@@ -175,3 +189,13 @@ def load_baro_seen(d: Path) -> dict:
 
 def load_baro_owned(d: Path) -> set[str]:
     return _load(d, "baro_owned")
+
+
+def load_offer_vendors(d: Path) -> dict[str, bool]:
+    """入手先に出す商人の選択 {商人のキー: true/false}(選んでいない商人は入らない)"""
+    return _load(d, "offer_vendors")
+
+
+def load_offer_prefs(d: Path) -> dict[str, bool]:
+    """データ更新で Export Plus も取るか {"plus": true/false}(保存していなければ false)"""
+    return _load(d, "offer_prefs")

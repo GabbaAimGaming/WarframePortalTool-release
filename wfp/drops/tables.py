@@ -106,21 +106,33 @@ class Sources:
     rows は SourceRow の一覧(種類・入手先・詳細・ローテーション・英名・確率%・レア度)。入手先・詳細はテキスト指定(wfp/core/i18n.py の txt)
     確率は「その敵を1体倒す / その報酬を1回引く」ときにその項目が出る割合にそろえる。
     clan / other(同梱の data/parts/clan.json / other.json の中身)を渡すと、クラン研究・Simaris 交換などの行も足す(確率は None)。
+    offers(core.offers の offer_rows。オプションの Export Plus から作ったシンジケート・クエスト報酬・商人の行)を渡すと最後に足す。
+    手で書いた行と種類・品物が同じ行は足さない(_without_manual)。
     part_owner は extras(設計図ではない作成素材)の {名前(小文字): 本体の英名}。パーツ検索のカテゴリー分けに使う
     relic_items はレリックから出る項目のキー(item_key。数量違い・大文字小文字をそろえる)。パーツ検索の「Prime を除外する」に使う
     enemies は敵の名前(入手先の種類が enemy の行の入手先。英名のみ。和名の出どころが無いため)。敵から探すの候補に使う
     """
 
-    def __init__(self, files: dict[str, dict], clan: object = None, other: object = None):
+    def __init__(self, files: dict[str, dict], clan: object = None, other: object = None, offers: list[SourceRow] | None = None):
         self.part_owner: dict[str, str] = {}
         self.files: set[str] = set(files)  # 読めた WFCD のファイル(WFCD_EXTRA の名前)。Vault がそろっているかを見る
-        # 並びは検索結果の並びに出るので変えない(敵 → バウンティ → レリック → ソーティー → 特殊ミッション・キー → 同梱)
+        # 並びは検索結果の並びに出るので変えない(敵 → バウンティ → レリック → ソーティー → 特殊ミッション・キー → 同梱 → Export Plus)
+        manual = clan_rows(clan, self.part_owner) + other_rows(other, self.part_owner)
+        added = [row for row in _without_manual(offers or [], manual) if row.item]
+        self.offer_count = len(added)  # Export Plus から足した行の数(データ更新のページの状態)
         rows = (_enemy_rows(files) + _bounty_rows(files) + _relic_rows(files) + _sortie_rows(files) + _special_rows(files)
-                + clan_rows(clan, self.part_owner) + other_rows(other, self.part_owner))
+                + manual + added)
         self.rows: list[SourceRow] = [row for row in rows if row.item]
         self.item_names = sorted({row.item for row in self.rows})
         self.relic_items = {item_key(row.item) for row in self.rows if row.cat == "relic"}
         self.enemies = sorted({row.place for row in self.rows if row.cat == "enemy" and row.place})  # 敵から探すの候補(WFCD の英名そのまま)
+
+
+def _without_manual(offers: list[SourceRow], manual: list[SourceRow]) -> list[SourceRow]:
+    """シンジケート・クエスト報酬・商人の行(core.offers)から、手で書いた行(clan.json / other.json)と種類・品物が同じものを除く。
+    手で書いた行はクエストの前提などの note を持つので、そちらを残す(手で書いた行は消さない)"""
+    have = {(row.cat, item_key(row.item)) for row in manual}
+    return [row for row in offers if (row.cat, item_key(row.item)) not in have]
 
 
 def _wfcd_list(files: dict[str, dict], name: str) -> list:

@@ -63,11 +63,22 @@ def cmd_mods(args):
         b = m["best"]
         out.append(["✓" if m["owned"] else "", m["ja"], MOD_TYPES.get(m["type"], m["type"]), m["polarity_name"],
                     RARITY_JA.get(m["rarity"], m["rarity"]),
-                    " ".join(f"{SOURCE_CATS[c]}{n}" for c, n in m["counts"].items()) or "記載なし",
-                    f"{SOURCE_CATS[b['cat']]}: {render_ja(b['place'])} {pct(b['chance'])}" if b else ""])
+                    counts_text(m["counts"]), best_text(b)])
     print_table(["所持", "MOD", "種別", "極性", "レア度", "入手先(件数)", "最も確率が高い入手先"], out)
     print(f"\n{len(rows)} 件中 {min(len(rows), args.limit)} 件を表示 / 所持 {sum(m['owned'] for m in rows)} 件")
     print("「記載なし」はドロップ表に無いもの(シンジケート・バロ・ナイトウェーブ・クエスト報酬など)です。")
+
+
+def counts_text(counts: dict[str, int]) -> str:
+    """入手先の種類ごとの件数(mod_table・arcane_table の counts)。無ければ「記載なし」"""
+    return " ".join(f"{SOURCE_CATS[c]}{n}" for c, n in counts.items()) or "記載なし"
+
+
+def best_text(b: dict | None) -> str:
+    """最も確率が高い入手先(best)。確率の無い入手先(シンジケート・商人・クラン研究など)は詳細(ランクと名声・値段など)を出す"""
+    if not b:
+        return ""
+    return f"{SOURCE_CATS[b['cat']]}: {render_ja(b['place'])} " + (pct(b["chance"]) if b["chance"] is not None else render_ja(b["detail"]))
 
 
 def cmd_mastery(args):
@@ -180,9 +191,11 @@ def cmd_arcane(args):
         sys.exit("アルケインのデータがありません。`python wfportal.py update` を実行してください"
                  "(この機能を追加する前に取得したデータには含まれていません)。")
     owned = userdata.load_arcanes_owned(d)
-    drop_items = all_item_names(load_drops(d), load_sources(d)) if (d / DROPS_FILE).exists() else []
+    drops = load_drops(d) if (d / DROPS_FILE).exists() else None
+    sources = load_sources(d)
+    drop_items = all_item_names(drops, sources) if drops else []
     rows = [{**r, "cat_ja": ARCANE_CATS.get(r["cat"], r["cat"]), "rarity_ja": RARITY_JA.get(r["rarity"], r["rarity"])}
-            for r in arcane_table(names, owned, drop_items)]
+            for r in arcane_table(names, owned, drop_items, drops, sources)]
     action, query = split_action(args.query, ("own", "unown"))
     q = " ".join(query)
     if args.cat:
@@ -211,8 +224,10 @@ def cmd_arcane(args):
         rows = [r for r in rows if not r["owned"]]
     if not rows:
         sys.exit("条件に合うアルケインがありません。")
-    print_table(["所持", "名前", "種類", "レア度", "ランク"],
-                [["✓" if r["owned"] else "", r["ja"], r["cat_ja"], r["rarity_ja"] or "-", f"{r['rank'] if r['owned'] else '-'} / {r['max_rank']}"] for r in rows[: args.limit]],
+    print_table(["所持", "名前", "種類", "レア度", "ランク", "入手先(件数)", "最も確率が高い入手先"],
+                [["✓" if r["owned"] else "", r["ja"], r["cat_ja"], r["rarity_ja"] or "-", f"{r['rank'] if r['owned'] else '-'} / {r['max_rank']}",
+                  counts_text(r["counts"]), best_text(r["best"])]
+                 for r in rows[: args.limit]],
                 right_cols=(4,))
     summ = arcane_summary(arcane_table(names, owned, drop_items))
     print(f"\n{len(rows)} 件中 {min(len(rows), args.limit)} 件を表示")

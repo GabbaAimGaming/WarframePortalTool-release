@@ -5,12 +5,13 @@
       <!-- アルケイン所持 -->
       <section id="view-arcane" hidden>
         <h2 data-i18n="ac.title">アルケイン所持</h2>
-        <p class="lead" data-i18n="ac.lead">公式データ(ExportRelicArcane.json)のアルケインを装備先ごとに一覧にします。左端のチェックで所持として記録し、ランクを選べます(この PC に保存)。名前とレア度はカタカナで表示します(英語名でも絞り込めます)。</p>
+        <p class="lead" data-i18n="ac.lead">公式データ(ExportRelicArcane.json)のアルケインを装備先ごとに一覧にします。左端のチェックで所持として記録し、ランクを選べます(この PC に保存)。入手先(ドロップ表・シンジケート・商人など)は MOD 入手一覧と同じ形で出し、行をクリックすると詳細を開きます。名前とレア度はカタカナで表示します(英語名でも絞り込めます)。</p>
         <div class="seg" id="ac-cats" role="group" data-i18n-aria="mods.col.type" aria-label="種類"></div>
         <div class="row">
           <input type="text" class="search" id="ac-q" data-i18n-placeholder="ac.placeholder" placeholder="名前で絞り込み(例: Energize / エナージャイズ)" autocomplete="off">
           <select id="ac-state" data-i18n-aria="common.state" aria-label="状態"><option value="" data-i18n="mods.own.all">所持・未所持</option><option value="owned" data-i18n="ac.state.owned">所持のみ</option>
             <option value="unowned" data-i18n="mods.own.no">未所持のみ</option><option value="maxed" data-i18n="ac.state.maxed">ランク最大のみ</option><option value="notmax" data-i18n="ac.state.notmax">所持していてランク最大でないもの</option></select>
+          <select id="ac-src" data-i18n-aria="src.col.place" aria-label="入手先"></select>
           <button class="btn ghost" type="button" id="ac-csv" data-i18n="common.csv">CSVで保存</button>
         </div>
         <div class="summary" id="ac-summary"></div>
@@ -20,16 +21,18 @@
       </section>
 <!-- PART:script -->
 /* ---------- アルケイン所持 ---------- */
-let arcanes = null, acCat = "warframe";
+let arcanes = null, acCat = "warframe", acOpen = null;
 const acSort = { key: "name", dir: "asc" };
 const acGetters = {
   owned: r => (r.owned ? 1 : 0), name: r => nameByLang(r).toLowerCase(),
   rarity: r => rarityRank(r.rarity), rank: r => (r.owned ? r.rank : -1),
+  total: r => r.total, best: r => bestRank(r.best),
 };
 /* 名前: 日本語の画面は日本語名(無ければ英名)、ほかは英名 */
 function acFilter(inCat) {
-  const q = $("#ac-q").value.trim().toLowerCase(), st = $("#ac-state").value;
+  const q = $("#ac-q").value.trim().toLowerCase(), st = $("#ac-state").value, src = $("#ac-src").value;
   return inCat.filter(r => (!q || [r.en, r.ja].some(x => (x || "").toLowerCase().includes(q))) &&
+    (!src || (src === "any" ? r.total > 0 : src === "none" ? r.total === 0 : (r.counts[src] || 0) > 0)) &&
     (!st || (st === "owned" && r.owned) || (st === "unowned" && !r.owned) ||
      (st === "maxed" && r.owned && r.rank === r.max_rank) || (st === "notmax" && r.owned && r.rank < r.max_rank)));
 }
@@ -43,6 +46,11 @@ const acRankHtml = r => r.owned
   ? `<select class="arc-rank" aria-label="${esc(fmt("ac.name.aria", { name: nameByLang(r) }))}">${Array.from({ length: r.max_rank + 1 }, (_, i) =>
       `<option value="${i}"${i === r.rank ? " selected" : ""}>${i}</option>`).join("")}</select><span class="arc-max">/ ${r.max_rank}</span>`
   : `<span class="none">-</span><span class="arc-max">/ ${r.max_rank}</span>`;
+/* 入手先(MOD 入手一覧と同じ形): 件数のバッジと、一番よい入手先(確率が無ければ詳細 = ランクと名声・値段などを小さく) */
+const acCounts = r => r.total
+  ? `<div class="badges">${Object.entries(r.counts).map(([c, n]) => catTag(c, `${tName("src.cat.", c)} ${n}`)).join("")}</div>`
+  : `<span class="none">${esc(t("mods.unlisted"))}</span>`;
+const acBest = b => b ? `${catTag(b.cat)} ${esc(renderTxt(b.place))} ${b.chance != null ? `<b>${fmtPct(b.chance)}</b>` : `<span class="mini">${esc(renderTxt(b.detail))}</span>`}` : "";
 function renderArcanes() {
   if (!arcanes) return;
   const sm = acSummary();
@@ -58,12 +66,23 @@ function renderArcanes() {
     ${progressBar(pct)}
     <span>${esc(fmt("ac.maxed", { n: cur.maxed }))}</span><span>${esc(fmt("ac.overall", { owned: sm.all.owned, total: sm.all.total, maxed: sm.all.maxed }))}</span><span>${esc(fmt("common.shown", { n: list.length }))}</span>`;
   drawTable($("#ac-out"), list.length ? `<div class="tablewrap tall"><table>
-    <thead><tr>${th(esc(t("mods.col.own")), "owned", acSort, "chk")}${th(esc(t("ms.col.name")), "name", acSort)}${th(esc(t("src.col.rarity")), "rarity", acSort)}${th(esc(t("ac.col.rank")), "rank", acSort, "num")}</tr></thead>
-    <tbody>${list.map(r => `<tr class="${r.owned ? "owned" : ""}" data-en="${esc(r.en)}">
+    <thead><tr>${th(esc(t("mods.col.own")), "owned", acSort, "chk")}${th(esc(t("ms.col.name")), "name", acSort)}${th(esc(t("src.col.rarity")), "rarity", acSort)}${th(esc(t("ac.col.rank")), "rank", acSort, "num")}${th(esc(t("mods.col.total")), "total", acSort)}${th(esc(t("mods.col.best")), "best", acSort)}</tr></thead>
+    <tbody>${list.map(r => `<tr class="mod-row${r.owned ? " owned" : ""}" data-en="${esc(r.en)}" aria-expanded="${acOpen === r.en}">
       <td class="chk"><input type="checkbox" class="own" ${r.owned ? "checked" : ""} aria-label="${esc(fmt("ac.own.aria", { name: nameByLang(r) }))}"></td>
       <td>${esc(nameByLang(r))}</td>
-      <td>${r.rarity ? rarity(r.rarity) : `<span class="none">-</span>`}</td><td class="num">${acRankHtml(r)}</td></tr>`).join("")}</tbody></table></div>`
-    : noData(t("ac.none")), [acCat, $("#ac-q").value, $("#ac-state").value, acSort.key, acSort.dir]);
+      <td>${r.rarity ? rarity(r.rarity) : `<span class="none">-</span>`}</td><td class="num">${acRankHtml(r)}</td>
+      <td>${acCounts(r)}</td><td class="wrap">${acBest(r.best)}</td></tr>
+      ${acOpen === r.en ? `<tr class="detail"><td colspan="6" id="ac-detail">${acDetail.html(r.en)}</td></tr>` : ""}`).join("")}</tbody></table></div>`
+    : noData(t("ac.none")), [acCat, $("#ac-q").value, $("#ac-state").value, $("#ac-src").value, acSort.key, acSort.dir]);
+  if (acOpen && list.some(r => r.en === acOpen)) { const en = acOpen; acDetail.load(en, () => $("#ac-detail"), () => acOpen === en); }
+}
+const acDetail = createSourceDetail();  // 行の下の入手先の詳細(MOD 入手一覧と同じ。取った結果を覚える)
+/* 入手先の絞り込みの選択肢(言語を切り替えたら作り直す。選んでいる値は残す) */
+function renderAcOptions() {
+  const v = $("#ac-src").value;
+  $("#ac-src").innerHTML = `<option value="">${esc(t("mods.src.all"))}</option><option value="any">${esc(t("mods.src.any"))}</option><option value="none">${esc(t("mods.unlisted"))}</option>` +
+    arcanes.src_cats.map(k => `<option value="${esc(k)}">${esc(fmt("mods.src.cat", { cat: tName("src.cat.", k) }))}</option>`).join("");
+  $("#ac-src").value = v;
 }
 async function setArcane(en, owned, rank) {
   const r = arcanes.rows.find(x => x.en === en); if (!r) return;
@@ -83,20 +102,30 @@ $("#ac-out").addEventListener("change", e => {
   if (e.target.matches("input.own")) setArcane(tr.dataset.en, e.target.checked);
   else if (e.target.matches("select.arc-rank")) setArcane(tr.dataset.en, true, +e.target.value);
 });
-onSortClick($("#ac-out"), acSort, renderArcanes, ["owned", "rarity", "rank"]);
+$("#ac-out").addEventListener("click", e => {
+  if (e.target.closest("input, select, th, a, button")) return;
+  const tr = e.target.closest("tr.mod-row"); if (!tr) return;
+  acOpen = acOpen === tr.dataset.en ? null : tr.dataset.en; renderArcanes();
+});
+onSortClick($("#ac-out"), acSort, renderArcanes, ["owned", "rarity", "rank", "total", "best"]);
 $("#ac-q").addEventListener("input", debounce(renderArcanes, 150));
-$("#ac-state").addEventListener("change", renderArcanes);
+["#ac-state", "#ac-src"].forEach(id => $(id).addEventListener("change", renderArcanes));
 $("#ac-csv").addEventListener("click", () => {
   if (!arcanes) return;
   const rows = sortRows(acFilter(arcanes.rows.filter(r => r.cat === acCat)), acSort, acGetters);
-  saveCsv(`${t("ac.csv.file")}_${tName("arcane.cat.", acCat)}`, [t("mods.col.own"), t("ms.col.name"), t("ac.csv.cat"), t("src.col.rarity"), t("ac.col.rank"), t("ac.csv.max")],
-    rows.map(r => [r.owned ? "○" : "", nameByLang(r), tName("arcane.cat.", r.cat), r.rarity ? tName("rarity.", r.rarity) : "", r.owned ? r.rank : "", r.max_rank]));
+  const cats = arcanes.src_cats;  // 入手先の種類(キーの並び)
+  saveCsv(`${t("ac.csv.file")}_${tName("arcane.cat.", acCat)}`, [t("mods.col.own"), t("ms.col.name"), t("ac.csv.cat"), t("src.col.rarity"), t("ac.col.rank"), t("ac.csv.max"),
+    ...cats.map(c => fmt("mods.csv.count", { cat: tName("src.cat.", c) })), t("mods.col.best"), t("mods.csv.chance")],
+    rows.map(r => [r.owned ? "○" : "", nameByLang(r), tName("arcane.cat.", r.cat), r.rarity ? tName("rarity.", r.rarity) : "", r.owned ? r.rank : "", r.max_rank,
+      ...cats.map(c => r.counts[c] || 0),
+      r.best ? `${tName("src.cat.", r.best.cat)}: ${renderTxt(r.best.place)} ${renderTxt(r.best.detail)} ${renderTxt(r.best.stage)}` : t("mods.unlisted"),
+      r.best && r.best.chance != null ? r.best.chance.toFixed(4) : ""]));
 });
 loaders.arcane = async () => {
   applyViewText("arcane");
-  if (arcanes) { renderArcanes(); return; }
+  if (arcanes) { renderAcOptions(); renderArcanes(); return; }
   acCat = pref.get("wf-arcane-cat", acCat);
-  await loadInto($("#ac-out"), () => api("/api/arcanes"), data => { arcanes = data; renderArcanes(); }, [$("#ac-cats"), $("#ac-summary")]);
+  await loadInto($("#ac-out"), () => api("/api/arcanes"), data => { arcanes = data; renderAcOptions(); renderArcanes(); }, [$("#ac-cats"), $("#ac-summary")]);
 };
-relabel.arcane = () => { applyViewText("arcane"); $("#ac-err").textContent = ""; renderArcanes(); };  // エラー文は前の言語のままになるので消す
-dataResets.arcane = () => { arcanes = null; };
+relabel.arcane = () => { applyViewText("arcane"); $("#ac-err").textContent = ""; if (arcanes) { renderAcOptions(); renderArcanes(); } };  // エラー文は前の言語のままになるので消す
+dataResets.arcane = () => { arcanes = null; acOpen = null; acDetail.reset(); };

@@ -52,5 +52,10 @@
   "log.logo.rights": "※ロゴ素材の権利は Digital Extremes にあります。個人の利用にとどめ、再配布しないでください。",
   "log.logo.savefail": "保存に失敗しました: {e}",
   "log.ocr.fetch": "{name} を取得中...",
-  "log.ocr.done": "高精度の文字認識の部品を入れました。"
+  "log.ocr.done": "高精度の文字認識の部品を入れました。",
+  "log.offers.fetching": "シンジケート・クエスト報酬・商人の入手先を取得しています(Export Plus)...",
+  "log.offers.done": "シンジケート・クエスト報酬・商人: {n} 件",
+  "log.offers.failed": "シンジケート・クエスト報酬・商人の入手先を取得できませんでした: {e}  ※前回取得分があればそれを使います",
+  "log.offers.removed": "シンジケート・クエスト報酬・商人の入手先(Export Plus)を取らない設定なので、前回取った分を消しました",
+  "log.offers.pref_failed": "Export Plus を取るかの設定を保存できませんでした: {e}  ※今回は指定どおりに取得します"
 }

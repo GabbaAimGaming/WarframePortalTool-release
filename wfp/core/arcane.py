@@ -5,6 +5,8 @@ from wfp.core.errors import TextError
 from wfp.core.i18n import txt
 from wfp.core.const import ARCANE_CATS, ARCANE_DROP_ONLY_CATS, ARCANE_DROP_ONLY_MAX_RANK
 from wfp.core.names import Names, arcane_cat
+from wfp.drops.search import source_brief, source_index
+from wfp.drops.tables import Drops, Sources
 
 
 def arcane_entries(names: Names, drop_items=()) -> list[dict]:
@@ -25,14 +27,18 @@ def arcane_entries(names: Names, drop_items=()) -> list[dict]:
     return sorted(out, key=lambda m: (order.index(m["cat"]) if m["cat"] in order else len(order), m["en"].lower()))
 
 
-def arcane_table(names: Names, owned: dict[str, int], drop_items=()) -> list[dict]:
-    """所持状況つきの一覧。ランクは最大ランクを超えないように丸める(ゲーム側で最大ランクが下がった場合に備えて)。
-    カテゴリー・レア度はキーのまま(表示名は画面の I18N / CLI は ARCANE_CATS・RARITY_JA)"""
+def arcane_table(names: Names, owned: dict[str, int], drop_items=(), drops: Drops | None = None,
+                 sources: Sources | None = None, index: dict[str, list[tuple]] | None = None) -> list[dict]:
+    """所持状況と入手先つきの一覧。ランクは最大ランクを超えないように丸める(ゲーム側で最大ランクが下がった場合に備えて)。
+    入手先は MOD 入手一覧と同じ形(drops/search の source_brief: counts・total・best。drops・sources が無ければ total 0)。
+    カテゴリー・レア度はキーのまま(表示名は画面の I18N / CLI は ARCANE_CATS・RARITY_JA)。
+    index は作り済みの source_index(画面の API は Store.source_index で覚えたもの)。省くと drops・sources から作る"""
+    idx = index if index is not None else source_index(drops, sources)
     out = []
     for m in arcane_entries(names, drop_items):
         k = m["en"].lower()
         out.append({**m, "owned": k in owned,
-                    "rank": min(owned[k], m["max_rank"]) if k in owned else None})
+                    "rank": min(owned[k], m["max_rank"]) if k in owned else None, **source_brief(idx.get(k, []))})
     return out
 
 

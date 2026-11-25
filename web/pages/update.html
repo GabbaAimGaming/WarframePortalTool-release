@@ -9,6 +9,12 @@
         <dl class="kv" id="update-info"></dl>
         <div class="row"><button class="btn" id="update-btn" data-i18n="upd.btn">公式データを取得</button>
           <button class="btn ghost" id="update-riv-btn" type="button" data-i18n="upd.riv">Riven相場だけ取得</button></div>
+        <label class="chk"><input type="checkbox" id="update-plus"> <span data-i18n="upd.plus">シンジケート・クエスト報酬・商人の入手先も取得する(非公式の Export Plus)</span></label>
+        <p class="note" data-i18n="upd.plus.note">calamity-inc/warframe-public-export-plus(ゲームのデータから作られた非公式のデータ)から取ります。設定は取得したときに覚え、次からも同じにします(コマンドの update も同じ設定に従います)。オフにして取得すると、前回取った分は消えます。</p>
+        <h3 data-i18n="upd.vendors">入手先に出す商人</h3>
+        <p class="note" data-i18n="upd.vendors.note">チェックした商人の品物を入手先に出します(すぐ反映されます)。「名前未登録」はゲームのアップデートで増えた商人などで、名前はデータから作っています。</p>
+        <div class="err" id="update-vendors-err" role="alert"></div>
+        <div class="upd-vendors" id="update-vendors"></div>
         <pre class="log" id="update-log" hidden></pre>
         <!-- ツールの手動の更新(起動時の自動更新と同じ wfportal_update.py。小窓は parts.html の appModal) -->
         <h3 data-i18n="appupd.title">ツールの更新</h3>
@@ -20,9 +26,9 @@
           <p class="lead" data-i18n="ocr.engine.lead">ゲーム画面・ビルド画像の読み取りに使う文字認識を選びます。高精度の文字認識(PP-OCRv6)は、部品(数十〜百数十 MB)を入れると使えます。</p>
           <dl class="kv" id="ocr-info"></dl>
           <div class="row">
-            <label><span data-i18n="ocr.engine.pick">使う文字認識</span>
+            <label><span data-i18n="ocr.engine.pick">使う機能</span>
               <select id="ocr-engine"></select></label>
-            <label><span data-i18n="ocr.engine.tier">高精度の段</span>
+            <label><span data-i18n="ocr.engine.tier">モデルの精度</span>
               <select id="ocr-tier"></select></label>
             <button class="btn ghost" id="ocr-install" type="button" data-i18n="ocr.engine.install">高精度の文字認識を入れる</button>
           </div>
@@ -34,16 +40,19 @@
       </section>
 <!-- PART:script -->
 /* ---------- データ更新 ---------- */
+// シンジケート・クエスト報酬・商人(Export Plus)も取るか。サーバーが利用者データに覚えている値(/api/status の offers_plus)を出し、
+// 取得のときに送った値をサーバーが覚える(CLI の update も同じ設定に従う)。変えただけで取得しなければ、次に開いたときは前の値に戻る
+const syncUpdatePlus = s => { if (s) $("#update-plus").checked = !!s.offers_plus; };
 $("#update-btn").addEventListener("click", async () => {
   const btn = $("#update-btn"), log = $("#update-log");
   btn.disabled = true; btn.textContent = t("upd.fetching"); log.hidden = false; log.textContent = t("upd.fetching.log");
   try {
     // 表示中の言語も送る(日英のほかの言語なら、その言語の名前辞書も取る。ja・en はサーバーが毎回取る)
-    const r = await api("/api/update", { method: "POST", body: { lang } });
+    const r = await api("/api/update", { method: "POST", body: { lang, plus: $("#update-plus").checked } });
     showLog(log, r);
     Object.values(dataResets).forEach(reset => reset());
   } catch (e) { log.textContent = e.message; }
-  btn.disabled = false; btn.textContent = t("upd.btn"); refreshStatus();
+  btn.disabled = false; btn.textContent = t("upd.btn"); refreshStatus().then(syncUpdatePlus); loadUpdVendors();
 });
 /* ---------- ツールの手動の更新(/api/app-update/*)----------
    ① 確認中 → ② 最新なら知らせて OK / ③ 新しい版があれば「更新しますか」(再起動の警告つき)→ ④ いいえなら閉じる /
@@ -166,14 +175,47 @@ $("#ocr-install").addEventListener("click", async () => {
   } catch (e) { $("#ocr-err").textContent = e.message; }
   renderOcrPanel();
 });
+/* 入手先に出す商人(Export Plus の商人。選択は利用者データに保存し、入手先の検索・MOD・マスター一覧・Q&A・CLI に効く) */
+let updVendors = null;  // GET /api/offers/vendors の vendors(読み込む前は null)
+function loadUpdVendors() {
+  return loadInto($("#update-vendors"), () => api("/api/offers/vendors"), r => { updVendors = r.vendors; renderUpdVendors(); });
+}
+function renderUpdVendors() {
+  const box = $("#update-vendors");
+  if (!updVendors) return;
+  if (!updVendors.length) { box.innerHTML = `<div class="empty">${esc(t("upd.vendors.none"))}</div>`; return; }
+  box.innerHTML = updVendors.map(v => {
+    const name = renderTxt(v.name);
+    return `<label class="chk"><input type="checkbox" data-key="${esc(v.key)}" ${v.on ? "checked" : ""}`
+      + ` aria-label="${esc(fmt("upd.vendors.aria", { name }))}"> <span>${esc(name)}</span>`
+      + ` <span class="n">${esc(fmt("upd.vendors.n", { n: v.n.toLocaleString(locale()) }))}</span>`
+      + (v.named ? "" : `<span class="tag-mini">${esc(t("upd.vendors.auto"))}</span>`) + `</label>`;
+  }).join("");
+}
+$("#update-vendors").addEventListener("change", async e => {
+  const input = e.target.closest("input[data-key]");
+  const v = input && (updVendors || []).find(x => x.key === input.dataset.key);
+  if (!v) return;
+  const on = input.checked;
+  // 描き直さずにチェックだけ合わせる(キーボードの位置を保つ)
+  const ok = await optimistic({
+    apply: () => { v.on = on; }, undo: () => { v.on = !on; }, render: () => { input.checked = v.on; },
+    send: () => api("/api/offers/vendors", { method: "POST", body: { key: v.key, on } }),
+    err_box: $("#update-vendors-err"),
+  });
+  if (ok) Object.values(dataResets).forEach(reset => reset());  // 入手先が変わったので、各ページの手元のデータを捨てる
+});
 // 開いたときに進み具合も聞く(裏でまだ導入している最中なら、バーの続きから出す)
-loaders.update = () => { applyViewText("update"); loadOcrPanel().then(() => betaOn && pollOcrJob()); return refreshStatus(); };
+loaders.update = () => { applyViewText("update"); loadUpdVendors(); loadOcrPanel().then(() => betaOn && pollOcrJob()); return refreshStatus().then(s => { syncUpdatePlus(s); return s; }); };
 // β版の切り替え(setBeta)でも呼ばれる。オンにしたときにまだ読んでいなければ読む
-relabel.update = () => { applyViewText("update"); renderStatus(); relabelLogs(); if (ocrPanel) renderOcrPanel(); else loadOcrPanel(); };
+relabel.update = () => { applyViewText("update"); renderStatus(); relabelLogs(); renderUpdVendors(); if (ocrPanel) renderOcrPanel(); else loadOcrPanel(); };
 <!-- PART:style -->
 <style>
 /* 文字認識の部品の導入の進み具合(バー・何個目と名前・量と経過時間) */
 .ocr-progress { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 8px 0; }
 .ocr-progress[hidden] { display: none; }  /* 上の display: flex が hidden を打ち消すので戻す(終わったあとにバーが残っていた) */
 .ocr-progress .sub { color: var(--mute); font-size: 12px; }
+/* データ更新: 入手先に出す商人のチェック(折り返して並べる) */
+.upd-vendors { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 6px 0 12px; }
+.upd-vendors .n { color: var(--mute); font-size: 12px; }
 </style>

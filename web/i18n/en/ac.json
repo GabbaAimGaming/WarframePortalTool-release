@@ -1,6 +1,6 @@
 {
   "ac.title": "Arcanes",
-  "ac.lead": "Arcanes from the official data (ExportRelicArcane.json), grouped by what they equip on. Tick the box on the left to record one as owned and pick its rank (saved on this PC). You can filter by English or Japanese name.",
+  "ac.lead": "Arcanes from the official data (ExportRelicArcane.json), grouped by what they equip on. Tick the box on the left to record one as owned and pick its rank (saved on this PC). Sources (drop tables, syndicates, vendors and so on) are shown as on the Mods page; click a row to open the details. You can filter by English or Japanese name.",
   "ac.placeholder": "Filter by name (e.g. Energize)",
   "ac.state.owned": "Owned only",
   "ac.state.maxed": "Max rank only",

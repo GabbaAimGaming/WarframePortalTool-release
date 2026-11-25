@@ -35,12 +35,11 @@
         <div class="summary" id="ms-summary"></div>
         <div class="err" id="ms-err" role="alert"></div>
         <div id="ms-out"></div>
-        <p class="note" data-i18n="ms.note">Kitgun はチェンバー(プライマリ版とセカンダリ版は別々)、Zaw はストライク、アンプはプリズムと Sirocco、MOA・ハウンドは頭(モデル)、K-ドライブはボードの単位で数えます。Excalibur Prime・Skana Prime・Lato Prime は「ファウンダー」にチェックを入れたときだけ、「ファウンダー」の項目に表示して集計します。「入手不可を除外」は、Vault 入りのレリック(いまのドロップ表のどこにも出ないレリック)でしか出ないパーツがあって、いま作れないもの(「Vault」の印)を外します(Varzia の Prime Resurgence で期間中に交換できるレリックは入手できるものとして扱います)。「Prime版を除外」と「入手不可を除外」は一覧・一括変更・CSV から外すだけで、件数と経験値の合計には含めます。名前の横の「入手先」で、その行の下に入手先を開きます(本体の入手先と、パーツごとの入手先。ドロップ表・クラン研究・Simaris などにあるものだけで、イベント限定は含みません)。プレクサスとアンプ本体は「その他」に入ります。マスタリー経験値はランク最大までの値です(Warframe・コンパニオン・センチネル・MOA/ハウンド・アークウイング・ネクロメカ・K-ドライブ・プレクサスは 1 ランク 200、武器は 100。Kuva・Tenet・Coda などとネクロメカはランク 40)。</p>
+        <p class="note" data-i18n="ms.note">Kitgun はチェンバー(プライマリ版とセカンダリ版は別々)、Zaw はストライク、アンプはプリズムと Sirocco、MOA・ハウンドは頭(モデル)、K-ドライブはボードの単位で数えます。Excalibur Prime・Skana Prime・Lato Prime は「ファウンダー」にチェックを入れたときだけ、「ファウンダー」の項目に表示して集計します。「入手不可を除外」は、Vault 入りのレリック(いまのドロップ表のどこにも出ないレリック)でしか出ないパーツがあって、いま作れないもの(「Vault」の印)を外します(Varzia の Prime Resurgence で期間中に交換できるレリックは入手できるものとして扱います)。「Prime版を除外」と「入手不可を除外」は一覧・一括変更・CSV から外すだけで、件数と経験値の合計には含めます。「入手先」の列は本体とパーツの入手先の種類です。行をクリックすると、その行の下に入手先を開きます(本体の入手先と、パーツごとの入手先。ドロップ表・クラン研究・Simaris などにあるものだけで、イベント限定は含みません)。プレクサスとアンプ本体は「その他」に入ります。マスタリー経験値はランク最大までの値です(Warframe・コンパニオン・センチネル・MOA/ハウンド・アークウイング・ネクロメカ・K-ドライブ・プレクサスは 1 ランク 200、武器は 100。Kuva・Tenet・Coda などとネクロメカはランク 40)。</p>
       </section>
 <!-- PART:style -->
 <style>
-/* マスター一覧: 名前の横の「入手先」ボタンと、開いた入手先の小見出し */
-.ms-src-btn { margin-left: 8px; padding: 1px 8px; font-size: 12px; }
+/* マスター一覧: 開いた入手先の小見出し */
 .ms-src-head { margin: 10px 0 4px; font-size: 14px; }
 .ms-src-head:first-child { margin-top: 0; }
 </style>
@@ -62,16 +61,23 @@ const msIsPrime = r => /\bPrime\b/i.test(r.en || "");
 // ドロップ表・入手先のデータがそろわず判定できないとき(API の vault が false)はチェックを使えなくする
 let msNoVault = pref.flag("wf-mastery-novault");
 $("#ms-novault").checked = msNoVault;
-// 入手先: 名前の横のボタンで、その行の下に開く(1件だけ)。応答(GET /api/mastery/sources)は id ごとに { res } で覚える(テキスト指定なので言語を変えても使える)。
+// 入手先: 列には種類のバッジ(API の src_cats。本体 + パーツ)。行をクリックすると、その行の下に開く(1件だけ)。応答(GET /api/mastery/sources)は id ごとに { res } で覚える(テキスト指定なので言語を変えても使える)。
 // 失敗も { err } で覚え、描き直しでは取り直さない(行を開き直すと取り直す)。取得中の id は msSrcLoading(その間は描き直しても取り直さない)
 let msOpen = null, msSrcLoading = null;
 const msSrcCache = new Map(), msSrcGuard = latestGuard();
+/* 入手先の列: 種類のバッジ(MOD 入手一覧と同じ色。件数は付けない)。無ければ「記載なし」。
+   ドロップ表が無い・壊れていて判定できないとき(API の src_ready が false)は「—」(「記載なし」と読まれないように) */
+const msSrcCats = r => !mastery.src_ready
+  ? `<span class="none" title="${esc(t("ms.src.nodata"))}">—</span>`
+  : r.src_cats.length
+  ? `<div class="badges">${r.src_cats.map(c => catTag(c)).join("")}</div>`
+  : `<span class="none">${esc(t("mods.unlisted"))}</span>`;
 const msVaultTag = r => (r.vaulted ? `<span class="tag-mini" title="${esc(t("ms.vaulted.tip"))}">${esc(t("src.vaulted"))}</span>` : "");
 /* 名前: 日本語の画面は日本語名、ほかは英名。Kitgun はプライマリ版・セカンダリ版を区別する(I18N の mastery.variant) */
 const msLabel = r => { const n = nameByLang(r); return r.variant ? fmt("mastery.variant", { name: n, variant: t("mastery.variant." + r.variant) }) : n; };
 const msSort = { key: "cat", dir: "asc" };
 const msGetters = {
-  done: r => (r.done ? 1 : 0), name: r => msLabel(r).toLowerCase(), rank: r => r.rank, xp: r => r.xp,
+  done: r => (r.done ? 1 : 0), name: r => msLabel(r).toLowerCase(), rank: r => r.rank, xp: r => r.xp, src: r => r.src_cats.length,
   cat: r => mastery.cats.indexOf(r.cat) * 10000 + 0, // 並べ替えの基準: カテゴリー順 -> 名前
 };
 function msFilter() {
@@ -105,12 +111,13 @@ function renderMastery() {
     b.textContent = armed ? fmt("common.confirm.n", { n: list.length }) : label; b.classList.toggle("danger", armed); b.classList.toggle("armed", armed);
   });
   drawTable($("#ms-out"), list.length ? `<div class="tablewrap tall"><table>
-    <thead><tr>${th(esc(t("ms.col.done")), "done", msSort, "chk")}${th(esc(t("ms.col.name")), "name", msSort)}${th(esc(t("ms.col.cat")), "cat", msSort)}${th(esc(t("ms.col.rank")), "rank", msSort, "num")}${th(esc(t("ms.col.xp")), "xp", msSort, "num")}</tr></thead>
-    <tbody>${list.map(r => `<tr class="${r.done ? "owned" : ""}" data-id="${esc(r.id)}">
+    <thead><tr>${th(esc(t("ms.col.done")), "done", msSort, "chk")}${th(esc(t("ms.col.name")), "name", msSort)}${th(esc(t("ms.col.cat")), "cat", msSort)}${th(esc(t("ms.col.rank")), "rank", msSort, "num")}${th(esc(t("ms.col.xp")), "xp", msSort, "num")}${th(esc(t("src.col.place")), "src", msSort)}</tr></thead>
+    <tbody>${list.map(r => `<tr class="mod-row${r.done ? " owned" : ""}" data-id="${esc(r.id)}" aria-expanded="${msOpen === r.id}">
       <td class="chk"><input type="checkbox" class="own" ${r.done ? "checked" : ""} aria-label="${esc(fmt("ms.done.aria", { name: msLabel(r) }))}"></td>
-      <td>${esc(msLabel(r))}${msVaultTag(r)}<button class="btn ghost ms-src-btn" type="button" data-ms-src aria-expanded="${msOpen === r.id}" aria-label="${esc(fmt("ms.src.aria", { name: msLabel(r) }))}">${esc(t("ms.src.btn"))}</button>${subEn(r)}</td><td>${esc(tName("mastery.cat.", r.cat))}</td>
-      <td class="num">${r.rank}</td><td class="num">${r.xp.toLocaleString(locale())}</td></tr>
-      ${msOpen === r.id ? `<tr class="detail"><td colspan="5" id="ms-src">${msSrcCell(r.id)}</td></tr>` : ""}`).join("")}</tbody></table></div>`
+      <td>${esc(msLabel(r))}${msVaultTag(r)}${subEn(r)}</td><td>${esc(tName("mastery.cat.", r.cat))}</td>
+      <td class="num">${r.rank}</td><td class="num">${r.xp.toLocaleString(locale())}</td>
+      <td>${msSrcCats(r)}</td></tr>
+      ${msOpen === r.id ? `<tr class="detail"><td colspan="6" id="ms-src">${msSrcCell(r.id)}</td></tr>` : ""}`).join("")}</tbody></table></div>`
     : noData(t("common.none")), [msCat, $("#ms-q").value, $("#ms-state").value, msFounder, msNoPrime, msNoVault, msSort.key, msSort.dir]);
   if (msOpen && !msSrcCache.has(msOpen) && msSrcLoading !== msOpen && list.some(r => r.id === msOpen)) loadMsSources(msOpen);
 }
@@ -146,14 +153,15 @@ async function setMastered(ids, done) {
 }
 $("#ms-cats").addEventListener("click", e => { const c = e.target.closest("[data-mcat]"); if (!c) return; msCat = c.dataset.mcat; msArming.clear(); renderMastery(); });
 $("#ms-out").addEventListener("click", e => {
-  const b = e.target.closest("[data-ms-src]"); if (!b) return;
-  const id = b.closest("tr").dataset.id;
+  if (e.target.closest("input, th, a, button")) return;
+  const tr = e.target.closest("tr.mod-row"); if (!tr) return;
+  const id = tr.dataset.id;
   msOpen = msOpen === id ? null : id;
   if (msOpen && msSrcCache.get(id)?.err !== undefined) msSrcCache.delete(id);  // 失敗した行は開き直すと取り直す
   renderMastery();
 });
 $("#ms-out").addEventListener("change", e => { const cb = e.target.closest("input.own"); if (cb) setMastered([cb.closest("tr").dataset.id], cb.checked); });
-onSortClick($("#ms-out"), msSort, renderMastery, ["done", "rank", "xp"]);
+onSortClick($("#ms-out"), msSort, renderMastery, ["done", "rank", "xp", "src"]);
 $("#ms-q").addEventListener("input", debounce(() => { msArming.clear(); renderMastery(); }, 150));
 $("#ms-state").addEventListener("change", () => { msArming.clear(); renderMastery(); });
 $("#ms-founder").addEventListener("change", e => {
@@ -180,8 +188,9 @@ $("#ms-novault").addEventListener("change", e => {
 }));
 $("#ms-csv").addEventListener("click", () => {
   if (!mastery) return;
-  saveCsv(t("ms.csv.file"), [t("ms.csv.done"), t("ms.col.name"), t("ms.csv.en"), t("ms.col.cat"), t("ms.col.rank"), t("ms.col.xp")],
-    msFilter().map(r => [r.done ? "○" : "", msLabel(r), r.en, tName("mastery.cat.", r.cat), r.rank, r.xp]));
+  saveCsv(t("ms.csv.file"), [t("ms.csv.done"), t("ms.col.name"), t("ms.csv.en"), t("ms.col.cat"), t("ms.col.rank"), t("ms.col.xp"), t("src.col.place")],
+    msFilter().map(r => [r.done ? "○" : "", msLabel(r), r.en, tName("mastery.cat.", r.cat), r.rank, r.xp,
+      !mastery.src_ready ? "" : r.src_cats.length ? r.src_cats.map(c => tName("src.cat.", c)).join(" / ") : t("mods.unlisted")]));
 });
 loaders.mastery = async () => {
   applyViewText("mastery");

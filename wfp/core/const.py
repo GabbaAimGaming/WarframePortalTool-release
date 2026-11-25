@@ -164,7 +164,8 @@ BUILD_TYPES = {"frame": "Warframe", "primary": "プライマリ", "secondary": "
 # 入手先の種類
 SOURCE_CATS = {"mission": "ミッション", "enemy": "敵", "bounty": "バウンティ", "relic": "レリック",
                "special": "特殊ミッション", "key": "キー・ボス", "sortie": "ソーティー", "clan": "クラン研究",
-               "simaris": "Simaris 交換", "quest": "クエスト報酬", "resurgence": "Prime Resurgence"}
+               "simaris": "Simaris 交換", "quest": "クエスト報酬", "syndicate": "シンジケート", "vendor": "商人",
+               "resurgence": "Prime Resurgence"}
 
 
 # アイテムの種類(Names.item_kind)。エリア検索・アイテムから探すで共用。並びは画面のチェックと、種類で分けたときの表の並び
@@ -568,6 +569,165 @@ OTHER_FILE = "other.json"
 # 入手先: キー -> (英語名, 日本語名)。キーは入手先の種類(SOURCE_CATS)にもそのまま使う。足すときは SOURCE_CATS にも足す
 OTHER_SOURCES = {"simaris": ("Simaris Offerings", "Simaris 交換"), "quest": ("Quest Reward", "クエスト報酬")}
 # 手で書いた入手先のクエスト名を詳細欄に出すときの形は web/i18n の src.quest.<入手先のキー>(無い入手先はクエスト名そのまま)
+
+
+# シンジケート・クエスト報酬・商人の入手先(オプション。データ更新で「Export Plus も取る」を選んだときだけ取る)。
+# 取得元は calamity-inc/warframe-public-export-plus(MIT。ゲームのデータから作った非公式のもの。公式の予備は無い)。
+# 取った3つのファイルから要る項目だけを取り出して OFFERS_FILE に書く(内部パスのまま。名前は読み込むときに item_paths.json で引く)
+EXPORT_PLUS_GITHUB = "https://raw.githubusercontent.com/calamity-inc/warframe-public-export-plus/senpai"
+
+
+EXPORT_PLUS_FILES = ("ExportSyndicates", "ExportKeys", "ExportVendors")
+
+
+EXPORT_PLUS_SRC = "GitHub (calamity-inc/warframe-public-export-plus)"
+
+
+OFFERS_FILE = "offers.json"
+
+
+# シンジケート: ExportSyndicates のキー -> (英語名, 日本語名)。名前はゲームの表記(Export Plus の dict.en / dict.ja。2026-11-25 確認)。
+# ここに無い組織(Nightwave の RadioLegion*・期間限定の EventSyndicate・交換品の無い組織)は使わない。
+# 画面の文字は web/i18n の syndicate.<キー>(日本語は CLI 用にここにも置き、テストで一致を確かめる)
+SYNDICATE_NAMES = {
+    "SteelMeridianSyndicate": ("Steel Meridian", "スティール・メリディアン"),
+    "ArbitersSyndicate": ("Arbiters of Hexis", "アービターズ・オブ・ヘクシス"),
+    "CephalonSudaSyndicate": ("Cephalon Suda", "セファロン・スーダ"),
+    "PerrinSyndicate": ("The Perrin Sequence", "ペリン・シークエンス"),
+    "RedVeilSyndicate": ("Red Veil", "レッド・ベール"),
+    "NewLokaSyndicate": ("New Loka", "ニュー・ロカ"),
+    "ConclaveSyndicate": ("Conclave", "コンクレーブ"),
+    "CetusSyndicate": ("Ostron", "オストロン"),
+    "QuillsSyndicate": ("The Quills", "クイル"),
+    "SolarisSyndicate": ("Solaris United", "ソラリス連合"),
+    "VentKidsSyndicate": ("Ventkids", "ベントキッド"),
+    "VoxSyndicate": ("Vox Solaris", "Vox Solaris"),
+    "EntratiSyndicate": ("Entrati", "エントラティ"),
+    "NecraloidSyndicate": ("Necraloid", "ネクロロイド"),
+    "ZarimanSyndicate": ("The Holdfasts", "ホールドファスト"),
+    "EntratiLabSyndicate": ("Cavia", "カビア"),
+    "HexSyndicate": ("The Hex", "ヘックス"),
+}
+
+
+# Simaris(LibrarySyndicate)は既存の入手先「Simaris 交換」(OTHER_SOURCES の simaris)にまとめる
+SYNDICATE_AS_OTHER = {"LibrarySyndicate": "simaris"}
+
+
+# 商人: キー -> (英語名, 日本語名)。拠点の名前はゲームの表記(Export Plus の dict.en / dict.ja)。NPC の名前は日本語版でも英語のまま。
+# ExportVendors には商人の名前が無いので手で書く(2026-11-25 確認。名前の無い一覧は auto_vendor_label で拠点 + 一覧の名前にする)。
+# どの商人を入手先に出すかは利用者がデータ更新のページで選ぶ(利用者データ offer_vendors)。初期値はオン、VENDOR_DEFAULT_OFF はオフ。
+# 画面の文字は web/i18n の vendor.<キー>
+VENDOR_NAMES = {
+    "teshin": ("Teshin (Steel Path Honors)", "Teshin(鋼の道のり)"),
+    "arbitration": ("Arbitration Honors", "仲裁(Vitus Essence 交換)"),
+    "palladino": ("Palladino (Iron Wake)", "Palladino(アイアン・ウェイク)"),
+    "zuud": ("Rude Zuud (Iron Wake)", "Rude Zuud(アイアン・ウェイク)"),
+    "zorba": ("Aspirant Zorba", "Aspirant Zorba"),
+    "glast": ("Ergo Glast", "Ergo Glast"),
+    "cetus": ("Cetus", "シータス"),
+    "nightcap": ("Nightcap (Fortuna)", "Nightcap(フォーチュナー)"),
+    "necralisk": ("Necralisk", "ネクロリスク"),
+    "acrithis": ("Acrithis (Duviri)", "Acrithis(デュヴィリ)"),
+    "chipper": ("Chipper (Drifter's Camp)", "Chipper(ドリフターのキャンプ)"),
+    "ascension": ("Ascension", "昇天"),
+    "chrysalith": ("Chrysalith", "クリサリス"),
+    "sanctum": ("Sanctum Anatomica", "サンクタム・アナトミカ"),
+    "hollvania": ("Höllvania", "ホルバニア"),
+    "triad": ("Triad", "Triad"),
+    # ここから初期オフ(VENDOR_DEFAULT_OFF)
+    "cetus_fish": ("Fisher Hai-Luk (Cetus)", "Fisher Hai-Luk(シータス)"),
+    "cetus_mining": ("Old Man Suumbaat (Cetus)", "Old Man Suumbaat(シータス)"),
+    "cetus_conservation": ("Master Teasonai (Cetus)", "Master Teasonai(シータス)"),
+    "fortuna_fish": ("The Business (Fortuna)", "The Business(フォーチュナー)"),
+    "fortuna_mining": ("Smokefinger (Fortuna)", "Smokefinger(フォーチュナー)"),
+    "fortuna_conservation": ("Roky (Fortuna)", "Roky(フォーチュナー)"),
+    "necralisk_fish": ("Daughter (Necralisk)", "Daughter(ネクロリスク)"),
+    "necralisk_mining": ("Otak (Necralisk)", "Otak(ネクロリスク)"),
+    "necralisk_son": ("Son (Necralisk)", "Son(ネクロリスク)"),
+    "focus": ("Focus Schools", "フォーカスの流派"),
+    "hunhow": ("Hunhow", "Hunhow"),
+    "amir": ("Amir (Höllvania)", "Amir(ホルバニア)"),
+    "triad_exchange": ("Triad (resource exchange)", "Triad(素材の交換)"),
+}
+
+
+# 初期値がオフの商人(VENDOR_NAMES のキー)。名前の無い一覧(新しい商人など)も初期オフ
+VENDOR_DEFAULT_OFF = frozenset({
+    "cetus_fish", "cetus_mining", "cetus_conservation", "fortuna_fish", "fortuna_mining", "fortuna_conservation",
+    "necralisk_fish", "necralisk_mining", "necralisk_son", "focus", "hunhow", "amir", "triad_exchange",
+})
+
+
+# 取り出さない商人の一覧(ExportVendors のキーにこの文字列を含むもの): 期間限定のイベント・Nightwave。
+# ほかは全部取り出す(ゲームに商人が増えても候補に出るように)。品物が見た目だけ・依頼だけの一覧は、品物が 0 件になるので候補に出ない
+VENDOR_SKIP_PATTERNS = ("/Events/", "RadioLegion")
+
+
+# 名前の無い一覧の拠点: 一覧のキーの1段目 -> (英語名, 日本語名)。表に無い組は組の名前そのまま。画面の文字は web/i18n の vgroup.<組>
+VENDOR_GROUPS = {
+    "Ostron": ("Cetus", "シータス"), "Solaris": ("Fortuna", "フォーチュナー"), "Deimos": ("Necralisk", "ネクロリスク"),
+    "Zariman": ("Chrysalith", "クリサリス"), "EntratiLabs": ("Sanctum Anatomica", "サンクタム・アナトミカ"),
+    "TheHex": ("Höllvania", "ホルバニア"), "Duviri": ("Duviri", "デュヴィリ"), "Kahl": ("Drifter's Camp", "ドリフターのキャンプ"),
+    "Hubs": ("Hub", "拠点"), "FocusSchools": ("Focus", "フォーカス"), "GameModes": ("Game mode", "ゲームモード"), "Tau": ("Tau", "Tau"),
+}
+
+
+# 商人の品物の一覧(ExportVendors のキー /Lotus/Types/Game/VendorManifests/<ここ>)-> 商人のキー(VENDOR_NAMES)。
+# 1つの商人が複数の一覧を持つことがある。ここに無い一覧は、一覧のキーそのものを商人のキーにする(名前は auto_vendor_label)
+VENDOR_MANIFESTS = {
+    "Hubs/TeshinHardModeVendorManifest": "teshin",
+    "Hubs/EliteAlertVendorManifest": "arbitration",
+    "Hubs/IronwakeDondaVendorManifest": "palladino",
+    "Hubs/IronwakeFlawedModVendorManifest": "zuud",
+    "Hubs/AspirantZorbaVendorManifest": "zorba",
+    "Hubs/PerrinSequenceWeaponVendorManifest": "glast",
+    "Ostron/FiveFatesVendorManifest": "cetus",
+    "Ostron/MaskSalesmanManifest": "cetus",
+    "Solaris/NightcapVendorManifest": "nightcap",
+    "Deimos/OtakLastWishManifest": "necralisk",
+    "Deimos/EntratiFragmentVendorProductsManifest": "necralisk",
+    "Duviri/AcrithisVendorManifest": "acrithis",
+    "Duviri/AcrithisKullervoShopManifest": "acrithis",
+    "Duviri/AcrithisEnigmaGyrumShopManifest": "acrithis",
+    "Kahl/ChipperVendorManifest": "chipper",
+    "GameModes/AscensionVendorManifest": "ascension",
+    "Zariman/ArchimedeanVoidEclipseManifest": "chrysalith",
+    "Zariman/ArchimedeanVendorManifest": "chrysalith",
+    "EntratiLabs/EntratiLabsDisruptionVendorManifest": "sanctum",
+    "TheHex/Temple1999VendorManifest": "hollvania",
+    "TheHex/HexScaldranWeaponsVendorManifest": "hollvania",
+    "TheHex/InfestedLichWeaponVendorManifest": "hollvania",
+    "TheHex/Nova1999ConquestShopManifest": "hollvania",
+    "Tau/Prequel/TriadPityVendorManifest": "triad",
+    "Tau/Prequel/TriadEventVendorManifest": "triad",
+    "EntratiLabs/EntratiLabVendorManifest": "sanctum",
+    "Ostron/FishmongerVendorManifest": "cetus_fish",
+    "Ostron/ProspectorVendorManifest": "cetus_mining",
+    "Ostron/ConservationRewardsManifest": "cetus_conservation",
+    "Solaris/FishmongerVendorManifest": "fortuna_fish",
+    "Solaris/ProspectorVendorManifest": "fortuna_mining",
+    "Solaris/ConservationRewardsManifest": "fortuna_conservation",
+    "Deimos/FishmongerVendorManifest": "necralisk_fish",
+    "Deimos/ProspectorVendorManifest": "necralisk_mining",
+    "Deimos/PetVendorManifest": "necralisk_son",
+    "Deimos/ConservationRewardsManifest": "necralisk_son",
+    "FocusSchools/MaduraiVendorManifest": "focus",
+    "FocusSchools/NaramonVendorManifest": "focus",
+    "FocusSchools/UnairuVendorManifest": "focus",
+    "FocusSchools/VazarinVendorManifest": "focus",
+    "FocusSchools/ZenurikVendorManifest": "focus",
+    "Hubs/HunhowVendorManifest": "hunhow",
+    "TheHex/AmirNightwaveVendorManifest": "amir",
+    "Tau/Prequel/TriadExchangeVendorManifest": "triad_exchange",
+}
+
+
+VENDOR_MANIFEST_PREFIX = "/Lotus/Types/Game/VendorManifests/"
+
+
+# 入手先に出さない品物(内部パスにこの文字列を含むもの): 飾り・シジル等の見た目・グリフ・称号・パック(依頼もパック)。名前の候補を増やしすぎないため
+OFFER_SKIP_PATHS = ("/ShipDecos/", "/Upgrades/Skins/", "/AvatarImages/", "/Titles/", "/BoosterPacks/", "/Packages/", "/Boosters/")
 
 
 # 極性(ゲーム内の英語名)

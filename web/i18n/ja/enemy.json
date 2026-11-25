@@ -11,6 +11,7 @@
   "enemy.count": "{n} / {total} 件",
   "enemy.col.item": "アイテム",
   "enemy.col.detail": "区分",
+  "enemy.col.qty": "個数",
   "enemy.col.chance": "確率",
   "enemy.col.rarity": "レア度",
   "enemy.footnote": "確率は1体倒したときに落とす割合です。区分の % はその表(MOD・設計図など)を引く割合で、確率にはかけ合わせ済みです。",

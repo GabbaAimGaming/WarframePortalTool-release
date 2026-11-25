@@ -59,7 +59,7 @@ def cmd_item(args):
     if len(rows) > args.limit:
         print(f"\n(上位 {args.limit} 件を表示。--limit で変更できます)")
     print("\n確率: ミッション/バウンティは報酬1回の抽選で選ばれる割合、敵は1体倒したときに落とす割合、"
-          "レリックは開けたときに出る割合です。クラン研究・Simaris 交換・クエスト報酬は確率が無いので「—」です。")
+          "レリックは開けたときに出る割合です。クラン研究・Simaris 交換・クエスト報酬・シンジケート・商人は確率が無いので「—」です。")
     if any(r.get("vaulted") for r in rows):
         print("[Vault] はいまのドロップ表のどこにも出ないレリックです。")
     if vault.until is not None and any(r.get("resurgence") or r["cat"] == "resurgence" for r in rows):

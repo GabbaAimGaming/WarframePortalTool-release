@@ -11,8 +11,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from wfp.core.i18n import render_ja, txt
-from wfp.core.const import MASTERY_CATS, MASTERY_EXTRA_FILE, MASTERY_FOUNDER
-from wfp.core.names import Names
+from wfp.core.const import MASTERY_CATS, MASTERY_EXTRA_FILE, MASTERY_FOUNDER, SOURCE_CATS
+from wfp.core.names import Names, item_key
+from wfp.core.text import norm
 from wfp.drops.tables import Vault
 from wfp.store import appdata
 
@@ -54,6 +55,15 @@ def mastery_items(names: Names, src: Path | None = None) -> list[dict]:
 def mastery_table(names: Names, done: set[str], src: Path | None = None) -> list[dict]:
     """マスター済みの印つきの一覧。カテゴリー・Kitgun の区別(variant)はキーのまま(表示名は画面 / CLI で付ける)"""
     return [{**m, "done": m["id"] in done} for m in mastery_items(names, src)]
+
+
+def add_source_cats(rows: list[dict], index: dict[str, list[tuple]], parts: dict[str, list[str]]) -> None:
+    """一覧の行に src_cats(入手先の種類のキー。SOURCE_CATS の順)を付ける。本体そのものと、そのパーツ全部の入手先から集める
+    (行の詳細 /api/mastery/sources と同じ範囲。イベントは入れない)。index は drops/search の source_index、
+    parts は parts_by_owner の表(本体の英名を norm したもの → パーツの英名)"""
+    for r in rows:
+        found = {s[0] for name in (r["en"], *parts.get(norm(r["en"]), [])) for s in index.get(item_key(name), [])}
+        r["src_cats"] = [c for c in SOURCE_CATS if c in found]
 
 
 def vaulted_owners(names: Names, vault: Vault, owners: dict[str, str] | None = None) -> set[str]:

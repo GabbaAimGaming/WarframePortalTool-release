@@ -73,7 +73,8 @@ const dur = sec => {
 const rarity = key => `<span class="rar ${esc(key)}">${esc(tName("rarity.", key))}</span>`;
 const noData = msg => `<div class="empty">${esc(msg)}</div>`;
 const catTag = (key, label) => `<span class="cat ${esc(key)}">${esc(label != null ? label : tName("src.cat.", key))}</span>`;
-const fmtPct = x => x >= 1 ? x.toFixed(2) + "%" : x >= 0.01 ? x.toFixed(3) + "%" : x.toPrecision(2) + "%";
+/* 確率の表示。確率の無い入手先(クラン研究・シンジケート・商人など。API は null)は「—」 */
+const fmtPct = x => x == null ? "—" : x >= 1 ? x.toFixed(2) + "%" : x >= 0.01 ? x.toFixed(3) + "%" : x.toPrecision(2) + "%";
 /** 見出しクリックで並べ替える表 (state = {key, dir}) */
 function sortRows(rows, state, getters) {
   const g = getters[state.key]; if (!g) return rows;
@@ -150,6 +151,7 @@ function renderStatus() {
     ? row("upd.drops", fmt("upd.drops.v", { at: s.drops_updated, nodes: s.counts.nodes, items: s.counts.items }))
       + row("upd.extra", s.extra_files ? fmt("upd.extra.v", { at: s.extra_updated, files: s.extra_files, total: s.extra_total, n: s.counts.sources.toLocaleString(locale()) }) : t("upd.none"))
       + row("upd.riven", s.rivens_updated ? fmt("upd.riven.v", { at: s.rivens_updated, n: s.rivens_count }) : t("upd.none"))
+      + (s.offers_updated ? row("upd.offers", fmt("upd.offers.v", { at: s.offers_updated, n: s.offers_count.toLocaleString(locale()) })) : "")
       + row("upd.names", s.has_names ? fmt("upd.names.v", { at: (s.names_updated || "").replace("T", " ").replace("+00:00", " UTC") })
         + (s.names_source ? fmt("upd.names.src", { src: tName("export.src.", s.names_source), n: s.counts.mods }) : "") : t("upd.names.none"))
     : row("upd.state", t("upd.empty")));

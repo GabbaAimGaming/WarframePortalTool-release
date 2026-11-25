@@ -12,7 +12,7 @@ from wfp.store import datadir
 def cmd_update(args):
     d = datadir.data_dir(args.data_dir)
     try:
-        update.update_all(d, (args.lang,) if getattr(args, "lang", None) else ())
+        update.update_all(d, (args.lang,) if getattr(args, "lang", None) else (), plus=getattr(args, "plus", None))
     except update.UpdateFailed as e:
         sys.exit(str(e))
 
@@ -45,6 +45,11 @@ def add_update(sub) -> None:
     s = sub.add_parser("update", help="公式データを取得/更新")
     s.add_argument("--lang", choices=EXPORT_EXTRA_LANGS,
                    help="日本語・英語のほかに名前辞書を取る言語 (公式 Public Export の言語コード。取得済みの言語は指定しなくても取り直す)")
+    plus = s.add_mutually_exclusive_group()
+    plus.add_argument("--plus", dest="plus", action="store_true", default=None,
+                      help="非公式の Export Plus からシンジケート・クエスト報酬・商人の入手先も取る (覚えて次からも取る)")
+    plus.add_argument("--no-plus", dest="plus", action="store_false",
+                      help="Export Plus を取らない (前回取った分を消す。覚えて次からも取らない)。どちらも無ければ前回の設定のまま")
     s.set_defaults(fn=cmd_update)
 
 

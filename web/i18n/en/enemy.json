@@ -11,6 +11,7 @@
   "enemy.count": "{n} / {total} items",
   "enemy.col.item": "Item",
   "enemy.col.detail": "Table",
+  "enemy.col.qty": "Qty",
   "enemy.col.chance": "Chance",
   "enemy.col.rarity": "Rarity",
   "enemy.footnote": "Chances are per kill. The % in Table is the chance of rolling that table (mods, blueprints, etc.) and is already multiplied in.",

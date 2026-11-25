@@ -11,7 +11,7 @@ from wfp.core.names import Names, item_key
 from wfp.drops.tables import DropRow, Drops, Sources, Vault, mission_place, stage_label
 
 
-def find_sources(key: str, drops: "Drops", sources: Sources | None, names: Names, events: bool = False,
+def find_sources(key: str, drops: Drops | None, sources: Sources | None, names: Names, events: bool = False,
                  vault: Vault | None = None) -> list[dict]:
     """項目(英名)の入手先を、ミッション・敵・バウンティ・レリック・クラン研究等すべてから集めて確率の高い順に返す(確率の無いクラン研究は最後)。
 
@@ -19,11 +19,12 @@ def find_sources(key: str, drops: "Drops", sources: Sources | None, names: Names
     vault を渡すと、Vault 入り(いまは出ない)レリックの行に vaulted: True を付ける
     (wfp/core/i18n.py の txt。画面は web/i18n の表で、CLI は render_ja で文にする)。並びは日本語の入手先名で決める。
     Prime Resurgence の期間の内(vault.resurgence)なら、交換できるレリックの行に resurgence: 期限(UNIX 時刻)を付け、
-    項目がそのレリック自体なら入手先「Prime Resurgence」の行(cat resurgence・until に期限)を足す
+    項目がそのレリック自体なら入手先「Prime Resurgence」の行(cat resurgence・until に期限)を足す。
+    drops が None(ドロップ表がまだ無い)なら sources の行だけ
     """
     k = item_key(key)
     out = []
-    for planet, node, mode, event, rot, item, chance, rarity in drops.rows:
+    for planet, node, mode, event, rot, item, chance, rarity in (drops.rows if drops else []):
         if item_key(item) == k and (events or not event):
             out.append({"cat": "mission", "place": mission_place(planet, node), "detail": name_txt("mode.", mode), "event": event,
                         "stage": stage_label(rot), "qty": names.split_qty(item)[0], "chance": chance, "rarity": rarity})
@@ -50,6 +51,31 @@ def _resurgence_row(vault: Vault) -> dict:
     """レリック自体の入手先「Prime Resurgence」の行(アヤで交換。確率は無い。until は期限)"""
     return {"cat": "resurgence", "place": txt("src.resurgence.place"), "detail": txt("src.resurgence.detail"), "event": False,
             "stage": stage_label("-"), "qty": "", "chance": None, "rarity": "", "until": vault.until}
+
+
+def source_index(drops: Drops | None, sources: Sources | None) -> dict[str, list[tuple]]:
+    """項目ごとの入手先: {item_key: [(種類, 入手先, 詳細, 段, 確率)]}。イベントの行は入れない。
+    入手先・詳細・段はテキスト指定、確率は無ければ None(クラン研究・商人など)。一覧の集計(source_brief)に使う"""
+    idx: dict[str, list[tuple]] = {}
+    for planet, node, mode, event, rot, item, chance, rarity in (drops.rows if drops else []):
+        if not event:
+            idx.setdefault(item_key(item), []).append(
+                ("mission", mission_place(planet, node), name_txt("mode.", mode), stage_label(rot), chance))
+    for r in (sources.rows if sources else []):
+        idx.setdefault(item_key(r.item), []).append((r.cat, r.place, r.detail, stage_label(r.rot), r.chance))
+    return idx
+
+
+def source_brief(src: list[tuple]) -> dict:
+    """source_index の1項目分を、種類ごとの件数(SOURCE_CATS の順)・件数・もっとも確率の高い入手先にまとめる。
+    確率の無い入手先(クラン研究・商人など)は確率のあるものより後(それしか無ければそれ)"""
+    counts: dict[str, int] = {}
+    for s in src:
+        counts[s[0]] = counts.get(s[0], 0) + 1
+    best = max(src, key=lambda s: -1 if s[4] is None else s[4]) if src else None
+    return {"counts": {c: counts[c] for c in SOURCE_CATS if c in counts}, "total": len(src),
+            "best": {"cat": best[0], "place": best[1], "detail": best[2],
+                     "stage": best[3], "chance": best[4]} if best else None}
 
 
 def all_item_names(drops: Drops, sources: Sources | None, extra: list[str] | tuple = ()) -> list[str]:

@@ -20,7 +20,7 @@ from wfp.core.archon import shard_list
 from wfp.core.build import arcane_pairs, make_build
 from wfp.core.devbuilds import adopt_entry, dev_build_list, find_dev_build
 from wfp.core.helminth import subsume_list
-from wfp.core.mastery import mastery_items, mastery_table, vaulted_owners
+from wfp.core.mastery import add_source_cats, mastery_items, mastery_table, vaulted_owners
 from wfp.core.mods import mod_table
 from wfp.core.quests import QuestNotFound, quest_items, quest_summary, quest_table, set_quests_done
 from wfp.core import todo
@@ -32,7 +32,7 @@ def mods_list(store: Store) -> dict:
     names = store.names()
     if not names.mods:
         raise ApiError(txt("err.mods.nodata"), 409)
-    rows = mod_table(names, store.drops(), store.sources(), userdata.load_owned(store.d), userdata.load_confirmed(store.d))
+    rows = mod_table(names, None, None, userdata.load_owned(store.d), userdata.load_confirmed(store.d), store.source_index())
     # 種別・入手先の種類は並びだけを返す(表示名は画面の I18N の mod.type.<キー> / src.cat.<キー>)
     return {"mods": rows, "types": list(MOD_TYPES), "cats": list(SOURCE_CATS),
             "polarities": dict(POLARITY_EN)}
@@ -64,19 +64,30 @@ def mastery_list(store: Store) -> dict:
         raise ApiError(txt("err.mastery.nodata"), 409)
     rows = mastery_table(names, userdata.load_mastered(store.d))
     # いま作れない本体(入手不可のパーツがある)に vaulted。vault は判定できたか(できなければ画面はチェックを使えなくする)。
-    # ドロップ表が壊れていても一覧は出す(マスター一覧は names.json だけで開けるもの。判定なしで続ける)
+    # 入手先の種類(src_cats。本体 + パーツ)も付ける。src_ready は入手先を判定できたか: ドロップ表が無ければ判定しない
+    # (行の詳細 /api/mastery/sources が 409 になるのと合わせる。パーツも引けないので本体だけの不完全な種類になる)。
+    # ドロップ表が壊れていても一覧は出す(マスター一覧は names.json だけで開けるもの。判定・入手先なしで続ける)
     try:
         src = store.sources()
         vault = store.vault()
         vaulted = vaulted_owners(names, vault, src.part_owner if src else None)
         ready = vault.ready
+        src_ready = store.drops() is not None
     except gamedata.DataBroken:
-        vaulted, ready = set(), False
+        vaulted, ready, src_ready = set(), False, False
+    add_source_cats(rows, *((store.source_index(), mastery_parts(store)) if src_ready else ({}, {})))
     for r in rows:
         if r["en"].lower() in vaulted:
             r["vaulted"] = True
-    # カテゴリーは並びだけ(表示名は画面の I18N の mastery.cat.<キー>)。集計は画面が数える(創設者の切り替えがあるため)
-    return {"rows": rows, "cats": list(MASTERY_CATS), "vault": ready}
+    # カテゴリー・入手先の種類は並びだけ(表示名は画面の I18N の mastery.cat.<キー> / src.cat.<キー>)。集計は画面が数える(創設者の切り替えがあるため)
+    return {"rows": rows, "cats": list(MASTERY_CATS), "vault": ready, "src_ready": src_ready}
+
+
+def mastery_parts(store: Store) -> dict[str, list[str]]:
+    """本体 → パーツの表(drops/search の parts_by_owner)。候補の項目・名前辞書・入手先が変わったときだけ作り直す"""
+    names, src, items = store.names(), store.sources(), store.all_items()
+    return store.derived("@mastery_parts", (names, items, src),
+                         lambda: parts_by_owner(items, names, src.part_owner if src else None))
 
 
 def mastery_by_id(store: Store) -> dict[str, dict]:
@@ -95,9 +106,7 @@ def mastery_sources(store: Store, mid: str) -> dict:
         raise ApiError(txt("err.mastery.unknown", id=mid), 404)
     drops, src = need_drops(store), store.sources()
     vault = store.vault()
-    items = store.all_items()
-    table = store.derived("@mastery_parts", (names, items, src),
-                          lambda: parts_by_owner(items, names, src.part_owner if src else None))
+    table = mastery_parts(store)
     body = item["en"]
     return {"ja": item["ja"], "en": body, "unavailable": vault.unavailable(body),
             "rows": find_sources(body, drops, src, names, vault=vault),
@@ -177,9 +186,9 @@ def arcanes_list(store: Store) -> dict:
     names = store.names()
     if not names.arcane_list:
         raise ApiError(txt("err.arcane.nodata"), 409)
-    rows = arcane_table(names, userdata.load_arcanes_owned(store.d), store.all_items())
-    # カテゴリーは並びだけ(表示名は画面の I18N の arcane.cat.<キー>)。集計は画面が数える
-    return {"rows": rows, "cats": list(ARCANE_CATS)}
+    rows = arcane_table(names, userdata.load_arcanes_owned(store.d), store.all_items(), index=store.source_index())
+    # カテゴリー・入手先の種類は並びだけ(表示名は画面の I18N の arcane.cat.<キー> / src.cat.<キー>)。集計は画面が数える
+    return {"rows": rows, "cats": list(ARCANE_CATS), "src_cats": list(SOURCE_CATS)}
 
 
 def set_arcanes(store: Store, body: dict) -> dict:

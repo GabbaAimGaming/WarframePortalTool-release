@@ -54,15 +54,46 @@ function placeTags(x) {
     + (x.vaulted ? `<span class="tag-mini" title="${esc(t("src.vaulted.tip"))}">${esc(t("src.vaulted"))}</span>` : "")
     + (until ? `<span class="tag-mini" title="${esc(t("src.resurgence.tip"))}">${esc(fmt("src.resurgence", { at }))}</span>` : "");
 }
+/* 個数の列(入手先の表・敵から探すで共用)。API の qty は数量の文字列(無ければ "")。
+   表の中に個数のある行が1つも無ければ列ごと出さない(hasQty)。数字だけなら表示中の言語で桁区切り */
+const hasQty = rows => rows.some(x => x.qty);
+const fmtQty = qty => /^\d+$/.test(String(qty)) ? Number(qty).toLocaleString(locale()) : String(qty);
+const qtyCell = x => `<td class="num">${x.qty ? esc(fmtQty(x.qty)) : ""}</td>`;
 /** 入手先の表 (素材から探す / パーツ検索 / MOD 一覧の詳細で共用)。行の place・detail・stage は API のテキスト指定 */
 function sourceTable(rows) {
   const max = Math.max(...rows.map(x => x.chance ?? 0), 0.0001);  // 確率の無い入手先(クラン研究)は「—」でバーを出さない
+  const qty = hasQty(rows);
+  const cols = ["cat", "place", "detail", "stage", ...(qty ? ["qty"] : []), "chance", "rarity"];
   return `<div class="tablewrap"><table>
-    <thead><tr>${["cat", "place", "detail", "stage", "chance", "rarity"].map(c => `<th>${esc(t("src.col." + c))}</th>`).join("")}</tr></thead>
+    <thead><tr>${cols.map(c => `<th${c === "qty" ? ' class="num"' : ""}>${esc(t("src.col." + c))}</th>`).join("")}</tr></thead>
     <tbody>${rows.map(x => `<tr><td>${catTag(x.cat)}</td><td>${placeCell(x)}${placeTags(x)}</td>
-      <td>${esc(renderTxt(x.detail))}</td><td>${esc(renderTxt(x.stage))}</td>
-      <td>${x.chance == null ? "—" : `<div class="chance"><div class="bar"><i style="--w:${(x.chance / max * 100).toFixed(1)}%"></i></div><b>${x.qty ? esc(fmt("src.qty", { n: x.qty })) : ""}${fmtPct(x.chance)}</b></div>`}</td>
+      <td>${esc(renderTxt(x.detail))}</td><td>${esc(renderTxt(x.stage))}</td>${qty ? qtyCell(x) : ""}
+      <td>${x.chance == null ? "—" : `<div class="chance"><div class="bar"><i style="--w:${(x.chance / max * 100).toFixed(1)}%"></i></div><b>${fmtPct(x.chance)}</b></div>`}</td>
       <td>${x.rarity ? rarity(x.rarity) : ""}</td></tr>`).join("")}</tbody></table></div>`;
+}
+/* 一覧の行の下に開く入手先の詳細(MOD 入手一覧・アルケイン所持一覧で共用)。/api/item の結果を項目ごとに覚え、
+   一覧を描き直すたび(絞り込みの入力・チェック・並べ替え)に取り直さない。覚えるのは行(言語を切り替えても描き直せる)。
+   html(en): 詳細の欄の中身(まだ取っていなければ「読み込み中」)/ load(en, box, still): 取っていなければ取り、
+   still() が真で box() があれば描く(閉じた・ほかの行を開いた後は描かない)/ reset(): データ更新のあと */
+const SOURCE_DETAIL_MAX = 40;  // 詳細に出す入手先の行の数(確率の高い順)
+function createSourceDetail() {
+  const cache = new Map();  // 英名 -> {rows} か {none: true}(入手先が無い = 404)
+  const draw = r => r.none ? noData(t("mods.detail.none"))
+    : sourceTable(r.rows.slice(0, SOURCE_DETAIL_MAX)) + (r.rows.length > SOURCE_DETAIL_MAX ? `<p class="note">${esc(fmt("mods.detail.more", { n: r.rows.length }))}</p>` : "");
+  return {
+    html: en => cache.has(en) ? draw(cache.get(en)) : esc(t("common.loading")),
+    async load(en, box, still) {
+      if (cache.has(en)) return;
+      try {
+        cache.set(en, { rows: (await api(`/api/item?key=${encodeURIComponent(en)}&events=1`)).rows });
+      } catch (e) {
+        if (e.status !== 404) { if (still() && box()) box().innerHTML = noData(e.message); return; }  // 覚えない(次に開いたとき取り直す)
+        cache.set(en, { none: true });
+      }
+      if (still() && box()) box().innerHTML = draw(cache.get(en));
+    },
+    reset: () => cache.clear(),
+  };
 }
 /**
  * 名前で候補を出し、選んだ項目の入手先(/api/item)を表にするページを作る。部品は #<id>-q #<id>-chips #<id>-out #<id>-ev
@@ -196,6 +227,9 @@ const progressBar = rate => `<span class="progress" aria-hidden="true"><i style=
 /* ---------- レア度の並べ替え(MOD・アルケインの一覧で共用) ---------- */
 /* レア度のキー(Common など)の並びの位置 + 1(低いほど小さい)。知らないキーは 0。並びは core/const の RARITY_ORDER */
 const rarityRank = key => CONST.RARITY_ORDER.indexOf(key) + 1;
+/* 「最も確率が高い入手先」の並べ替え(MOD・アルケインの一覧で共用): 確率。確率の無い入手先(シンジケート・商人・クラン研究など)だけなら -1
+   (確率のあるものより下)、入手先が無ければ null(sortRows で常に最後) */
+const bestRank = best => best ? (best.chance ?? -1) : null;
 
 /* ---------- 2段階の確認ボタン(ビルド管理の削除・マスター一覧のまとめて付け外し・クエスト一覧の導線で共用) ---------- */
 /* 1回目に押すと「構え」(ボタンを確認の見た目に変える)、ARM_WAIT ミリ秒のうちにもう1回押すと実行。過ぎたら元に戻る。

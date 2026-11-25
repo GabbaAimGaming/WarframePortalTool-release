@@ -1,11 +1,14 @@
-"""公式 Public Export の取得と名前辞書の作成"""
+"""公式 Public Export の取得と名前辞書の作成・Export Plus(シンジケート・クエスト報酬・商人。オプション)の取得"""
 from __future__ import annotations
+
+import json
 
 from wfp.core.errors import TextError, TextFailure, error_text
 from wfp.core.i18n import name_txt, txt
 from wfp.core.log import say
 from wfp.core.const import (
-    EXPORT_BASE, EXPORT_EXTRA_LANGS, EXPORT_GITHUB, EXPORT_PREFIXES, EXPORT_SRC_GITHUB, EXPORT_SRC_OFFICIAL, EXPORT_UNLOCALIZED,
+    EXPORT_BASE, EXPORT_EXTRA_LANGS, EXPORT_GITHUB, EXPORT_PLUS_FILES, EXPORT_PLUS_GITHUB, EXPORT_PREFIXES, EXPORT_SRC_GITHUB,
+    EXPORT_SRC_OFFICIAL, EXPORT_UNLOCALIZED,
     REGIONS_EXPORT,
 )
 from wfp.core.names import names_by_lang, names_from_exports
@@ -98,3 +101,16 @@ def fetch_regions() -> tuple[dict, dict, str]:
             say(failed, 1)
             errors.append(failed)
     raise TextFailure(errors)
+
+
+def fetch_export_plus() -> dict[str, dict]:
+    """Export Plus(calamity-inc/warframe-public-export-plus)の EXPORT_PLUS_FILES を {名前: 中身} で返す。
+    どれか1つでも取れない・オブジェクトでなければ TextFailure(3つそろわないと入手先が欠けるので、前回分を残す)"""
+    out: dict[str, dict] = {}
+    for name in EXPORT_PLUS_FILES:
+        say(txt("log.get", file=f"{name}.json"), 1)
+        doc = json.loads(net.http_get(f"{EXPORT_PLUS_GITHUB}/{name}.json", timeout=120).decode("utf-8", "replace"))
+        if not isinstance(doc, dict):
+            raise TextFailure(txt("err.notfound", name=name))
+        out[name] = doc
+    return out

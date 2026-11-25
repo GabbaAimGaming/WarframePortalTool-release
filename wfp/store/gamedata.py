@@ -10,7 +10,7 @@ from pathlib import Path
 from wfp.core.errors import TextError, TextFailure
 from wfp.core.i18n import txt
 from wfp.core.const import (
-    ARBYS_FILE, BUILDER_FILE, DROPS_FILE, EXPORT_EXTRA_LANGS, ITEM_PATHS_FILE, LANG_NAMES_FILE, MOD_STATS_FILE, NAMES_FILE,
+    ARBYS_FILE, BUILDER_FILE, DROPS_FILE, EXPORT_EXTRA_LANGS, ITEM_PATHS_FILE, LANG_NAMES_FILE, MOD_STATS_FILE, NAMES_FILE, OFFERS_FILE,
     RECIPES_FILE, REGIONS_FILE, RIVENS_FILE, WFCD_DIR, WFCD_EXTRA, WORLDSTATE_FILE,
 )
 from wfp.store import datadir
@@ -190,3 +190,26 @@ def read_worldstate(d: Path) -> dict | None:
 
 def save_worldstate(d: Path, snap: dict) -> None:
     _write_json(d / WORLDSTATE_FILE, snap)
+
+
+def read_offers(d: Path) -> dict | None:
+    """offers.json(シンジケート・クエスト報酬・商人。オプション。Export Plus から取り出した内部パスの一覧)。無い・読めなければ None(形の検査は core.offers)"""
+    return _read_dict(d / OFFERS_FILE)
+
+
+def save_offers(d: Path, data: dict) -> None:
+    _write_json(d / OFFERS_FILE, data)
+
+
+def remove_offers(d: Path) -> bool:
+    """offers.json を消す(データ更新で Export Plus を取らないとき)。消したら True、もともと無ければ False"""
+    try:
+        (d / OFFERS_FILE).unlink()
+        return True
+    except FileNotFoundError:
+        return False
+
+
+def offers_path(d: Path) -> Path:
+    """offers.json の場所(API の読み直しの目印に更新日時を見る)"""
+    return d / OFFERS_FILE

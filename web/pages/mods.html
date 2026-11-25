@@ -48,7 +48,7 @@ let mods = null, modMeta = null, modOpen = null;
 const modSort = { key: "ja", dir: "asc" };
 const modGetters = {
   ja: m => nameByLang(m).toLowerCase(), type: m => tName("mod.type.", m.type), pol: m => m.polarity_name, rar: m => rarityRank(m.rarity),
-  total: m => m.total, best: m => m.best ? m.best.chance : null, own: m => (m.owned ? 1 : 0),
+  total: m => m.total, best: m => bestRank(m.best), own: m => (m.owned ? 1 : 0),
 };
 /* MOD 名: 日本語の画面は日本語名、ほかの言語は英名。対象(compat)は I18N の mod.compat.<英名>(無ければ英名) */
 const modCompat = m => tName("mod.compat.", m.compat || "");
@@ -64,6 +64,8 @@ function modFilter() {
     (!src || (src === "any" ? m.total > 0 : src === "none" ? m.total === 0 : (m.counts[src] || 0) > 0)) &&
     (!q || [m.ja, m.en, m.compat, modCompat(m)].some(x => (x || "").toLowerCase().includes(q))));
 }
+/* 一番よい入手先の値: 確率があれば確率、無ければ(シンジケート・商人・クラン研究など)詳細(ランクと名声・値段など)を小さく */
+const modBestValue = b => b.chance != null ? `<b>${fmtPct(b.chance)}</b>` : `<span class="mini">${esc(renderTxt(b.detail))}</span>`;
 function renderMods() {
   if (!mods) return;
   const list = sortRows(modFilter(), modSort, modGetters);
@@ -81,20 +83,13 @@ function renderMods() {
       <td>${esc(nameByLang(m))}${m.conclave ? `<span class="tag-mini">${esc(t("mods.conclave.tag"))}</span>` : ""}${m.confirmed ? `<span class="tag-mini" title="${esc(t("mods.confirmed.title"))}">${esc(t("mods.confirmed"))}</span>` : ""}${subEn(m)}${m.compat ? `<div class="mini">${esc(modCompat(m))}</div>` : ""}</td>
       <td>${esc(tName("mod.type.", m.type))}</td><td>${esc(m.polarity_name)}</td><td>${m.rarity ? rarity(m.rarity) : ""}</td>
       <td>${m.total ? `<div class="badges">${Object.entries(m.counts).map(([c, n]) => catTag(c, `${tName("src.cat.", c)} ${n}`)).join("")}</div>` : `<span class="none">${esc(t("mods.unlisted"))}</span>`}</td>
-      <td class="wrap">${m.best ? `${catTag(m.best.cat)} ${esc(renderTxt(m.best.place))} <b>${fmtPct(m.best.chance)}</b>` : ""}</td></tr>
-      ${modOpen === m.en ? `<tr class="detail"><td colspan="7" id="mod-detail">${esc(t("common.loading"))}</td></tr>` : ""}`).join("")}</tbody></table></div>
+      <td class="wrap">${m.best ? `${catTag(m.best.cat)} ${esc(renderTxt(m.best.place))} ${modBestValue(m.best)}` : ""}</td></tr>
+      ${modOpen === m.en ? `<tr class="detail"><td colspan="7" id="mod-detail">${modDetail.html(m.en)}</td></tr>` : ""}`).join("")}</tbody></table></div>
     ${list.length > shown.length ? `<p class="note">${esc(fmt("mods.first", { n: shown.length }))}</p>` : ""}`,
     [$("#mods-q").value, $("#mods-type").value, $("#mods-rar").value, $("#mods-src").value, $("#mods-own").value, modConclave, modSort.key, modSort.dir]);
-  if (modOpen && list.some(m => m.en === modOpen)) loadModDetail(modOpen);
+  if (modOpen && list.some(m => m.en === modOpen)) { const en = modOpen; modDetail.load(en, () => $("#mod-detail"), () => modOpen === en); }
 }
-async function loadModDetail(en) {
-  const box = () => $("#mod-detail");
-  try {
-    const r = await api(`/api/item?key=${encodeURIComponent(en)}&events=1`);
-    if (modOpen !== en || !box()) return;
-    box().innerHTML = sourceTable(r.rows.slice(0, 40)) + (r.rows.length > 40 ? `<p class="note">${esc(fmt("mods.detail.more", { n: r.rows.length }))}</p>` : "");
-  } catch (e) { if (box()) box().innerHTML = noData(e.status === 404 ? t("mods.detail.none") : e.message); }
-}
+const modDetail = createSourceDetail();  // 行の下の入手先の詳細(取った結果を覚える)
 $("#mods-out").addEventListener("change", e => {
   const cb = e.target.closest("input.own"); if (!cb) return;
   const en = cb.closest("tr").dataset.en, m = mods.find(x => x.en === en), owned = cb.checked, was_conf = m.confirmed;
@@ -121,7 +116,7 @@ $("#mods-csv").addEventListener("click", () => {
   saveCsv(t("mods.csv.file"), head, sortRows(modFilter(), modSort, modGetters).map(m => [
     m.owned ? "○" : "", nameByLang(m), m.en, m.compat ? modCompat(m) : "", tName("mod.type.", m.type), m.polarity_name, m.rarity ? tName("rarity.", m.rarity) : "",
     ...cats.map(c => m.counts[c] || 0),
-    m.best ? `${tName("src.cat.", m.best.cat)}: ${renderTxt(m.best.place)} ${renderTxt(m.best.detail)} ${renderTxt(m.best.stage)}` : t("mods.unlisted"), m.best ? m.best.chance.toFixed(4) : ""]));
+    m.best ? `${tName("src.cat.", m.best.cat)}: ${renderTxt(m.best.place)} ${renderTxt(m.best.detail)} ${renderTxt(m.best.stage)}` : t("mods.unlisted"), m.best && m.best.chance != null ? m.best.chance.toFixed(4) : ""]));
 });
 /* 種別・入手先の絞り込みの選択肢(言語を切り替えたら作り直す。選んでいる値は残す) */
 function renderModOptions() {
@@ -139,7 +134,7 @@ loaders.mods = async () => {
   await loadInto($("#mods-out"), () => api("/api/mods"), data => { mods = data.mods; modMeta = data; renderModOptions(); renderMods(); }, [$("#mods-summary")]);
 };
 relabel.mods = () => { applyViewText("mods"); $("#mods-err").textContent = ""; modScanner.label(); if (scan.reads || scan.on) scanRender(); if (mods) { renderModOptions(); renderMods(); } };
-dataResets.mods = () => { mods = null; modOpen = null; };
+dataResets.mods = () => { mods = null; modOpen = null; modDetail.reset(); };
 
 /* ---------- ゲーム画面から MOD を読み取って所持チェック ---------- */
 const AUTO_SCORE = 0.9;  // これ以上の一致度なら自動でチェック。未満は「要確認」

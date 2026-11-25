@@ -14,6 +14,12 @@
         <div class="chips" id="enemy-chips"></div>
         <div id="enemy-out"></div>
       </section>
+<!-- PART:style -->
+<style>
+/* 敵から探す: 結果の表の列の幅。名前は長くならないので狭め、空いた分を個数に回す(ほかの列は残りを分ける) */
+#enemy-out th.enemy-c-item { width: 30%; }
+#enemy-out th.enemy-c-qty { width: 13%; }
+</style>
 <!-- PART:script -->
 /* ---------- 敵から探す ---------- */
 /* 敵の名前(英名)で候補を出し、選んだ敵が落とすアイテム(/api/enemy)を種類の順 → 確率の高い順に表にする。
@@ -51,10 +57,13 @@ function renderEnemyResult() {
   const headHtml = `<div class="result-head"><h3>${esc(r.name)}</h3><span class="count">${esc(fmt("enemy.count", { n: r.items.length, total: r.total }))}</span>${kinds}</div>`;
   if (!r.items.length) { $("#enemy-out").innerHTML = headHtml + noData(t("enemy.none")); return; }
   const max = Math.max(...r.items.map(i => i.chance || 0), 0.0001);
-  const head = ["item", "detail", "chance", "rarity"].map(c => `<th>${esc(t("enemy.col." + c))}</th>`).join("");
+  // 個数のある行が1つも無ければ個数の列は出さない(hasQty)。列の幅はこのページの CSS(.enemy-c-*)
+  const qty = hasQty(r.items);
+  const cols = ["item", "detail", ...(qty ? ["qty"] : []), "chance", "rarity"];
+  const head = cols.map(c => `<th class="enemy-c-${c}${c === "qty" ? " num" : ""}">${esc(t("enemy.col." + c))}</th>`).join("");
   const rows = r.items.map(i => `<tr><td>${esc(nameByLang(i))}<span class="tag-mini">${esc(t("area.kind." + i.kind))}</span></td>
-    <td>${esc(renderTxt(i.detail))}</td>
-    <td><div class="chance"><div class="bar"><i style="--w:${(i.chance / max * 100).toFixed(1)}%"></i></div><b>${i.qty ? esc(fmt("src.qty", { n: i.qty })) : ""}${fmtPct(i.chance)}</b></div></td>
+    <td>${esc(renderTxt(i.detail))}</td>${qty ? qtyCell(i) : ""}
+    <td><div class="chance"><div class="bar"><i style="--w:${(i.chance / max * 100).toFixed(1)}%"></i></div><b>${fmtPct(i.chance)}</b></div></td>
     <td>${i.rarity ? rarity(i.rarity) : ""}</td></tr>`).join("");
   $("#enemy-out").innerHTML = headHtml + `<div class="tablewrap"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>
     <p class="note">${esc(t("enemy.footnote"))}</p>`;

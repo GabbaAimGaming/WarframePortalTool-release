@@ -14,7 +14,7 @@ from wfp.core.const import (
     ARCANE_CATS, AREA_KINDS, BARO_CHECK_BY, BARO_KINDS, BOUNTY_JA, BUILD_TYPES, CAMBION, CLAN_LABS, COMPAT_JA,
     CYCLES, CYCLE_SOURCES, ERA_JA, EXPORT_SRC_GITHUB, EXPORT_SRC_OFFICIAL, FACTIONS_JA, MASTERY_CATS, MODES_JA,
     MOD_GROUPS, MOD_TYPES, PLANETS_JA, QUEST_CATS, QUEST_STATES, RARITY_JA, RELIC_STATE_JA, RIVEN_TYPES_JA,
-    SIM_CATS, SIM_DAMAGE_TYPES, SIM_RIVEN_GROUPS, SIM_STATS, SOURCE_CATS,
+    SIM_CATS, SIM_DAMAGE_TYPES, SIM_RIVEN_GROUPS, SIM_STATS, SOURCE_CATS, SYNDICATE_NAMES, VENDOR_GROUPS, VENDOR_NAMES,
 )
 
 
@@ -90,6 +90,8 @@ def ja_table() -> dict[str, str]:
 JA_TABLES = {
     "planet.": PLANETS_JA, "mode.": MODES_JA, "faction.": FACTIONS_JA, "rarity.": RARITY_JA, "src.cat.": SOURCE_CATS, "area.kind.": AREA_KINDS, "bounty.": BOUNTY_JA,
     "relic.era.": ERA_JA, "relic.state.": RELIC_STATE_JA, "clan.lab.": {k: v[1] for k, v in CLAN_LABS.items()},
+    "syndicate.": {k: v[1] for k, v in SYNDICATE_NAMES.items()}, "vendor.": {k: v[1] for k, v in VENDOR_NAMES.items()},
+    "vgroup.": {k: v[1] for k, v in VENDOR_GROUPS.items()},
     "mod.type.": MOD_TYPES, "mod.compat.": COMPAT_JA, "mod.group.": MOD_GROUPS, "mastery.cat.": MASTERY_CATS, "arcane.cat.": ARCANE_CATS,
     "quest.cat.": QUEST_CATS, "quest.state.": QUEST_STATES,
     "mastery.variant.": {"primary": "プライマリ", "secondary": "セカンダリ"},
